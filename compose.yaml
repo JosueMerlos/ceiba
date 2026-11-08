@@ -41,6 +41,9 @@ x-frontend: &frontend
     - panel_node_modules:/app/frontend/apps/panel/node_modules
     - booking_node_modules:/app/frontend/apps/booking/node_modules
     - config_node_modules:/app/frontend/packages/config/node_modules
+    - api_client_node_modules:/app/frontend/packages/api-client/node_modules
+    # El contrato OpenAPI (M0.06) lo genera el backend; el cliente TS lo lee de aquí, en solo lectura.
+    - ./backend/openapi:/app/backend/openapi:ro
 
 services:
   db:
@@ -161,3 +164,4 @@ volumes:
   panel_node_modules:
   booking_node_modules:
   config_node_modules:
+  api_client_node_modules:
