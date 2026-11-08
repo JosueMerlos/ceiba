@@ -6,3 +6,9 @@
 /backend/packwerk.yml          @JosueMerlos
 /backend/package.yml           @JosueMerlos
 /backend/lib/ci/pack_contract.rb @JosueMerlos
+/backend/spec/packs/                            @JosueMerlos
+/backend/spec/lib/ci/pack_contract_spec.rb      @JosueMerlos
+/backend/.rubocop.yml                           @JosueMerlos
+/backend/lib/rubocop/                           @JosueMerlos
+/infra/scripts/check-package-todo-growth*.sh    @JosueMerlos
+/.github/CODEOWNERS                             @JosueMerlos
