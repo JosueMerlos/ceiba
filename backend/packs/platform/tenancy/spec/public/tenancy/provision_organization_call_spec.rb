@@ -3,7 +3,7 @@ require "rails_helper"
 # Carrera real: dos provisiones concurrentes con el MISMO slug. Ambas pasan la validación de unicidad (ninguna ve aún
 # la fila de la otra); gana la restricción UNIQUE de la base y el perdedor recibe un error de dominio, no un
 # ActiveRecord::RecordNotUnique. Sin fixtures transaccionales: hacen falta COMMITs y conexiones distintas.
-RSpec.describe Tenancy::ProvisionOrganization, "con provisiones concurrentes" do
+RSpec.describe Tenancy::ProvisionOrganization, ".call" do
   self.use_transactional_tests = false
 
   let(:slug) { "carrera-#{SecureRandom.hex(3)}" }
@@ -23,25 +23,39 @@ RSpec.describe Tenancy::ProvisionOrganization, "con provisiones concurrentes" do
 
   def provision(name) = described_class.call(organization: { name: "Carrera #{name}" }, company: { name: name, slug:, business_type: "salon", currency: "NIO" }, branch: { name: "Centro" })
 
-  it "el perdedor de la carrera recibe slug_taken y solo queda una organización" do
+  # Corre A hasta tener su empresa insertada SIN commit; entonces arranca B (que no la ve y se bloquea en el INSERT por
+  # el índice único); al soltar A, B pierde. Devuelve [resultado de A, hilo de B].
+  def race
     inserted = Queue.new
     release = Queue.new
-    # El hook del PRIMERO corre cuando su empresa ya está insertada pero sin COMMIT: ahí arranca el segundo.
     hooks << described_class.after_provision(lambda do |result|
-      if result.organization.name == "Carrera A"
-        inserted << :ready
-        release.pop(timeout: 10)
-      end
-    end)
+      next unless result.organization.name == "Carrera A"
 
+      inserted << :ready
+      release.pop(timeout: 10)
+    end)
     winner = Thread.new { provision("A") }
     inserted.pop(timeout: 10)
-    loser = Thread.new { provision("B") }
-    sleep 0.5 # B ya validó (no ve a A) y está bloqueado en el INSERT por el índice único
+    loser = Thread.new do
+      Thread.current.report_on_exception = false
+      provision("B")
+    end
+    sleep 0.5 # B ya validó y está esperando en el INSERT
     release << :go
+    [ winner.value, loser ]
+  end
 
-    expect(winner.value.company.slug).to eq(slug)
+  it "el perdedor de la carrera recibe slug_taken (error de dominio, no RecordNotUnique)" do
+    winner, loser = race
+
+    expect(winner.company.slug).to eq(slug)
     expect { loser.value }.to raise_error(Tenancy::ProvisioningFailed) { |error| expect(error.code).to eq(:slug_taken) }
+  end
+
+  it "solo queda la organización ganadora" do
+    _winner, loser = race
+    expect { loser.value }.to raise_error(Tenancy::ProvisioningFailed)
+
     expect(Tenancy::Organization.where("name LIKE 'Carrera %'").pluck(:name)).to eq([ "Carrera A" ])
   end
 end

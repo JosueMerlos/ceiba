@@ -1,4 +1,13 @@
 es-NI:
+  tenancy:
+    provisioning_failed:
+      slug_reserved: 'El identificador "%{slug}" está reservado: elige otro.'
+      slug_taken: 'El identificador "%{slug}" ya está en uso: elige otro.'
+      invalid: "Datos inválidos. %{errors}"
+      sections:
+        organization: Organización
+        company: Empresa
+        branch: Sucursal
   activerecord:
     models:
       tenancy/organization: Organización

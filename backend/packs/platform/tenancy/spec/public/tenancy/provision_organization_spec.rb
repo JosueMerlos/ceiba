@@ -118,6 +118,11 @@ RSpec.describe Tenancy::ProvisionOrganization do
         .to raise_error(Tenancy::ProvisioningFailed) { |error| expect(error.code).to eq(:invalid) }
 
       expect(Tenancy::Organization.where(name: "Barbería El Güegüense")).to be_empty
+    end
+
+    it "tampoco queda la empresa" do
+      expect { provision(branch: { name: "Centro", time_zone: "Managua" }) }.to raise_error(Tenancy::ProvisioningFailed)
+
       expect(Tenancy::Company.unscoped.where(slug: "el-guegu")).to be_empty
     end
 
