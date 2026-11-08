@@ -15,12 +15,8 @@ RSpec.describe "Factories de tenancy" do
     expect(company.organization_id).to eq(organization.id)
   end
 
-  it "crea una empresa con su propia organización si se pasa organization" do
-    organization = create(:organization)
-
-    company = with_tenant(organization) { create(:company, organization:) }
-
-    expect(company.organization).to eq(organization)
+  it "exige un tenant para crear una empresa (no inventa una organización)" do
+    expect { create(:company) }.to raise_error(ActsAsTenant::Errors::NoTenantSet)
   end
 
   it "deriva el organization_id de la sucursal de su empresa" do

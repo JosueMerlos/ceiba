@@ -2,8 +2,8 @@ require "rails_helper"
 
 RSpec.describe Tenancy::Context do
   let(:organization) { create(:organization) }
-  let(:company) { create(:company, organization:) }
-  let(:branch) { create(:branch, company:) }
+  let(:company) { create_in(organization, :company) }
+  let(:branch) { create_in(organization, :branch, company:) }
 
   it "agrupa organización, empresa, sucursal y principal" do
     context = described_class.new(organization:, company:, branch:, principal: :principal)
@@ -27,7 +27,7 @@ RSpec.describe Tenancy::Context do
 
   it "cambiar de empresa crea un contexto nuevo y no toca el original" do
     original = described_class.new(organization:, company:)
-    other_company = create(:company, organization:)
+    other_company = create_in(organization, :company)
 
     switched = original.with(company: other_company)
 
@@ -45,15 +45,15 @@ RSpec.describe Tenancy::Context do
     end
 
     it "rechaza una empresa de otra organización" do
-      foreign_company = create(:company)
+      foreign_company = create_in(create(:organization), :company)
 
       expect { described_class.new(organization:, company: foreign_company) }
         .to raise_error(Tenancy::InconsistentContext, /empresa/)
     end
 
     it "rechaza una sucursal que no pertenece a la empresa indicada" do
-      other_company = create(:company, organization:)
-      other_branch = create(:branch, company: other_company)
+      other_company = create_in(organization, :company)
+      other_branch = create_in(organization, :branch, company: other_company)
 
       expect { described_class.new(organization:, company:, branch: other_branch) }
         .to raise_error(Tenancy::InconsistentContext, /sucursal/)
@@ -66,7 +66,7 @@ RSpec.describe Tenancy::Context do
     it "rechaza el cambio incoherente hecho con with" do
       context = described_class.new(organization:, company:)
 
-      expect { context.with(company: create(:company)) }.to raise_error(Tenancy::InconsistentContext)
+      expect { context.with(company: create_in(create(:organization), :company)) }.to raise_error(Tenancy::InconsistentContext)
     end
 
     it "InconsistentContext es un error de dominio de Tenancy" do

@@ -75,7 +75,7 @@ RSpec.describe Tenancy::Branch do
       branch = create_branch
       other_company = create_company(new_organization, "empresa-b")
 
-      expect { branch.update_columns(company_id: other_company.id) }
+      expect { savepoint { branch.update_columns(company_id: other_company.id) } }
         .to raise_error(ActiveRecord::InvalidForeignKey, /fk_branches_company/)
     end
 
@@ -106,7 +106,7 @@ RSpec.describe Tenancy::Branch do
       branch.save!
       duplicate = build_branch.tap { |b| b.id = branch.id }
 
-      expect { duplicate.save!(validate: false) }.to raise_error(ActiveRecord::RecordNotUnique)
+      expect { savepoint { duplicate.save!(validate: false) } }.to raise_error(ActiveRecord::RecordNotUnique)
     end
   end
 
@@ -131,7 +131,7 @@ RSpec.describe Tenancy::Branch do
     end
 
     it "la base rechaza un teléfono que no es E.164 aunque se salte la validación" do
-      expect { build_branch(phone_e164: "88887777").save!(validate: false) }
+      expect { savepoint { build_branch(phone_e164: "88887777").save!(validate: false) } }
         .to raise_error(ActiveRecord::StatementInvalid, /chk_branches_phone_e164/)
     end
   end

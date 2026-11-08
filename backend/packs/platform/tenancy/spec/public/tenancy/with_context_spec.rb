@@ -2,8 +2,8 @@ require "rails_helper"
 
 RSpec.describe "Tenancy.with_context" do
   let(:organization) { create(:organization) }
-  let(:company) { create(:company, organization:) }
-  let(:branch) { create(:branch, company:) }
+  let(:company) { create_in(organization, :company) }
+  let(:branch) { create_in(organization, :branch, company:) }
 
   def db_setting
     ActiveRecord::Base.connection.select_value("SELECT current_setting('app.organization_id', true)")
@@ -46,7 +46,7 @@ RSpec.describe "Tenancy.with_context" do
 
     it "aísla a la organización A de la B" do
       other = create(:organization)
-      other_company = create(:company, organization: other)
+      other_company = create_in(other, :company)
 
       Tenancy.with_context(organization:) do
         expect { Tenancy::Company.find(other_company.id) }.to raise_error(ActiveRecord::RecordNotFound)
@@ -74,14 +74,14 @@ RSpec.describe "Tenancy.with_context" do
 
   describe "coherencia (criterio 9)" do
     it "lanza InconsistentContext con una sucursal que no es de la empresa indicada" do
-      other_branch = create(:branch)
+      other_branch = create_in(organization, :branch)
 
-      expect { Tenancy.with_context(organization: other_branch.organization, company:, branch: other_branch) { flunk } }
+      expect { Tenancy.with_context(organization:, company:, branch: other_branch) { flunk } }
         .to raise_error(Tenancy::InconsistentContext)
     end
 
     it "no ejecuta el bloque ni toca la base si el contexto es incoherente" do
-      foreign_company = create(:company)
+      foreign_company = create_in(create(:organization), :company)
       ran = false
 
       expect { Tenancy.with_context(organization:, company: foreign_company) { ran = true } }.to raise_error(Tenancy::InconsistentContext)
@@ -131,15 +131,15 @@ RSpec.describe "Tenancy.with_context" do
 
     it "pasa el id como parámetro enlazado, nunca interpolado" do
       evil = "x'); DROP TABLE organizations; --"
-      hostile = Tenancy::Organization.new(id: evil, name: "hostil")
-      allow(hostile).to receive(:persisted?).and_return(true)
+      hostile = Tenancy::Organization.new(name: "hostil")
+      allow(hostile).to receive_messages(persisted?: true, id: evil)
       statements = []
       subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") { |*, payload| statements << payload[:sql] }
 
       Tenancy.with_context(organization: hostile) { expect(db_setting).to eq(evil) }
 
       ActiveSupport::Notifications.unsubscribe(subscriber)
-      expect(statements.grep(/set_config/)).to all(match(/set_config\(\$1, \$2, true\)/))
+      expect(statements.grep(/set_config/)).to all(include("set_config($1, $2, true)"))
       expect(statements.join).not_to include("DROP TABLE")
     end
   end
@@ -148,7 +148,7 @@ RSpec.describe "Tenancy.with_context" do
     it "revierte lo escrito dentro del bloque si este lanza" do
       expect do
         Tenancy.with_context(organization:) do
-          create(:company, organization:)
+          create(:company)
           raise "boom"
         end
       end.to raise_error("boom")

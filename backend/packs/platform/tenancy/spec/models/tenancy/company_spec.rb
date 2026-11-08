@@ -45,13 +45,13 @@ RSpec.describe Tenancy::Company do
     it "la base rechaza una organización inexistente aunque se salte la validación" do
       company = described_class.new(attributes.merge(organization_id: SecureRandom.uuid))
 
-      expect { company.save!(validate: false) }.to raise_error(ActiveRecord::InvalidForeignKey, /fk_companies_organization/)
+      expect { savepoint { company.save!(validate: false) } }.to raise_error(ActiveRecord::InvalidForeignKey, /fk_companies_organization/)
     end
 
     it "la base impide borrar una organización con empresas (restrict)" do
       create_company
 
-      expect { organization.destroy! }.to raise_error(ActiveRecord::StatementInvalid, /RestrictViolation.*fk_companies_organization/m)
+      expect { savepoint { organization.destroy! } }.to raise_error(ActiveRecord::StatementInvalid, /RestrictViolation.*fk_companies_organization/m)
     end
   end
 
@@ -110,11 +110,11 @@ RSpec.describe Tenancy::Company do
       create_company(new_organization, slug: "mi-salon")
       company = build_company(slug: "mi-salon")
 
-      expect { company.save!(validate: false) }.to raise_error(ActiveRecord::RecordNotUnique, /uq_companies_slug/)
+      expect { savepoint { company.save!(validate: false) } }.to raise_error(ActiveRecord::RecordNotUnique, /uq_companies_slug/)
     end
 
     it "la base impide un slug reservado o mal formado aunque se salte la validación" do
-      expect { build_company(slug: "Mal Formado").tap { |c| c.slug = "Mal Formado" }.save!(validate: false) }
+      expect { savepoint { build_company(slug: "Mal Formado").tap { |c| c.slug = "Mal Formado" }.save!(validate: false) } }
         .to raise_error(ActiveRecord::StatementInvalid, /chk_companies_slug_format/)
     end
   end
@@ -129,7 +129,7 @@ RSpec.describe Tenancy::Company do
     end
 
     it "la base rechaza otra moneda aunque se salte la validación" do
-      expect { build_company(currency: "EUR").save!(validate: false) }.to raise_error(ActiveRecord::StatementInvalid, /chk_companies_currency/)
+      expect { savepoint { build_company(currency: "EUR").save!(validate: false) } }.to raise_error(ActiveRecord::StatementInvalid, /chk_companies_currency/)
     end
   end
 
