@@ -173,21 +173,9 @@ paths:
                 required:
                 - data
                 type: object
-            application/problem+json:
-              schema:
-                additionalProperties: false
-                properties:
-                  data:
-                    "$ref": "#/components/schemas/Organization"
-                required:
-                - data
-                type: object
           description: la organización
         '404':
           content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/Problem"
             application/problem+json:
               schema:
                 "$ref": "#/components/schemas/Problem"
