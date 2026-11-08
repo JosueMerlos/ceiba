@@ -23,6 +23,14 @@ RSpec.describe Tenancy::Branch do
       expect { described_class.count }.to raise_error(ActsAsTenant::Errors::NoTenantSet)
     end
 
+    it "muestra en español el error de una empresa de otro tenant (acts_as_tenant)" do
+      other_company = create_company(new_organization, "empresa-b")
+      branch = build_branch(company_id: other_company.id).tap(&:valid?)
+
+      expect(branch.errors.full_messages.join).not_to include("[ActsAsTenant]").and match(/Empresa/)
+      expect(I18n.t("activerecord.errors.messages.acts_as_tenant.tenant_mismatch")).to eq("debe ser el tenant actual")
+    end
+
     it "toma la organización del tenant activo" do
       expect(create_branch.organization_id).to eq(organization.id)
     end

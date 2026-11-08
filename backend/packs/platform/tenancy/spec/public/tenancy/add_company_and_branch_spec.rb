@@ -18,6 +18,13 @@ RSpec.describe "Alta de empresas y sucursales adicionales" do
       expect(company).to be_persisted.and have_attributes(organization_id: result.organization.id, currency: "NIO")
     end
 
+    it "solo acepta la lista blanca de atributos (no id, status, organization_id...)" do
+      %i[id status organization_id created_at].each do |key|
+        expect { described_class.call(organization: result.organization, name: "X", slug: "x-grupo", business_type: "salon", currency: "NIO", key => "v") }
+          .to raise_error(ArgumentError, /#{key}/)
+      end
+    end
+
     it "traduce un slug reservado a un error de dominio" do
       expect { described_class.call(organization: result.organization, name: "X", slug: "admin", business_type: "salon", currency: "NIO") }
         .to raise_error(Tenancy::ProvisioningFailed) { |error| expect(error.code).to eq(:slug_reserved) }
@@ -34,6 +41,12 @@ RSpec.describe "Alta de empresas y sucursales adicionales" do
       branch = described_class.call(company: result.company, name: "Norte", time_zone: "America/Managua")
 
       expect(branch).to be_persisted.and have_attributes(company_id: result.company.id, organization_id: result.organization.id)
+    end
+
+    it "solo acepta la lista blanca de atributos (no id, status, organization_id...)" do
+      %i[id status organization_id company_id].each do |key|
+        expect { described_class.call(company: result.company, name: "Norte", key => "v") }.to raise_error(ArgumentError, /#{key}/)
+      end
     end
 
     it "traduce los datos inválidos a un error de dominio" do

@@ -97,6 +97,20 @@ RSpec.describe Tenancy::ProvisionOrganization do
       expect(Tenancy::Organization.where(name: "Barbería El Güegüense")).to be_empty
     end
 
+    it "el error de un hook se propaga tal cual (no se traduce a ProvisioningFailed) y revierte todo" do
+      invalid = Tenancy::Organization.new.tap(&:valid?)
+      register_hook { |_| raise ActiveRecord::RecordInvalid, invalid }
+
+      expect { provision }.to raise_error(ActiveRecord::RecordInvalid)
+      expect(Tenancy::Organization.where(name: "Barbería El Güegüense")).to be_empty
+    end
+
+    it "un RecordNotUnique de un hook tampoco se confunde con el slug" do
+      register_hook { |_| raise ActiveRecord::RecordNotUnique, "otro" }
+
+      expect { provision }.to raise_error(ActiveRecord::RecordNotUnique, "otro")
+    end
+
     it "dejar de registrar un hook lo quita de la lista" do
       called = false
       hook = register_hook { called = true }
