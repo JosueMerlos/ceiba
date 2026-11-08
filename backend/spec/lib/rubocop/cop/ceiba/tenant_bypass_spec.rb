@@ -61,6 +61,67 @@ RSpec.describe RuboCop::Cop::Ceiba::TenantBypass, :config do
       RUBY
     end
 
+    it "prohíbe quitar la condición del tenant con unscope(:where) o unscope(where: ...)" do
+      expect_offense(<<~RUBY, file)
+        Appointment.unscope(:where)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `unscope` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        Appointment.unscope(where: :organization_id)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `unscope` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+      RUBY
+    end
+
+    it "prohíbe rewhere sobre organization_id" do
+      expect_offense(<<~RUBY, file)
+        Appointment.rewhere(organization_id: other_id)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `rewhere` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+      RUBY
+    end
+
+    it "prohíbe except(:where) y only(...) sobre una relación" do
+      expect_offense(<<~RUBY, file)
+        scope.except(:where)
+        ^^^^^^^^^^^^^^^^^^^^ `except` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        scope.only(:order)
+        ^^^^^^^^^^^^^^^^^^ `only` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+      RUBY
+    end
+
+    it "prohíbe llegar al bypass con send, public_send y __send__" do
+      expect_offense(<<~RUBY, file)
+        Appointment.send(:unscoped)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `unscoped` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        ActsAsTenant.public_send("without_tenant") { 1 }
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `without_tenant` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        Appointment.__send__(:unscope, :where)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `unscope` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+      RUBY
+    end
+
+    it "prohíbe escribir en ActsAsTenant::Current" do
+      expect_offense(<<~RUBY, file)
+        ActsAsTenant::Current.current_tenant = org
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `current_tenant=` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        ::ActsAsTenant::Current.set(current_tenant: org) { 1 }
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `set` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+      RUBY
+    end
+
+    it "revisa también las tareas rake" do
+      expect_offense(<<~RUBY, "lib/tasks/reports.rake")
+        task(report: :environment) { Appointment.unscoped.count }
+                                     ^^^^^^^^^^^^^^^^^^^^ `unscoped` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+      RUBY
+    end
+
+    it "no marca unscope de otras cláusulas ni where normal" do
+      expect_no_offenses(<<~RUBY, file)
+        scope.unscope(:order)
+        scope.where(status: "x").rewhere(status: "y")
+        scope.except(:order)
+        scope.send(:name)
+      RUBY
+    end
+
     it "no confunde otros métodos ni otras constantes" do
       expect_no_offenses(<<~RUBY, file)
         Other.without_tenant { 1 }
