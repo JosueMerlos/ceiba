@@ -36,6 +36,10 @@ module RuboCop
         CURRENT_METHODS = %i[current_tenant= acts_as_tenant_unscoped= acts_as_tenant_mutable= set].freeze
         SEND_METHODS = %i[send public_send __send__].freeze
         # Métodos de relación que quitan/reemplazan la condición del tenant (siempre, o según sus argumentos).
+        # Escrituras masivas: se saltan callbacks y validaciones (TenantWriteGuard las acota en ejecución; aquí se revisan).
+        BULK_METHODS = %i[upsert_all upsert insert_all insert_all!].freeze
+        BULK_ON_CONSTANT_METHODS = %i[insert insert!].freeze # `insert` también existe en Array/String: solo con Constante.insert
+        TENANT_COLUMN_WRITERS = %i[update_all update_columns update_column].freeze
         RELATION_METHODS = %i[unscoped unscope rewhere except only].freeze
 
         # @!method acts_as_tenant_call?(node)
@@ -64,7 +68,22 @@ module RuboCop
           return node.method_name if acts_as_tenant_call?(node) && ACTS_AS_TENANT_METHODS.include?(node.method_name)
           return node.method_name if acts_as_tenant_current_call?(node) && CURRENT_METHODS.include?(node.method_name)
 
+          return node.method_name if bulk_write?(node)
+
           node.method_name if relation_bypass?(node.method_name, node.arguments)
+        end
+
+        def bulk_write?(node)
+          return true if BULK_METHODS.include?(node.method_name)
+          return true if BULK_ON_CONSTANT_METHODS.include?(node.method_name) && node.receiver&.const_type?
+
+          TENANT_COLUMN_WRITERS.include?(node.method_name) && node.arguments.any? { |argument| writes_organization_id?(argument) }
+        end
+
+        def writes_organization_id?(node)
+          return mentions_organization_id?(node) if node.hash_type?
+
+          (node.sym_type? || node.str_type?) && node.value.to_s.match?(/\borganization_id\b/)
         end
 
         # `x.send(:unscoped)` / `x.public_send("without_tenant")`: se mira el método destino.
