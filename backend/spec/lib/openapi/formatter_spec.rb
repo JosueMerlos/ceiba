@@ -20,4 +20,23 @@ RSpec.describe Openapi::Formatter do
 
     expect(yaml.lines.grep(/\A\w/).map { |line| line[/\A\w+/] }).to eq(%w[info openapi paths])
   end
+
+  describe "tipos de contenido por respuesta" do
+    let(:content) do
+      { "application/json" => { schema: { type: "object" } }, "application/problem+json" => { schema: { type: "object" } } }
+    end
+    let(:document) do
+      { openapi: "3.0.3", paths: { "/x" => { get: { responses: { "200" => { content: content }, "404" => { content: content }, "204" => { description: "sin cuerpo" } } } } } }
+    end
+    let(:responses) { YAML.safe_load(render(document)).dig("paths", "/x", "get", "responses") }
+
+    it "deja solo application/json en los éxitos y solo application/problem+json en los errores (rswag lo declara por operación)" do
+      expect(responses.dig("200", "content").keys).to eq([ "application/json" ])
+      expect(responses.dig("404", "content").keys).to eq([ "application/problem+json" ])
+    end
+
+    it "no inventa contenido en respuestas sin cuerpo" do
+      expect(responses["204"]).to eq("description" => "sin cuerpo")
+    end
+  end
 end
