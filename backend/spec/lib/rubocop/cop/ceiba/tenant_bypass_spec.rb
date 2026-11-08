@@ -13,51 +13,51 @@ RSpec.describe RuboCop::Cop::Ceiba::TenantBypass, :config do
     it "prohíbe ActsAsTenant.without_tenant" do
       expect_offense(<<~RUBY, file)
         ActsAsTenant.without_tenant { Appointment.count }
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^ Ceiba/TenantBypass: `without_tenant` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `without_tenant` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
       RUBY
     end
 
     it "prohíbe la forma con :: inicial" do
       expect_offense(<<~RUBY, file)
         ::ActsAsTenant.without_tenant { 1 }
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Ceiba/TenantBypass: `without_tenant` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `without_tenant` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
       RUBY
     end
 
     it "prohíbe ActsAsTenant.with_mutable_tenant" do
       expect_offense(<<~RUBY, file)
         ActsAsTenant.with_mutable_tenant { 1 }
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Ceiba/TenantBypass: `with_mutable_tenant` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `with_mutable_tenant` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
       RUBY
     end
 
     it "prohíbe fijar el tenant fuera de Tenancy.with_context" do
       expect_offense(<<~RUBY, file)
         ActsAsTenant.with_tenant(org) { 1 }
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^ Ceiba/TenantBypass: `with_tenant` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `with_tenant` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
       RUBY
     end
 
     it "prohíbe asignar current_tenant o unscoped en ActsAsTenant" do
       expect_offense(<<~RUBY, file)
         ActsAsTenant.current_tenant = org
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Ceiba/TenantBypass: `current_tenant=` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `current_tenant=` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
         ActsAsTenant.unscoped = true
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Ceiba/TenantBypass: `unscoped=` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `unscoped=` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
       RUBY
     end
 
     it "prohíbe Model.unscoped" do
       expect_offense(<<~RUBY, file)
         Appointment.unscoped.where(id: 1)
-        ^^^^^^^^^^^^^^^^^^^^ Ceiba/TenantBypass: `unscoped` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        ^^^^^^^^^^^^^^^^^^^^ `unscoped` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
       RUBY
     end
 
     it "prohíbe unscoped con bloque y sin receptor" do
       expect_offense(<<~RUBY, file)
         unscoped { all }
-        ^^^^^^^^ Ceiba/TenantBypass: `unscoped` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        ^^^^^^^^ `unscoped` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
       RUBY
     end
 
@@ -87,7 +87,7 @@ RSpec.describe RuboCop::Cop::Ceiba::TenantBypass, :config do
     it "sigue prohibiendo en archivos que solo se parecen" do
       expect_offense(<<~RUBY, "packs/platform/tenancy/app/services/tenancy/other.rb")
         ActsAsTenant.without_tenant { 1 }
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^ Ceiba/TenantBypass: `without_tenant` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `without_tenant` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
       RUBY
     end
   end

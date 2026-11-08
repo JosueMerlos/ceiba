@@ -6,6 +6,7 @@ inherit_gem:
 # Cops propios (lib/rubocop/cop). Ceiba/PackNamespace: el namespace de un archivo es el de su pack.
 require:
   - ./lib/rubocop/cop/ceiba/pack_namespace
+  - ./lib/rubocop/cop/ceiba/tenant_bypass
 
 plugins:
   - rubocop-rails
@@ -60,6 +61,23 @@ Ceiba/PackNamespace:
   Enabled: true
   Include:
     - "packs/*/*/app/**/*.rb"
+
+# Nadie se salta el aislamiento de tenant (ActsAsTenant.without_tenant, unscoped...) fuera de esta lista. Cada archivo
+# que se añada aquí es un camino privilegiado y exige revisión (CODEOWNERS): reportes consolidados, back-office.
+# Tenancy.with_context es el único que fija el tenant. Los specs no se revisan (los tests de bypass lo necesitan).
+Ceiba/TenantBypass:
+  Enabled: true
+  Include:
+    - "app/**/*.rb"
+    - "packs/*/*/app/**/*.rb"
+    - "packs/*/*/lib/**/*.rb"
+    - "lib/**/*.rb"
+    - "db/**/*.rb"
+    - "config/**/*.rb"
+  Exclude:
+    - "lib/rubocop/**/*"
+  AllowedFiles:
+    - "packs/platform/tenancy/app/public/tenancy.rb"
 
 # rubocop-rails limita estos cops a app/models, app/controllers... de la raíz; sin esto no
 # revisarían los packs (packs-rails, "Ecosystem and Integrations").
