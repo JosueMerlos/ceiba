@@ -62,19 +62,38 @@ CREATE POLICY tenant_isolation ON <tabla>
 - La condición real (`create_tenant_table`) envuelve el setting en `NULLIF(..., '')` antes del cast a `uuid`: tras un `SET LOCAL` previo el setting queda como cadena vacía y `''::uuid` fallaría; así una conexión sin contexto ve cero filas en lugar de un error. Ver [09](09-data-conventions.md#tablas-tenant).
 - Hasta M4.03 la política **existe pero RLS está deshabilitado** en la tabla. Activarlo es una migración, no un rediseño.
 - La aplicación se conecta con un rol **sin** `BYPASSRLS` y que **no es dueño** de las tablas (el dueño ignora RLS salvo `FORCE ROW LEVEL SECURITY`). Las migraciones usan un rol dueño distinto (`app_owner`; la app usa `app_user`: ver [09](09-data-conventions.md#roles-de-base-de-datos)).
-- `Tenancy.with_context` ejecuta `SET LOCAL app.organization_id = '<uuid>'` dentro de una transacción. `SET LOCAL` muere con la transacción, así que no hay fugas entre requests que comparten conexión del pool.
+- `Tenancy.with_context` fija `app.organization_id` con `set_config('app.organization_id', $2, true)` (el equivalente parametrizable de `SET LOCAL`: el id viaja como parámetro enlazado, **nunca interpolado**) dentro de una transacción. El setting muere con la transacción, así que no hay fugas entre requests que comparten conexión del pool; además, si el bloque termina bien, el setting se restaura al valor anterior (el del contexto externo si estaba anidado) para que tampoco se filtre al resto de una transacción ajena que lo envuelva. Ver [Contexto](#contexto-por-request-y-por-job).
 - Los caminos privilegiados (back-office, reportes consolidados de plataforma) usan un rol de BD separado con `BYPASSRLS`, en código explícito y auditado.
+
+## Tablas del pack (M0.05)
+
+| Tabla | Tipo | Notas |
+| --- | --- | --- |
+| `organizations` | raíz del tenant (sin `organization_id`) | `name`, `legal_name`, `country_code` (`NI`, CHECK `^[A-Z]{2}$`), `status` (`active`/`suspended`) |
+| `companies` | tenant (`create_tenant_table`) | `slug` **único global** (`uq_companies_slug`, CHECK `^[a-z0-9-]{3,40}$`, además lista de reservados en el modelo), `currency` (`NIO`/`USD`, CHECK), `locale`, `status` (`active`/`inactive`) |
+| `branches` | tenant + `t.tenant_reference :company` | FK compuesta `fk_branches_company`; `time_zone` IANA (default `America/Managua`, validado contra TZInfo), `phone_e164` (CHECK E.164), `status` |
+
+**`on_delete: :restrict` en todas las FKs** (el default de los helpers). Justificación: borrar una organización, una empresa o una sucursal con datos es un *offboarding* explícito (exportar, retener, borrar por `organization_id`: P3), nunca un efecto lateral de un `DELETE`; con `cascade`, un `destroy` accidental de la organización borraría en silencio todo su negocio, y con `nullify` ni siquiera es posible (`organization_id` es `NOT NULL`). Probado en `company_spec.rb`. El modelo `Organization` no declara `dependent:` a propósito: la base es quien protege.
+
+Los modelos (`Tenancy::Organization`, `Company`, `Branch`) son **privados** del pack. API pública: `Tenancy.with_context`, `Tenancy::Context`, `Tenancy::ProvisionOrganization`, `Tenancy::AddCompany`, `Tenancy::AddBranch`, `Tenancy::Error`, `Tenancy::InconsistentContext`, `Tenancy::ProvisioningFailed` (fijado por `packs/platform/tenancy/spec/public_api_spec.rb`; packwerk impide usar el resto desde fuera).
+
+`Branch` convierte la violación de la FK compuesta en un error de validación (`errors[:company]`, "pertenece a otra organización") cuando alguien se salta las validaciones con `save(validate: false)`; el intento corre en un savepoint para no abortar la transacción del llamador. `update_columns` (que no pasa por el modelo) sí llega a la base, que lo rechaza con `fk_branches_company` (criterio 3).
 
 ## Contexto por request y por job
 
 ```ruby
 Tenancy::Context = Data.define(:organization, :company, :branch, :principal)
-Current.context  # un único objeto inmutable por request/job
+Current.context  # un único objeto inmutable por request/job (Current vive en app/models/current.rb, pack raíz)
+
+Tenancy.with_context(organization: org, company: co) { |context| ... }
 ```
 
-- **Request:** la organización y la empresa salen de la **ruta** (`/api/v1/organizations/:organization_id/companies/:company_id/...`), nunca del body. Se validan contra los memberships del principal antes de fijar el contexto.
-- **Job:** recibe `organization_id` (y los ids que necesite) como argumentos; el middleware de Sidekiq reconstruye el contexto con `Tenancy.with_context`. **Nunca se lee `Current` dentro de un job.**
-- `Tenancy.with_context` es el **único** punto que llama a `ActsAsTenant.with_tenant` y a `SET LOCAL`.
+- `Context` es inmutable (`Data`, congelado); cambiar de empresa crea uno nuevo (`context.with(company: otra)`). Valida la coherencia al construirse **y en cada `with`**: organización guardada, `company.organization_id == organization.id`, `branch.company_id == company.id` (y una sucursal exige empresa). Si no, `Tenancy::InconsistentContext`, **antes** de tocar el tenant o la base.
+- **`Tenancy.with_context` es el único punto** que llama a `ActsAsTenant.with_tenant` y escribe `app.organization_id` (lo vigila el cop `Ceiba/TenantBypass`, ver abajo). Qué hace, en orden: construye y valida el `Context`; abre una **transacción** (`requires_new: true`, es decir, un savepoint si ya hay una: `SET LOCAL` solo existe dentro de una transacción); guarda el valor previo del setting; escribe el id con `set_config($1, $2, true)`; ejecuta el bloque con `ActsAsTenant.with_tenant` y `Current.set(context:)`; al terminar bien restaura el setting previo.
+- Consecuencias que hay que conocer: (1) **si el bloque lanza, se revierte lo escrito dentro de él** (es una transacción) y el setting desaparece con ella, sin restauración manual; (2) un error de PostgreSQL que el bloque rescata **sin savepoint** deja la transacción abortada y `with_context` fallará al restaurar: aísla el intento con `transaction(requires_new: true)`; (3) cada contexto es una transacción: no envuelvas trabajo largo sin necesidad.
+- Pruebas: `packs/platform/tenancy/spec/public/tenancy/with_context_spec.rb` (setting dentro/fuera, anidado, excepciones, parámetro enlazado) y `with_context_pool_spec.rb` (sin fixtures transaccionales: COMMIT real, otra conexión del pool no ve el setting, una conexión reutilizada llega sin contexto, dos hilos solapados con organizaciones distintas ven cada uno la suya).
+- **Request:** la organización y la empresa salen de la **ruta** (`/api/v1/organizations/:organization_id/companies/:company_id/...`), nunca del body. Se validan contra los memberships del principal antes de fijar el contexto (M0.07/M0.08).
+- **Job:** recibe `organization_id` (y los ids que necesite) como argumentos; el middleware de Sidekiq reconstruye el contexto con `Tenancy.with_context`. **Nunca se lee `Current` dentro de un job** (M0.10). **Ojo:** `acts_as_tenant` 2.2.2 instala por su cuenta una extensión de ActiveJob que serializa el tenant actual al encolar y lo restaura al ejecutar, **sin** pasar por `Tenancy.with_context` (no escribe `app.organization_id`). Hoy es inocuo (RLS está deshabilitado) pero M0.10/M4.03 deben reemplazarla por el middleware propio o desactivarla.
 
 ## Caminos privilegiados
 
@@ -84,9 +103,18 @@ Current.context  # un único objeto inmutable por request/job
 | Back-office de plataforma | `Principal::PlatformStaff` + rol de BD con bypass | Cada acceso a datos de un tenant se audita; impersonación just-in-time con motivo y caducidad |
 | Seeds, consola, migraciones de datos | `Tenancy.with_context` explícito por organización | Prohibido `ActsAsTenant.without_tenant` fuera de una allowlist revisada en CI |
 
+**Guardia en CI: cop `Ceiba/TenantBypass`** (`backend/lib/rubocop/cop/ceiba/tenant_bypass.rb`, etapa `backend-lint`). Prohíbe en el código de aplicación (`app/`, `packs/*/*/app` y `lib`, `db`, `config`; los specs no se revisan) `ActsAsTenant.without_tenant`, `with_mutable_tenant`, `with_tenant`, `current_tenant=`, `unscoped=` y cualquier `.unscoped`. La única excepción inicial es `packs/platform/tenancy/app/public/tenancy.rb` (`with_context`). Un camino privilegiado nuevo (reporte consolidado, back-office) se añade a `AllowedFiles` en `backend/.rubocop.yml`, archivo por archivo y con revisión de CODEOWNERS; no se desactiva con `rubocop:disable`.
+
 ## Provisión de tenants
 
-`Tenancy::ProvisionOrganization` es el **único** camino para crear una organización con su primera empresa y su primera sucursal. Expone hooks `after_provision` que otros packs registran:
+`Tenancy::ProvisionOrganization.call(organization:, company:, branch:)` es el **único** camino para crear una organización con su primera empresa y su primera sucursal; devuelve `Result(organization, company, branch)`.
+
+- Una transacción (con savepoint si hay una externa, así un fallo no aborta al llamador). Claves desconocidas en cada sección → `ArgumentError`.
+- Errores de **dominio**, no de BD: `Tenancy::ProvisioningFailed` con `code` (`:slug_reserved`, `:slug_taken`, `:invalid`), `message` legible en es-NI y `details` por sección y campo. La unicidad del slug la decide la **base** (`uq_companies_slug`): si dos provisiones compiten, ambas pasan la validación, gana la restricción UNIQUE y el perdedor recibe `:slug_taken` (probado con dos hilos, `provision_organization_call_spec.rb`).
+- Altas posteriores: `Tenancy::AddCompany.call(organization:, **atributos)` y `Tenancy::AddBranch.call(company:, **atributos)` (misma traducción de errores); las usan los seeds y, más adelante, el back-office. Son API pública porque los modelos son privados.
+- Hooks: `ProvisionOrganization.after_provision(callable = nil, &block)` (devuelve el hook) y `.remove_after_provision(hook)`. Corren **en orden de registro, dentro de la transacción y dentro del contexto de la organización nueva** (`Current.context` con organización, empresa y sucursal) y reciben el `Result`. Un hook que lanza revierte todo y su error se propaga tal cual. **Pendiente para M0.08:** el playbook muestra un parámetro `owner:`; los hooks hoy solo reciben el `Result`, así que M0.08 deberá decidir cómo llegan los datos del dueño (p. ej. un parámetro `extras:` reenviado a los hooks).
+
+Hooks previstos, que otros packs registran:
 
 - `access`: crea el membership `org_owner` del usuario dueño.
 - `modules`: activa los módulos por defecto según el plan (hoy, `appointments`).
@@ -96,7 +124,7 @@ Ver [playbook de alta de organización](../playbooks/onboard-an-organization.md)
 
 ## Pruebas obligatorias
 
-- **Suite de aislamiento genérica** (M0.05): descubre todos los modelos con `organization_id` y verifica, para cada uno, que sin tenant la consulta falla y que A no ve a B.
+- **Suite de aislamiento genérica** (M0.05, `spec/platform/tenancy/isolation_spec.rb`; corre dentro de `rspec`, es decir, en `bin/ci backend-test`, no es un job opcional): `TenantIsolation.models` (`spec/support/tenant_isolation.rb`) descubre todos los `ApplicationRecord` cuya tabla tiene `organization_id` (por el esquema, no por una lista) y el ejemplo compartido `"un modelo tenant aislado"` verifica, para cada uno: (a) sin tenant `NoTenantSet`; (b) con A, ni las consultas ni el `count` incluyen filas de B; (c) un `find` de un id de B dentro de A lanza `RecordNotFound` (y a la inversa). **Cada modelo necesita una factory** que derive `organization_id` del tenant activo o del padre; si falta, los ejemplos **fallan** con "Falta una factory para X: agrega `factory :x, class: "X"`" (no se salta el modelo). Complementa al guardián de `platform/database` (tablas con `organization_id` == tablas con política) con `uncovered_tables`: toda tabla tenant debe tener un modelo (o una exención escrita en `TenantIsolation::UNMODELED_TABLES`). `tenant_isolation_spec.rb` demuestra el criterio 4 con una tabla tenant real efímera y un modelo sin factory.
 - **Pruebas de bypass de RLS** (M4.03): con `acts_as_tenant` desactivado a propósito, una consulta SQL cruda no devuelve filas de otra organización.
 - La autorización **entre empresas de la misma organización** se prueba en la matriz de autorización ([12](12-testing-strategy.md)), no aquí.
 

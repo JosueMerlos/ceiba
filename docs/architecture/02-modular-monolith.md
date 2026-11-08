@@ -28,7 +28,7 @@ Si algún día un módulo necesita escalar por separado, los límites ya existen
 | --- | --- | --- |
 | `platform/database` | Convenciones de BD: helpers de migración (`create_tenant_table`, `t.tenant_reference`, `enable_tenant_rls`), PK `uuidv7()`, registro de tablas tenant | `Database::TenantTables` (los helpers se instalan en el adaptador y se usan desde las migraciones, sin referencia a constantes) |
 | `platform/identity` | Usuarios (personas), contraseñas, sesiones, 2FA, invitaciones | `Identity::Authenticate`, `Identity::CurrentSession` |
-| `platform/tenancy` | Organización, empresa, sucursal, contexto, provisión | `Tenancy.with_context`, `Tenancy::ProvisionOrganization` |
+| `platform/tenancy` | Organización, empresa, sucursal, contexto, provisión | `Tenancy.with_context`, `Tenancy::Context`, `Tenancy::ProvisionOrganization` (+ `Tenancy::AddCompany`, `Tenancy::AddBranch`) |
 | `platform/access` | Permisos, roles, memberships, principal, base de Pundit, API keys | `Access::Principal`, `Access::BasePolicy`, `Access.register_permissions` |
 | `platform/modules` | Registro de manifiestos, `company_modules`, entitlements, settings | `Modules.registry`, `Modules.enabled?(company, key)`, `Modules.settings_for` |
 | `platform/events` | Outbox, relay, suscripciones, consumidores idempotentes | `Events.publish`, `Events.subscribe` |
