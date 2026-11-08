@@ -1,2 +1,34 @@
 es-NI:
-  tenancy: {}
+  activerecord:
+    models:
+      tenancy/organization: Organización
+      tenancy/company: Empresa
+      tenancy/branch: Sucursal
+    attributes:
+      tenancy/organization:
+        name: Nombre
+        legal_name: Razón social
+        country_code: País
+        status: Estado
+      tenancy/company:
+        name: Nombre
+        slug: Identificador (slug)
+        business_type: Giro
+        currency: Moneda
+        locale: Idioma
+        status: Estado
+      tenancy/branch:
+        name: Nombre
+        time_zone: Zona horaria
+        address: Dirección
+        phone_e164: Teléfono
+        status: Estado
+        company: Empresa
+    errors:
+      models:
+        tenancy/branch:
+          attributes:
+            time_zone:
+              invalid_time_zone: no es una zona horaria IANA válida (por ejemplo America/Managua)
+            company:
+              different_organization: pertenece a otra organización

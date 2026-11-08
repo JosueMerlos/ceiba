@@ -28,10 +28,8 @@ RSpec.describe Tenancy::Branch do
     end
 
     it "no encuentra por id una sucursal de otra organización" do
-      other_branch = with_tenant(new_organization) do |_|
-        other_org = ActsAsTenant.current_tenant
-        described_class.create!(company: create_company(other_org, "empresa-b"), name: "Otra")
-      end
+      other_org = new_organization
+      other_branch = with_tenant(other_org) { described_class.create!(company: create_company(other_org, "empresa-b"), name: "Otra") }
 
       expect { described_class.find(other_branch.id) }.to raise_error(ActiveRecord::RecordNotFound)
     end
@@ -130,6 +128,11 @@ RSpec.describe Tenancy::Branch do
 
     it "rechaza un estado desconocido" do
       expect(build_branch(status: "cerrada")).not_to be_valid
+    end
+
+    it "la base rechaza un teléfono que no es E.164 aunque se salte la validación" do
+      expect { build_branch(phone_e164: "88887777").save!(validate: false) }
+        .to raise_error(ActiveRecord::StatementInvalid, /chk_branches_phone_e164/)
     end
   end
 end
