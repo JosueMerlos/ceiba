@@ -39,7 +39,20 @@ module Backend
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
     #
-    # config.time_zone = "Central Time (US & Canada)"
+    # Español de Nicaragua por defecto (rails-i18n trae es-NI); `en` solo como idioma de respaldo/técnico.
+    config.i18n.available_locales = [ :"es-NI", :en ]
+    config.i18n.default_locale = :"es-NI"
+
+    # Todo se guarda y se procesa en UTC. La zona de referencia de negocio es la de la SUCURSAL
+    # (branches.time_zone), nunca la del servidor (docs/architecture/09-data-conventions.md).
+    config.time_zone = "UTC"
+    config.active_record.default_timezone = :utc
+
+    # Convenciones de base de datos (M0.04, docs/architecture/09-data-conventions.md):
+    # PK uuid (default uuidv7() de PostgreSQL 18) y structure.sql en lugar de schema.rb, porque
+    # las políticas RLS, las exclusion constraints y las extensiones no caben en schema.rb.
+    config.active_record.schema_format = :sql
+    config.generators { |g| g.orm :active_record, primary_key_type: :uuid }
     # config.eager_load_paths << Rails.root.join("extras")
 
     # Only loads a smaller set of middleware suitable for API only apps.

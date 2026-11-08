@@ -1,13 +1,27 @@
 # Los parámetros de conexión vienen de variables de entorno (compose.yaml).
 # No se usa DATABASE_URL a propósito: en test sobrescribiría el nombre de la base
 # y los specs acabarían corriendo contra la base de desarrollo.
+#
+# DOS ROLES (M0.04, ADR-0005, docs/architecture/03-multi-tenancy.md):
+#   app_user   por defecto: servidor, worker, consola, runner, specs, db:seed y toda tarea no listada. No es dueño de
+#              tablas, no es superusuario y no tiene BYPASSRLS, para que las políticas RLS le apliquen.
+#   app_owner  solo las tareas de esquema de la allowlist DbRoles::OWNER_TASKS (db:create, db:migrate, db:rollback,
+#              db:schema:load, db:prepare...; config/db_roles.rb) o DB_ROLE=owner explícito.
+# DB_ROLE=owner|user fuerza el rol. Los seeds siempre corren como app_user (config/initializers/seed_role.rb).
+# Los roles los crea infra/db/init-roles.sh.
+<%
+  require File.join(Rails.root, "config/db_roles")
+  role = DbRoles.select(DbRoles.top_level_tasks, ENV["DB_ROLE"])
+  username = "app_#{role}"
+  password = ENV.fetch("APP_#{role.upcase}_PASSWORD", "")
+%>
 default: &default
   adapter: postgresql
   encoding: unicode
   connect_timeout: 5
   host: <%= ENV.fetch("DB_HOST", "localhost") %>
-  username: <%= ENV.fetch("POSTGRES_USER", "ceiba") %>
-  password: <%= ENV.fetch("POSTGRES_PASSWORD", "") %>
+  username: <%= username %>
+  password: <%= password.to_json %>
   max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
 
 development:

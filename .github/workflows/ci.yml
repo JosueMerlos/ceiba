@@ -21,6 +21,9 @@ env:
   DB_HOST: localhost
   POSTGRES_USER: ceiba
   POSTGRES_PASSWORD: ceiba_ci_password # contraseña del servicio efímero de CI, no es un secreto
+  # Roles de la aplicación (M0.04): los crea infra/db/init-roles.sh en el servicio postgres, que no tiene initdb.d.
+  APP_OWNER_PASSWORD: ceiba_owner_ci_password # igual: servicio efímero, no es un secreto
+  APP_USER_PASSWORD: ceiba_user_ci_password
   REDIS_URL: redis://localhost:6379/0
 
 jobs:
@@ -71,6 +74,44 @@ jobs:
           working-directory: backend
       - run: backend/bin/ci-packs
 
+  backend-migrations:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18.6-trixie
+        env:
+          POSTGRES_USER: ceiba
+          POSTGRES_PASSWORD: ceiba_ci_password
+          POSTGRES_DB: ceiba_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ceiba -d ceiba_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # pg_dump (structure.sql) exige la MISMA versión mayor que el servidor: el runner trae el cliente 16 y
+      # `db:migrate` abortaría con "server version mismatch". Se instala postgresql-client-18 desde PGDG
+      # (misma versión mayor que el servicio postgres; lo verifica infra/scripts/check-versions.sh).
+      - name: Cliente PostgreSQL 18 (pg_dump igual que el servidor)
+        run: |
+          sudo install -d /usr/share/keyrings
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes -o /usr/share/keyrings/pgdg.gpg
+          echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client-18
+          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
+      - name: Roles de base de datos (app_owner, app_user)
+        run: infra/db/init-roles.sh
+      - name: Prueba de init-roles.sh (idempotencia, identity, particiones)
+        run: infra/db/init-roles_test.sh
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          bundler-cache: true
+          working-directory: backend
+      # Migra desde cero, revierte la última y vuelve a migrar, y exige que db/structure.sql no cambie.
+      - run: backend/bin/ci-migrations
+
   backend-test:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -93,6 +134,19 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # pg_dump (structure.sql) exige la MISMA versión mayor que el servidor: el runner trae el cliente 16 y
+      # `db:migrate` abortaría con "server version mismatch". Se instala postgresql-client-18 desde PGDG
+      # (misma versión mayor que el servicio postgres; lo verifica infra/scripts/check-versions.sh).
+      - name: Cliente PostgreSQL 18 (pg_dump igual que el servidor)
+        run: |
+          sudo install -d /usr/share/keyrings
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes -o /usr/share/keyrings/pgdg.gpg
+          echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client-18
+          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
+      - name: Roles de base de datos (app_owner, app_user)
+        run: infra/db/init-roles.sh
       - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           bundler-cache: true

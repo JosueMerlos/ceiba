@@ -17,7 +17,6 @@ AllCops:
   TargetRubyVersion: 3.4
   Exclude:
     - "bin/**/*"
-    - "db/schema.rb"
     - "tmp/**/*"
     - "vendor/**/*"
     - "node_modules/**/*"
@@ -37,7 +36,10 @@ RSpec/DescribeClass:
     - "spec/requests/**/*"
     - "spec/config/**/*"
     - "spec/packs/**/*"
+    - "spec/db/**/*"
+    - "spec/generators/model_generator_spec.rb"
     - "packs/*/*/spec/package_spec.rb"
+    - "packs/platform/database/spec/database/**/*"
 
 # Los ejemplos de resiliencia (timeouts, conexiones colgadas) necesitan varias expectativas.
 RSpec/MultipleExpectations:

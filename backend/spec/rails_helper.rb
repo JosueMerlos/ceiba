@@ -7,11 +7,8 @@ require "rspec/rails"
 # Helpers compartidos (spec/support/**/*.rb).
 Rails.root.glob("spec/support/**/*.rb").sort.each { |file| require file }
 
-begin
-  ActiveRecord::Migration.maintain_test_schema!
-rescue ActiveRecord::PendingMigrationError => error
-  abort error.to_s.strip
-end
+# Esquema de test al día (db:prepare como dueño en un subproceso si hace falta): ver spec/support/test_schema.rb.
+TestSchema.ensure_current!
 
 RSpec.configure do |config|
   config.fixture_paths = [ Rails.root.join("spec/fixtures") ]

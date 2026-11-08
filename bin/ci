@@ -16,6 +16,8 @@ export HOST_UID="${HOST_UID:-$(id -u)}" HOST_GID="${HOST_GID:-$(id -g)}"
 ACTIONLINT_IMAGE="rhysd/actionlint:1.7.12"
 
 backend()  { docker compose run --rm --no-deps -T -e RUN_SETUP=false api "$@"; }
+# Roles app_owner/app_user (M0.04): idempotente. Cubre también un volumen de BD creado antes de M0.04.
+db_roles() { docker compose exec -T db /docker-entrypoint-initdb.d/10-roles.sh; }
 backend_with_services() { docker compose run --rm -T -e RUN_SETUP=false -e RAILS_ENV=test api "$@"; }
 frontend() { docker compose run --rm --no-deps -T --entrypoint "" -w /app/frontend panel "$@"; }
 
@@ -23,13 +25,16 @@ stage_repo_checks()      { infra/scripts/check-versions.sh && infra/scripts/chec
 stage_workflows()        { docker run --rm -v "$PWD":/repo -w /repo "$ACTIONLINT_IMAGE"; }
 stage_backend_lint()     { backend bin/ci-lint; }
 stage_backend_packs()    { infra/scripts/check-package-todo-growth_test.sh && infra/scripts/check-package-todo-growth.sh && backend bin/ci-packs; }
-stage_backend_test()     { docker compose up -d --wait db redis && backend_with_services bin/ci-test; }
+# Prueba de init-roles.sh en una base efímera (identity, vistas, funciones, particiones; dos ejecuciones).
+db_roles_test() { docker compose exec -T db env INIT_ROLES=/docker-entrypoint-initdb.d/10-roles.sh bash -s < infra/db/init-roles_test.sh; }
+stage_backend_migrations() { docker compose up -d --wait db redis && db_roles && db_roles_test && backend_with_services bin/ci-migrations; }
+stage_backend_test()     { docker compose up -d --wait db redis && db_roles && backend_with_services bin/ci-test; }
 stage_backend_security() { backend bin/ci-security; }
 stage_frontend_lint()    { frontend bin/ci-lint; }
 stage_frontend_test()    { frontend bin/ci-test; }
 stage_frontend_security() { frontend bin/ci-security; }
 
-ALL_STAGES=(repo-checks workflows backend-lint backend-packs backend-test backend-security frontend-lint frontend-test frontend-security)
+ALL_STAGES=(repo-checks workflows backend-lint backend-packs backend-migrations backend-test backend-security frontend-lint frontend-test frontend-security)
 if [ "$#" -gt 0 ]; then stages=("$@"); else stages=("${ALL_STAGES[@]}"); fi
 
 # Construye las imágenes (usa la caché de capas) para que los contenedores existan.

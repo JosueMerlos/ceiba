@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Job backend-migrations de CI (y de bin/ci): las migraciones funcionan desde cero, son reversibles y
+# db/structure.sql está al día. Se ejecuta desde backend/. Requiere PostgreSQL con los roles app_owner/app_user
+# (infra/db/init-roles.sh) y DB_HOST, POSTGRES_*, APP_OWNER_PASSWORD, APP_USER_PASSWORD.
+#
+#   1. migrar desde una base vacía                          -> db/structure.sql debe quedar IGUAL al versionado
+#   2. revertir la última migración y volver a migrarla     -> igual de nuevo (down correcto y volcado determinista)
+#   3. cargar db/structure.sql en una base vacía            -> extensiones, políticas y FKs compuestas incluidas
+# strong_migrations bloquea en el paso 1 cualquier migración peligrosa (spec/config/strong_migrations_spec.rb).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export RAILS_ENV=test
+committed="$(mktemp)"
+trap 'rm -f "$committed"' EXIT
+cp db/structure.sql "$committed"
+
+assert_structure_unchanged() {
+  if ! diff -u "$committed" db/structure.sql; then
+    echo "ci-migrations: db/structure.sql no coincide tras '$1'. Corre bin/rails db:migrate y versiona el cambio." >&2
+    exit 1
+  fi
+}
+
+echo "== migrar desde cero =="
+bin/rails db:drop db:create db:migrate
+assert_structure_unchanged "migrar desde cero"
+
+echo "== revertir la última migración y volver a migrar =="
+bin/rails db:rollback
+bin/rails db:migrate
+assert_structure_unchanged "rollback + migrate"
+
+echo "== cargar db/structure.sql en una base vacía =="
+bin/rails db:drop db:create db:schema:load
+bin/rails runner '
+  connection = ActiveRecord::Base.connection
+  missing = %w[btree_gist citext] - connection.select_values("SELECT extname FROM pg_extension")
+  abort "faltan extensiones tras cargar structure.sql: #{missing.join(", ")}" if missing.any?
+  abort "la aplicación no conecta como app_user" unless connection.select_value("SELECT current_user") == "app_user"
+  pending = ActiveRecord::Base.connection_pool.migration_context.needs_migration?
+  abort "quedan migraciones pendientes tras cargar structure.sql" if pending
+'
+echo "ci-migrations: ok"

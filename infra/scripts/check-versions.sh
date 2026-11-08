@@ -34,5 +34,13 @@ expect_in .github/workflows/ci.yml          "node-version-file: .tool-versions" 
 expect_in .github/workflows/ci.yml          "rhysd/actionlint:1.7.12"      "Imagen de actionlint en ci.yml"
 expect_in bin/ci                            "rhysd/actionlint:1.7.12"      "Imagen de actionlint en bin/ci"
 
+# pg_dump (structure.sql) exige cliente y servidor de la MISMA versión mayor: el cliente instalado en la imagen
+# del api y en los jobs de CI con base de datos debe ser el de la versión mayor del servicio postgres.
+pg_major="${postgres%%.*}"
+expect_in infra/docker/api.Dockerfile "postgresql-client-${pg_major}" "Cliente PostgreSQL ${pg_major} en api.Dockerfile"
+[ "$(grep -cF -- "postgresql-client-${pg_major}" .github/workflows/ci.yml)" -ge 2 ] \
+  && echo "ok    Cliente PostgreSQL ${pg_major} en los jobs de ci.yml con base de datos" \
+  || { echo "FALLA se esperaba postgresql-client-${pg_major} en backend-migrations y backend-test de ci.yml" >&2; failures=$((failures + 1)); }
+
 [ "$failures" -eq 0 ] || { echo "$failures desajuste(s) de versiones" >&2; exit 1; }
 echo "versiones consistentes"
