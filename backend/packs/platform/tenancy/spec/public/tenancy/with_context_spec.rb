@@ -156,4 +156,73 @@ RSpec.describe "Tenancy.with_context" do
       Tenancy.with_context(organization:) { expect(Tenancy::Company.count).to eq(0) }
     end
   end
+
+  # Rails activa la query cache en requests y jobs: el setting se lee y se escribe SIN caché, o un segundo
+  # with_context idéntico serviría el set_config desde la caché y no lo ejecutaría nunca.
+  describe "con la query cache activa" do
+    def real_setting
+      ActiveRecord::Base.connection.uncached { db_setting }
+    end
+
+    it "fija el setting en cada with_context aunque se repita la misma organización" do
+      seen = []
+      ActiveRecord::Base.cache do
+        2.times { Tenancy.with_context(organization:) { seen << real_setting } }
+      end
+
+      expect(seen).to eq([ organization.id, organization.id ])
+    end
+
+    it "al anidar B y luego A, el setting y el tenant coinciden dentro de cada bloque y se restauran al salir" do
+      other = create(:organization)
+      seen = []
+
+      ActiveRecord::Base.cache do
+        Tenancy.with_context(organization: other) do
+          Tenancy.with_context(organization:) { seen << [ real_setting, ActsAsTenant.current_tenant.id ] }
+          seen << [ real_setting, ActsAsTenant.current_tenant.id ]
+        end
+        seen << real_setting
+      end
+
+      expect(seen.first(2)).to eq([ [ organization.id, organization.id ], [ other.id, other.id ] ])
+      expect(seen.last).to be_blank
+    end
+  end
+
+  # return y break dejan el bloque sin excepción: el setting también debe restaurarse.
+  describe "salida no local del bloque" do
+    def with_return(org)
+      Tenancy.with_context(organization: org) { return :salio }
+    end
+
+    def with_break(org)
+      [ 1 ].each { Tenancy.with_context(organization: org) { break } }
+    end
+
+    def nested_return(outer, inner)
+      Tenancy.with_context(organization: outer) do
+        with_return(inner)
+        [ db_setting, ActsAsTenant.current_tenant.id ]
+      end
+    end
+
+    it "return restaura el setting y el tenant" do
+      expect(with_return(organization)).to eq(:salio)
+      expect(db_setting).to be_blank
+      expect(ActsAsTenant.current_tenant).to be_nil
+    end
+
+    it "break restaura el setting" do
+      with_break(organization)
+
+      expect(db_setting).to be_blank
+    end
+
+    it "un return interior no deja el setting de A bajo el tenant de B" do
+      other = create(:organization)
+
+      expect(nested_return(other, organization)).to eq([ other.id, other.id ])
+    end
+  end
 end

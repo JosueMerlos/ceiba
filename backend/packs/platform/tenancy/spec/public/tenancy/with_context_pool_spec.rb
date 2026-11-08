@@ -67,4 +67,21 @@ RSpec.describe "Tenancy.with_context y el pool de conexiones" do
   ensure
     Tenancy::Organization.where(id: other&.id).delete_all
   end
+
+  it "return desde el bloque tampoco deja un setting de sesión en la conexión tras el COMMIT" do
+    runner = Class.new { def run(org) = Tenancy.with_context(organization: org) { return :ok } }.new
+
+    expect(runner.run(organization)).to eq(:ok)
+    expect(setting_on(ApplicationRecord.connection)).to be_blank
+    expect(setting_from_another_connection).to be_blank
+  end
+
+  it "con la query cache activa, dos contextos seguidos de la misma organización fijan el setting las dos veces" do
+    seen = []
+    ApplicationRecord.cache do
+      2.times { Tenancy.with_context(organization:) { seen << ApplicationRecord.connection.uncached { setting_on(ApplicationRecord.connection) } } }
+    end
+
+    expect(seen).to eq([ organization.id, organization.id ])
+  end
 end
