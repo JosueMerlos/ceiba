@@ -34,10 +34,21 @@ RSpec.describe "db/seeds.rb" do
     )
   end
 
-  it "los seeds corren como app_user" do
-    output = app.run!("bin/rails", "runner", "puts ActiveRecord::Base.connection.select_value('SELECT current_user')")
+  it "db:seed corre como app_user (el rol se comprueba DENTRO del seed real, no en un runner aparte)" do
+    app.write("db/seeds.rb", "#{app.read('db/seeds.rb')}\nputs \"seed_role=\#{ActiveRecord::Base.connection.select_value('SELECT current_user')}\"\n")
 
-    expect(output.strip).to eq("app_user")
+    expect(app.run!("bin/rails", "db:seed")).to include("seed_role=app_user")
+  end
+
+  it "un conflicto de slug que NO es de la primera empresa del grupo no se disfraza de 'Ya existe' y no deja el grupo a medias" do
+    app.rails_runner(<<~RUBY)
+      Tenancy::ProvisionOrganization.call(organization: { name: "Intruso" }, company: { name: "Salón", slug: "salon-estilo", business_type: "salon", currency: "NIO" }, branch: { name: "X" })
+    RUBY
+    output, status = app.run("bin/rails", "db:seed")
+
+    expect(status).not_to be_success
+    expect(output).not_to include("Ya existe: Grupo Salud & Estilo")
+    expect(app.rails_runner('puts Tenancy::Organization.where(name: "Grupo Salud & Estilo").count')).to eq("0")
   end
 
   it "crea todo solo a través de la API pública de tenancy (sin tocar los modelos privados)" do
