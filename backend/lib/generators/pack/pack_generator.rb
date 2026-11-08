@@ -83,6 +83,9 @@ class PackGenerator < Rails::Generators::Base
   def validate_name!
     raise Thor::Error, "Nombre inválido #{pack_name.inspect}: usa snake_case (a-z, 0-9 y _; empieza por letra)" unless NAME_FORMAT.match?(pack_name)
     raise Thor::Error, "Nombre reservado #{pack_name.inspect}: elige otro" if RESERVED_NAMES.include?(pack_name)
+    return unless Object.const_defined?(namespace)
+
+    raise Thor::Error, "El namespace #{namespace} choca con una constante existente (#{pack_name.inspect}): elige otro nombre"
   end
 
   def validate_availability!

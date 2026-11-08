@@ -1,0 +1,8 @@
+# Los límites entre packs viven en estos archivos: cambiarlos exige revisión del dueño de la arquitectura.
+# `@JosueMerlos` es un dueño PLACEHOLDER (único usuario del repo hoy); reemplazar por un equipo cuando exista.
+# Para que bloquee el merge, activar "Require review from Code Owners" en la rama protegida
+# (infra/github/branch-protection.sh: require_code_owner_reviews) cuando haya más de una persona.
+/backend/packs/**/package.yml  @JosueMerlos
+/backend/packwerk.yml          @JosueMerlos
+/backend/package.yml           @JosueMerlos
+/backend/lib/ci/pack_contract.rb @JosueMerlos

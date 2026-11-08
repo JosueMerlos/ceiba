@@ -62,7 +62,7 @@ RSpec.describe PackGenerator do
     it "crea un spec base que verifica el contrato del pack" do
       spec = pack_file("modules/foo", "spec/package_spec.rb").read
 
-      expect(spec).to include('it_behaves_like "un pack del monolito modular"').and include('layer: "modules"')
+      expect(spec).to include("PackContract").and include("packs/modules/foo:")
     end
   end
 
@@ -77,7 +77,7 @@ RSpec.describe PackGenerator do
       expect(pack_file("platform/bar_baz", "manifest.rb")).not_to exist
     end
 
-    it "no crea carpetas exclusivas de los módulos" do
+    it "crea las mismas carpetas de app/ que un módulo (solo el manifest.rb es exclusivo)" do
       expect(pack_file("platform/bar_baz", "app/public/bar_baz")).to be_directory
       expect(pack_file("platform/bar_baz", "app/subscribers/bar_baz")).to be_directory
     end
@@ -104,6 +104,12 @@ RSpec.describe PackGenerator do
 
     it "rechaza un nombre reservado por Ruby o Rails" do
       expect { run_generator("modules/class") }.to raise_error(Thor::Error, /reservado/)
+    end
+
+    %w[readiness_check application_record string].each do |name|
+      it "rechaza #{name.inspect}: su namespace chocaría con una constante existente" do
+        expect { run_generator("modules/#{name}") }.to raise_error(Thor::Error, /constante existente/)
+      end
     end
 
     it "no sobrescribe un pack existente" do
