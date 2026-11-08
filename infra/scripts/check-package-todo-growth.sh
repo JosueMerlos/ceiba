@@ -6,7 +6,7 @@
 #
 # Compara el árbol de trabajo (cambios sin commitear incluidos) con el merge-base entre `base` y HEAD:
 #   - en un PR de CI:  base = origin/<rama destino>  (CI pasa BASE_REF)
-#   - en un push a main: base = el SHA anterior al push (CI pasa BASE_REF)
+#   - en un push a main: base = el SHA anterior al push (CI pasa BASE_REF); si es 000... (primer push), HEAD~1
 #   - en local: base = main (u origin/main si existe y main no)
 # Requiere historial suficiente para calcular el merge-base (en CI: fetch-depth: 0).
 set -euo pipefail
@@ -19,6 +19,16 @@ if [ -z "$base_ref" ]; then
   for candidate in main origin/main; do
     if git rev-parse --verify --quiet "$candidate^{commit}" >/dev/null; then base_ref=$candidate; break; fi
   done
+fi
+# Primer push de una rama (p. ej. el primero a main): GitHub informa el SHA previo como 40 ceros.
+# Se compara con el padre de HEAD; si no hay (un solo commit), no hay contra qué comparar.
+if [[ "$base_ref" =~ ^0+$ ]]; then
+  if git rev-parse --verify --quiet "HEAD~1^{commit}" >/dev/null; then
+    base_ref="HEAD~1"
+  else
+    echo "aviso: primer push sin commit previo; se omite la comparación de package_todo.yml" >&2
+    exit 0
+  fi
 fi
 if [ -z "$base_ref" ] || ! git rev-parse --verify --quiet "$base_ref^{commit}" >/dev/null; then
   echo "check-package-todo-growth: no existe la referencia base '${base_ref:-main}' (¿falta fetch-depth: 0 o git fetch?)" >&2

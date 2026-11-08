@@ -58,6 +58,16 @@ expect ok "base explícita por argumento" main
 BASE_REF=main expect ok "base por BASE_REF"
 expect fail "base inexistente" no-existe
 
+zeros=0000000000000000000000000000000000000000
+new_repo
+printf '  "::Bar::Other":\n' >> packs/modules/foo/package_todo.yml; git commit -qam "feat: grow"
+BASE_REF=$zeros expect fail "primer push (SHA previo 000...): compara con HEAD~1 y detecta el crecimiento"
+git commit -q --allow-empty -m "chore: empty"
+BASE_REF=$zeros expect ok "primer push (SHA previo 000...) sin crecimiento en el último commit"
+rm -rf "$work/solo" && mkdir "$work/solo" && cd "$work/solo" && git init -q -b main && git config user.email t@t && git config user.name t
+git commit -q --allow-empty -m "chore: root"
+BASE_REF=$zeros expect ok "primer push con un solo commit (sin HEAD~1): se omite con aviso"
+
 echo
 [ "$failures" -eq 0 ] && echo "todas las pruebas pasaron" || echo "$failures prueba(s) fallaron"
 exit "$failures"
