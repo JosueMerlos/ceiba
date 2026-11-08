@@ -11,7 +11,8 @@ RSpec.describe "API pública de tenancy" do
   it "expone solo with_context, el contexto, la provisión (y altas adicionales) y los errores de dominio" do
     expect(public_files).to contain_exactly(
       "tenancy.rb", "tenancy/context.rb", "tenancy/provision_organization.rb", "tenancy/add_company.rb", "tenancy/add_branch.rb",
-      "tenancy/error.rb", "tenancy/inconsistent_context.rb", "tenancy/provisioning_failed.rb"
+      "tenancy/error.rb", "tenancy/inconsistent_context.rb", "tenancy/provisioning_failed.rb",
+      "tenancy/tenant_write_guard.rb", "tenancy/tenant_mismatch.rb", "tenancy/tenant_is_immutable.rb"
     )
   end
 

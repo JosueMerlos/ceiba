@@ -43,9 +43,11 @@ RSpec.describe Tenancy::Company do
     end
 
     it "la base rechaza una organización inexistente aunque se salte la validación" do
-      company = described_class.new(attributes.merge(organization_id: SecureRandom.uuid))
+      # SQL crudo: insert! aplicaría el scope del tenant y los callbacks del modelo (guard) lo frenarían antes.
+      sql = "INSERT INTO companies (organization_id, name, slug, business_type, currency, created_at, updated_at) " \
+            "VALUES ('#{SecureRandom.uuid}', 'x', 'sin-organizacion', 'salon', 'NIO', now(), now())"
 
-      expect { savepoint { company.save!(validate: false) } }.to raise_error(ActiveRecord::InvalidForeignKey, /fk_companies_organization/)
+      expect { savepoint { ApplicationRecord.connection.execute(sql) } }.to raise_error(ActiveRecord::InvalidForeignKey, /fk_companies_organization/)
     end
 
     it "la base impide borrar una organización con empresas (restrict)" do

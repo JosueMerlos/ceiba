@@ -60,7 +60,7 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
 
     with_tenant(organization_a) do
       loaded = model.find(record.id)
-      loaded.organization_id = organization_b.id
+      loaded[:organization_id] = organization_b.id # el writer lo frena acts_as_tenant; write_attribute no pasa por él
 
       expect { loaded.save!(validate: false) }.to raise_error(Tenancy::TenantIsImmutable)
     end
@@ -69,7 +69,7 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
   it "con el tenant A, destruir un registro cuyo organization_id no es el del tenant se rechaza" do
     with_tenant(organization_a) do
       loaded = model.find(record_a.id)
-      loaded.organization_id = organization_b.id
+      loaded[:organization_id] = organization_b.id
 
       expect { loaded.destroy }.to raise_error(Tenancy::TenantMismatch)
     end
