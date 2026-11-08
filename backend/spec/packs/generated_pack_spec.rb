@@ -11,7 +11,7 @@ RSpec.describe "Pack generado" do
   let(:pack_name) { "generator_probe" }
   let(:pack_dir) { app_root.join("packs/modules", pack_name) }
   let(:namespace) { "GeneratorProbe" }
-  let(:migration_version) { "20990101000000" }
+  let(:migration_version) { "20260101000000" }
   let(:env) { { "RAILS_ENV" => "test", "RUN_SETUP" => "false", "BUNDLE_GEMFILE" => app_root.join("Gemfile").to_s } }
 
   def copy_application
