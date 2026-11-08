@@ -11,7 +11,9 @@
 		respond "ok" 200
 	}
 
-	handle /api/* {
+	# `path /api /api/*`: también /api sin barra final va a la API, no al panel
+	@api path /api /api/*
+	handle @api {
 		reverse_proxy api:3000
 	}
 
