@@ -29,6 +29,19 @@ RSpec.describe Database::TenantTables, :tenant_schema do
     end
   end
 
+  it "ve también las tablas sin privilegios para el rol de la aplicación (no depende de information_schema)" do
+    OwnerConnection.with do |owner|
+      owner.execute("DROP TABLE IF EXISTS sneaky_ungranted")
+      owner.execute("CREATE TABLE sneaky_ungranted (organization_id uuid)")
+      owner.execute("REVOKE ALL ON sneaky_ungranted FROM app_user")
+      begin
+        expect(described_class.inconsistencies(ActiveRecord::Base.connection)).to include(unregistered: [ "sneaky_ungranted" ])
+      ensure
+        owner.execute("DROP TABLE IF EXISTS sneaky_ungranted")
+      end
+    end
+  end
+
   it "respeta las exenciones" do
     with_tenant_schema do |owner|
       owner.create_table(:sneaky) { |t| t.uuid :organization_id }

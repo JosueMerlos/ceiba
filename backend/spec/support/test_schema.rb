@@ -3,7 +3,8 @@
 # maintain_test_schema! recargaría el esquema EN PROCESO con la conexión de la suite, que es app_user (sin
 # DDL). Si el esquema está desactualizado se lanza una tarea en un SUBPROCESO con DB_ROLE=owner: el rol de dueño
 # queda acotado a ese proceso y la suite sigue como app_user.
-#   - migraciones pendientes            -> db:prepare   (migra y vuelve a volcar structure.sql)
+#   - migraciones pendientes            -> aborta pidiendo `make migrate`: migrar vuelca db/structure.sql, que está
+#                                          versionado, y la suite no debe reescribirlo en silencio
 #   - structure.sql distinto del cargado -> db:test:prepare (recarga el esquema de test)
 module TestSchema
   OWNER_ENV = { "DB_ROLE" => "owner", "RAILS_ENV" => "test", "RUN_SETUP" => "false" }.freeze
@@ -11,9 +12,9 @@ module TestSchema
   module_function
 
   def ensure_current!
-    run_task("db:prepare") if pending_migrations?
-    run_task("db:test:prepare") if pending_migrations? || schema_changed?
-    abort "Quedan migraciones pendientes: corre `make migrate`" if pending_migrations?
+    abort "Hay migraciones pendientes en la base de test: corre `make migrate` (migra y actualiza db/structure.sql) y `make db-prepare`" if pending_migrations?
+
+    run_task("db:test:prepare") if schema_changed?
   end
 
   def run_task(task)
