@@ -1,8 +1,9 @@
 require "rails_helper"
 
-# Al correr rspec con el esquema de test desactualizado (migración nueva, structure.sql distinto) la suite lo
-# prepara sola: rails_helper lanza `db:prepare` como subproceso con DB_ROLE=owner, acotado a ese subproceso, y
-# después sigue con la aplicación conectada como app_user.
+# Al correr rspec con el esquema de test desactualizado: con migraciones pendientes la suite ABORTA pidiendo
+# `make migrate` (migrar vuelca db/structure.sql, que está versionado; la suite no debe reescribirlo en silencio);
+# si solo cambió db/structure.sql, rails_helper recarga el esquema con `db:test:prepare` en un subproceso con
+# DB_ROLE=owner y sigue con la aplicación conectada como app_user.
 RSpec.describe "Esquema de test desactualizado" do
   let(:app) { TemporaryAppCopy.new(database: "ceiba_test_schema_probe").create }
 
@@ -32,10 +33,14 @@ RSpec.describe "Esquema de test desactualizado" do
     RUBY
   end
 
-  it "migra el esquema de test con el rol de dueño y corre la suite como app_user" do
+  it "aborta con una instrucción clara ante migraciones pendientes, sin tocar db/structure.sql" do
+    before_dump = app.read("db/structure.sql")
+
     output, status = run_probe
 
-    expect([ status.success?, output[/\d+ examples?, \d+ failures?/] ]).to eq([ true, "1 example, 0 failures" ]), output
+    expect(status).not_to be_success
+    expect(output).to include("make migrate")
+    expect(app.read("db/structure.sql")).to eq(before_dump)
   end
 
   it "recarga el esquema de test si structure.sql cambió sin migraciones pendientes" do
