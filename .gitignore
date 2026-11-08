@@ -1,4 +1,31 @@
+# macOS / editores
 .DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Entorno local (los secretos reales nunca se versionan)
 .env
 .env.*
 !.env.example
+
+# Logs y temporales
+*.log
+tmp/
+
+# Ruby / Rails (backend)
+/backend/log/*
+!/backend/log/.keep
+/backend/tmp/*
+!/backend/tmp/.keep
+/backend/storage/*
+!/backend/storage/.keep
+/backend/public/assets
+/backend/coverage/
+/backend/.bundle/
+
+# Node / frontend
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
