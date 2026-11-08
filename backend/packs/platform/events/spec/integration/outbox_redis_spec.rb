@@ -16,12 +16,7 @@ RSpec.describe "Outbox con Redis real", :redis do
     Events.subscribe(event_name, as: "test.audit") { |event| queue << [ event.id, ActsAsTenant.current_tenant.id ] }
   end
 
-  after do
-    organizations.each do |org|
-      with_tenant(org) { [ Events::OutboxEvent, Events::ProcessedEvent ].each(&:delete_all) }
-      Tenancy::Organization.where(id: org.id).delete_all
-    end
-  end
+  after { purge_organizations(organizations) }
 
   # Un Redis inalcanzable: la misma falla que ve la aplicación con el contenedor de Redis detenido.
   def redis_down(&)
@@ -41,7 +36,7 @@ RSpec.describe "Outbox con Redis real", :redis do
   def process(item) = Events::DeliverJob.process_job(item)
 
   describe "Redis cae después del commit y vuelve (criterio 2)" do
-    it "el evento confirmado con Redis caído se publica y se procesa cuando Redis vuelve" do
+    it "el evento confirmado con Redis caído se publica y se procesa cuando Redis vuelve", :aggregate_failures do
       event = redis_down { publish }
 
       expect(state).to eq([ [ nil, 0 ] ])
@@ -97,7 +92,7 @@ RSpec.describe "Outbox con Redis real", :redis do
       threads.map(&:value)
     end
 
-    it "con 500 eventos pendientes, cada uno se publica exactamente una vez" do
+    it "con 500 eventos pendientes, cada uno se publica exactamente una vez", :aggregate_failures do
       published = run_relays
 
       event_ids = queued_jobs.map { |job| job["args"].first }

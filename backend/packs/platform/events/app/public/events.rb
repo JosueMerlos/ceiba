@@ -14,8 +14,10 @@ module Events
   #   cumple => Events::InvalidPayload. Nada se escribe si falla.
   # - Fuera de una transacción lanza Events::NotInTransaction: sin ella no habría atomicidad con el cambio de datos.
   # - `metadata:` se mezcla con la del contexto (empresa y sucursal). Devuelve el Events::Event publicado.
-  def self.publish(name, payload = {}, metadata: {})
-    Publisher.call(name:, payload:, metadata:)
+  #
+  # El payload se pasa como hash (`publish(name, { id: 1 })`) o como argumentos con nombre (`publish(name, id: 1)`).
+  def self.publish(name, payload = nil, metadata: {}, **fields)
+    Publisher.call(name:, payload: payload || fields, metadata:)
   end
 
   # Registra un suscriptor de un evento. `as:` es el nombre del suscriptor (único por evento): es la clave de la

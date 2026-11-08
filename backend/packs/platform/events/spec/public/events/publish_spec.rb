@@ -10,14 +10,7 @@ RSpec.describe Events, ".publish" do
 
   before { register_event_schema(event_name) }
 
-  after do
-    with_tenant(organization) do
-      Events::OutboxEvent.delete_all
-      Tenancy::Branch.delete_all
-      Tenancy::Company.delete_all
-    end
-    Tenancy::Organization.where(id: organization.id).delete_all
-  end
+  after { purge_organizations(organization) }
 
   def stored_events = with_tenant(organization) { Events::OutboxEvent.order(:id).to_a }
 
@@ -28,6 +21,12 @@ RSpec.describe Events, ".publish" do
       expect(stored_events).to contain_exactly(
         have_attributes(name: event_name, payload: { "thing_id" => "t-1", "size" => 3 }, organization_id: organization.id, published_at: nil, attempts: 0)
       )
+    end
+
+    it "acepta el payload como argumentos con nombre" do
+      Tenancy.with_context(organization:) { described_class.publish(event_name, thing_id: "t-9") }
+
+      expect(stored_events.first.payload).to eq("thing_id" => "t-9")
     end
 
     it "devuelve el evento publicado, con su id y su instante" do
