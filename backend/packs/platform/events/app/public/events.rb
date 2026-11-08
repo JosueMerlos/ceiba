@@ -17,4 +17,18 @@ module Events
   def self.publish(name, payload = {}, metadata: {})
     Publisher.call(name:, payload:, metadata:)
   end
+
+  # Registra un suscriptor de un evento. `as:` es el nombre del suscriptor (único por evento): es la clave de la
+  # idempotencia en processed_events. El handler (bloque u objeto con `call`) recibe un Events::Event y corre DENTRO del
+  # contexto de tenant del evento y de una transacción; si lanza, nada de lo que hizo queda y Sidekiq reintenta.
+  #
+  # Se registra desde `config.to_prepare` (idempotente): el handler debe ser idempotente por sí mismo si toca sistemas
+  # externos, porque la entrega es al menos una vez.
+  #
+  #   Events.subscribe("platform.organization_provisioned.v1", as: "notifications.welcome", queue: "notifications") do |event|
+  #     ...
+  #   end
+  def self.subscribe(event_name, as:, queue: Subscriptions::DEFAULT_QUEUE, handler: nil, &block)
+    Subscriptions.register(event_name:, subscriber: as, handler: handler || block, queue:)
+  end
 end
