@@ -4,7 +4,7 @@
 #   infra/github/branch-protection.sh <owner>/<repo>            # muestra el payload, no cambia nada
 #   APPLY=1 infra/github/branch-protection.sh <owner>/<repo>    # lo aplica con `gh api` (requiere admin)
 #
-# Requiere `gh` autenticado. Los nombres de los checks son los de los jobs de
+# Requiere `gh` autenticado. app_id 15368 = GitHub Actions (el check solo cuenta si lo publica esa app). Los nombres de los checks son los de los jobs de
 # .github/workflows/ci.yml y .github/workflows/pr-title.yml.
 set -euo pipefail
 
@@ -15,14 +15,15 @@ payload=$(cat <<JSON
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": [
-      "backend-lint",
-      "backend-test",
-      "backend-security",
-      "frontend-lint",
-      "frontend-test",
-      "frontend-security",
-      "pr-title"
+    "checks": [
+      { "context": "actionlint", "app_id": 15368 },
+      { "context": "backend-lint", "app_id": 15368 },
+      { "context": "backend-test", "app_id": 15368 },
+      { "context": "backend-security", "app_id": 15368 },
+      { "context": "frontend-lint", "app_id": 15368 },
+      { "context": "frontend-test", "app_id": 15368 },
+      { "context": "frontend-security", "app_id": 15368 },
+      { "context": "pr-title", "app_id": 15368 }
     ]
   },
   "enforce_admins": true,

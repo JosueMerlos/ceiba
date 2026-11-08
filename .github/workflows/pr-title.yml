@@ -1,8 +1,10 @@
 name: PR title
 
-# pull_request_target: el token puede leer el PR aunque venga de un fork. Es seguro porque el job
-# NO hace checkout del código del PR: solo valida el título (pasado por variable de entorno, nunca
-# interpolado en el script).
+# Por qué pull_request_target: el validador se ejecuta SIEMPRE desde main (checkout de la rama
+# base), no desde el PR. Así un PR no puede modificar la regla que lo valida para saltársela, y el
+# token puede leer el PR aunque venga de un fork. Es seguro porque el job NO hace checkout del
+# código del PR: solo valida el título (pasado por variable de entorno, nunca interpolado en el
+# script). Consecuencia: el workflow y el script deben existir en main antes de que se apliquen.
 on:
   pull_request_target:
     types: [opened, edited, synchronize, reopened]

@@ -60,7 +60,6 @@ Servicios de `compose.yaml`: `db` (PostgreSQL 18), `redis`, `api` (Rails), `work
 
 Cualquier otro comando se ejecuta dentro del contenedor, por ejemplo `docker compose exec api bin/rails db:migrate` o `docker compose exec panel pnpm add <paquete>`.
 
-
 ## Estructura
 
 ```
