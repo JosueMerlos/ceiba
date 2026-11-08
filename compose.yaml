@@ -21,6 +21,23 @@ x-backend: &backend
     - ./backend:/app/backend
     - bundle:/usr/local/bundle
 
+x-frontend: &frontend
+  build:
+    context: .
+    dockerfile: infra/docker/frontend.Dockerfile
+    args:
+      HOST_UID: ${HOST_UID:-1000}
+      HOST_GID: ${HOST_GID:-1000}
+  image: ceiba-frontend:dev
+  environment:
+    PUBLIC_PORT: ${PROXY_PORT:-8080}
+  volumes:
+    - ./frontend:/app/frontend
+    # node_modules nunca se monta desde el host: viven en volúmenes con nombre
+    - frontend_node_modules:/app/frontend/node_modules
+    - panel_node_modules:/app/frontend/apps/panel/node_modules
+    - booking_node_modules:/app/frontend/apps/booking/node_modules
+
 services:
   db:
     image: postgres:18.6-trixie
@@ -74,7 +91,61 @@ services:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
 
+  panel:
+    <<: *frontend
+    working_dir: /app/frontend/apps/panel
+    command: ["pnpm", "dev"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5173/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 120s
+
+  booking:
+    <<: *frontend
+    working_dir: /app/frontend/apps/booking
+    command: ["pnpm", "dev"]
+    depends_on:
+      # panel instala las dependencias del workspace: booking espera a que termine
+      panel: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5174/c/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 60s
+
+  mailpit:
+    image: axllent/mailpit:v1.33.1
+    ports:
+      - "${MAILPIT_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  proxy:
+    image: caddy:2.11.9-alpine
+    ports:
+      - "${PROXY_PORT:-8080}:8080"
+    volumes:
+      - ./infra/proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      api: { condition: service_healthy }
+      panel: { condition: service_healthy }
+      booking: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/__proxy/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   pg_data:
   redis_data:
   bundle:
+  frontend_node_modules:
+  panel_node_modules:
+  booking_node_modules:
