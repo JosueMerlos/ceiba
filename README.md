@@ -73,7 +73,7 @@ compose.yaml entorno de desarrollo
 
 ## Configuración
 
-Los valores por defecto de `compose.yaml` funcionan sin configurar nada. Para cambiar puertos o credenciales de desarrollo, define las variables (`PROXY_PORT`, `MAILPIT_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `REDIS_URL`) en un archivo `.env` en la raíz (ignorado por git). Los valores por defecto son solo de desarrollo; nunca se versionan secretos reales.
+Los valores por defecto de `compose.yaml` funcionan sin configurar nada. Para cambiar puertos o credenciales de desarrollo, define las variables (`PROXY_PORT`, `MAILPIT_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `REDIS_URL`) en un archivo `.env` en la raíz (ignorado por git), partiendo de [`.env.example`](.env.example): `cp .env.example .env`. Los valores por defecto son solo de desarrollo; nunca se versionan secretos reales.
 
 `make up` pasa tu UID/GID a los Dockerfiles: los contenedores no corren como root y los archivos que crean (gems, `pnpm-lock.yaml`, migraciones) pertenecen a tu usuario. Si usas `docker compose up` directamente en Linux con un UID distinto de 1000, exporta antes `HOST_UID=$(id -u) HOST_GID=$(id -g)`.
 
