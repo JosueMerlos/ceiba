@@ -33,21 +33,32 @@ DEMO_GROUPS = [
   }
 ].freeze
 
+# Provisiona la primera empresa del grupo. Devuelve nil si su slug ya existe (el grupo ya estaba sembrado); cualquier
+# otro fallo, incluido un slug repetido en una empresa POSTERIOR, se propaga y aborta (no se disfraza de "ya existe").
+def provision_first(group)
+  first = group.fetch(:companies).first
+  Tenancy::ProvisionOrganization.call(organization: group.fetch(:organization), company: first.fetch(:company), branch: first.fetch(:branches).first)
+rescue Tenancy::ProvisioningFailed => error
+  raise unless error.code == :slug_taken
+
+  nil
+end
+
 def seed_group(group)
   first, *others = group.fetch(:companies)
+  seeded = false
   ApplicationRecord.transaction do
-    result = Tenancy::ProvisionOrganization.call(organization: group.fetch(:organization), company: first.fetch(:company), branch: first.fetch(:branches).first)
+    result = provision_first(group)
+    next unless result
+
     first.fetch(:branches).drop(1).each { |branch| Tenancy::AddBranch.call(company: result.company, **branch) }
     others.each do |entry|
       company = Tenancy::AddCompany.call(organization: result.organization, **entry.fetch(:company))
       entry.fetch(:branches).each { |branch| Tenancy::AddBranch.call(company:, **branch) }
     end
+    seeded = true
   end
-  puts "Sembrada: #{group.dig(:organization, :name)}"
-rescue Tenancy::ProvisioningFailed => error
-  raise unless error.code == :slug_taken
-
-  puts "Ya existe: #{group.dig(:organization, :name)}"
+  puts(seeded ? "Sembrada: #{group.dig(:organization, :name)}" : "Ya existe: #{group.dig(:organization, :name)}")
 end
 
 DEMO_GROUPS.each { |group| seed_group(group) }
