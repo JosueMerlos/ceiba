@@ -9,6 +9,9 @@ gem "puma", ">= 5.0"
 
 # Jobs en segundo plano (ADR-0009). Solid Queue no se usa.
 gem "sidekiq", "~> 8.1"
+# Eventos de dominio y outbox (M0.10): cron de segundos para el relay y validación de payloads por JSON Schema.
+gem "sidekiq-cron", "2.4.0"
+gem "json_schemer", "2.5.0"
 
 # Monolito modular (ADR-0001, M0.03): límites entre packs verificados por herramienta.
 gem "packwerk", "3.3.1"
