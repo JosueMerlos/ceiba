@@ -26,6 +26,8 @@ gem "acts_as_tenant", "2.2.2"
 gem "alba", "4.0.3"
 gem "rswag-api", "2.17.0"
 gem "rswag-ui", "2.17.0"
+# rswag-ui aún usa ostruct, que deja de ser gema por defecto en Ruby 4.0 (avisa en cada arranque).
+gem "ostruct", "0.6.3"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
