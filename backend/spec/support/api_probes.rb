@@ -7,6 +7,7 @@ module ApiProbes
 
   # Se define bajo demanda (no al cargar el archivo) para no depender de Api::BaseController en cada spec de la suite.
   def self.define_controller!
+    define_serializer!
     return if const_defined?(:ProbesController, false)
 
     const_set(:ProbesController, Class.new(Api::BaseController) do
@@ -22,7 +23,19 @@ module ApiProbes
       def inconsistent_context = raise(Tenancy::InconsistentContext, "la sucursal no es de la empresa company-secreta")
       def tenant_mismatch = raise(Tenancy::TenantMismatch, "organization_id ajeno")
       def boom = raise("kaboom: /app/backend/secret_path.rb contraseña=hunter2")
+      def organizations = render_page(Tenancy::Organization.all, serializer: ApiProbes::OrganizationSerializer)
       def unregistered = raise(ProbeDomainError, "detalle interno que no debe salir")
+    end)
+  end
+
+  # Serializer mínimo de la sonda de paginación (un serializer por representación: ver Api::Serializer).
+  def self.define_serializer!
+    return if const_defined?(:OrganizationSerializer, false)
+
+    const_set(:OrganizationSerializer, Class.new do
+      include Alba::Resource
+
+      attributes :id, :name
     end)
   end
 
@@ -47,6 +60,7 @@ module ApiProbes
           get "tenant_mismatch"
           get "boom"
           get "unregistered"
+          get "organizations"
           post "create"
         end
       end
