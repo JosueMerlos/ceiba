@@ -26,8 +26,7 @@ RSpec.describe "Paginación por cursor en la API" do
 
     expect(response).to have_http_status(:bad_request)
     expect(response.media_type).to eq("application/problem+json")
-    expect(response.parsed_body).to include("code" => "pagination.invalid_cursor", "status" => 400)
-    expect(response.parsed_body["request_id"]).to be_present
+    expect(response.parsed_body).to include("code" => "pagination.invalid_cursor", "status" => 400, "request_id" => be_present)
   end
 
   it "responde 400 problem+json ante un limit inválido" do
