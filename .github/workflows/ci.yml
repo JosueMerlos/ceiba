@@ -50,6 +50,27 @@ jobs:
           working-directory: backend
       - run: backend/bin/ci-lint
 
+  backend-packs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # fetch-depth 0: el check de package_todo.yml necesita el merge-base con la rama destino.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Casos de prueba del check de crecimiento de package_todo.yml
+        run: infra/scripts/check-package-todo-growth_test.sh
+      - name: Ningún package_todo.yml crece
+        env:
+          # PR: contra la rama destino. Push a main: contra el commit anterior al push.
+          BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        run: infra/scripts/check-package-todo-growth.sh
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          bundler-cache: true
+          working-directory: backend
+      - run: backend/bin/ci-packs
+
   backend-test:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

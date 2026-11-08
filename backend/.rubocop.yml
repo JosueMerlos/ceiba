@@ -3,6 +3,10 @@
 inherit_gem:
   rubocop-rails-omakase: rubocop.yml
 
+# Cops propios (lib/rubocop/cop). Ceiba/PackNamespace: el namespace de un archivo es el de su pack.
+require:
+  - ./lib/rubocop/cop/ceiba/pack_namespace
+
 plugins:
   - rubocop-rails
   - rubocop-rspec
@@ -32,6 +36,8 @@ RSpec/DescribeClass:
   Exclude:
     - "spec/requests/**/*"
     - "spec/config/**/*"
+    - "spec/packs/**/*"
+    - "packs/*/*/spec/package_spec.rb"
 
 # Los ejemplos de resiliencia (timeouts, conexiones colgadas) necesitan varias expectativas.
 RSpec/MultipleExpectations:
@@ -42,3 +48,22 @@ RSpec/ExampleLength:
 
 RSpec/NestedGroups:
   Max: 4
+
+# El namespace de cada archivo de un pack debe empezar por el nombre del pack (02-modular-monolith).
+Ceiba/PackNamespace:
+  Enabled: true
+  Include:
+    - "packs/*/*/app/**/*.rb"
+
+# rubocop-rails limita estos cops a app/models, app/controllers... de la raíz; sin esto no
+# revisarían los packs (packs-rails, "Ecosystem and Integrations").
+Rails/EnumHash:
+  Include:
+    - "**/app/models/**/*.rb"
+Rails/InverseOf:
+  Include:
+    - "**/app/models/**/*.rb"
+Rails/LexicallyScopedActionFilter:
+  Include:
+    - "**/app/controllers/**/*.rb"
+    - "**/app/mailers/**/*.rb"

@@ -1,0 +1,16 @@
+require "rails_helper"
+require "ci/pack_contract"
+
+RSpec.describe "Pack <%= layer %>/<%= pack_name %>" do
+  it "cumple el contrato de packs (capa, enforcement<%= ', visibilidad' if modules_layer? %>)" do
+    violations = PackContract.new(Rails.root).violations.select { |violation| violation.start_with?("packs/<%= layer %>/<%= pack_name %>:") }
+
+    expect(violations).to be_empty
+  end
+<% if modules_layer? -%>
+
+  it "tiene su manifest.rb" do
+    expect(Rails.root.join("packs/modules/<%= pack_name %>/manifest.rb")).to exist
+  end
+<% end -%>
+end

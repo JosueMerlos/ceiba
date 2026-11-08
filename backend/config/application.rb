@@ -26,7 +26,13 @@ module Backend
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
-    config.autoload_lib(ignore: %w[assets tasks ci])
+    config.autoload_lib(ignore: %w[assets tasks ci generators rubocop])
+
+    # packs-rails añade app/* de cada pack a las rutas de carga, pero no db/migrate (M0.03):
+    # las migraciones de cada pack se registran aquí para que `db:migrate` las encuentre.
+    Packs.all.reject(&:is_gem?).each do |pack|
+      paths["db/migrate"] << pack.relative_path.join("db/migrate").to_s
+    end
 
     # Configuration for the application, engines, and railties goes here.
     #

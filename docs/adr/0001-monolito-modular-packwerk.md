@@ -12,7 +12,7 @@ El producto es un ecosistema de módulos que crecerá durante años y lo constru
 
 ## Decisión
 
-Un solo despliegue de Rails con packs en `packs/`, verificados por **Packwerk** y por **packwerk-extensions** (checkers de privacidad y de capas). Dos capas: `platform/` (capacidades compartidas, que no conocen los módulos) y `modules/` (negocio, que depende solo de platform y se comunica por eventos). Se usa `packs-rails` para la carga.
+Un solo despliegue de Rails con packs en `packs/`, verificados por **Packwerk** y por **packwerk-extensions** (checkers de privacidad, capas y visibilidad; este último impide que un módulo use a otro, ver [02](../architecture/02-modular-monolith.md)). Dos capas: `platform/` (capacidades compartidas, que no conocen los módulos) y `modules/` (negocio, que depende solo de platform y se comunica por eventos). Se usa `packs-rails` para la carga.
 
 ## Alternativas consideradas
 
