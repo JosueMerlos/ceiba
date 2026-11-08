@@ -53,6 +53,7 @@ Servicios de `compose.yaml`: `db` (PostgreSQL 18), `redis`, `api` (Rails), `work
 | `make logs` (`s=api`) | Sigue los logs, de todos los servicios o de uno |
 | `make sh-api` | Shell dentro del contenedor de la API |
 | `make console` | Consola de Rails |
+| `make migrate` / `make rollback` / `make db-prepare` | Migra, revierte la última o prepara las bases (las tareas de esquema corren solas como `app_owner`; la app y `db:seed` como `app_user`) |
 | `make db-roles` | Aplica (idempotente) los roles `app_owner`/`app_user` a un volumen de BD que ya existía |
 | `make reset-db` | Recrea la base de datos desde cero (destructivo) |
 | `make test` | Suite completa: backend (RSpec) y frontend (Vitest) |

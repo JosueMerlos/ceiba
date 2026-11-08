@@ -12,8 +12,15 @@ module Database
     # (organization_id, id) para que otras tablas la referencien con FK compuesta y la política RLS
     # `tenant_isolation` (RLS queda DESHABILITADO hasta enable_tenant_rls, M4.03). Acepta las opciones de
     # create_table salvo `id:`. El UNIQUE (organization_id, id) hace también de índice por organización.
-    def create_tenant_table(table_name, **options, &block)
+    #
+    # `on_delete:` (:restrict por defecto, o :cascade) gobierna la FK a organizations. Se rechaza :nullify
+    # (anularía organization_id, que es NOT NULL). Borrar una organización con datos es una operación explícita
+    # (offboarding, P3), no un efecto lateral: por eso el default es :restrict.
+    def create_tenant_table(table_name, on_delete: :restrict, **options, &block)
       table = table_name.to_s
+      on_delete = ::Database::TableDefinition.validate_on_delete!(on_delete)
+      fk_name = ::Database::TableDefinition.constraint_name!("fk_#{table}_organization")
+      unique_name = ::Database::TableDefinition.constraint_name!("uq_#{table}_organization_id_id")
       raise ArgumentError, "organizations es la raíz del tenant: se crea con create_table, no con create_tenant_table" if table == "organizations"
       raise ArgumentError, "create_tenant_table siempre usa id uuid con uuidv7(); no acepta id: #{options[:id].inspect}" if options.key?(:id) && options[:id] != :uuid
 
@@ -23,8 +30,8 @@ module Database
         block&.call(t)
         raise ArgumentError, "organization_id lo agrega create_tenant_table: no lo declares en #{table}" if t.columns.count { |c| c.name == "organization_id" } > 1
 
-        t.foreign_key :organizations, column: :organization_id, name: "fk_#{table}_organization"
-        t.unique_constraint %i[organization_id id], name: "uq_#{table}_organization_id_id"
+        t.foreign_key :organizations, column: :organization_id, name: fk_name, on_delete: on_delete
+        t.unique_constraint %i[organization_id id], name: unique_name
       end
       create_tenant_policy(table)
     end

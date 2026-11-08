@@ -4,10 +4,10 @@ require "rails_helper"
 # tenant_isolation), en ambos sentidos. Una tabla creada con create_table normal + organization_id queda sin RLS
 # ni FK compuesta: aquí se detecta. Exentas solo las justificadas en EXEMPT (hoy ninguna).
 RSpec.describe Database::TenantTables, :tenant_schema do
-  EXEMPT = {}.freeze # tabla => motivo
+  let(:exempt) { {} } # tabla => motivo; vacío: ninguna tabla está exenta
 
   it "el esquema real es consistente: organization_id <=> tabla registrada" do
-    problems = described_class.inconsistencies(ActiveRecord::Base.connection, exempt: EXEMPT.keys)
+    problems = described_class.inconsistencies(ActiveRecord::Base.connection, exempt: exempt.keys)
 
     expect(problems).to eq(unregistered: [], without_organization_id: [])
   end
@@ -22,10 +22,10 @@ RSpec.describe Database::TenantTables, :tenant_schema do
 
   it "detecta una tabla registrada a la que le falta organization_id" do
     with_tenant_schema do |owner|
-      owner.create_tenant_table(:branches)
-      owner.remove_column(:branches, :organization_id, :uuid)
+      owner.create_table(:odd)
+      owner.execute("CREATE POLICY tenant_isolation ON odd USING (true)")
 
-      expect(described_class.inconsistencies(owner)).to include(without_organization_id: [ "branches" ])
+      expect(described_class.inconsistencies(owner)).to include(without_organization_id: [ "odd" ])
     end
   end
 

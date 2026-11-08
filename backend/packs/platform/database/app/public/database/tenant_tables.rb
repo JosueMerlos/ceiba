@@ -30,6 +30,23 @@ module Database
       SQL
     end
 
+    # Guardián de consistencia entre "tiene columna organization_id" y "está registrada como tenant" (tiene la
+    # política tenant_isolation). Devuelve las tablas que rompen cada sentido; `exempt:` son tablas exentas por
+    # una razón documentada. Lo ejecuta el spec del pack contra el esquema real.
+    def inconsistencies(connection = ActiveRecord::Base.connection, exempt: [])
+      exempt = exempt.map(&:to_s)
+      with_column = connection.select_values(<<~SQL)
+        SELECT table_name FROM information_schema.columns
+        WHERE table_schema = current_schema() AND column_name = 'organization_id' AND table_name NOT IN (
+          SELECT table_name FROM information_schema.views WHERE table_schema = current_schema())
+      SQL
+      registered = names(connection)
+      {
+        unregistered: (with_column - registered - exempt).sort,
+        without_organization_id: (registered - with_column - exempt).sort
+      }
+    end
+
     def tenant?(table_name, connection = ActiveRecord::Base.connection)
       names(connection).include?(table_name.to_s)
     end

@@ -2,6 +2,23 @@ module Database
   # `t.tenant_reference` dentro de `create_tenant_table`: una referencia a otra tabla tenant que el motor
   # obliga a ser del MISMO tenant (barrera 2 de docs/architecture/03-multi-tenancy.md).
   module TableDefinition
+    ON_DELETE_OPTIONS = %i[restrict cascade].freeze
+    MAX_IDENTIFIER_LENGTH = 63 # PostgreSQL trunca en silencio los identificadores más largos
+
+    def self.validate_on_delete!(value)
+      return value.to_sym if ON_DELETE_OPTIONS.include?(value&.to_sym)
+
+      detail = value&.to_sym == :nullify ? "anularía organization_id (NOT NULL y parte de la FK compuesta). " : ""
+      raise ArgumentError, "on_delete: #{value.inspect} no es válido para tablas tenant. #{detail}Usa :restrict (por defecto) o :cascade."
+    end
+
+    def self.constraint_name!(name)
+      return name if name.length <= MAX_IDENTIFIER_LENGTH
+
+      raise ArgumentError, "El nombre de restricción #{name.inspect} tiene #{name.length} caracteres y supera #{MAX_IDENTIFIER_LENGTH} caracteres " \
+                           "(PostgreSQL lo truncaría y podría colisionar): usa un nombre de tabla/referencia más corto."
+    end
+
     # Lo activa create_tenant_table; fuera de él no hay organization_id contra el que componer la FK.
     attr_accessor :tenant_table
 
@@ -10,16 +27,18 @@ module Database
     #   FOREIGN KEY (organization_id, company_id) REFERENCES companies (organization_id, id)
     #   INDEX (organization_id, company_id)
     #
-    # Opciones: null: (false), to_table: (el plural del nombre), index: (true), foreign_key: (true).
-    def tenant_reference(reference, null: false, to_table: nil, index: true, foreign_key: true)
+    # Opciones: null: (false), to_table: (el plural del nombre), index: (true), foreign_key: (true),
+    # on_delete: (:restrict por defecto o :cascade; :nullify se rechaza: anularía organization_id).
+    def tenant_reference(reference, null: false, to_table: nil, index: true, foreign_key: true, on_delete: :restrict)
       raise ArgumentError, "tenant_reference solo puede usarse dentro de create_tenant_table" unless tenant_table
 
+      on_delete = TableDefinition.validate_on_delete!(on_delete)
       column = "#{reference}_id"
       uuid column, null: null
       if foreign_key
         self.foreign_key(to_table || reference.to_s.pluralize,
                          column: [ "organization_id", column ], primary_key: [ "organization_id", "id" ],
-                         name: "fk_#{name}_#{reference}")
+                         name: TableDefinition.constraint_name!("fk_#{name}_#{reference}"), on_delete: on_delete)
       end
       self.index([ "organization_id", column ]) if index
     end
