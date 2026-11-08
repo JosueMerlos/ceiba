@@ -1,5 +1,9 @@
-# Comprueba las dependencias críticas con timeouts cortos para que un servicio caído
-# no deje colgado el healthcheck. Los errores se registran, pero nunca se exponen en la respuesta.
+# Comprueba las dependencias críticas con timeouts cortos para que un servicio caído o colgado
+# no deje ocupados los hilos de Puma (y con ellos /api/health). Los errores se registran,
+# pero nunca se exponen en la respuesta.
+#
+# PostgreSQL se consulta con una conexión efímera propia (connect_timeout + statement_timeout +
+# timeout duro): así un servidor congelado no retiene ni contamina el pool de Active Record.
 class ReadinessCheck
   Result = Data.define(:checks) do
     def ready? = checks.values.all?(true)
@@ -12,10 +16,13 @@ class ReadinessCheck
     end
   end
 
-  REDIS_TIMEOUT = 1 # segundos
+  TIMEOUT = 1 # segundos, por dependencia
 
-  def initialize(redis_url: Rails.configuration.x.redis_url)
+  def initialize(redis_url: Rails.configuration.x.redis_url,
+                 database_config: Rails.configuration.x.readiness_database_config.presence ||
+                                  ActiveRecord::Base.connection_db_config.configuration_hash)
     @redis_url = redis_url
+    @database_config = database_config
   end
 
   def call
@@ -25,13 +32,27 @@ class ReadinessCheck
   private
 
   def database_up?
-    ActiveRecord::Base.with_connection { |connection| connection.select_value("SELECT 1") } == 1
+    Timeout.timeout(TIMEOUT + 0.5) do
+      connection = PG.connect(connection_params)
+      connection.exec("SELECT 1").getvalue(0, 0) == "1"
+    ensure
+      connection&.close
+    end
   rescue StandardError => error
     log_failure("database", error)
   end
 
+  def connection_params
+    config = @database_config
+    {
+      host: config[:host], port: config[:port], user: config[:username], password: config[:password],
+      dbname: config[:database], connect_timeout: TIMEOUT,
+      options: "-c statement_timeout=#{(TIMEOUT * 1000).to_i}"
+    }.compact
+  end
+
   def redis_up?
-    client = RedisClient.config(url: @redis_url, timeout: REDIS_TIMEOUT).new_client
+    client = RedisClient.config(url: @redis_url, timeout: TIMEOUT).new_client
     client.call("PING") == "PONG"
   rescue StandardError => error
     log_failure("redis", error)

@@ -4,6 +4,7 @@
 default: &default
   adapter: postgresql
   encoding: unicode
+  connect_timeout: 5
   host: <%= ENV.fetch("DB_HOST", "localhost") %>
   username: <%= ENV.fetch("POSTGRES_USER", "ceiba") %>
   password: <%= ENV.fetch("POSTGRES_PASSWORD", "") %>
