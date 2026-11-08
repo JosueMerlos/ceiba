@@ -26,7 +26,7 @@ RSpec.describe "db/structure.sql" do
         end
       end
     RUBY
-    app.run!("bin/rails", "db:create", "db:migrate")
+    app.db!("db:create", "db:migrate")
   end
 
   def structure = app.read("db/structure.sql")
@@ -54,21 +54,21 @@ RSpec.describe "db/structure.sql" do
 
   it "es determinista: volcar dos veces da el mismo archivo" do
     first = structure
-    app.run!("bin/rails", "db:schema:dump")
+    app.db!("db:schema:dump")
 
     expect(structure).to eq(first)
   end
 
   it "migrar, revertir la última y volver a migrar no cambia el archivo" do
     first = structure
-    app.run!("bin/rails", "db:rollback")
-    app.run!("bin/rails", "db:migrate")
+    app.db!("db:rollback")
+    app.db!("db:migrate")
 
     expect(structure).to eq(first)
   end
 
   it "se carga en una BD vacía con extensiones, políticas y FKs compuestas" do
-    app.run!("bin/rails", "db:drop", "db:create", "db:schema:load")
+    app.db!("db:drop", "db:create", "db:schema:load")
     report = app.rails_runner(<<~RUBY)
       c = ActiveRecord::Base.connection
       extensions = c.select_values("SELECT extname FROM pg_extension").sort & %w[btree_gist citext]
@@ -81,7 +81,7 @@ RSpec.describe "db/structure.sql" do
   end
 
   it "las tablas cargadas desde structure.sql pertenecen a app_owner y app_user puede usarlas" do
-    app.run!("bin/rails", "db:drop", "db:create", "db:schema:load")
+    app.db!("db:drop", "db:create", "db:schema:load")
     report = app.rails_runner(<<~RUBY)
       c = ActiveRecord::Base.connection
       owners = c.select_values("SELECT DISTINCT tableowner FROM pg_tables WHERE schemaname = 'public'")

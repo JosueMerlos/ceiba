@@ -5,7 +5,7 @@ require "tmpdir"
 # migraciones y volcados reales (rails g model, db:migrate, db:structure:dump...) sin tocar el árbol de trabajo
 # ni la base de test. Cada comando corre en un proceso nuevo (como en CI o en consola).
 class TemporaryAppCopy
-  ENTRIES = %w[Gemfile Gemfile.lock Rakefile config.ru .ruby-version packwerk.yml package.yml app bin config db lib packs].freeze
+  ENTRIES = %w[Gemfile Gemfile.lock Rakefile config.ru .ruby-version .rspec packwerk.yml package.yml app bin config db lib packs spec].freeze
 
   attr_reader :root, :database
 
@@ -34,6 +34,9 @@ class TemporaryAppCopy
 
     output
   end
+
+  # Tareas de esquema (db:*): requieren DB_ROLE=owner explícito (fail-closed, ver config/database.yml).
+  def db!(*tasks) = run!("bin/rails", *tasks, env: { "DB_ROLE" => "owner" })
 
   def rails_runner(script) = run!("bin/rails", "runner", script).lines.last.to_s.strip
 

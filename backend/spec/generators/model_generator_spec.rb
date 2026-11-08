@@ -16,7 +16,7 @@ RSpec.describe "rails g model con las convenciones de BD" do
   before do
     app.run!("bin/rails", "g", "model", "Foo", "name:string", "--no-test-framework")
     app.run!("bin/rails", "g", "model", "Bar", "foo:references", "--no-test-framework")
-    app.run!("bin/rails", "db:create", "db:migrate")
+    app.db!("db:create", "db:migrate")
   end
 
   it "crea foos.id como uuid con default uuidv7()" do
