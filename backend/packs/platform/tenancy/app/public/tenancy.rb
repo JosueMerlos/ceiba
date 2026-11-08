@@ -21,17 +21,35 @@ module Tenancy
 
     ApplicationRecord.with_connection do |connection|
       connection.transaction(requires_new: true) do
-        previous = connection.select_value("SELECT current_setting('#{SETTING}', true)")
+        previous = read_setting(connection)
         write_setting(connection, organization.id)
-        result = ActsAsTenant.with_tenant(organization) { Current.set(context:) { block.call(context) } }
-        write_setting(connection, previous.to_s)
-        result
+        run_in_context(connection, organization, context, previous, &block)
       end
     end
   end
 
+  # Restaura el setting también en una salida no local (return, break, throw): el savepoint se libera y el setting NO
+  # se revierte solo. Con una excepción NO se restaura: el rollback del savepoint ya lo revierte, y sobre una
+  # transacción abortada cualquier sentencia fallaría y taparía el error original.
+  def self.run_in_context(connection, organization, context, previous, &block)
+    failed = false
+    ActsAsTenant.with_tenant(organization) { Current.set(context:) { block.call(context) } }
+  rescue Exception # rubocop:disable Lint/RescueException -- se re-lanza siempre; solo marca que no hay que restaurar
+    failed = true
+    raise
+  ensure
+    write_setting(connection, previous.to_s) unless failed
+  end
+  private_class_method :run_in_context
+
+  # SIN query cache: Rails la activa en requests y jobs, y un set_config servido desde la caché no se ejecutaría.
+  def self.read_setting(connection)
+    connection.uncached { connection.select_value("SELECT current_setting('#{SETTING}', true)") }
+  end
+  private_class_method :read_setting
+
   def self.write_setting(connection, value)
-    connection.select_value("SELECT set_config($1, $2, true)", "Tenancy.with_context", [ SETTING, value ])
+    connection.uncached { connection.select_value("SELECT set_config($1, $2, true)", "Tenancy.with_context", [ SETTING, value ]) }
   end
   private_class_method :write_setting
 end
