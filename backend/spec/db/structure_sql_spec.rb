@@ -9,7 +9,7 @@ RSpec.describe "db/structure.sql" do
   after { app.destroy }
 
   before do
-    app.write("db/migrate/20270101000001_create_probe_tables.rb", <<~RUBY)
+    app.write("db/migrate/20261108000001_create_probe_tables.rb", <<~RUBY)
       class CreateProbeTables < ActiveRecord::Migration[8.1]
         def change
           create_table :organizations, id: :uuid do |t|
