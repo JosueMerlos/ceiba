@@ -6,7 +6,9 @@ import { createApiClient } from "../src";
 const client = createApiClient({ baseUrl: "http://localhost" });
 
 export async function organizationFields() {
-  const { data } = await client.GET("/api/v1/organizations/{id}", { params: { path: { id: "x" } } });
+  const { data } = await client.GET("/api/v1/organizations/{id}", {
+    params: { path: { id: "x" } },
+  });
   const organization = data?.data;
 
   // Campos que existen: compilan.

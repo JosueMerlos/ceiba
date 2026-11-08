@@ -8,7 +8,9 @@ const tsc = fileURLToPath(new URL("../node_modules/.bin/tsc", import.meta.url));
 const fixtures = fileURLToPath(new URL("./fixtures/", import.meta.url));
 
 function compile(fixture: "good" | "bad") {
-  return spawnSync(tsc, ["--noEmit", "-p", `${fixtures}tsconfig.${fixture}.json`], { encoding: "utf8" });
+  return spawnSync(tsc, ["--noEmit", "-p", `${fixtures}tsconfig.${fixture}.json`], {
+    encoding: "utf8",
+  });
 }
 
 describe("el cliente generado tipa la respuesta", () => {
@@ -23,6 +25,8 @@ describe("el cliente generado tipa la respuesta", () => {
     const result = compile("bad");
 
     expect(result.status).not.toBe(0);
-    expect(result.stdout).toMatch(/bad-field\.ts.*error TS2339: Property 'phone_number' does not exist on type/);
+    expect(result.stdout).toMatch(
+      /bad-field\.ts.*error TS2339: Property 'phone_number' does not exist on type/,
+    );
   });
 });

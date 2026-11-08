@@ -38,7 +38,17 @@ describe("ApiError.fromResponse", () => {
 
   test("sin errores por campo, errors es un arreglo vacío (nunca undefined)", async () => {
     const error = await ApiError.fromResponse(
-      problemResponse({ type: "t", title: "No se encontró", status: 404, code: "resource.not_found", instance: "/x", request_id: "r" }, 404),
+      problemResponse(
+        {
+          type: "t",
+          title: "No se encontró",
+          status: 404,
+          code: "resource.not_found",
+          instance: "/x",
+          request_id: "r",
+        },
+        404,
+      ),
     );
 
     expect(error.errors).toEqual([]);
@@ -46,9 +56,16 @@ describe("ApiError.fromResponse", () => {
   });
 
   test("una respuesta que no es problem+json (p. ej. un 502 del proxy) se convierte en http.<status>", async () => {
-    const error = await ApiError.fromResponse(problemResponse("<html>Bad gateway</html>", 502, "text/html"));
+    const error = await ApiError.fromResponse(
+      problemResponse("<html>Bad gateway</html>", 502, "text/html"),
+    );
 
-    expect(error).toMatchObject({ status: 502, code: "http.502", errors: [], requestId: undefined });
+    expect(error).toMatchObject({
+      status: 502,
+      code: "http.502",
+      errors: [],
+      requestId: undefined,
+    });
   });
 
   test("un cuerpo problem+json corrupto o con otra forma tampoco rompe", async () => {

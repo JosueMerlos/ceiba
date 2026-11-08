@@ -3,3 +3,5 @@ dist
 coverage
 pnpm-lock.yaml
 *.tsbuildinfo
+# Generado por openapi-typescript (pnpm api:generate): se versiona tal cual, sin reformatear
+packages/api-client/src/schema.d.ts

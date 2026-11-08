@@ -8,7 +8,7 @@ const BASE = "http://api.test";
 const ID = "0198f0a0-0000-7000-8000-000000000001";
 
 const server = setupServer();
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -32,7 +32,9 @@ describe("GET /api/v1/organizations/{id}", () => {
       ),
     );
 
-    const body = await unwrap(client.GET("/api/v1/organizations/{id}", { params: { path: { id: ID } } }));
+    const body = await unwrap(
+      client.GET("/api/v1/organizations/{id}", { params: { path: { id: ID } } }),
+    );
 
     expect(body.data.id).toBe(ID);
     expect(body.data.name).toBe("Salón Ceiba");
@@ -41,17 +43,18 @@ describe("GET /api/v1/organizations/{id}", () => {
   });
 
   test("envía las cookies de sesión (credentials: include)", async () => {
-    let credentials: RequestCredentials | undefined;
-    server.use(
-      http.get(`${BASE}/api/v1/organizations/:id`, ({ request }) => {
-        credentials = request.credentials;
-        return HttpResponse.json({ data: {} });
-      }),
-    );
+    // MSW normaliza `credentials` al reconstruir la petición: se inspecciona la Request que sale del cliente.
+    let sent: Request | undefined;
+    const spy = async (...args: Parameters<typeof fetch>) => {
+      sent = new Request(...args);
+      return Response.json({ data: {} });
+    };
 
-    await client.GET("/api/v1/organizations/{id}", { params: { path: { id: ID } } });
+    await createApiClient({ baseUrl: BASE, fetch: spy }).GET("/api/v1/organizations/{id}", {
+      params: { path: { id: ID } },
+    });
 
-    expect(credentials).toBe("include");
+    expect(sent?.credentials).toBe("include");
   });
 
   test("un problem+json se convierte en ApiError tipado", async () => {
@@ -71,9 +74,15 @@ describe("GET /api/v1/organizations/{id}", () => {
       ),
     );
 
-    const failure = unwrap(client.GET("/api/v1/organizations/{id}", { params: { path: { id: ID } } }));
+    const failure = unwrap(
+      client.GET("/api/v1/organizations/{id}", { params: { path: { id: ID } } }),
+    );
 
     await expect(failure).rejects.toBeInstanceOf(ApiError);
-    await expect(failure).rejects.toMatchObject({ status: 404, code: "resource.not_found", requestId: "req-404" });
+    await expect(failure).rejects.toMatchObject({
+      status: 404,
+      code: "resource.not_found",
+      requestId: "req-404",
+    });
   });
 });
