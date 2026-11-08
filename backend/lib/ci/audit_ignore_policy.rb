@@ -1,6 +1,7 @@
 require "date"
 require "yaml"
 
+# Herramienta de CI, no código de la app: lib/ci está fuera de autoload_lib (config/application.rb).
 # Valida .bundler-audit.yml: cada entrada de `ignore` debe ir en su propia línea con
 #   - ID  # revisar: AAAA-MM-DD | motivo: texto
 # y la fecha no puede haber vencido. Nunca un ignorado permanente.

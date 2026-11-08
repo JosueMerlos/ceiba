@@ -1,5 +1,5 @@
 require "rails_helper"
-require "audit_ignore_policy"
+require "ci/audit_ignore_policy"
 
 # Política de M0.02: ningún ignorado de bundler-audit sin motivo y fecha de revisión vigente.
 # La lógica vive en lib/audit_ignore_policy.rb (probada en spec/lib) para que este spec no pueda

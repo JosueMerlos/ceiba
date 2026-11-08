@@ -1,5 +1,5 @@
 require "rails_helper"
-require "audit_ignore_policy"
+require "ci/audit_ignore_policy"
 
 RSpec.describe AuditIgnorePolicy do
   subject(:violations) { described_class.new(yaml, today: Date.new(2026, 11, 8)).violations }
