@@ -23,6 +23,14 @@ RSpec.describe Tenancy::ProvisionOrganization, ".call" do
 
   def provision(name) = described_class.call(organization: { name: "Carrera #{name}" }, company: { name: name, slug:, business_type: "salon", currency: "NIO" }, branch: { name: "Centro" })
 
+  # Espera DETERMINISTA: B está de verdad bloqueada esperando a la transacción de A (un lock de tipo transactionid sin
+  # conceder), no "un rato". Sin esto el test podría ejercitar otra ruta (validación) y no RecordNotUnique.
+  def wait_until_blocked_on_unique_index
+    Timeout.timeout(10) do
+      sleep 0.05 until ApplicationRecord.connection.select_value("SELECT count(*) FROM pg_locks WHERE locktype = 'transactionid' AND NOT granted").to_i.positive?
+    end
+  end
+
   # Corre A hasta tener su empresa insertada SIN commit; entonces arranca B (que no la ve y se bloquea en el INSERT por
   # el índice único); al soltar A, B pierde. Devuelve [resultado de A, hilo de B].
   def race
@@ -40,7 +48,7 @@ RSpec.describe Tenancy::ProvisionOrganization, ".call" do
       Thread.current.report_on_exception = false
       provision("B")
     end
-    sleep 0.5 # B ya validó y está esperando en el INSERT
+    wait_until_blocked_on_unique_index
     release << :go
     [ winner.value, loser ]
   end

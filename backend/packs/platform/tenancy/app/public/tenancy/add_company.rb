@@ -5,6 +5,7 @@ module Tenancy
   #   Tenancy::AddCompany.call(organization:, name:, slug:, business_type:, currency:)
   class AddCompany
     def self.call(organization:, **attributes)
+      attributes = AllowedAttributes.permit(attributes, AllowedAttributes::COMPANY, :company)
       FailureTranslator.translating(slug: attributes[:slug]) do
         Tenancy.with_context(organization:) { Company.create!(attributes) }
       end

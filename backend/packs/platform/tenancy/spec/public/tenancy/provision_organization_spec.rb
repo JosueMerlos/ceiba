@@ -121,6 +121,30 @@ RSpec.describe Tenancy::ProvisionOrganization do
       expect(called).to be(false)
     end
 
+    it "registrar con la misma key reemplaza el hook (idempotente al recargar en desarrollo)" do
+      calls = []
+      hooks << described_class.after_provision(->(_) { calls << :viejo }, key: :demo)
+      hooks << described_class.after_provision(->(_) { calls << :nuevo }, key: :demo)
+
+      provision
+
+      expect(calls).to eq([ :nuevo ])
+    end
+
+    it "el registro vive en la configuración de la aplicación, no en la clase recargable" do
+      hook = register_hook { |_| nil }
+
+      expect(Rails.application.config.x.tenancy.after_provision_hooks.map(&:last)).to include(hook)
+    end
+
+    it "admite registros concurrentes sin perder ninguno" do
+      registered = Array.new(20) { ->(_) { } }
+      registered.map { |hook| Thread.new { described_class.after_provision(hook) } }.each(&:join)
+      hooks.concat(registered)
+
+      expect(described_class.hooks).to include(*registered)
+    end
+
     it "exige algo invocable" do
       expect { described_class.after_provision(:no_invocable) }.to raise_error(ArgumentError, /call/)
     end

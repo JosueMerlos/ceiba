@@ -34,6 +34,10 @@ es-NI:
         status: Estado
         company: Empresa
     errors:
+      messages:
+        acts_as_tenant:
+          tenant_mismatch: debe ser el tenant actual
+          association_invalid: no es válida
       models:
         tenancy/branch:
           attributes:

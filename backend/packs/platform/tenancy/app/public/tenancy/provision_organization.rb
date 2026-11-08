@@ -19,11 +19,12 @@ module Tenancy
   class ProvisionOrganization
     Result = Data.define(:organization, :company, :branch)
 
-    ORGANIZATION_KEYS = %i[name legal_name country_code].freeze
-    COMPANY_KEYS = %i[name slug business_type currency locale].freeze
-    BRANCH_KEYS = %i[name time_zone address phone_e164].freeze
 
-    @hooks = [].freeze
+    # El registro de hooks vive en la configuración de la aplicación y NO en la clase: en desarrollo la clase se
+    # recarga y un ivar de clase perdería los hooks. Cada hook puede llevar una `key`: registrar otro con la misma
+    # clave lo REEMPLAZA, así un `config.to_prepare { ProvisionOrganization.after_provision(Hook, key: :x) }` es
+    # idempotente aunque corra en cada recarga (y los callables recargables no quedan obsoletos).
+    STORE = Rails.application.config.x.tenancy
 
     class << self
       def call(organization:, company:, branch:)
@@ -31,56 +32,66 @@ module Tenancy
       end
 
       # Registra un hook (lambda, proc u objeto con #call(result)). Devuelve el hook para poder quitarlo.
-      def after_provision(callable = nil, &block)
+      def after_provision(callable = nil, key: nil, &block)
         hook = callable || block
         raise ArgumentError, "after_provision requiere un objeto que responda a call (o un bloque)" unless hook.respond_to?(:call)
 
-        @hooks = (@hooks + [ hook ]).freeze
+        update_hooks do |entries|
+          index = key && entries.index { |entry| entry.first == key }
+          index ? entries.dup.tap { |copy| copy[index] = [ key, hook ] } : entries + [ [ key, hook ] ]
+        end
         hook
       end
 
       def remove_after_provision(hook)
-        @hooks = (@hooks - [ hook ]).freeze
+        update_hooks { |entries| entries.reject { |_key, registered| registered.equal?(hook) } }
       end
 
-      def hooks = @hooks
+      def hooks = (STORE.after_provision_hooks || []).map(&:last)
+
+      private
+
+      def update_hooks
+        lock.synchronize { STORE.after_provision_hooks = yield(STORE.after_provision_hooks || []).freeze }
+      end
+
+      def lock = STORE.after_provision_lock ||= Mutex.new
     end
 
     def initialize(organization:, company:, branch:)
-      @organization_attributes = permit(organization, ORGANIZATION_KEYS, :organization)
-      @company_attributes = permit(company, COMPANY_KEYS, :company)
-      @branch_attributes = permit(branch, BRANCH_KEYS, :branch)
+      @organization_attributes = AllowedAttributes.permit(organization, AllowedAttributes::ORGANIZATION, :organization)
+      @company_attributes = AllowedAttributes.permit(company, AllowedAttributes::COMPANY, :company)
+      @branch_attributes = AllowedAttributes.permit(branch, AllowedAttributes::BRANCH, :branch)
     end
 
     def call
       result = nil
-      FailureTranslator.translating(slug: @company_attributes[:slug]) do
-        # requires_new: dentro de una transacción ajena (tests, un job) un fallo hace rollback a un savepoint y deja la
-        # conexión utilizable, en vez de abortar la transacción entera.
-        ApplicationRecord.transaction(requires_new: true) { result = provision }
+      # requires_new: dentro de una transacción ajena (tests, un job) un fallo hace rollback a un savepoint y deja la
+      # conexión utilizable, en vez de abortar la transacción entera.
+      ApplicationRecord.transaction(requires_new: true) do
+        result = FailureTranslator.translating(slug: @company_attributes[:slug]) { create_records }
+        # Los hooks corren en la MISMA transacción pero FUERA del traductor: su error se propaga tal cual (y revierte todo),
+        # no se disfraza de ProvisioningFailed.
+        run_hooks(result)
       end
       result
     end
 
     private
 
-    def provision
+    def create_records
       organization = Organization.create!(@organization_attributes)
       company, branch = Tenancy.with_context(organization:) do
         company = Company.create!(@company_attributes)
         [ company, Branch.create!(@branch_attributes.merge(company:)) ]
       end
-      result = Result.new(organization:, company:, branch:)
-      Tenancy.with_context(organization:, company:, branch:) { self.class.hooks.each { |hook| hook.call(result) } }
-      result
+      Result.new(organization:, company:, branch:)
     end
 
-    def permit(attributes, allowed, section)
-      attributes = attributes.to_h.symbolize_keys
-      unknown = attributes.keys - allowed
-      raise ArgumentError, "Claves no permitidas en #{section}: #{unknown.join(', ')}" if unknown.any?
-
-      attributes
+    def run_hooks(result)
+      Tenancy.with_context(organization: result.organization, company: result.company, branch: result.branch) do
+        self.class.hooks.each { |hook| hook.call(result) }
+      end
     end
   end
 end

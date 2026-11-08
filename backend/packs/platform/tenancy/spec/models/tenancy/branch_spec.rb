@@ -27,7 +27,8 @@ RSpec.describe Tenancy::Branch do
       other_company = create_company(new_organization, "empresa-b")
       branch = build_branch(company_id: other_company.id).tap(&:valid?)
 
-      expect(branch.errors.full_messages.join).not_to include("[ActsAsTenant]").and match(/Empresa/)
+      expect(branch.errors.full_messages.join).not_to include("[ActsAsTenant]")
+      expect(branch.errors.full_messages.join).to include('Empresa')
       expect(I18n.t("activerecord.errors.messages.acts_as_tenant.tenant_mismatch")).to eq("debe ser el tenant actual")
     end
 

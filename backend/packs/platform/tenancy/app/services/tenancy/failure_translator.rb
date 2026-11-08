@@ -42,7 +42,8 @@ module Tenancy
       case record
       when Organization then :organization
       when Company then :company
-      else :branch
+      when Branch then :branch
+      else raise ArgumentError, "FailureTranslator no sabe traducir #{record.class.name}"
       end
     end
 
