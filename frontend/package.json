@@ -6,7 +6,16 @@
     "node": ">=26.13.0"
   },
   "scripts": {
-    "test": "pnpm -r --if-present test",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test"
+  },
+  "devDependencies": {
+    "@ceiba/config": "workspace:*",
+    "eslint": "10.14.0",
+    "prettier": "3.9.10",
+    "typescript": "7.0.2"
   }
 }

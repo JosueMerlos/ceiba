@@ -37,6 +37,7 @@ x-frontend: &frontend
     - frontend_node_modules:/app/frontend/node_modules
     - panel_node_modules:/app/frontend/apps/panel/node_modules
     - booking_node_modules:/app/frontend/apps/booking/node_modules
+    - config_node_modules:/app/frontend/packages/config/node_modules
 
 services:
   db:
@@ -149,3 +150,4 @@ volumes:
   frontend_node_modules:
   panel_node_modules:
   booking_node_modules:
+  config_node_modules:
