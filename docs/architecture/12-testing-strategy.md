@@ -90,3 +90,16 @@ Son las que hacen que la extensibilidad sea **segura**: cubren automáticamente 
 
 - Sin umbral de cobertura global como objetivo. Sí es obligatorio: las seis suites de plataforma y los property tests del motor.
 - Tiempo de la suite backend: objetivo menor a 3 min en CI. Si crece, paralelizar (`parallel_tests` o `turbo_tests`) antes de recortar tests.
+
+## Herramientas de calidad y CI (M0.02)
+
+| Capa | Herramienta | Notas |
+| --- | --- | --- |
+| Backend tests | RSpec 8 + FactoryBot, `spec/` (`requests/`, `services/`, `config/`, `support/`) | Sustituye a minitest. `bin/ci-test` corre con `CI=true` (eager load activo) |
+| Backend lint | RuboCop con `rubocop-rails-omakase` como base + `rubocop-rails`, `rubocop-rspec`, `rubocop-factory_bot` | **Decisión:** omakase fija el estilo de Rails 8 (el que ya tiene el código generado: comillas dobles, espacios en `[ ]`) y evita discutir formato; las reglas de Rails y RSpec se añaden encima porque omakase no las trae. Los contextos de los specs se escriben en español (`con`, `sin`, `cuando`, `al`, `si`) |
+| Seguridad backend | `brakeman`, `bundler-audit` | Ignorados solo en `backend/.bundler-audit.yml`, con `# revisar: AAAA-MM-DD \| motivo: ...`; un spec (`spec/config/audit_ignores_spec.rb`) exige motivo y falla si la fecha venció |
+| Frontend | ESLint 10 (flat config), Prettier, `tsc --noEmit` (TypeScript estricto), Vitest, `pnpm audit --audit-level=high` | Config compartida en `frontend/packages/config` (`@ceiba/config`), con tests propios |
+| Pasos de CI | `backend/bin/ci-{lint,test,security}` y `frontend/bin/ci-{lint,test,security}` | Los llaman tanto el workflow como `bin/ci`: una sola definición de cada paso |
+
+**Pruebas de resiliencia en `/api/ready`:** además de dependencia caída o que acepta la conexión y nunca responde (servidor TCP "agujero negro", `spec/support/blackhole_server.rb`), hay un caso de PostgreSQL que conecta bien pero cuyo `SELECT 1` se cuelga (se afirma 503 en menos de 3 s y que se cerró la conexión efímera) y una verificación de que el pool de Active Record no se toca (`spec/support/connection_pool_spy.rb` espía `checkout`, `with_connection` y `lease_connection`; con fixtures transaccionales solo vigilar `checkout` no detectaría nada).
+

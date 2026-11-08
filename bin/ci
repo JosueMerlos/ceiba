@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Ejecuta en local, dentro de Docker, los mismos pasos que CI (.github/workflows/ci.yml).
+# Cada job de CI llama a backend/bin/ci-* o frontend/bin/ci-*: aquí se llama a los mismos scripts,
+# en los contenedores del entorno de desarrollo. Corre todas las etapas (aunque una falle) y
+# termina con código != 0 si alguna falló.
+#
+#   bin/ci                       # todas las etapas
+#   bin/ci backend-test          # solo las indicadas (nombres de los jobs de CI)
+#
+# Etapas locales adicionales: repo-checks (consistencia de versiones, SHAs de las acciones y validador de títulos de PR,
+# que en CI corren dentro de backend-lint) y workflows (actionlint, imagen Docker fijada).
+set -uo pipefail
+cd "$(dirname "$0")/.."
+
+export HOST_UID="${HOST_UID:-$(id -u)}" HOST_GID="${HOST_GID:-$(id -g)}"
+ACTIONLINT_IMAGE="rhysd/actionlint:1.7.12"
+
+backend()  { docker compose run --rm --no-deps -T -e RUN_SETUP=false api "$@"; }
+backend_with_services() { docker compose run --rm -T -e RUN_SETUP=false -e RAILS_ENV=test api "$@"; }
+frontend() { docker compose run --rm --no-deps -T --entrypoint "" -w /app/frontend panel "$@"; }
+
+stage_repo_checks()      { infra/scripts/check-versions.sh && infra/scripts/check-action-pins.sh && infra/scripts/check-pr-title_test.sh; }
+stage_workflows()        { docker run --rm -v "$PWD":/repo -w /repo "$ACTIONLINT_IMAGE"; }
+stage_backend_lint()     { backend bin/ci-lint; }
+stage_backend_test()     { docker compose up -d --wait db redis && backend_with_services bin/ci-test; }
+stage_backend_security() { backend bin/ci-security; }
+stage_frontend_lint()    { frontend bin/ci-lint; }
+stage_frontend_test()    { frontend bin/ci-test; }
+stage_frontend_security() { frontend bin/ci-security; }
+
+ALL_STAGES=(repo-checks workflows backend-lint backend-test backend-security frontend-lint frontend-test frontend-security)
+if [ "$#" -gt 0 ]; then stages=("$@"); else stages=("${ALL_STAGES[@]}"); fi
+
+# Construye las imágenes (usa la caché de capas) para que los contenedores existan.
+docker compose build api panel >/dev/null || { echo "bin/ci: no se pudieron construir las imágenes" >&2; exit 1; }
+
+declare -a results=()
+failed=0
+started_all=$SECONDS
+for stage in "${stages[@]}"; do
+  function_name="stage_${stage//-/_}"
+  if ! declare -F "$function_name" >/dev/null; then
+    echo "bin/ci: etapa desconocida '$stage' (válidas: ${ALL_STAGES[*]})" >&2
+    exit 2
+  fi
+  printf '\n\033[1m== %s ==\033[0m\n' "$stage"
+  started=$SECONDS
+  if "$function_name"; then status="ok"; else status="FALLA"; failed=1; fi
+  results+=("$(printf '%-18s %-6s %4ss' "$stage" "$status" "$((SECONDS - started))")")
+done
+
+printf '\n\033[1m== Resumen ==\033[0m\n'
+printf '%s\n' "${results[@]}"
+printf 'total: %ss\n' "$((SECONDS - started_all))"
+exit "$failed"

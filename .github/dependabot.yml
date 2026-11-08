@@ -1,0 +1,38 @@
+# Dependabot mensual (M0.02). Los mensajes usan "chore(deps)" / "ci(deps)" para pasar el check
+# de conventional commits del título del PR.
+version: 2
+updates:
+  - package-ecosystem: bundler
+    directory: /backend
+    schedule: { interval: monthly }
+    commit-message: { prefix: chore, include: scope }
+    open-pull-requests-limit: 5
+    groups:
+      rails-ecosystem:
+        patterns: ["rails", "rails-*", "action*", "active*"]
+      lint-and-test:
+        patterns: ["rubocop*", "rspec*", "factory_bot*", "brakeman", "bundler-audit"]
+
+  - package-ecosystem: npm # cubre pnpm (lee pnpm-lock.yaml)
+    directory: /frontend
+    schedule: { interval: monthly }
+    commit-message: { prefix: chore, include: scope }
+    open-pull-requests-limit: 5
+    ignore:
+      # packages/config fija typescript@6.0.3 solo porque typescript-eslint no soporta TS 7
+      # (peer ">=4.8.4 <6.1.0"). Dependabot no permite ignorar por paquete del workspace, así
+      # que se descartan las subidas a 6.1-6.x y los saltos mayores de typescript; las menores
+      # y parches de TS 7.x (apps) siguen llegando. Quitar cuando typescript-eslint soporte TS 7.
+      - dependency-name: typescript
+        versions: [">=6.1.0 <7.0.0"]
+        update-types: ["version-update:semver-major"]
+    groups:
+      lint-and-format:
+        patterns: ["eslint*", "@eslint/*", "typescript-eslint", "prettier*", "globals"]
+      testing:
+        patterns: ["vitest*", "@vitest/*", "@testing-library/*", "jsdom"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+    commit-message: { prefix: ci, include: scope }

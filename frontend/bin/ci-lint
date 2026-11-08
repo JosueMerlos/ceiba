@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Job frontend-lint de CI (y de bin/ci): ESLint, Prettier y tipos (tsc --noEmit). Se ejecuta desde frontend/.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+pnpm install --frozen-lockfile --prefer-offline
+pnpm lint
+pnpm format:check
+pnpm typecheck

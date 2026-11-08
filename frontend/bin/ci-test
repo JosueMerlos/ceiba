@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Job frontend-test de CI (y de bin/ci): Vitest en todos los workspaces.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+pnpm install --frozen-lockfile --prefer-offline
+pnpm test

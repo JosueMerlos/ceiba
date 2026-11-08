@@ -1,0 +1,44 @@
+# Estilo base: rubocop-rails-omakase (el de Rails 8). Encima se añaden las reglas de Rails,
+# RSpec y FactoryBot. Decisión documentada en docs/architecture/12-testing-strategy.md.
+inherit_gem:
+  rubocop-rails-omakase: rubocop.yml
+
+plugins:
+  - rubocop-rails
+  - rubocop-rspec
+  - rubocop-factory_bot
+
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.4
+  Exclude:
+    - "bin/**/*"
+    - "db/schema.rb"
+    - "tmp/**/*"
+    - "vendor/**/*"
+    - "node_modules/**/*"
+
+# Los specs se escriben en español: los contextos empiezan por estas palabras.
+RSpec/ContextWording:
+  Prefixes:
+    - con
+    - sin
+    - cuando
+    - al
+    - si
+
+# Los specs describen comportamiento en español; el nombre del archivo sigue a la clase/ruta.
+RSpec/DescribeClass:
+  Exclude:
+    - "spec/requests/**/*"
+    - "spec/config/**/*"
+
+# Los ejemplos de resiliencia (timeouts, conexiones colgadas) necesitan varias expectativas.
+RSpec/MultipleExpectations:
+  Max: 3
+
+RSpec/ExampleLength:
+  Max: 15
+
+RSpec/NestedGroups:
+  Max: 4

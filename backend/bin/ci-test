@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Job backend-test de CI (y de bin/ci): prepara la base de test y corre RSpec.
+# Requiere PostgreSQL y Redis accesibles (DB_HOST, POSTGRES_*, REDIS_URL).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export RAILS_ENV=test
+export CI=true # eager_load activo: detecta errores de carga que el modo lazy esconde
+
+bin/rails db:prepare
+bundle exec rspec

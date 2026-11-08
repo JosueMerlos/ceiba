@@ -13,6 +13,7 @@
     "react-dom": "19.3.1"
   },
   "devDependencies": {
+    "@ceiba/config": "workspace:*",
     "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.3.3",
     "@types/node": "26.6.6",
