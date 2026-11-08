@@ -37,7 +37,9 @@ RSpec/DescribeClass:
     - "spec/requests/**/*"
     - "spec/config/**/*"
     - "spec/packs/**/*"
+    - "spec/db/**/*"
     - "packs/*/*/spec/package_spec.rb"
+    - "packs/platform/database/spec/database/**/*"
 
 # Los ejemplos de resiliencia (timeouts, conexiones colgadas) necesitan varias expectativas.
 RSpec/MultipleExpectations:

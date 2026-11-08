@@ -41,7 +41,7 @@ RSpec.describe "create_tenant_table", :tenant_schema do
 
       expect(foreign_key.to_table).to eq("organizations")
       expect(foreign_key.column).to eq("organization_id")
-      expect { owner.execute("INSERT INTO branches (organization_id, name) VALUES (uuidv7(), 'x')") }
+      expect { owner.execute("INSERT INTO branches (organization_id, name, created_at, updated_at) VALUES (uuidv7(), 'x', now(), now())") }
         .to raise_error(ActiveRecord::InvalidForeignKey)
     end
   end
@@ -62,6 +62,13 @@ RSpec.describe "create_tenant_table", :tenant_schema do
       expect(policy).to include("policyname" => "tenant_isolation", "cmd" => "ALL", "permissive" => "PERMISSIVE")
       expect(policy["qual"]).to include("organization_id", "app.organization_id")
       expect(policy["with_check"]).to eq(policy["qual"])
+    end
+  end
+
+  it "deja RLS deshabilitado en la tabla (se activa en M4.03)" do
+    with_tenant_schema do |owner|
+      create_branches(owner)
+
       expect(rls_flags(owner, :branches)).to eq("enabled" => false, "forced" => false)
     end
   end

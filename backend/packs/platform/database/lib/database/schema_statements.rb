@@ -24,7 +24,7 @@ module Database
         raise ArgumentError, "organization_id lo agrega create_tenant_table: no lo declares en #{table}" if t.columns.count { |c| c.name == "organization_id" } > 1
 
         t.foreign_key :organizations, column: :organization_id, name: "fk_#{table}_organization"
-        t.unique_key %i[organization_id id], name: "uq_#{table}_organization_id_id"
+        t.unique_constraint %i[organization_id id], name: "uq_#{table}_organization_id_id"
       end
       create_tenant_policy(table)
     end
