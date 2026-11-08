@@ -89,13 +89,14 @@ RSpec.describe Events::DeliverJob do
       attempts = 0
       Events.subscribe(event_name, as: "test.flaky") { |_event| (attempts += 1) == 1 ? raise("boom") : nil }
 
+      marks = -> { with_tenant(organization) { Events::ProcessedEvent.where(subscriber: "test.flaky").count } }
+
       expect { deliver(outbox_event, "test.flaky") }.to raise_error("boom")
-      expect(with_tenant(organization) { Events::ProcessedEvent.where(subscriber: "test.flaky").count }).to eq(0)
+      expect(marks.call).to eq(0)
 
       deliver(outbox_event, "test.flaky")
 
-      expect(attempts).to eq(2)
-      expect(with_tenant(organization) { Events::ProcessedEvent.where(subscriber: "test.flaky").count }).to eq(1)
+      expect([ attempts, marks.call ]).to eq([ 2, 1 ])
     end
 
     it "lo que el suscriptor escribió en la base se revierte junto con la marca" do

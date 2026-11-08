@@ -87,6 +87,8 @@ Ceiba/TenantBypass:
     - "lib/rubocop/**/*"
   AllowedFiles:
     - "packs/platform/tenancy/app/public/tenancy.rb"
+    # Lecturas del outbox de todas las organizaciones (relay, purgas, lag): ver el comentario del archivo.
+    - "packs/platform/events/app/services/events/cross_tenant.rb"
 
 # rubocop-rails limita estos cops a app/models, app/controllers... de la raíz; sin esto no
 # revisarían los packs (packs-rails, "Ecosystem and Integrations").

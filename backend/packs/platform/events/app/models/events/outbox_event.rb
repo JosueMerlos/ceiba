@@ -15,5 +15,9 @@ module Events
     scope :published, -> { where.not(published_at: nil) }
     scope :in_publication_order, -> { order(:id) }
     scope :purgeable, ->(before) { published.where(published_at: ...before) }
+
+    def to_event
+      Event.new(id:, name:, organization_id:, payload:, metadata:, occurred_at:)
+    end
   end
 end

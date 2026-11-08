@@ -15,8 +15,7 @@ module Events
       raise NotInTransaction, @name unless ApplicationRecord.connection.transaction_open?
 
       record = OutboxEvent.create!(name: @name, payload: normalized, metadata: context_metadata.merge(@metadata.as_json), occurred_at: Time.current)
-      Event.new(id: record.id, name: record.name, organization_id: record.organization_id, payload: record.payload,
-                metadata: record.metadata, occurred_at: record.occurred_at)
+      record.to_event
     end
 
     private
