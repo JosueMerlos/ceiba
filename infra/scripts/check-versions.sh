@@ -31,6 +31,8 @@ expect_in .github/workflows/ci.yml          "image: postgres:${postgres}-" "Post
 expect_in .github/workflows/ci.yml          "image: redis:${redis}-"       "Redis ${redis} en ci.yml"
 expect_in .github/workflows/ci.yml          "version: ${pnpm}"             "pnpm ${pnpm} en ci.yml"
 expect_in .github/workflows/ci.yml          "node-version-file: .tool-versions" "Node desde .tool-versions en ci.yml"
+expect_in .github/workflows/ci.yml          "rhysd/actionlint:1.7.12"      "Imagen de actionlint en ci.yml"
+expect_in bin/ci                            "rhysd/actionlint:1.7.12"      "Imagen de actionlint en bin/ci"
 
 [ "$failures" -eq 0 ] || { echo "$failures desajuste(s) de versiones" >&2; exit 1; }
 echo "versiones consistentes"

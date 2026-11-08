@@ -24,6 +24,14 @@ env:
   REDIS_URL: redis://localhost:6379/0
 
 jobs:
+  actionlint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Sintaxis de los workflows (misma imagen que bin/ci)
+        run: docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.12
+
   backend-lint:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -31,6 +39,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Versiones consistentes con .tool-versions
         run: infra/scripts/check-versions.sh
+      - name: Acciones fijadas por SHA de commit
+        run: infra/scripts/check-action-pins.sh
       - name: Casos de prueba del validador de títulos de PR
         run: infra/scripts/check-pr-title_test.sh
       # Ruby sale de backend/.ruby-version; las gems se cachean por Gemfile.lock.
@@ -84,7 +94,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pnpm/action-setup@9bbca1e9dc2902adb87e8780fe5c98796985a62d # v6.1.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           version: 12.18.0
           package_json_file: frontend/package.json
@@ -100,7 +110,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pnpm/action-setup@9bbca1e9dc2902adb87e8780fe5c98796985a62d # v6.1.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           version: 12.18.0
           package_json_file: frontend/package.json
@@ -116,7 +126,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pnpm/action-setup@9bbca1e9dc2902adb87e8780fe5c98796985a62d # v6.1.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
         with:
           version: 12.18.0
           package_json_file: frontend/package.json

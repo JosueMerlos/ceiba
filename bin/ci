@@ -7,7 +7,7 @@
 #   bin/ci                       # todas las etapas
 #   bin/ci backend-test          # solo las indicadas (nombres de los jobs de CI)
 #
-# Etapas locales adicionales: repo-checks (consistencia de versiones y validador de títulos de PR,
+# Etapas locales adicionales: repo-checks (consistencia de versiones, SHAs de las acciones y validador de títulos de PR,
 # que en CI corren dentro de backend-lint) y workflows (actionlint, imagen Docker fijada).
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -19,7 +19,7 @@ backend()  { docker compose run --rm --no-deps -T -e RUN_SETUP=false api "$@"; }
 backend_with_services() { docker compose run --rm -T -e RUN_SETUP=false -e RAILS_ENV=test api "$@"; }
 frontend() { docker compose run --rm --no-deps -T --entrypoint "" -w /app/frontend panel "$@"; }
 
-stage_repo_checks()      { infra/scripts/check-versions.sh && infra/scripts/check-pr-title_test.sh; }
+stage_repo_checks()      { infra/scripts/check-versions.sh && infra/scripts/check-action-pins.sh && infra/scripts/check-pr-title_test.sh; }
 stage_workflows()        { docker run --rm -v "$PWD":/repo -w /repo "$ACTIONLINT_IMAGE"; }
 stage_backend_lint()     { backend bin/ci-lint; }
 stage_backend_test()     { docker compose up -d --wait db redis && backend_with_services bin/ci-test; }
