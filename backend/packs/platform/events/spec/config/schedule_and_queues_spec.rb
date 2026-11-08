@@ -22,7 +22,7 @@ RSpec.describe "Programación (sidekiq-cron) y colas del outbox" do
     end
 
     it "el poll de sidekiq-cron es menor que 5 s (si no, el cron de segundos no se cumple)" do
-      expect(described_class::POLL_INTERVAL).to be < 5
+      expect(Sidekiq::Cron.configuration.cron_poll_interval).to be < 5
     end
 
     it "load! registra los jobs en sidekiq-cron (Redis real) y encolan sin organización", :redis do
@@ -30,7 +30,7 @@ RSpec.describe "Programación (sidekiq-cron) y colas del outbox" do
 
       expect(Sidekiq::Cron::Job.all.map(&:name)).to include("events_relay", "events_outbox_lag", "events_purge_outbox", "events_purge_processed")
 
-      Sidekiq::Cron::Job.find("events_relay").enque!
+      Sidekiq::Cron::Job.find("events_relay").enqueue!
 
       expect(Sidekiq::Queue.new("critical").map { |job| job.item["class"] }).to eq([ "Events::RelayJob" ])
     ensure
@@ -47,7 +47,7 @@ RSpec.describe "Programación (sidekiq-cron) y colas del outbox" do
   end
 
   describe "config/sidekiq.yml" do
-    let(:config) { YAML.safe_load_file(Rails.root.join("config/sidekiq.yml"), symbolize_names: true) }
+    let(:config) { YAML.safe_load_file(Rails.root.join("config/sidekiq.yml"), permitted_classes: [ Symbol ], symbolize_names: true) }
 
     it "declara las cuatro colas, critical primero y con más peso" do
       queues = config[:queues].map { |entry| Array(entry) }.to_h { |name, weight| [ name.to_s, weight ] }

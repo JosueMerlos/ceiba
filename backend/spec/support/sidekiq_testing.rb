@@ -1,6 +1,8 @@
 # Sidekiq en modo "fake" por defecto: los jobs encolados se acumulan en memoria (Sidekiq::Queues) y no tocan Redis.
 # Los specs de integración con Redis real (relay concurrente, Redis caído) etiquetan el grupo con `:redis` y corren
 # con Sidekiq::Testing desactivado (API nueva de Sidekiq 8: Sidekiq.testing!, sin `require "sidekiq/testing"`).
+require "sidekiq/api"
+
 Sidekiq.testing!(:fake)
 
 RSpec.configure do |config|
