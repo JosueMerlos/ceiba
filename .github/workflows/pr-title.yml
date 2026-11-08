@@ -1,0 +1,27 @@
+name: PR title
+
+# pull_request_target: el token puede leer el PR aunque venga de un fork. Es seguro porque el job
+# NO hace checkout del código del PR: solo valida el título (pasado por variable de entorno, nunca
+# interpolado en el script).
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      # Se descarga únicamente el validador de la rama base (main), nunca código del PR.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: infra/scripts
+          persist-credentials: false
+      - name: Conventional commits
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: infra/scripts/check-pr-title.sh "$PR_TITLE"

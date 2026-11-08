@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Mínimo privilegio: los jobs solo leen el código.
+permissions:
+  contents: read
+
+# Un push nuevo a la misma rama cancela la ejecución anterior.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Los pasos de cada job viven en backend/bin/ci-* y frontend/bin/ci-*: son EXACTAMENTE los que
+# ejecuta `bin/ci` en local dentro de Docker. Versiones: .tool-versions (verificado por
+# infra/scripts/check-versions.sh).
+env:
+  DB_HOST: localhost
+  POSTGRES_USER: ceiba
+  POSTGRES_PASSWORD: ceiba_ci_password # contraseña del servicio efímero de CI, no es un secreto
+  REDIS_URL: redis://localhost:6379/0
+
+jobs:
+  backend-lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Versiones consistentes con .tool-versions
+        run: infra/scripts/check-versions.sh
+      - name: Casos de prueba del validador de títulos de PR
+        run: infra/scripts/check-pr-title_test.sh
+      # Ruby sale de backend/.ruby-version; las gems se cachean por Gemfile.lock.
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          bundler-cache: true
+          working-directory: backend
+      - run: backend/bin/ci-lint
+
+  backend-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.6-trixie
+        env:
+          POSTGRES_USER: ceiba
+          POSTGRES_PASSWORD: ceiba_ci_password
+          POSTGRES_DB: ceiba_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ceiba -d ceiba_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7.4.12-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          bundler-cache: true
+          working-directory: backend
+      - run: backend/bin/ci-test
+
+  backend-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          bundler-cache: true
+          working-directory: backend
+      - run: backend/bin/ci-security
+
+  frontend-lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@9bbca1e9dc2902adb87e8780fe5c98796985a62d # v6.1.1
+        with:
+          version: 12.18.0
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: frontend/bin/ci-lint
+
+  frontend-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@9bbca1e9dc2902adb87e8780fe5c98796985a62d # v6.1.1
+        with:
+          version: 12.18.0
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: frontend/bin/ci-test
+
+  frontend-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@9bbca1e9dc2902adb87e8780fe5c98796985a62d # v6.1.1
+        with:
+          version: 12.18.0
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: frontend/bin/ci-security
