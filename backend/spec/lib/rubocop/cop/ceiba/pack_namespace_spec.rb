@@ -97,6 +97,48 @@ RSpec.describe RuboCop::Cop::Ceiba::PackNamespace, :config do
       RUBY
     end
 
+    it "rechaza un módulo hermano de otro pack dentro de Api::V1 en los controladores" do
+      expect_offense(<<~RUBY, "packs/modules/example_other/app/controllers/api/v1/example_other/things_controller.rb")
+        module Api
+          module V1
+            module ExampleOther
+              class ThingsController; end
+            end
+            module Billing
+                   ^^^^^^^ El namespace debe empezar por `ExampleOther` (pack packs/modules/example_other).
+              class Hack; end
+            end
+          end
+        end
+      RUBY
+    end
+
+    it "trata `::` como absoluto: no hereda el namespace que lo envuelve" do
+      expect_offense(<<~RUBY, "packs/modules/example_other/app/models/example_other/thing.rb")
+        module ExampleOther
+          class ::ExampleModule::Sneaky; end
+                ^^^^^^^^^^^^^^^^^^^^^^^ El namespace debe empezar por `ExampleOther` (pack packs/modules/example_other).
+        end
+      RUBY
+    end
+
+    it "acepta una constante absoluta dentro del namespace del pack" do
+      expect_no_offenses(<<~RUBY, "packs/modules/example_other/app/models/example_other/thing.rb")
+        class ::ExampleOther::Thing; end
+      RUBY
+    end
+
+    it "rechaza una clase de otro namespace anidada dentro del pack" do
+      expect_offense(<<~RUBY, "packs/modules/example_other/app/models/example_other/thing.rb")
+        module ExampleOther
+          module Nested
+            class ::Billing::Hack; end
+                  ^^^^^^^^^^^^^^^ El namespace debe empezar por `ExampleOther` (pack packs/modules/example_other).
+          end
+        end
+      RUBY
+    end
+
     it "ignora el código que no define constantes" do
       expect_no_offenses(<<~RUBY, "packs/modules/appointments/app/models/appointments/booking.rb")
         Appointments::Booking = Struct.new(:id)
