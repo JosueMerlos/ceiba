@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Job backend-packs de CI (y de bin/ci): límites entre packs (ADR-0001). Se ejecuta desde backend/.
+# `packwerk validate` comprueba la configuración y los package.yml; `packwerk check` falla ante
+# cualquier violación de dependencias, privacidad o capas que no esté en un package_todo.yml
+# (y el check de crecimiento de package_todo.yml impide registrar nuevas). Carga Rails (rutas de
+# autoload), pero no necesita base de datos ni Redis.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export RAILS_ENV=test
+bundle exec packwerk validate
+bundle exec packwerk check

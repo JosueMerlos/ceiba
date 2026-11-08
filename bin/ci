@@ -22,13 +22,14 @@ frontend() { docker compose run --rm --no-deps -T --entrypoint "" -w /app/fronte
 stage_repo_checks()      { infra/scripts/check-versions.sh && infra/scripts/check-action-pins.sh && infra/scripts/check-pr-title_test.sh; }
 stage_workflows()        { docker run --rm -v "$PWD":/repo -w /repo "$ACTIONLINT_IMAGE"; }
 stage_backend_lint()     { backend bin/ci-lint; }
+stage_backend_packs()    { infra/scripts/check-package-todo-growth_test.sh && infra/scripts/check-package-todo-growth.sh && backend bin/ci-packs; }
 stage_backend_test()     { docker compose up -d --wait db redis && backend_with_services bin/ci-test; }
 stage_backend_security() { backend bin/ci-security; }
 stage_frontend_lint()    { frontend bin/ci-lint; }
 stage_frontend_test()    { frontend bin/ci-test; }
 stage_frontend_security() { frontend bin/ci-security; }
 
-ALL_STAGES=(repo-checks workflows backend-lint backend-test backend-security frontend-lint frontend-test frontend-security)
+ALL_STAGES=(repo-checks workflows backend-lint backend-packs backend-test backend-security frontend-lint frontend-test frontend-security)
 if [ "$#" -gt 0 ]; then stages=("$@"); else stages=("${ALL_STAGES[@]}"); fi
 
 # Construye las imágenes (usa la caché de capas) para que los contenedores existan.

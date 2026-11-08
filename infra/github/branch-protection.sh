@@ -18,6 +18,7 @@ payload=$(cat <<JSON
     "checks": [
       { "context": "actionlint", "app_id": 15368 },
       { "context": "backend-lint", "app_id": 15368 },
+      { "context": "backend-packs", "app_id": 15368 },
       { "context": "backend-test", "app_id": 15368 },
       { "context": "backend-security", "app_id": 15368 },
       { "context": "frontend-lint", "app_id": 15368 },
