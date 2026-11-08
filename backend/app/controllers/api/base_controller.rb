@@ -4,5 +4,6 @@ module Api
   # la autenticación (M0.07). Las sondas /api/health y /api/ready NO heredan de aquí: son infraestructura.
   class BaseController < ApplicationController
     include ErrorHandling
+    include Paginated
   end
 end

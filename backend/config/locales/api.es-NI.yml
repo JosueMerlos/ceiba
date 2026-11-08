@@ -14,5 +14,8 @@ es-NI:
         invalid: "La solicitud no es válida"
         bad_request: "La solicitud no es válida"
         malformed: "El cuerpo de la solicitud está mal formado"
+      pagination:
+        invalid_cursor: "El cursor de paginación no es válido"
+        invalid_limit: "El límite de paginación no es válido"
       internal:
         error: "Error interno del servidor"

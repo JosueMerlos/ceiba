@@ -15,6 +15,8 @@ Rails.application.config.to_prepare do
 
   registry.register(ActionController::ParameterMissing, status: :bad_request, code: "request.invalid",
     errors: ->(error) { [ { field: error.param.to_s, code: "missing", message: I18n.t("errors.messages.blank") } ] })
+  registry.register(Api::Pagination::InvalidCursor, status: :bad_request, code: "pagination.invalid_cursor")
+  registry.register(Api::Pagination::InvalidLimit, status: :bad_request, code: "pagination.invalid_limit")
   registry.register(ActionController::BadRequest, status: :bad_request, code: "request.bad_request")
   registry.register(ActionDispatch::Http::Parameters::ParseError, status: :bad_request, code: "request.malformed")
 end
