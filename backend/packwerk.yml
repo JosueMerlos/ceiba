@@ -21,4 +21,4 @@ exclude:
   - "packs/*/*/spec/**/*"
   - "packs/*/*/manifest.rb"
 
-cache: false
+cache: true

@@ -64,11 +64,25 @@ Diferencias respecto de lo que decía este documento:
 
 - **Los módulos entre sí no los frena el layer checker** sino el visibility checker (el layer checker permite la misma capa). Un módulo que usa a otro sin declararlo falla por **dependencia y visibilidad**; si lo declara, falla por **visibilidad** (no por capas). Si además es `platform` → `modules`, falla por **capas**.
 - `packwerk validate` también rechaza los ciclos de dependencias: un `platform` que *declare* depender de un módulo (que a su vez depende de él) ni siquiera valida.
-- `packs-rails` carga `app/*` de cada pack (incluido `app/public`), `config/locales`, `config/initializers` y `lib`, pero **no `db/migrate`**: `config/application.rb` lo registra en `paths["db/migrate"]` para cada pack. `.rspec` lleva `--require packs/rails/rspec` para que `rspec` corra también los specs de `packs/*/*/spec`.
+- `packs-rails` carga `app/*` de cada pack (incluido `app/public`), `config/locales`, `config/initializers` y `lib`, pero **no `db/migrate`**: `config/application.rb` lo registra en `paths["db/migrate"]` (lo leen las tareas rake) y `config/initializers/packs_migrations.rb` asigna `ActiveRecord::Migrator.migrations_paths` (lo leen `check_all_pending!`, `maintain_test_schema!` y el aviso de migraciones pendientes de desarrollo). `.rspec` lleva `--require packs/rails/rspec` para que `rspec` corra también los specs de `packs/*/*/spec`.
 - Las rutas de `controllers` pueden colgar de `Api::V1::<Pack>` (`app/controllers/api/v1/<pack>/`, como en la estructura de abajo). Es la única excepción a "namespace = pack" y la admite el cop `Ceiba/PackNamespace`.
 - `packwerk.yml` excluye `spec/` y `lib/` de la raíz, `packs/*/*/spec/**` y `manifest.rb` (el manifiesto referencia constantes de plataforma por diseño y se valida con su propio registro en M0.09).
 - Los controladores `health` y `ready` **se quedan en la raíz** (`backend/app/controllers`): son infraestructura de Rails (sondas de Docker/proxy, M0.01), no una capacidad de plataforma de las listadas arriba. Moverlos habría creado un pack artificial sin dominio.
 - Los cops de rubocop-rails limitados a `app/models`, `app/controllers`... (`Rails/EnumHash`, `Rails/InverseOf`, `Rails/LexicallyScopedActionFilter`) se amplían a `**/app/...` para cubrir los packs. Los demás cops de rubocop-rails con `Include: app/**` siguen sin revisar los packs: pendiente de ampliar cuando haya código real en packs.
+
+### Cómo se cablea la plataforma con los módulos (M0.09)
+
+Con `visible_to: []` **nadie** puede referenciar una constante de un módulo, ni siquiera `platform/modules` ni el pack raíz `.`. Es intencional y M0.09 debe diseñarse **dentro** de esa restricción, no abriéndola:
+
+- **El registro descubre, no referencia.** `platform/modules` carga `packs/modules/*/manifest.rb` con `Dir.glob` + `load`/`instance_eval`: es lectura de archivos, no una referencia a constantes que Packwerk vea (y `manifest.rb` está excluido de Packwerk). El DSL `Modules.define` vive en `platform/modules`, que el módulo sí puede usar (dependencia `modules` → `platform`).
+- **Los puntos de extensión del módulo se declaran como cadenas**, no como constantes: `on_enable "Appointments::Lifecycle::OnEnable"`, suscriptores y navegación se resuelven con `constantize` en tiempo de ejecución desde la plataforma. Packwerk no ve `constantize`, así que la plataforma sigue sin conocer a ningún módulo estáticamente (es el límite conocido del análisis estático, ADR-0001).
+- **Rutas:** cada pack aporta su archivo de rutas; el `config/routes.rb` raíz usa `draw(:nombre)` (packs-rails), que son nombres de archivo, no constantes.
+- **Los módulos se comunican por eventos** (`platform/events`), nunca por llamadas directas.
+- **Si algo de lo anterior resultara imposible**, la salida no es relajar el package.yml del módulo sino una **allowlist explícita y mínima** en `PackContract::ALLOWED_VISIBLE_TO` (`lib/ci/pack_contract.rb`), pack por pack (por ejemplo `{ "packs/modules/appointments" => ["packs/platform/modules"] }`), revisada por los CODEOWNERS. El spec global de contrato falla ante cualquier `visible_to` que no coincida exactamente con esa lista.
+
+### Quién protege el aislamiento
+
+El aislamiento entre módulos depende de `package.yml`, así que se protege en tres niveles: (1) `spec/packs/pack_contract_spec.rb` recorre **todos** los `packs/*/*` reales y falla si falta un `package.yml`, si la capa no coincide con la carpeta, si un `enforce_*` no es `true`, o si un módulo no tiene `enforce_visibility: true` y `visible_to` exactamente igual a la allowlist; (2) `.github/CODEOWNERS` exige revisión del dueño (`@JosueMerlos`, placeholder) sobre `packs/**/package.yml`, `packwerk.yml`, `package.yml` raíz y el propio contrato (hace falta activar "Require review from Code Owners" en la rama protegida cuando haya más de una persona); (3) el spec base del pack generado.
 
 ### Cómo se verifica
 
@@ -76,8 +90,8 @@ Diferencias respecto de lo que decía este documento:
 | --- | --- |
 | `packwerk validate` + `packwerk check` | `backend/bin/ci-packs` (job `backend-packs`, etapa `bin/ci backend-packs`) |
 | `package_todo.yml` no crece | `infra/scripts/check-package-todo-growth.sh`, con sus casos en `..._test.sh`. Compara con el **merge-base** de la rama destino: en un PR `origin/<destino>` (CI exporta `BASE_REF`), en un push a `main` el SHA anterior, en local `main`. Cuenta líneas *agregadas* (incluye archivos nuevos y cambios sin commitear) |
-| Namespace = pack | cop `Ceiba/PackNamespace` (`backend/lib/rubocop/cop/ceiba/`), en `backend-lint` |
-| Carga (Zeitwerk, `app/*`, `db/migrate`) | `spec/packs/generated_pack_spec.rb`: genera un pack real en un proceso nuevo y hace `eager_load!`; en CI `CI=true` activa además el eager load de toda la app |
+| Namespace = pack | cop `Ceiba/PackNamespace` (`backend/lib/rubocop/cop/ceiba/`), en `backend-lint`: cada módulo/clase definido en un pack (resolviendo el anidamiento; `::X` es absoluto) debe quedar dentro del namespace del pack |
+| Carga (Zeitwerk, `app/*`, `db/migrate`) | `spec/packs/generated_pack_spec.rb`: genera un pack en una **copia temporal** de la app, en un proceso nuevo, y hace `eager_load!`; comprueba además que `migration_context` ve la migración del pack y que `check_all_pending!` la detecta (ver `config/initializers/packs_migrations.rb`); en CI `CI=true` activa además el eager load de toda la app |
 
 ## Estructura de un pack
 
