@@ -15,10 +15,10 @@ RSpec.describe Tenancy::TenantWriteGuard do
     end
   end
 
-  def attributes_for(slug) = { name: "Sonda", slug:, business_type: "salon", currency: "NIO" }
+  def probe_attributes(slug) = { name: "Sonda", slug:, business_type: "salon", currency: "NIO" }
 
   it "ApplicationRecord (pack raíz) no referencia a tenancy: el pack engancha el guard por su cuenta" do
-    expect(Rails.root.join("app/models/application_record.rb").read).not_to match(/Tenancy/)
+    expect(Rails.root.join("app/models/application_record.rb").read).not_to include('Tenancy')
   end
 
   it "se incluye en todo modelo que declara acts_as_tenant, sin hacer nada más" do
@@ -27,7 +27,7 @@ RSpec.describe Tenancy::TenantWriteGuard do
 
   it "ve el organization_id FINAL: un before_save del modelo declarado después no puede escapar al guard" do
     with_tenant(organization) do
-      expect { sneaky_model.new(attributes_for("sonda-1")).save!(validate: false) }.to raise_error(Tenancy::TenantMismatch)
+      expect { sneaky_model.new(probe_attributes("sonda-1")).save!(validate: false) }.to raise_error(Tenancy::TenantMismatch)
     end
   end
 

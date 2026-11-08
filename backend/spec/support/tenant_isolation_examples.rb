@@ -77,8 +77,9 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
 
   # Escrituras masivas: upsert_all con el id de un registro de B desde A lo sobrescribiría y lo movería a A.
   describe "escrituras masivas" do
-    let(:row_of_b) { record_b.attributes }
-    let(:unique_by_tenant) { %i[organization_id id] }
+    def row_of_b = record_b.attributes
+
+    def unique_by_tenant = %i[organization_id id]
 
     it "upsert_all sin unique_by sobre un índice con organization_id se rechaza (ArgumentError)" do
       with_tenant(organization_a) do
