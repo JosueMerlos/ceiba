@@ -44,6 +44,17 @@ GitHub Actions; en cada PR:
 
 Rama `main` protegida; conventional commits; Dependabot mensual.
 
+### Implementación (M0.02)
+
+- **Jobs** (`.github/workflows/ci.yml`, en paralelo): `backend-lint`, `backend-test` (servicios `postgres:18.6-trixie` y `redis:7.4.12-alpine`), `backend-security`, `frontend-lint` (ESLint + Prettier + `tsc --noEmit`), `frontend-test` y **`frontend-security`** (`pnpm audit --audit-level=high`; se separó de `frontend-lint` para que un aviso de seguridad no se confunda con un fallo de estilo). Otro workflow, `pr-title.yml`, valida el título del PR.
+- **Una sola definición de cada paso:** los jobs llaman a `backend/bin/ci-*` y `frontend/bin/ci-*`; `bin/ci` (o `make ci`) llama a los mismos scripts en los contenedores de desarrollo. `infra/scripts/check-versions.sh` verifica que `.tool-versions`, los Dockerfiles, `compose.yaml`, `package.json` y `ci.yml` usen las mismas versiones.
+- **Cachés:** gemas (`ruby/setup-ruby` con `bundler-cache`, por `Gemfile.lock`) y store de pnpm (`actions/setup-node` con `cache: pnpm`).
+- **Acciones fijadas por SHA** de commit (con la versión en un comentario); Dependabot (`github-actions`) las actualiza cada mes.
+- **Título del PR:** `infra/scripts/check-pr-title.sh` es la única definición de la regla (tipos `feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert`, ámbito opcional, `!` opcional) y tiene pruebas (`check-pr-title_test.sh`). Dependabot usa los prefijos `chore(deps)` y `ci(deps)` para cumplirla.
+- **Rama protegida:** `infra/github/branch-protection.sh <owner>/<repo>` (simulación por defecto, `APPLY=1` para aplicar) exige los 7 checks, ramas al día (`strict`), historial lineal, conversaciones resueltas y administradores incluidos. Ajuste manual: solo *squash merge* con el título del PR como mensaje.
+- **TypeScript 7 y typescript-eslint:** `typescript-eslint` 8.72 aún no soporta TS 7 (aborta al cargar). `packages/config` instala `typescript@6.0.3` solo para él (pnpm resuelve el peer por paquete); `tsc`, Vite y Vitest de las apps siguen con TS 7.0.2. Volver a una sola versión cuando typescript-eslint soporte TS >= 7.1.
+- **`node_modules` de `packages/config`** es otro volumen con nombre (`config_node_modules`), igual que los de las apps.
+
 ## Producción (M4.04)
 
 ```

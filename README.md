@@ -54,19 +54,21 @@ Servicios de `compose.yaml`: `db` (PostgreSQL 18), `redis`, `api` (Rails), `work
 | `make sh-api` | Shell dentro del contenedor de la API |
 | `make console` | Consola de Rails |
 | `make reset-db` | Recrea la base de datos desde cero (destructivo) |
-| `make test` | Suite completa: backend (`rails test`) y frontend (Vitest) |
+| `make test` | Suite completa: backend (RSpec) y frontend (Vitest) |
+| `make ci` | Los mismos pasos que CI, en Docker (`bin/ci`; `make ci s=backend-test` para una etapa) |
 | `make smoke` | Verificación de humo a través del proxy |
 
 Cualquier otro comando se ejecuta dentro del contenedor, por ejemplo `docker compose exec api bin/rails db:migrate` o `docker compose exec panel pnpm add <paquete>`.
 
-> Nota: RSpec sustituye a `rails test` en M0.02; los tests actuales son provisionales.
 
 ## Estructura
 
 ```
 backend/     Rails 8 en modo API (rutas bajo /api)
-frontend/    workspace pnpm: apps/panel, apps/booking, packages/
-infra/       docker/ (Dockerfiles de desarrollo), proxy/ (Caddy), scripts/ (verificación)
+frontend/    workspace pnpm: apps/panel, apps/booking, packages/config (ESLint, Prettier, tsconfig)
+infra/       docker/ (Dockerfiles de desarrollo), proxy/ (Caddy), scripts/ (verificación), github/ (protección de rama)
+.github/     workflows de CI, Dependabot y plantilla de PR
+bin/ci       los mismos pasos que CI, dentro de Docker
 docs/        documentación: fuente única de verdad
 compose.yaml entorno de desarrollo
 ```
