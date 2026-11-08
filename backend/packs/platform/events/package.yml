@@ -8,3 +8,4 @@ enforce_layers: true
 # Un pack de platform no depende de ningún módulo.
 dependencies:
   - "."
+  - "packs/platform/tenancy"

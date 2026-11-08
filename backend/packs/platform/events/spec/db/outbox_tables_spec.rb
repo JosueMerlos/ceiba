@@ -32,13 +32,13 @@ RSpec.describe "Tablas del outbox" do
     it "tiene un índice parcial de pendientes por id (lo que recorre el relay)" do
       index = index_on(:outbox_events, [ "id" ])
 
-      expect(index&.where).to match(/published_at IS NULL/)
+      expect(index&.where).to include("published_at IS NULL")
     end
 
     it "tiene un índice parcial de publicados por published_at (purga)" do
       index = index_on(:outbox_events, [ "published_at" ])
 
-      expect(index&.where).to match(/published_at IS NOT NULL/)
+      expect(index&.where).to include("published_at IS NOT NULL")
     end
 
     it "rechaza en la base un nombre de evento mal formado" do

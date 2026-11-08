@@ -11,12 +11,15 @@ RSpec.describe Events::OutboxEvent do
     end
   end
 
-  it "exige un nombre con la forma <modulo>.<hecho>.v<N>" do
+  it "acepta un nombre con la forma <modulo>.<hecho>.v<N>" do
+    with_tenant(organization) { expect(build_event(name: "platform.organization_provisioned.v1")).to be_valid }
+  end
+
+  it "rechaza nombres sin esa forma" do
     with_tenant(organization) do
-      expect(build_event(name: "platform.organization_provisioned.v1")).to be_valid
-      expect(build_event(name: "sin_forma")).not_to be_valid
-      expect(build_event(name: "platform.hecho")).not_to be_valid
-      expect(build_event(name: "Platform.Hecho.v1")).not_to be_valid
+      invalid = [ "sin_forma", "platform.hecho", "Platform.Hecho.v1" ].map { |name| build_event(name:).valid? }
+
+      expect(invalid).to eq([ false, false, false ])
     end
   end
 
