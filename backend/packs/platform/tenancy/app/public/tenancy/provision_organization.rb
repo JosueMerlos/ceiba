@@ -22,7 +22,6 @@ module Tenancy
     ORGANIZATION_KEYS = %i[name legal_name country_code].freeze
     COMPANY_KEYS = %i[name slug business_type currency locale].freeze
     BRANCH_KEYS = %i[name time_zone address phone_e164].freeze
-    SLUG_CONSTRAINT = "uq_companies_slug".freeze
 
     @hooks = [].freeze
 
@@ -55,16 +54,12 @@ module Tenancy
 
     def call
       result = nil
-      # requires_new: dentro de una transacción ajena (tests, un job) un fallo hace rollback a un savepoint y deja la
-      # conexión utilizable, en vez de abortar la transacción entera.
-      ApplicationRecord.transaction(requires_new: true) { result = provision }
+      FailureTranslator.translating(slug: @company_attributes[:slug]) do
+        # requires_new: dentro de una transacción ajena (tests, un job) un fallo hace rollback a un savepoint y deja la
+        # conexión utilizable, en vez de abortar la transacción entera.
+        ApplicationRecord.transaction(requires_new: true) { result = provision }
+      end
       result
-    rescue ActiveRecord::RecordInvalid => error
-      raise failure_for(error.record)
-    rescue ActiveRecord::RecordNotUnique => error
-      raise unless violated_constraint(error) == SLUG_CONSTRAINT
-
-      raise slug_taken
     end
 
     private
@@ -86,46 +81,6 @@ module Tenancy
       raise ArgumentError, "Claves no permitidas en #{section}: #{unknown.join(', ')}" if unknown.any?
 
       attributes
-    end
-
-    def failure_for(record)
-      section = section_of(record)
-      details = { section => record.errors.to_hash }
-      case slug_error(record, section)
-      when :exclusion then ProvisioningFailed.new(:slug_reserved, I18n.t("tenancy.provisioning_failed.slug_reserved", slug: record.slug), details:)
-      when :taken then slug_taken(details)
-      else ProvisioningFailed.new(:invalid, I18n.t("tenancy.provisioning_failed.invalid", errors: full_messages(record, section)), details:)
-      end
-    end
-
-    def slug_error(record, section)
-      return unless section == :company
-
-      kinds = record.errors.details[:slug].pluck(:error)
-      (kinds & %i[exclusion taken]).first
-    end
-
-    def slug_taken(details = { company: { slug: [ I18n.t("tenancy.provisioning_failed.slug_taken", slug: normalized_slug) ] } })
-      ProvisioningFailed.new(:slug_taken, I18n.t("tenancy.provisioning_failed.slug_taken", slug: normalized_slug), details:)
-    end
-
-    def normalized_slug = Company.normalize_value_for(:slug, @company_attributes[:slug].to_s)
-
-    def section_of(record)
-      case record
-      when Organization then :organization
-      when Company then :company
-      else :branch
-      end
-    end
-
-    def full_messages(record, section)
-      prefix = I18n.t("tenancy.provisioning_failed.sections.#{section}")
-      record.errors.full_messages.map { |message| "#{prefix}: #{message}" }.join("; ")
-    end
-
-    def violated_constraint(error)
-      error.cause&.result&.error_field(PG::Result::PG_DIAG_CONSTRAINT_NAME)
     end
   end
 end
