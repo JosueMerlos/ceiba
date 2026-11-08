@@ -33,8 +33,15 @@ stage_backend_security() { backend bin/ci-security; }
 stage_frontend_lint()    { frontend bin/ci-lint; }
 stage_frontend_test()    { frontend bin/ci-test; }
 stage_frontend_security() { frontend bin/ci-security; }
+# Contrato API (M0.06): regenera openapi/v1.yaml y el cliente TS y falla si difieren de lo versionado.
+stage_api_contract() {
+  infra/scripts/check-api-contract_test.sh && docker compose up -d --wait db redis && db_roles \
+    && OPENAPI_GENERATE='docker compose run --rm -T -e RUN_SETUP=false -e RAILS_ENV=test api bin/ci-openapi' \
+       CLIENT_GENERATE='docker compose run --rm --no-deps -T --entrypoint "" -w /app/frontend panel bin/ci-api-client' \
+       infra/scripts/check-api-contract.sh
+}
 
-ALL_STAGES=(repo-checks workflows backend-lint backend-packs backend-migrations backend-test backend-security frontend-lint frontend-test frontend-security)
+ALL_STAGES=(repo-checks workflows backend-lint backend-packs backend-migrations backend-test backend-security frontend-lint frontend-test frontend-security api-contract)
 if [ "$#" -gt 0 ]; then stages=("$@"); else stages=("${ALL_STAGES[@]}"); fi
 
 # Construye las imágenes (usa la caché de capas) para que los contenedores existan.

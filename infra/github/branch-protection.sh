@@ -30,6 +30,7 @@ payload=$(cat <<JSON
       { "context": "frontend-lint", "app_id": 15368 },
       { "context": "frontend-test", "app_id": 15368 },
       { "context": "frontend-security", "app_id": 15368 },
+      { "context": "api-contract", "app_id": 15368 },
       { "context": "pr-title", "app_id": 15368 }
     ]
   },

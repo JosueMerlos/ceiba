@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Paso "contrato" del job api-contract de CI (y de bin/ci): regenera openapi/v1.yaml desde los specs de rswag.
+# Se ejecuta desde backend/. Requiere PostgreSQL con los roles (igual que ci-test): rails_helper comprueba el esquema.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export RAILS_ENV=test
+
+bin/rails db:prepare
+bin/rails openapi:generate

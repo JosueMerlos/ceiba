@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Paso "cliente" del job api-contract de CI (y de bin/ci): regenera packages/api-client/src/schema.d.ts desde
+# backend/openapi/v1.yaml. Se ejecuta desde frontend/.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+pnpm install --frozen-lockfile --prefer-offline
+pnpm api:generate

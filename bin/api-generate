@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Regenera, dentro de Docker, el contrato OpenAPI (backend/openapi/v1.yaml, desde los specs de rswag) y el cliente
+# TypeScript (frontend/packages/api-client/src/schema.d.ts). Úsalo tras cambiar un endpoint o un serializer y versiona
+# el resultado: CI falla si el contrato o el cliente están desactualizados (infra/scripts/check-api-contract.sh).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export HOST_UID="${HOST_UID:-$(id -u)}" HOST_GID="${HOST_GID:-$(id -g)}"
+
+docker compose up -d --wait db redis
+docker compose exec -T db /docker-entrypoint-initdb.d/10-roles.sh
+docker compose run --rm -T -e RUN_SETUP=false -e RAILS_ENV=test api bin/ci-openapi
+docker compose run --rm --no-deps -T --entrypoint "" -w /app/frontend panel bin/ci-api-client
