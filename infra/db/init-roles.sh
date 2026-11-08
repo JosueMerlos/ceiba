@@ -35,42 +35,61 @@ SQL
 
 # 2. Privilegios por base. `template1` va incluida a propósito: CREATE DATABASE copia sus privilegios por
 #    defecto, así las bases que crea `db:create` (p. ej. ceiba_test) nacen ya con los GRANT de app_user.
-#    Las bases con datos (ceiba_development) pasan al dueño correcto y se regrantan las tablas existentes.
-databases=$(psql_run -At -c "SELECT datname FROM pg_database WHERE datallowconn AND datname <> 'postgres'")
-for database in $databases; do
+#    En template1 solo se fijan privilegios (no tiene objetos de usuario ni se le cambia el dueño).
+#    Las bases con datos (ceiba_development) pasan al dueño correcto junto con TODO lo que el superusuario
+#    haya creado en public: tablas, secuencias, vistas, vistas materializadas y funciones. Una vista o función
+#    que siga siendo del superusuario se ejecuta con sus privilegios y se saltaría RLS.
+#    Los nombres de base se leen línea a línea y se pasan como variable de psql (:"db" = identificador citado).
+while IFS= read -r database; do
+  [ -n "$database" ] || continue
   if [ "$database" != "template1" ]; then
-    psql_run -c "ALTER DATABASE \"$database\" OWNER TO app_owner"
+    echo 'ALTER DATABASE :"db" OWNER TO app_owner;' | psql_run -v db="$database"
   fi
-  PGDATABASE="$database" psql_run <<'SQL'
+  PGDATABASE="$database" psql_run -v is_template="$([ "$database" = template1 ] && echo true || echo false)" <<'SQL'
 -- El dueño de la base es dueño del esquema public (pg_database_owner); app_user solo lo usa.
 GRANT USAGE ON SCHEMA public TO app_user;
 
--- Tablas existentes que aún no sean de app_owner (p. ej. creadas antes de M0.04 por el superusuario).
+-- Objetos existentes de public que aún no sean de app_owner (p. ej. creados antes de M0.04 por el superusuario).
+-- Se omiten los miembros de extensiones (citext, btree_gist...), que gestiona la propia extensión.
+SELECT NOT :is_template AS reassign \gset
+\if :reassign
 DO $$
 DECLARE obj record;
 BEGIN
-  FOR obj IN SELECT format('%I.%I', schemaname, tablename) AS name FROM pg_tables
-             WHERE schemaname = 'public' AND tableowner <> 'app_owner' LOOP
-    EXECUTE format('ALTER TABLE %s OWNER TO app_owner', obj.name);
-  END LOOP;
-  FOR obj IN SELECT format('%I.%I', sequence_schema, sequence_name) AS name FROM information_schema.sequences
-             WHERE sequence_schema = 'public' LOOP
-    EXECUTE format('ALTER SEQUENCE %s OWNER TO app_owner', obj.name);
+  FOR obj IN
+    SELECT format('ALTER %s %s OWNER TO app_owner',
+                  CASE c.relkind WHEN 'v' THEN 'VIEW' WHEN 'm' THEN 'MATERIALIZED VIEW' WHEN 'S' THEN 'SEQUENCE'
+                                 WHEN 'f' THEN 'FOREIGN TABLE' ELSE 'TABLE' END,
+                  c.oid::regclass) AS ddl
+    FROM pg_class c
+    WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
+      AND pg_get_userbyid(c.relowner) <> 'app_owner'
+      AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = c.oid AND d.classid = 'pg_class'::regclass AND d.deptype IN ('e', 'a'))
+    UNION ALL
+    SELECT format('ALTER %s %s OWNER TO app_owner', CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END, p.oid::regprocedure)
+    FROM pg_proc p
+    WHERE p.pronamespace = 'public'::regnamespace AND p.prokind IN ('f', 'p')
+      AND pg_get_userbyid(p.proowner) <> 'app_owner'
+      AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.classid = 'pg_proc'::regclass AND d.deptype = 'e')
+  LOOP
+    EXECUTE obj.ddl;
   END LOOP;
 END $$;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_user;
+\endif
 
 -- Tablas y secuencias FUTURAS que cree app_owner (las migraciones): accesibles para app_user sin otro GRANT.
 ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_user;
 ALTER DEFAULT PRIVILEGES FOR ROLE app_owner IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO app_user;
 SQL
-done
+done < <(psql_run -At -c "SELECT datname FROM pg_database WHERE datallowconn AND datname <> 'postgres' ORDER BY 1")
 
 # 3. pg_stat_statements (diagnóstico de rendimiento) NO es una extensión de esquema ni de migraciones: exige
 #    superusuario y shared_preload_libraries. Se crea solo en la base de mantenimiento `postgres` (las
-#    estadísticas son de todo el clúster) para que no aparezca en db/structure.sql. Si el servidor no la
-#    tiene precargada, se omite sin fallar (CI).
+#    estadísticas son de todo el clúster) para que no aparezca en db/structure.sql. Solo se comprueba que la
+#    extensión esté DISPONIBLE (paquete contrib instalado); la precarga (shared_preload_libraries) la pone
+#    compose.yaml en desarrollo. Sin precarga la extensión se crea igual pero no recoge estadísticas (CI).
 if [ "$(psql_run -At -c "SELECT count(*) FROM pg_available_extensions WHERE name = 'pg_stat_statements'")" = "1" ]; then
   psql_run -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements"
 fi
