@@ -3,7 +3,7 @@ module Events
   # (config/initializers/sidekiq_cron.rb). `load_from_hash` (sin !) añade o actualiza sin borrar las de otros packs.
   module Schedule
     JOBS = {
-      # Cada 5 s: cron de 6 campos (segundos). El poll de sidekiq-cron es de 2 s para cumplirlo.
+      # Cada 5 s: cron de 6 campos (segundos). El poll de sidekiq-cron es de 1 s (con el jitter propio de Sidekiq, 0,5-1,5 s) para cumplirlo.
       "events_relay" => { "class" => "Events::RelayJob", "cron" => "*/5 * * * * *", "description" => "Publica el outbox a Sidekiq" },
       "events_outbox_lag" => { "class" => "Events::OutboxLagJob", "cron" => "* * * * *", "description" => "Mide el lag del outbox" },
       # De madrugada (UTC), escalonadas.
