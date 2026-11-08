@@ -21,6 +21,10 @@ RSpec.describe Openapi::Normalizer do
     expect(result["oneOf"].first.keys).to eq(%w[a z])
   end
 
+  it "convierte los valores simbólicos en texto (el YAML no debe llevar !ruby/symbol)" do
+    expect(described_class.call({ type: :object, required: %i[id name] })).to eq({ "required" => %w[id name], "type" => "object" })
+  end
+
   it "convierte claves simbólicas a texto y es idempotente" do
     once = described_class.call({ b: { d: 1, c: 2 }, a: [ { y: 1, x: 2 } ] })
 

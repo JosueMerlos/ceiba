@@ -13,7 +13,8 @@ RSpec.describe "Documentación de la API (/api/docs)" do
     get "/api/docs/v1.yaml"
 
     expect(response).to have_http_status(:ok)
-    expect(response.body).to eq(Rails.root.join("openapi/v1.yaml").read)
+    # rswag-api vuelve a serializar el YAML (otro ajuste de línea): se compara el documento, no el texto.
+    expect(YAML.safe_load(response.body)).to eq(YAML.safe_load_file(Rails.root.join("openapi/v1.yaml")))
   end
 
   describe Api::Docs do
