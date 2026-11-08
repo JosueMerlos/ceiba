@@ -7,7 +7,7 @@ export HOST_GID ?= $(shell id -g)
 COMPOSE ?= docker compose
 
 .DEFAULT_GOAL := help
-.PHONY: help up down logs ps sh-api console reset-db test smoke hmr-check ci
+.PHONY: help up down logs ps sh-api console db-roles reset-db test smoke hmr-check ci
 
 help: ## Lista los atajos
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -29,6 +29,10 @@ sh-api: ## Shell dentro del contenedor de la API
 
 console: ## Consola de Rails
 	$(COMPOSE) exec api bin/rails console
+
+db-roles: ## Aplica (idempotente) los roles app_owner/app_user a un volumen de BD que ya existía
+	$(COMPOSE) up -d --wait db
+	$(COMPOSE) exec -T db /docker-entrypoint-initdb.d/10-roles.sh
 
 reset-db: ## Recrea la base de datos de desarrollo y de test desde cero (DESTRUCTIVO)
 	$(COMPOSE) exec api bin/rails db:drop db:create db:migrate

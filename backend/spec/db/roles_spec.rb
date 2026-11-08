@@ -50,9 +50,17 @@ RSpec.describe "Roles de base de datos" do
     OwnerConnection.with do |owner|
       owner.execute("CREATE TABLE roles_grant_probe (id uuid PRIMARY KEY DEFAULT uuidv7(), name text)")
       begin
-        ActiveRecord::Base.connection.execute("INSERT INTO roles_grant_probe (name) VALUES ('x')")
-        count = ActiveRecord::Base.connection.select_value("SELECT count(*) FROM roles_grant_probe")
-        expect(count).to eq(1)
+        # Se consulta con has_table_privilege desde la conexión de dueño: usar la conexión transaccional
+        # de la suite dejaría un bloqueo abierto sobre la tabla y el DROP se quedaría esperando.
+        privileges = %w[SELECT INSERT UPDATE DELETE].index_with do |privilege|
+          owner.select_value("SELECT has_table_privilege('app_user', 'roles_grant_probe', '#{privilege}')")
+        end
+        ddl = %w[TRUNCATE REFERENCES TRIGGER].map do |privilege|
+          owner.select_value("SELECT has_table_privilege('app_user', 'roles_grant_probe', '#{privilege}')")
+        end
+
+        expect(privileges.values).to all(be(true))
+        expect(ddl).to all(be(false))
       ensure
         owner.execute("DROP TABLE roles_grant_probe")
       end

@@ -13,6 +13,9 @@ x-backend: &backend
     DB_HOST: db
     POSTGRES_USER: ${POSTGRES_USER:-ceiba}
     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ceiba_dev_password}
+    # Roles de la aplicación (M0.04): la API conecta como app_user; las migraciones como app_owner.
+    APP_OWNER_PASSWORD: ${APP_OWNER_PASSWORD:-ceiba_owner_dev_password}
+    APP_USER_PASSWORD: ${APP_USER_PASSWORD:-ceiba_user_dev_password}
     REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     SMTP_HOST: mailpit
     SMTP_PORT: "1025"
@@ -46,9 +49,16 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-ceiba}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ceiba_dev_password}
       POSTGRES_DB: ${POSTGRES_DB:-ceiba_development}
+      APP_OWNER_PASSWORD: ${APP_OWNER_PASSWORD:-ceiba_owner_dev_password}
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD:-ceiba_user_dev_password}
+    # pg_stat_statements exige precarga (diagnóstico de rendimiento, M0.04)
+    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements"]
     volumes:
       # PostgreSQL 18 guarda los datos en /var/lib/postgresql/18/docker: se monta el directorio padre
       - pg_data:/var/lib/postgresql
+      # Roles app_owner/app_user (M0.04). initdb.d SOLO corre con el volumen vacío: con un volumen existente
+      # se aplica con `make db-roles` (el script es idempotente).
+      - ./infra/db/init-roles.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s

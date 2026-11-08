@@ -1,13 +1,28 @@
 # Los parámetros de conexión vienen de variables de entorno (compose.yaml).
 # No se usa DATABASE_URL a propósito: en test sobrescribiría el nombre de la base
 # y los specs acabarían corriendo contra la base de desarrollo.
+#
+# DOS ROLES (M0.04, ADR-0005, docs/architecture/03-multi-tenancy.md):
+#   app_user   la aplicación en ejecución (servidor, worker, consola, specs): sin ser dueño de tablas,
+#              sin superusuario y sin BYPASSRLS, para que las políticas RLS le apliquen.
+#   app_owner  las tareas `db:*` (create, migrate, rollback, schema:load, prepare...): es el dueño de la base.
+# El rol se elige solo: si se invoca una tarea `db:*` de rake/rails es app_owner; en cualquier otro caso
+# app_user. DB_ROLE=owner|user lo fuerza. Los roles los crea infra/db/init-roles.sh.
+<%
+  db_task = defined?(Rake) && Rake.respond_to?(:application) &&
+            Rake.application.top_level_tasks.any? { |task| task.start_with?("db:") }
+  role = ENV.fetch("DB_ROLE") { db_task ? "owner" : "user" }
+  raise "DB_ROLE inválido: #{role.inspect} (owner o user)" unless %w[owner user].include?(role)
+  username = "app_#{role}"
+  password = ENV.fetch("APP_#{role.upcase}_PASSWORD", "")
+%>
 default: &default
   adapter: postgresql
   encoding: unicode
   connect_timeout: 5
   host: <%= ENV.fetch("DB_HOST", "localhost") %>
-  username: <%= ENV.fetch("POSTGRES_USER", "ceiba") %>
-  password: <%= ENV.fetch("POSTGRES_PASSWORD", "") %>
+  username: <%= username %>
+  password: <%= password.to_json %>
   max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
 
 development:
