@@ -34,6 +34,12 @@ module Backend
       paths["db/migrate"] << pack.relative_path.join("db/migrate").to_s
     end
 
+    # Las factories de cada pack viven en packs/<capa>/<pack>/spec/factories (solo existe config.factory_bot en
+    # desarrollo y test, donde está factory_bot_rails).
+    if config.respond_to?(:factory_bot)
+      config.factory_bot.definition_file_paths += Dir[Rails.root.join("packs/*/*/spec/factories").to_s]
+    end
+
     # Configuration for the application, engines, and railties goes here.
     #
     # These settings can be overridden in specific environments using the files

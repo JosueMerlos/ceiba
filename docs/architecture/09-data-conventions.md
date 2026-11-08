@@ -52,7 +52,7 @@ La condición de la política difiere en un detalle de la del doc 03: usa `NULLI
 
 **Guardián de consistencia:** `packs/platform/database/spec/database/tenant_tables_consistency_spec.rb` exige que las tablas con columna `organization_id` sean exactamente `Database::TenantTables.names` (en ambos sentidos; exenciones solo justificadas, hoy ninguna). Una tabla creada con `create_table` normal + `organization_id` rompe el spec.
 
-`organizations` llega en M0.05; los specs de M0.04 crean una tabla `organizations` mínima **solo dentro del spec** (transacción de dueño que se revierte), no hay tablas de prueba en migraciones.
+`organizations`, `companies` y `branches` existen desde M0.05 (pack `platform/tenancy`). Los specs de las convenciones crean sus tablas de prueba (incluida una `organizations` mínima) **solo dentro del spec**, en un esquema `tenant_probe` dentro de una transacción de dueño que se revierte (`spec/support/tenant_schema_helpers.rb`), para no chocar con las tablas reales; no hay tablas de prueba en migraciones. Nota de M0.05: una FK `ON DELETE RESTRICT` falla con `PG::RestrictViolation` (`ActiveRecord::StatementInvalid`), no con `InvalidForeignKey`; `NO ACTION` sí daría `InvalidForeignKey`.
 
 ## Roles de base de datos
 

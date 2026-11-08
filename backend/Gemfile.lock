@@ -75,6 +75,8 @@ GEM
       securerandom (>= 0.3)
       tzinfo (~> 2.0, >= 2.0.5)
       uri (>= 0.13.1)
+    acts_as_tenant (2.2.2)
+      rails (>= 6.0)
     ast (2.4.3)
     base64 (0.3.0)
     benchmark (0.5.0)
@@ -351,6 +353,7 @@ PLATFORMS
   x86_64-linux-musl
 
 DEPENDENCIES
+  acts_as_tenant (= 2.2.2)
   brakeman (~> 8.1)
   bundler-audit (~> 0.9)
   debug
