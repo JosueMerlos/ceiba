@@ -4,8 +4,11 @@ RSpec.describe Tenancy::Company do
   let(:organization) { new_organization }
   let(:attributes) { { name: "Barbería El Güegüense", slug: "el-guegu", business_type: "barbershop", currency: "NIO" } }
 
+  # Todo ocurre dentro del tenant, salvo los ejemplos marcados :no_tenant.
+  around { |example| example.metadata[:no_tenant] ? example.run : with_tenant(organization) { example.run } }
+
   def build_company(**overrides)
-    with_tenant(organization) { described_class.new(attributes.merge(overrides)) }
+    described_class.new(attributes.merge(overrides))
   end
 
   def create_company(org = organization, **overrides)
@@ -13,7 +16,7 @@ RSpec.describe Tenancy::Company do
   end
 
   describe "tenant" do
-    it "falla sin tenant activo (criterio 1)" do
+    it "falla sin tenant activo (criterio 1)", :no_tenant do
       expect { described_class.count }.to raise_error(ActsAsTenant::Errors::NoTenantSet)
     end
 
@@ -24,13 +27,13 @@ RSpec.describe Tenancy::Company do
     it "no encuentra por id una empresa de otra organización (criterio 2)" do
       other = create_company(new_organization, slug: "otra-empresa")
 
-      expect { with_tenant(organization) { described_class.find(other.id) } }.to raise_error(ActiveRecord::RecordNotFound)
+      expect { described_class.find(other.id) }.to raise_error(ActiveRecord::RecordNotFound)
     end
 
     it "no cuenta las empresas de otra organización" do
       create_company(new_organization, slug: "otra-empresa")
 
-      expect(with_tenant(organization) { described_class.count }).to eq(0)
+      expect(described_class.count).to eq(0)
     end
 
     it "rechaza una empresa asignada a otra organización" do
@@ -40,7 +43,7 @@ RSpec.describe Tenancy::Company do
     end
 
     it "la base rechaza una organización inexistente aunque se salte la validación" do
-      company = with_tenant(organization) { described_class.new(attributes.merge(organization_id: SecureRandom.uuid)) }
+      company = described_class.new(attributes.merge(organization_id: SecureRandom.uuid))
 
       expect { company.save!(validate: false) }.to raise_error(ActiveRecord::InvalidForeignKey, /fk_companies_organization/)
     end
@@ -48,7 +51,7 @@ RSpec.describe Tenancy::Company do
     it "la base impide borrar una organización con empresas (restrict)" do
       create_company
 
-      expect { organization.destroy! }.to raise_error(ActiveRecord::InvalidForeignKey, /fk_companies_organization/)
+      expect { organization.destroy! }.to raise_error(ActiveRecord::StatementInvalid, /RestrictViolation.*fk_companies_organization/m)
     end
   end
 
@@ -88,7 +91,7 @@ RSpec.describe Tenancy::Company do
         expect(company).not_to be_valid, "#{slug} debería estar reservado"
         expect(company.errors.details[:slug]).to include(a_hash_including(error: :exclusion))
       end
-      expect(build_company(slug: "admin").errors[:slug].first).to eq("está reservado")
+      expect(build_company(slug: "admin").tap(&:valid?).errors[:slug].first).to eq("está reservado")
     end
 
     it "mantiene la lista de reservados en minúsculas y con formato válido o muy corto" do
