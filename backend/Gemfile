@@ -22,6 +22,11 @@ gem "rails-i18n", "8.1.0"
 # Multi-tenancy (M0.05): el tenant es la organización (ADR-0003). Versión fijada.
 gem "acts_as_tenant", "2.2.2"
 
+# Contrato API (M0.06, ADR-0012): serializers con Alba y documentación OpenAPI servida por rswag. Versiones fijadas.
+gem "alba", "4.0.3"
+gem "rswag-api", "2.17.0"
+gem "rswag-ui", "2.17.0"
+
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
 
@@ -36,6 +41,8 @@ group :development, :test do
   # Tests (M0.02): RSpec reemplaza a minitest; FactoryBot para los datos de prueba.
   gem "rspec-rails", "~> 8.1"
   gem "factory_bot_rails", "~> 6.5"
+  # Los specs de rswag generan openapi/v1.yaml y validan cada respuesta contra el contrato (M0.06).
+  gem "rswag-specs", "2.17.0"
 
   # Calidad y seguridad estáticas (M0.02).
   # Estilo base de Rails 8 (omakase) + reglas de Rails y RSpec encima. Ver .rubocop.yml.
