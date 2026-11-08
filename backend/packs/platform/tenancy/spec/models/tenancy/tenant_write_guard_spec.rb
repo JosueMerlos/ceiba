@@ -91,4 +91,46 @@ RSpec.describe Tenancy::TenantWriteGuard do
       expect(with_tenant(organization) { Tenancy::Company.find(mine.id).name }).to eq("Masivo")
     end
   end
+
+  # Canario: el guard depende de métodos privados de Active Record (_insert_record, _update_record...). Si una actualización
+  # de Rails los renombra, el guard dejaría de ejecutarse EN SILENCIO: este spec falla antes.
+  describe "canario de internos de Rails" do
+    it "el guard es dueño de los métodos de clase que sobrescribe y estos tienen super" do
+      %i[_insert_record _update_record _delete_record].each do |name|
+        method = Tenancy::Company.method(name)
+
+        expect(method.owner).to eq(Tenancy::TenantWriteGuard::ClassMethods), "#{name} no es del guard"
+        expect(method.super_method).to be_present, "#{name} ya no existe en Active Record"
+      end
+    end
+
+    it "el guard es dueño de los métodos de instancia que sobrescribe y estos tienen super" do
+      %i[_update_row _delete_row update_columns].each do |name|
+        method = Tenancy::Company.instance_method(name)
+
+        expect(method.owner).to eq(Tenancy::TenantWriteGuard), "#{name} no es del guard"
+        expect(method.super_method).to be_present, "#{name} ya no existe en Active Record"
+      end
+    end
+
+    it "el instalador es dueño de acts_as_tenant y de las escrituras masivas de la relación" do
+      expect(ActiveRecord::Base.method(:acts_as_tenant).owner).to eq(TenantGuardInstaller::ModelMethods)
+      %i[insert_all insert_all! upsert_all update_all].each do |name|
+        expect(Tenancy::Company.all.method(name).owner).to eq(TenantGuardInstaller::RelationMethods)
+        expect(Tenancy::Company.all.method(name).super_method).to be_present
+      end
+    end
+
+    it "los métodos de Rails que invocan los internos siguen llamándolos (touch y update_columns pasan por ellos)" do
+      company = with_tenant(organization) { create(:company) }
+      calls = []
+      allow(Tenancy::Company).to receive(:_update_record).and_wrap_original { |original, *args| calls << :update && original.call(*args) }
+
+      with_tenant(organization) do
+        Tenancy::Company.find(company.id).tap(&:touch).update_columns(name: "x")
+      end
+
+      expect(calls.size).to eq(2)
+    end
+  end
 end

@@ -123,4 +123,56 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
       end
     end
   end
+
+  # Un objeto de B que sigue en memoria (cargado en el contexto B) NO se puede escribir ni borrar desde el contexto A:
+  # el UPDATE/DELETE va por clave primaria, sin default scope, así que lo cierra el guard.
+  describe "objetos de otra organización en memoria" do
+    def stale_b = with_tenant(organization_b) { model.find(record_b.id) }
+
+    def b_untouched?(before)
+      with_tenant(organization_b) { model.find(record_b.id).updated_at == before }
+    end
+
+    it "update_attribute, touch y update_columns desde A se rechazan y la fila de B queda intacta" do
+      before = record_b.updated_at
+      stale = stale_b
+
+      with_tenant(organization_a) do
+        expect { stale.update_attribute(:updated_at, 1.day.from_now) }.to raise_error(Tenancy::TenantMismatch)
+        expect { stale.touch }.to raise_error(Tenancy::TenantMismatch)
+        expect { stale.update_columns(updated_at: 2.days.from_now) }.to raise_error(Tenancy::TenantMismatch)
+      end
+      expect(b_untouched?(before)).to be(true)
+    end
+
+    it "delete y destroy desde A se rechazan y la fila de B sigue existiendo" do
+      before = record_b.updated_at
+      stale = stale_b
+
+      with_tenant(organization_a) do
+        expect { stale.delete }.to raise_error(Tenancy::TenantMismatch)
+        expect { stale.destroy }.to raise_error(Tenancy::TenantMismatch)
+      end
+      expect(b_untouched?(before)).to be(true)
+    end
+
+    it "las sentencias llevan organization_id en las condiciones (defensa en profundidad)" do
+      before = record_b.updated_at
+
+      with_tenant(organization_a) do
+        affected = model._update_record({ "updated_at" => 1.day.from_now }, { "id" => record_b.id })
+        deleted = model._delete_record({ "id" => record_b.id })
+
+        expect([ affected, deleted ]).to eq([ 0, 0 ])
+      end
+      expect(b_untouched?(before)).to be(true)
+    end
+
+    it "upsert_all con un on_duplicate propio que menciona organization_id se rechaza" do
+      with_tenant(organization_a) do
+        expect { model.upsert_all([ record_a.attributes ], unique_by: unique_by_tenant, on_duplicate: Arel.sql("organization_id = excluded.organization_id")) }
+          .to raise_error(ArgumentError, /on_duplicate/)
+      end
+    end
+  end
 end
