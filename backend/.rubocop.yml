@@ -17,7 +17,6 @@ AllCops:
   TargetRubyVersion: 3.4
   Exclude:
     - "bin/**/*"
-    - "db/schema.rb"
     - "tmp/**/*"
     - "vendor/**/*"
     - "node_modules/**/*"

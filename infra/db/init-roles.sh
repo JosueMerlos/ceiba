@@ -17,7 +17,10 @@ set -euo pipefail
 
 : "${APP_OWNER_PASSWORD:?falta APP_OWNER_PASSWORD}"
 : "${APP_USER_PASSWORD:?falta APP_USER_PASSWORD}"
+# Conexión: PG* si vienen definidas; si no, las variables del entorno de la app (CI) o el socket local (contenedor db).
 export PGUSER="${PGUSER:-${POSTGRES_USER:-postgres}}"
+[ -z "${DB_HOST:-}" ] || export PGHOST="${PGHOST:-$DB_HOST}"
+[ -z "${POSTGRES_PASSWORD:-}" ] || export PGPASSWORD="${PGPASSWORD:-$POSTGRES_PASSWORD}"
 export PGDATABASE=postgres
 
 psql_run() { psql -X -q -v ON_ERROR_STOP=1 "$@"; }
