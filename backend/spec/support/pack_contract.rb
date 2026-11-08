@@ -11,6 +11,12 @@ RSpec.shared_examples "un pack del monolito modular" do |layer:, pack_root:|
     expect(package).to include("enforce_dependencies" => true, "enforce_privacy" => true, "enforce_layers" => true)
   end
 
+  it "es invisible para los demás packs si es un módulo (los módulos no se usan entre sí)" do
+    expectation = layer == "modules" ? { "enforce_visibility" => true, "visible_to" => [] } : {}
+
+    expect(package.slice("enforce_visibility", "visible_to")).to eq(expectation)
+  end
+
   it "vive en la carpeta de su capa" do
     expect(pack_root).to start_with("packs/#{layer}/")
   end

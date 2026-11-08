@@ -37,6 +37,12 @@ RSpec.describe PackGenerator do
       )
     end
 
+    it "no es visible para ningún otro pack: los módulos no dependen entre sí" do
+      package = YAML.safe_load_file(pack_file("modules/foo", "package.yml"))
+
+      expect(package).to include("enforce_visibility" => true, "visible_to" => [])
+    end
+
     it "depende del pack raíz y de ningún otro" do
       package = YAML.safe_load_file(pack_file("modules/foo", "package.yml"))
 
@@ -67,6 +73,7 @@ RSpec.describe PackGenerator do
       package = YAML.safe_load_file(pack_file("platform/bar_baz", "package.yml"))
 
       expect(package).to include("layer" => "platform", "enforce_layers" => true)
+      expect(package).not_to include("enforce_visibility")
       expect(pack_file("platform/bar_baz", "manifest.rb")).not_to exist
     end
 
