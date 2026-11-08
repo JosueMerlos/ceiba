@@ -1,0 +1,14 @@
+# Pack <%= layer %>/<%= pack_name %> (namespace <%= namespace %>). Reglas: docs/architecture/02-modular-monolith.md
+layer: <%= layer %>
+enforce_dependencies: true
+enforce_privacy: true
+enforce_layers: true
+
+# Declara aquí SOLO lo que el pack usa. "." es el pack raíz (ApplicationRecord, ApplicationController...).
+<% if modules_layer? -%>
+# Un módulo depende de packs de platform/, nunca de otro módulo (los módulos se hablan por eventos).
+<% else -%>
+# Un pack de platform no depende de ningún módulo.
+<% end -%>
+dependencies:
+  - "."

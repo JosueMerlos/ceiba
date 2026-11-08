@@ -1,0 +1,5 @@
+require "rails_helper"
+
+RSpec.describe "Pack <%= layer %>/<%= pack_name %>" do
+  it_behaves_like "un pack del monolito modular", layer: "<%= layer %>", pack_root: "packs/<%= layer %>/<%= pack_name %>"
+end
