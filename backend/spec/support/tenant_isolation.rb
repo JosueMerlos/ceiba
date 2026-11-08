@@ -42,6 +42,34 @@ module TenantIsolation
     Database::TenantTables.names - models.map(&:table_name) - UNMODELED_TABLES.keys.map(&:to_s)
   end
 
+  # Asociaciones que cruzarían tenants. El default scope de acts_as_tenant filtra la CONSULTA del modelo, pero una
+  # asociación cuya condición es `organization_id = <el de otro registro>` REEMPLAZA esa condición: desde una
+  # organización cargada en el contexto A, `organization.companies` devolvería las de B. Se prohíbe:
+  #   - cualquier asociación DESDE un modelo raíz (sin organization_id) HACIA un modelo tenant;
+  #   - cualquier asociación hacia un modelo tenant cuya clave foránea sea organization_id.
+  # Los hijos se relacionan con su padre tenant por la clave del padre (company_id), dentro del tenant activo.
+  def association_violations(models = nil)
+    candidates = models || (Rails.application.eager_load! && ApplicationRecord.descendants.select { |model| named?(model) && !model.abstract_class? })
+    candidates.flat_map do |model|
+      model.reflect_on_all_associations.filter_map do |reflection|
+        target = target_of(reflection)
+        next unless target && tenant_model?(target)
+        next unless !tenant_model?(model) || Array(reflection.foreign_key).map(&:to_s).include?("organization_id")
+
+        "#{model.name}.#{reflection.macro} :#{reflection.name} -> #{target.name} (foreign_key #{Array(reflection.foreign_key).join(',')}): " \
+          "cruzaría tenants; consulta #{target.name} dentro de un tenant en vez de declarar la asociación"
+      end
+    end
+  end
+
+  def target_of(reflection)
+    reflection.polymorphic? ? nil : reflection.klass
+  rescue NameError
+    nil
+  end
+
+  def named?(model) = model.name.present? && model.name.safe_constantize.equal?(model)
+
   def missing_factory_message(model)
     "Falta una factory para #{model.name} (tabla #{model.table_name}, con organization_id): agrega " \
       "`factory :#{model.name.demodulize.underscore}, class: \"#{model.name}\"` en spec/factories o en packs/*/*/spec/factories. " \

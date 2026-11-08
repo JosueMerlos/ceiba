@@ -52,6 +52,38 @@ RSpec.describe TenantIsolation do
     RSpec.world.example_groups.delete(group)
   end
 
+  describe ".association_violations" do
+    let(:root) do
+      Class.new(ApplicationRecord) do
+        self.table_name = "organizations"
+        def self.name = "RootProbe"
+        has_many :probes, class_name: "IsolationProbe", foreign_key: :organization_id
+      end
+    end
+    let(:sibling) do
+      Class.new(ApplicationRecord) do
+        self.table_name = "isolation_probes"
+        def self.name = "SiblingProbe"
+        acts_as_tenant :organization, class_name: "Tenancy::Organization"
+        has_many :others, class_name: "IsolationProbe", foreign_key: :organization_id
+      end
+    end
+
+    before { stub_const("RootProbe", root) && stub_const("SiblingProbe", sibling) }
+
+    it "marca una asociación desde un modelo raíz hacia un modelo tenant" do
+      expect(described_class.association_violations([ root ])).to contain_exactly(a_string_matching(/RootProbe\.has_many :probes -> IsolationProbe.*cruzaría tenants/))
+    end
+
+    it "marca una asociación hacia un modelo tenant con foreign_key organization_id" do
+      expect(described_class.association_violations([ sibling ])).to contain_exactly(a_string_matching(/SiblingProbe\.has_many :others/))
+    end
+
+    it "no marca belongs_to :organization ni las asociaciones entre tenant por la clave del padre" do
+      expect(described_class.association_violations([ Tenancy::Branch, Tenancy::Company ])).to be_empty
+    end
+  end
+
   it "encuentra la factory de un modelo que sí la tiene" do
     expect(described_class.factory_for!(Tenancy::Branch).name).to eq(:branch)
   end
