@@ -43,5 +43,9 @@ module Backend
 
     # Los jobs van en Sidekiq (ADR-0009); Solid Queue no se usa.
     config.active_job.queue_adapter = :sidekiq
+
+    # Sin variantes de imagen todavía: evita el aviso de `image_processing` en cada arranque.
+    # Se reactiva (gema + :vips) cuando haya un hito que procese imágenes.
+    config.active_storage.variant_processor = :disabled
   end
 end
