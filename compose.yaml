@@ -1,0 +1,33 @@
+name: ${COMPOSE_PROJECT_NAME:-ceiba}
+
+services:
+  db:
+    image: postgres:18.6-trixie
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ceiba}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ceiba_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-ceiba_development}
+    volumes:
+      # PostgreSQL 18 guarda los datos en /var/lib/postgresql/18/docker: se monta el directorio padre
+      - pg_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  redis:
+    image: redis:7.4.12-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pg_data:
+  redis_data:
