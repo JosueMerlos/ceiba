@@ -8,6 +8,8 @@ RSpec.describe "Esquema de test desactualizado" do
 
   after { app.destroy }
 
+  def run_probe = app.run("bundle", "exec", "rspec", "spec/probe_spec.rb")
+
   before do
     app.db!("db:create", "db:migrate")
     app.write("db/migrate/20261108000003_create_probes.rb", <<~RUBY)
@@ -31,7 +33,17 @@ RSpec.describe "Esquema de test desactualizado" do
   end
 
   it "migra el esquema de test con el rol de dueño y corre la suite como app_user" do
-    output, status = app.run("bundle", "exec", "rspec", "spec/probe_spec.rb")
+    output, status = run_probe
+
+    expect([ status.success?, output[/\d+ examples?, \d+ failures?/] ]).to eq([ true, "1 example, 0 failures" ]), output
+  end
+
+  it "recarga el esquema de test si structure.sql cambió sin migraciones pendientes" do
+    app.root.join("db/migrate/20261108000003_create_probes.rb").delete
+    app.db!("db:test:prepare")
+    structure = app.read("db/structure.sql")
+    app.write("db/structure.sql", structure.sub("SET search_path TO", "CREATE TABLE public.probes (id uuid DEFAULT uuidv7() NOT NULL, name character varying);\n\nSET search_path TO"))
+    output, status = run_probe
 
     expect([ status.success?, output[/\d+ examples?, \d+ failures?/] ]).to eq([ true, "1 example, 0 failures" ]), output
   end

@@ -35,8 +35,8 @@ class TemporaryAppCopy
     output
   end
 
-  # Tareas de esquema (db:*): requieren DB_ROLE=owner explícito (fail-closed, ver config/database.yml).
-  def db!(*tasks) = run!("bin/rails", *tasks, env: { "DB_ROLE" => "owner" })
+  # Tareas de esquema (db:*): la allowlist de config/db_roles.rb las corre como app_owner.
+  def db!(*tasks) = run!("bin/rails", *tasks)
 
   def rails_runner(script) = run!("bin/rails", "runner", script).lines.last.to_s.strip
 

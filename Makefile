@@ -7,7 +7,7 @@ export HOST_GID ?= $(shell id -g)
 COMPOSE ?= docker compose
 
 .DEFAULT_GOAL := help
-.PHONY: help up down logs ps sh-api console db-roles reset-db test smoke hmr-check ci
+.PHONY: help up down logs ps sh-api console db-roles migrate rollback db-prepare reset-db test smoke hmr-check ci
 
 help: ## Lista los atajos
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -36,8 +36,20 @@ db-roles: ## Aplica (idempotente) los roles app_owner/app_user a un volumen de B
 	$(COMPOSE) up -d --wait db
 	$(COMPOSE) exec -T db /docker-entrypoint-initdb.d/10-roles.sh
 
-reset-db: ## Recrea la base de datos de desarrollo y de test desde cero (DESTRUCTIVO)
+# Las tareas de esquema (allowlist en backend/config/db_roles.rb) corren solas como app_owner; la aplicación y db:seed como app_user.
+migrate: ## Migra la base de desarrollo (como app_owner)
+	$(COMPOSE) exec api bin/rails db:migrate
+
+rollback: ## Revierte la última migración (como app_owner)
+	$(COMPOSE) exec api bin/rails db:rollback
+
+db-prepare: ## Crea/migra la base de desarrollo y de test si hace falta (como app_owner)
+	$(COMPOSE) exec api bin/rails db:prepare
+	$(COMPOSE) exec -e RAILS_ENV=test api bin/rails db:prepare
+
+reset-db: ## Recrea la base de datos de desarrollo desde cero y la siembra (DESTRUCTIVO)
 	$(COMPOSE) exec api bin/rails db:drop db:create db:migrate
+	$(COMPOSE) exec api bin/rails db:seed
 
 test: ## Corre toda la suite (backend + frontend)
 	$(COMPOSE) exec -e RAILS_ENV=test api bundle exec rspec
