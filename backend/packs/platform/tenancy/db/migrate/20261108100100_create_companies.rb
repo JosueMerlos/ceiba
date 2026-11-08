@@ -18,8 +18,8 @@ class CreateCompanies < ActiveRecord::Migration[8.1]
       # La URL pública es /c/:slug: único en TODA la plataforma, no por organización.
       t.index :slug, unique: true, name: "uq_companies_slug"
       t.check_constraint "slug ~ '^[a-z0-9-]{3,40}$'", name: "chk_companies_slug_format"
-      t.check_constraint "currency IN ('NIO', 'USD')", name: "chk_companies_currency"
-      t.check_constraint "status IN ('active', 'inactive')", name: "chk_companies_status"
+      t.check_constraint "currency = 'NIO' OR currency = 'USD'", name: "chk_companies_currency"
+      t.check_constraint "status = 'active' OR status = 'inactive'", name: "chk_companies_status"
     end
   end
 end

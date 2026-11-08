@@ -70,7 +70,7 @@ CREATE TABLE public.branches (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_branches_phone_e164 CHECK (((phone_e164 IS NULL) OR ((phone_e164)::text ~ '^\+[1-9][0-9]{6,14}$'::text))),
-    CONSTRAINT chk_branches_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
+    CONSTRAINT chk_branches_status CHECK ((((status)::text = 'active'::text) OR ((status)::text = 'inactive'::text)))
 );
 
 

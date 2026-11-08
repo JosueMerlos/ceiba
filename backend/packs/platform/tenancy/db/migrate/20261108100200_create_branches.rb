@@ -14,7 +14,7 @@ class CreateBranches < ActiveRecord::Migration[8.1]
       t.string :status, null: false, default: "active"
       t.timestamps
 
-      t.check_constraint "status IN ('active', 'inactive')", name: "chk_branches_status"
+      t.check_constraint "status = 'active' OR status = 'inactive'", name: "chk_branches_status"
       t.check_constraint "phone_e164 IS NULL OR phone_e164 ~ '^\\+[1-9][0-9]{6,14}$'", name: "chk_branches_phone_e164"
     end
   end
