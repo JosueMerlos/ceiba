@@ -12,6 +12,9 @@ const [app, path] = process.argv.slice(-2).length === 2 ? process.argv.slice(-2)
 const file = `/app/frontend/apps/${app}/src/App.tsx`;
 const original = readFileSync(file, "utf8");
 const restore = () => writeFileSync(file, original);
+// Pase lo que pase (éxito, fallo, Ctrl-C o excepción) el componente vuelve a su estado original.
+process.on("exit", restore);
+for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => process.exit(130));
 const fail = (reason) => { restore(); console.error(`FALLA ${app}: ${reason}`); process.exit(1); };
 const timer = setTimeout(() => fail("no llegó ningún update de HMR en 10 s"), 10_000);
 
@@ -37,8 +40,12 @@ request.on("upgrade", (response, socket) => {
       if (length === 126) { if (buffer.length < 4) return; length = buffer.readUInt16BE(2); offset = 4; }
       else if (length === 127) { if (buffer.length < 10) return; length = Number(buffer.readBigUInt64BE(2)); offset = 10; }
       if (buffer.length < offset + length) return;
-      const message = JSON.parse(buffer.subarray(offset, offset + length).toString("utf8"));
+      const isText = (buffer[0] & 0x0f) === 0x1; // se ignoran ping/pong/close/binarios
+      const payload = buffer.subarray(offset, offset + length).toString("utf8");
       buffer = buffer.subarray(offset + length);
+      if (!isText) continue;
+      let message;
+      try { message = JSON.parse(payload); } catch { continue; }
       if (message.type === "connected") appendFileSync(file, "\n// hmr-check\n");
       if (message.type === "update") {
         clearTimeout(timer);

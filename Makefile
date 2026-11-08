@@ -7,7 +7,7 @@ export HOST_GID ?= $(shell id -g)
 COMPOSE ?= docker compose
 
 .DEFAULT_GOAL := help
-.PHONY: help up down logs ps sh-api console reset-db test smoke
+.PHONY: help up down logs ps sh-api console reset-db test smoke hmr-check
 
 help: ## Lista los atajos
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -39,3 +39,6 @@ test: ## Corre toda la suite (backend + frontend)
 
 smoke: ## Verifica el entorno de punta a punta a través del proxy
 	./infra/scripts/smoke.sh
+
+hmr-check: ## Edita un componente y verifica el HMR a través del proxy (panel y booking)
+	./infra/scripts/hmr-check.sh
