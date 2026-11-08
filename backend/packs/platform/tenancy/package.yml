@@ -1,0 +1,10 @@
+# Pack platform/tenancy (namespace Tenancy). Reglas: docs/architecture/02-modular-monolith.md
+layer: platform
+enforce_dependencies: true
+enforce_privacy: true
+enforce_layers: true
+
+# Declara aquí SOLO lo que el pack usa. "." es el pack raíz (ApplicationRecord, ApplicationController...).
+# Un pack de platform no depende de ningún módulo.
+dependencies:
+  - "."

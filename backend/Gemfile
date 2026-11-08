@@ -19,6 +19,9 @@ gem "packs-rails", "0.1.1"
 gem "strong_migrations", "2.8.0"
 gem "rails-i18n", "8.1.0"
 
+# Multi-tenancy (M0.05): el tenant es la organización (ADR-0003). Versión fijada.
+gem "acts_as_tenant", "2.2.2"
+
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # gem "bcrypt", "~> 3.1.7"
 
