@@ -18,6 +18,14 @@
 - `docker compose up`, o `make up`, levanta: `db` (PG 18), `redis`, `api`, `worker`, `panel`, `booking`, `mailpit` y `proxy` (Caddy en `:8080`).
 - **Mismo origen** desde el primer día: `/api` → api, `/c/*` → booking, `/` → panel.
 - No requiere Ruby ni Node en el host.
+- **Rutas:** el proxy **no** quita prefijos. Rails monta todo bajo `/api` y Vite sirve booking con `base: "/c/"`, de modo que desarrollo y producción coinciden. El websocket de HMR atraviesa el proxy (`server.hmr.clientPort` = puerto público).
+- **Versiones fijadas (M0.01):** Ruby 3.4.12, Rails 8.1.4.1, Node 26.13.0, pnpm 12.18.0, PostgreSQL 18.6, Redis 7.4.12, Caddy 2.11.9, Mailpit 1.33.1 (también en `.tool-versions`).
+- **Usuario no root** con el UID/GID del host (build args `HOST_UID`/`HOST_GID`, que `make up` rellena); `groupadd --non-unique` tolera un GID ya existente en la imagen (GID 20 en macOS).
+- **Volúmenes con nombre:** `pg_data` (montado en `/var/lib/postgresql`, porque PostgreSQL 18 usa `/var/lib/postgresql/18/docker`), `redis_data`, `bundle` y `node_modules` (raíz, panel y booking). `node_modules` nunca se monta desde el host.
+- **Orden de arranque:** `api` instala gems y corre `bin/setup` (idempotente) y `worker` espera a que esté `healthy`; `panel` instala el workspace de pnpm y `booking` espera a `panel`.
+- **Base de datos:** `database.yml` lee `DB_HOST`/`POSTGRES_*` y no `DATABASE_URL` (en test, `DATABASE_URL` sobrescribe el nombre de la base y apuntaría a desarrollo).
+- **Puertos publicados:** solo el proxy (`8080`) y Mailpit (`8025`).
+- **Verificación:** `make smoke` y `infra/scripts/hmr-check.sh`.
 
 ## CI (M0.02)
 

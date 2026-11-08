@@ -1,0 +1,23 @@
+# Los parámetros de conexión vienen de variables de entorno (compose.yaml).
+# No se usa DATABASE_URL a propósito: en test sobrescribiría el nombre de la base
+# y los specs acabarían corriendo contra la base de desarrollo.
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  connect_timeout: 5
+  host: <%= ENV.fetch("DB_HOST", "localhost") %>
+  username: <%= ENV.fetch("POSTGRES_USER", "ceiba") %>
+  password: <%= ENV.fetch("POSTGRES_PASSWORD", "") %>
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+development:
+  <<: *default
+  database: ceiba_development
+
+test:
+  <<: *default
+  database: ceiba_test
+
+production:
+  <<: *default
+  database: ceiba_production

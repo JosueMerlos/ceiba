@@ -1,0 +1,31 @@
+# Proxy de desarrollo: UN solo origen (http://localhost:8080) para API, panel y booking.
+# Misma regla de enrutamiento que producción (ADR-0013). El prefijo NO se quita:
+# Rails monta sus rutas bajo /api y Vite sirve booking bajo la base /c/.
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	handle /__proxy/health {
+		respond "ok" 200
+	}
+
+	# `path /api /api/*`: también /api sin barra final va a la API, no al panel
+	@api path /api /api/*
+	handle @api {
+		reverse_proxy api:3000
+	}
+
+	# /c sin barra final -> /c/ (la base de Vite)
+	redir /c /c/ 308
+
+	# Incluye el websocket de HMR de Vite: Caddy hace el upgrade automáticamente.
+	handle /c/* {
+		reverse_proxy booking:5174
+	}
+
+	handle {
+		reverse_proxy panel:5173
+	}
+}
