@@ -28,13 +28,9 @@ module RuboCop
           match = PACK_PATH.match(processed_source.file_path.to_s)
           return unless match
 
-          namespaces = allowed_namespaces(match[:name], match[:kind])
-          top_level_definitions.each do |definition|
-            next if nested_names(definition).any? { |name| inside_any?(name, namespaces) }
-
-            add_offense(definition.identifier,
-                        message: format(MSG, namespace: namespaces.first, pack: match[:root].sub(%r{\A.*?(?=packs/)}, "")))
-          end
+          @namespaces = allowed_namespaces(match[:name], match[:kind])
+          @pack = match[:root].sub(%r{\A.*?(?=packs/)}, "")
+          check_definitions(top_level_nodes, nil)
         end
 
         MSG = "El namespace debe empezar por `%<namespace>s` (pack %<pack>s)."
@@ -46,25 +42,41 @@ module RuboCop
           kind == "controllers" ? [ namespace, "Api::V1::#{namespace}" ] : [ namespace ]
         end
 
-        def top_level_definitions
+        def top_level_nodes
           root = processed_source.ast
           return [] unless root
 
-          nodes = root.begin_type? ? root.children : [ root ]
-          nodes.select { |node| node.module_type? || node.class_type? }
+          root.begin_type? ? root.children : [ root ]
         end
 
-        # Nombres completos que se alcanzan al anidar: `module Api; module V1` -> "Api", "Api::V1".
-        def nested_names(definition, prefix = nil)
-          name = [ prefix, definition.identifier.source.delete_prefix("::") ].compact.join("::")
-          children = definition.each_child_node(:module, :class, :begin).flat_map do |child|
-            child.begin_type? ? child.each_child_node(:module, :class).to_a : [ child ]
+        # Recorre TODAS las definiciones. Cada una se resuelve contra el namespace que la envuelve
+        # (`::X` es absoluto) y debe quedar dentro del pack; solo se admiten, sin estar dentro, los
+        # módulos que son camino hacia él (`Api`, `Api::V1` para `Api::V1::Pack` en controladores).
+        def check_definitions(nodes, parent)
+          nodes.each do |node|
+            next unless node.is_a?(RuboCop::AST::Node)
+            next check_definitions(node.children, parent) if node.begin_type?
+            next unless node.module_type? || node.class_type?
+
+            name = qualified_name(node.identifier.source, parent)
+            if acceptable?(name)
+              check_definitions(node.each_child_node.to_a, name)
+            else
+              add_offense(node.identifier, message: format(MSG, namespace: @namespaces.first, pack: @pack))
+            end
           end
-          [ name ] + children.flat_map { |child| nested_names(child, name) }
         end
 
-        def inside_any?(name, namespaces)
-          namespaces.any? { |namespace| name == namespace || name.start_with?("#{namespace}::") }
+        def qualified_name(source, parent)
+          return source.delete_prefix("::") if source.start_with?("::") || parent.nil?
+
+          "#{parent}::#{source}"
+        end
+
+        def acceptable?(name)
+          @namespaces.any? do |namespace|
+            name == namespace || name.start_with?("#{namespace}::") || namespace.start_with?("#{name}::")
+          end
         end
       end
     end

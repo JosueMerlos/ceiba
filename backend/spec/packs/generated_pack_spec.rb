@@ -7,11 +7,12 @@ require "tmpdir"
 # (no se escribe en packs/ del repositorio): genera un pack y, en un proceso nuevo, comprueba que
 # packwerk lo valida y que Rails/Zeitwerk lo cargan (app/*, namespace, eager_load! y db/migrate).
 RSpec.describe "Pack generado" do
+  namespace = "GeneratorProbe"
+  migration_version = "20260101000000"
+
   let(:app_root) { Pathname(Dir.mktmpdir("ceiba-app-copy")) }
   let(:pack_name) { "generator_probe" }
   let(:pack_dir) { app_root.join("packs/modules", pack_name) }
-  let(:namespace) { "GeneratorProbe" }
-  let(:migration_version) { "20260101000000" }
   let(:env) { { "RAILS_ENV" => "test", "RUN_SETUP" => "false", "BUNDLE_GEMFILE" => app_root.join("Gemfile").to_s } }
 
   def copy_application
@@ -28,6 +29,20 @@ RSpec.describe "Pack generado" do
     yield
   ensure
     $stdout = original
+  end
+
+  def pending_migration_script
+    <<~RUBY
+      pool = ActiveRecord::Base.connection_pool
+      names = pool.migration_context.migrations.map(&:name)
+      abort "migration_context no ve la migración del pack: \#{names.inspect}" unless names.include?("CreateProbe")
+      begin
+        ActiveRecord::Migration.check_all_pending!
+        abort "check_all_pending! no detectó la migración pendiente del pack"
+      rescue ActiveRecord::PendingMigrationError
+        puts "ok"
+      end
+    RUBY
   end
 
   def run!(*command)
@@ -75,19 +90,7 @@ RSpec.describe "Pack generado" do
         def change; end
       end
     RUBY
-    script = <<~RUBY
-      pool = ActiveRecord::Base.connection_pool
-      names = pool.migration_context.migrations.map(&:name)
-      abort "migration_context no ve la migración del pack: \#{names.inspect}" unless names.include?("CreateProbe")
-      begin
-        ActiveRecord::Migration.check_all_pending!
-        abort "check_all_pending! no detectó la migración pendiente del pack"
-      rescue ActiveRecord::PendingMigrationError
-        puts "ok"
-      end
-    RUBY
-
-    output, status = run!("bin/rails", "runner", script)
+    output, status = run!("bin/rails", "runner", pending_migration_script)
 
     expect([ status.success?, output.lines.last&.strip ]).to eq([ true, "ok" ]), output
   end
