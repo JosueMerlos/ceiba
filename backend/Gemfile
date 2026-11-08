@@ -20,4 +20,17 @@ gem "tzinfo-data", platforms: %i[ windows jruby ]
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
+
+  # Tests (M0.02): RSpec reemplaza a minitest; FactoryBot para los datos de prueba.
+  gem "rspec-rails", "~> 8.1"
+  gem "factory_bot_rails", "~> 6.5"
+
+  # Calidad y seguridad estáticas (M0.02).
+  # Estilo base de Rails 8 (omakase) + reglas de Rails y RSpec encima. Ver .rubocop.yml.
+  gem "rubocop-rails-omakase", "~> 1.1", require: false
+  gem "rubocop-rails", "~> 2.38", require: false
+  gem "rubocop-rspec", "~> 3.10", require: false
+  gem "rubocop-factory_bot", "~> 2.28", require: false
+  gem "brakeman", "~> 8.1", require: false
+  gem "bundler-audit", "~> 0.9", require: false
 end
