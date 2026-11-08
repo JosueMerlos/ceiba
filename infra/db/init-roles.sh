@@ -64,7 +64,11 @@ BEGIN
     FROM pg_class c
     WHERE c.relnamespace = 'public'::regnamespace AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')
       AND pg_get_userbyid(c.relowner) <> 'app_owner'
-      AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = c.oid AND d.classid = 'pg_class'::regclass AND d.deptype IN ('e', 'a'))
+      -- Fuera: miembros de extensiones ('e') y secuencias de serial/IDENTITY ('a', 'i'), que cambian de dueño con su
+      -- tabla (ALTER SEQUENCE falla con "linked to table"). Las particiones (dependencia 'a' del padre) SÍ se
+      -- reasignan: ALTER TABLE padre OWNER TO no recorre las particiones.
+      AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = c.oid AND d.classid = 'pg_class'::regclass
+                      AND (d.deptype = 'e' OR (c.relkind = 'S' AND d.deptype IN ('a', 'i'))))
     UNION ALL
     SELECT format('ALTER %s %s OWNER TO app_owner', CASE p.prokind WHEN 'p' THEN 'PROCEDURE' ELSE 'FUNCTION' END, p.oid::regprocedure)
     FROM pg_proc p

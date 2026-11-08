@@ -103,6 +103,8 @@ jobs:
           echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
       - name: Roles de base de datos (app_owner, app_user)
         run: infra/db/init-roles.sh
+      - name: Prueba de init-roles.sh (idempotencia, identity, particiones)
+        run: infra/db/init-roles_test.sh
       - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           bundler-cache: true
