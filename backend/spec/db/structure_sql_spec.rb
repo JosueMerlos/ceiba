@@ -31,11 +31,16 @@ RSpec.describe "db/structure.sql" do
 
   def structure = app.read("db/structure.sql")
 
-  it "incluye las extensiones, las políticas, las FKs compuestas y las UNIQUE" do
+  it "incluye las extensiones" do
     expect(structure).to include("CREATE EXTENSION IF NOT EXISTS btree_gist", "CREATE EXTENSION IF NOT EXISTS citext")
+  end
+
+  it "incluye las políticas tenant_isolation" do
     expect(structure).to include("CREATE POLICY tenant_isolation ON public.branches", "CREATE POLICY tenant_isolation ON public.companies")
-    expect(structure).to match(/FOREIGN KEY \(organization_id, company_id\) REFERENCES public\.companies\(organization_id, id\)/)
-    expect(structure).to include("UNIQUE (organization_id, id)")
+  end
+
+  it "incluye las FKs compuestas y las UNIQUE (organization_id, id)" do
+    expect(structure).to include("FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id)", "UNIQUE (organization_id, id)")
   end
 
   it "usa uuidv7() como default de las PK y no deja RLS activado" do

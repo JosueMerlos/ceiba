@@ -37,6 +37,7 @@ RSpec/DescribeClass:
     - "spec/config/**/*"
     - "spec/packs/**/*"
     - "spec/db/**/*"
+    - "spec/generators/model_generator_spec.rb"
     - "packs/*/*/spec/package_spec.rb"
     - "packs/platform/database/spec/database/**/*"
 
