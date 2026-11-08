@@ -24,12 +24,13 @@ module TenantGuardInstaller
       super
     end
 
-    def upsert_all(attributes, unique_by: nil, **)
+    def upsert_all(attributes, unique_by: nil, on_duplicate: :update, **options)
       guard! do |guard|
         guard.ensure_upsert_target!(klass, unique_by)
+        guard.ensure_on_duplicate_safe!(klass, on_duplicate)
         guard.ensure_bulk_rows!(klass, attributes)
       end
-      super
+      super(attributes, unique_by:, on_duplicate:, **options)
     end
 
     def update_all(updates)

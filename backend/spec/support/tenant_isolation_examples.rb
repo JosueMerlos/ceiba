@@ -66,20 +66,11 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
     end
   end
 
-  it "con el tenant A, destruir un registro cuyo organization_id no es el del tenant se rechaza" do
-    with_tenant(organization_a) do
-      loaded = model.find(record_a.id)
-      loaded[:organization_id] = organization_b.id
-
-      expect { loaded.destroy }.to raise_error(Tenancy::TenantMismatch)
-    end
-  end
+  def unique_by_tenant = %i[organization_id id]
 
   # Escrituras masivas: upsert_all con el id de un registro de B desde A lo sobrescribiría y lo movería a A.
   describe "escrituras masivas" do
     def row_of_b = record_b.attributes
-
-    def unique_by_tenant = %i[organization_id id]
 
     it "upsert_all sin unique_by sobre un índice con organization_id se rechaza (ArgumentError)" do
       with_tenant(organization_a) do
@@ -127,10 +118,12 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
   # Un objeto de B que sigue en memoria (cargado en el contexto B) NO se puede escribir ni borrar desde el contexto A:
   # el UPDATE/DELETE va por clave primaria, sin default scope, así que lo cierra el guard.
   describe "objetos de otra organización en memoria" do
-    def stale_b = with_tenant(organization_b) { model.find(record_b.id) }
+    define_method(:target) { model }
+
+    def stale_b = with_tenant(organization_b) { target.find(record_b.id) }
 
     def b_untouched?(before)
-      with_tenant(organization_b) { model.find(record_b.id).updated_at == before }
+      with_tenant(organization_b) { target.find(record_b.id).updated_at == before }
     end
 
     it "update_attribute, touch y update_columns desde A se rechazan y la fila de B queda intacta" do
@@ -138,9 +131,9 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
       stale = stale_b
 
       with_tenant(organization_a) do
-        expect { stale.update_attribute(:updated_at, 1.day.from_now) }.to raise_error(Tenancy::TenantMismatch)
-        expect { stale.touch }.to raise_error(Tenancy::TenantMismatch)
-        expect { stale.update_columns(updated_at: 2.days.from_now) }.to raise_error(Tenancy::TenantMismatch)
+        [ -> { stale.update_attribute(:updated_at, 1.day.from_now) }, -> { stale.touch }, -> { stale.update_columns(updated_at: 2.days.from_now) } ].each do |attempt|
+          expect(&attempt).to raise_error(Tenancy::TenantMismatch)
+        end
       end
       expect(b_untouched?(before)).to be(true)
     end

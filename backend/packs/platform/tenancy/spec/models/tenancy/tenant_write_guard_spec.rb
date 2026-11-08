@@ -108,16 +108,17 @@ RSpec.describe Tenancy::TenantWriteGuard do
       %i[_update_row _delete_row update_columns].each do |name|
         method = Tenancy::Company.instance_method(name)
 
-        expect(method.owner).to eq(Tenancy::TenantWriteGuard), "#{name} no es del guard"
+        expect(method.owner).to eq(described_class), "#{name} no es del guard"
         expect(method.super_method).to be_present, "#{name} ya no existe en Active Record"
       end
     end
 
     it "el instalador es dueño de acts_as_tenant y de las escrituras masivas de la relación" do
       expect(ActiveRecord::Base.method(:acts_as_tenant).owner).to eq(TenantGuardInstaller::ModelMethods)
+      relation = with_tenant(organization) { Tenancy::Company.all }
       %i[insert_all insert_all! upsert_all update_all].each do |name|
-        expect(Tenancy::Company.all.method(name).owner).to eq(TenantGuardInstaller::RelationMethods)
-        expect(Tenancy::Company.all.method(name).super_method).to be_present
+        expect(relation.method(name).owner).to eq(TenantGuardInstaller::RelationMethods), "#{name} no es del instalador"
+        expect(relation.method(name).super_method).to be_present
       end
     end
 
