@@ -90,6 +90,17 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # pg_dump (structure.sql) exige la MISMA versión mayor que el servidor: el runner trae el cliente 16 y
+      # `db:migrate` abortaría con "server version mismatch". Se instala postgresql-client-18 desde PGDG
+      # (misma versión mayor que el servicio postgres; lo verifica infra/scripts/check-versions.sh).
+      - name: Cliente PostgreSQL 18 (pg_dump igual que el servidor)
+        run: |
+          sudo install -d /usr/share/keyrings
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes -o /usr/share/keyrings/pgdg.gpg
+          echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client-18
+          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
       - name: Roles de base de datos (app_owner, app_user)
         run: infra/db/init-roles.sh
       - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
@@ -121,6 +132,17 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # pg_dump (structure.sql) exige la MISMA versión mayor que el servidor: el runner trae el cliente 16 y
+      # `db:migrate` abortaría con "server version mismatch". Se instala postgresql-client-18 desde PGDG
+      # (misma versión mayor que el servicio postgres; lo verifica infra/scripts/check-versions.sh).
+      - name: Cliente PostgreSQL 18 (pg_dump igual que el servidor)
+        run: |
+          sudo install -d /usr/share/keyrings
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes -o /usr/share/keyrings/pgdg.gpg
+          echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client-18
+          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
       - name: Roles de base de datos (app_owner, app_user)
         run: infra/db/init-roles.sh
       - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
