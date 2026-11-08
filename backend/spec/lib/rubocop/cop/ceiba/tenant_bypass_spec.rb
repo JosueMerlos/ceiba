@@ -106,6 +106,42 @@ RSpec.describe RuboCop::Cop::Ceiba::TenantBypass, :config do
       RUBY
     end
 
+    it "prohíbe las escrituras masivas que se saltan callbacks y validaciones" do
+      expect_offense(<<~RUBY, file)
+        Appointment.upsert_all(rows, unique_by: :id)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `upsert_all` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        Appointment.insert_all(rows)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `insert_all` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        Appointment.insert_all!(rows)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `insert_all!` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        Appointment.upsert(row)
+        ^^^^^^^^^^^^^^^^^^^^^^^ `upsert` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        Appointment.insert!(row)
+        ^^^^^^^^^^^^^^^^^^^^^^^^ `insert!` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+      RUBY
+    end
+
+    it "prohíbe update_all, update_columns y update_column que escriben organization_id" do
+      expect_offense(<<~RUBY, file)
+        Appointment.update_all(organization_id: other)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `update_all` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        record.update_columns(organization_id: other, name: "x")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `update_columns` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        record.update_column(:organization_id, other)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `update_column` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+      RUBY
+    end
+
+    it "no marca update_all/update_columns de otros atributos ni insert de colecciones" do
+      expect_no_offenses(<<~RUBY, file)
+        Appointment.update_all(status: "x")
+        record.update_columns(name: "x")
+        record.update_column(:name, "x")
+        list.insert(1, item)
+        text.insert!(0, "a")
+      RUBY
+    end
+
     it "revisa también las tareas rake" do
       expect_offense(<<~RUBY, "lib/tasks/reports.rake")
         task(report: :environment) { Appointment.unscoped.count }
