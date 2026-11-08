@@ -1,5 +1,26 @@
 name: ${COMPOSE_PROJECT_NAME:-ceiba}
 
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: infra/docker/api.Dockerfile
+    args:
+      HOST_UID: ${HOST_UID:-1000}
+      HOST_GID: ${HOST_GID:-1000}
+  image: ceiba-backend:dev
+  environment: &backend-env
+    RAILS_ENV: ${RAILS_ENV:-development}
+    DB_HOST: db
+    POSTGRES_USER: ${POSTGRES_USER:-ceiba}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ceiba_dev_password}
+    REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    SMTP_HOST: mailpit
+    SMTP_PORT: "1025"
+    PUBLIC_PORT: ${PROXY_PORT:-8080}
+  volumes:
+    - ./backend:/app/backend
+    - bundle:/usr/local/bundle
+
 services:
   db:
     image: postgres:18.6-trixie
@@ -28,6 +49,32 @@ services:
       timeout: 3s
       retries: 10
 
+  api:
+    <<: *backend
+    environment:
+      <<: *backend-env
+      RUN_SETUP: "true"
+    command: ["bin/rails", "server", "-b", "0.0.0.0", "-p", "3000"]
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 120s
+
+  worker:
+    <<: *backend
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+    depends_on:
+      # api instala las gems y prepara la base: el worker espera a que termine
+      api: { condition: service_healthy }
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
 volumes:
   pg_data:
   redis_data:
+  bundle:
