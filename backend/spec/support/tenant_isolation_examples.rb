@@ -39,4 +39,39 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
       expect(model.exists?(record_b.id)).to be(true)
     end
   end
+
+  # Escrituras: la barrera 1 no puede ser solo de lectura. Se cierra en el modelo (Tenancy::TenantWriteGuard) y, más
+  # adelante, en la base con RLS (M4.03).
+  it "incluye el guard de escritura de tenant" do
+    expect(model).to include(Tenancy::TenantWriteGuard)
+  end
+
+  it "con el tenant A, crear un registro con organization_id de B se rechaza incluso saltándose las validaciones" do
+    with_tenant(organization_a) do
+      record = build(factory)
+      record.organization_id = organization_b.id
+
+      expect { record.save!(validate: false) }.to raise_error(Tenancy::TenantMismatch)
+    end
+  end
+
+  it "con el tenant A, mover un registro propio a la organización B lanza TenantIsImmutable" do
+    record = record_a
+
+    with_tenant(organization_a) do
+      loaded = model.find(record.id)
+      loaded.organization_id = organization_b.id
+
+      expect { loaded.save!(validate: false) }.to raise_error(Tenancy::TenantIsImmutable)
+    end
+  end
+
+  it "con el tenant A, destruir un registro cuyo organization_id no es el del tenant se rechaza" do
+    with_tenant(organization_a) do
+      loaded = model.find(record_a.id)
+      loaded.organization_id = organization_b.id
+
+      expect { loaded.destroy }.to raise_error(Tenancy::TenantMismatch)
+    end
+  end
 end
