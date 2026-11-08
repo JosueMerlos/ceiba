@@ -11,16 +11,16 @@ RSpec.describe TenantIsolation do
     end
   end
 
-  around do |example|
+  # La tabla es real (efímera, creada por el dueño): un modelo tenant "nuevo" sin factory.
+  before do
     OwnerConnection.with do |owner|
       owner.drop_table(probe_table, if_exists: true)
       owner.create_tenant_table(probe_table) { |t| t.string :label }
-      stub_const("IsolationProbe", probe_model)
-      example.run
-    ensure
-      owner.drop_table(probe_table, if_exists: true)
     end
+    stub_const("IsolationProbe", probe_model)
   end
+
+  after { OwnerConnection.with { |owner| owner.drop_table(probe_table, if_exists: true) } }
 
   it "descubre el modelo por su columna organization_id, sin listas manuales" do
     expect(described_class.models([ probe_model, Tenancy::Organization, ApplicationRecord ])).to eq([ probe_model ])
@@ -39,6 +39,17 @@ RSpec.describe TenantIsolation do
   it "falla con un mensaje explícito que dice qué factory agregar" do
     expect { described_class.factory_for!(probe_model) }
       .to raise_error(TenantIsolation::MissingFactory, /Falta una factory para IsolationProbe.*isolation_probes.*factory :isolation_probe, class: "IsolationProbe"/m)
+  end
+
+  it "la propia suite de aislamiento FALLA para el modelo sin factory, con el mensaje explícito (criterio 4)" do
+    group = RSpec.describe("IsolationProbe") { it_behaves_like "un modelo tenant aislado", IsolationProbe }
+    group.run(RSpec::Core::NullReporter)
+    failures = group.descendants.flat_map(&:examples).filter_map { |example| example.execution_result.exception }
+
+    expect(failures.size).to eq(4) # todos salvo NoTenantSet, que no necesita datos
+    expect(failures.map(&:message)).to all(include("Falta una factory para IsolationProbe"))
+  ensure
+    RSpec.world.example_groups.delete(group)
   end
 
   it "encuentra la factory de un modelo que sí la tiene" do

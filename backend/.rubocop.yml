@@ -43,6 +43,7 @@ RSpec/DescribeClass:
     - "packs/platform/tenancy/spec/config/**/*"
     - "packs/platform/tenancy/spec/factories_spec.rb"
     - "packs/platform/tenancy/spec/public/**/*"
+    - "spec/platform/**/*"
 
 # Los ejemplos de resiliencia (timeouts, conexiones colgadas) necesitan varias expectativas.
 RSpec/MultipleExpectations:

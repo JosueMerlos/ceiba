@@ -26,7 +26,7 @@ module TenantIsolation
 
   # La factory registrada para el modelo (la que construye ese modelo), o nil.
   def factory_for(model)
-    FactoryBot.factories.find { |factory| build_class(factory) == model }
+    FactoryBot.factories.to_a.find { |factory| build_class(factory) == model }
   end
 
   def factory_for!(model)
