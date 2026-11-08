@@ -1,0 +1,18 @@
+# Títulos de los problemas de la API, por `code` (docs/architecture/07-api-contract.md). Los de cada pack, en su locale.
+es-NI:
+  api:
+    errors:
+      route:
+        not_found: "La ruta no existe"
+      resource:
+        not_found: "No se encontró el recurso"
+        stale: "El recurso cambió mientras lo editabas"
+        conflict: "El recurso entra en conflicto con otro existente"
+      validation:
+        failed: "Los datos no son válidos"
+      request:
+        invalid: "La solicitud no es válida"
+        bad_request: "La solicitud no es válida"
+        malformed: "El cuerpo de la solicitud está mal formado"
+      internal:
+        error: "Error interno del servidor"

@@ -31,6 +31,7 @@ module ApiProbes
   module Helpers
     def probes_routes
       ApiProbes.define_controller!
+      Rails.application.reload_routes_unless_loaded # las rutas reales primero: draw sin esto las dejaría sin cargar
       Rails.application.routes.disable_clear_and_finalize = true
       Rails.application.routes.draw do
         scope path: "api/v1/probes", controller: "api_probes/probes" do

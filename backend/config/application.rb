@@ -66,6 +66,10 @@ module Backend
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
+    # Los errores que ocurren antes de un controlador (ruta inexistente, JSON mal formado) también salen como
+    # problem+json bajo /api (docs/architecture/07-api-contract.md).
+    config.exceptions_app = ->(env) { Api::ExceptionsApp.new.call(env) } # constante autocargada: se resuelve por petición
+
     # Los jobs van en Sidekiq (ADR-0009); Solid Queue no se usa.
     config.active_job.queue_adapter = :sidekiq
 
