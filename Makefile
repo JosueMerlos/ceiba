@@ -13,6 +13,8 @@ help: ## Lista los atajos
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
 
 up: ## Construye y levanta todo el entorno (espera a que todo esté healthy)
+	$(COMPOSE) up -d --build --wait db
+	$(COMPOSE) exec -T db /docker-entrypoint-initdb.d/10-roles.sh
 	$(COMPOSE) up -d --build --wait
 
 down: ## Detiene el entorno (conserva los volúmenes y los datos)

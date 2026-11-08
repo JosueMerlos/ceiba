@@ -1,6 +1,6 @@
 # 09 — Convenciones de datos
 
-> Decisiones: [ADR-0002](../adr/0002-postgresql-18.md), [ADR-0006](../adr/0006-uuidv7-como-clave-primaria.md), [ADR-0018](../adr/0018-integridad-de-agenda-en-bd.md). Hito: M0.04 (y se aplican en todos).
+> Decisiones: [ADR-0002](../adr/0002-postgresql-18.md), [ADR-0005](../adr/0005-rls-preparado-activado-en-piloto.md), [ADR-0006](../adr/0006-uuidv7-como-clave-primaria.md), [ADR-0018](../adr/0018-integridad-de-agenda-en-bd.md). Hito: M0.04 (y se aplican en todos). Código: pack `platform/database` (`backend/packs/platform/database`).
 
 ## Principio
 
@@ -8,7 +8,8 @@
 
 ## Identificadores
 
-- PK `uuid` con default `uuidv7()` (PostgreSQL 18), configurado como default de los generadores de Rails (`primary_key_type: :uuid`).
+- PK `uuid` con default `uuidv7()` (PostgreSQL 18), configurado como default de los generadores de Rails (`config.generators { |g| g.orm :active_record, primary_key_type: :uuid }`, en `config/application.rb`): `rails g model Foo` genera `create_table :foos, id: :uuid` y las referencias como `uuid`.
+- Rails pone `gen_random_uuid()` (UUIDv4) como default de `id: :uuid`; `Database::UuidPrimaryKey` (prepend en `PostgreSQL::TableDefinition#primary_key`) lo cambia a `uuidv7()` salvo que la migración pida otro `default:` explícito. Así la migración generada es correcta sin recordar nada y `db/structure.sql` muestra `id uuid DEFAULT uuidv7() NOT NULL`.
 - UUIDv7 es ordenado por tiempo: inserciones al final del índice (sin la fragmentación de v4), `ORDER BY id` ≈ orden de creación.
 - Los IDs no son secuenciales ni adivinables: no revelan volumen y no permiten enumerar.
 - Las FKs son `uuid`. Los nombres siguen la convención Rails (`company_id`).
@@ -18,7 +19,7 @@
 Toda tabla con datos de un cliente se crea con el helper:
 
 ```ruby
-create_tenant_table :branches do |t|        # agrega organization_id NOT NULL + FK + índice
+create_tenant_table :branches do |t|        # agrega organization_id NOT NULL + FK + UNIQUE + política RLS
   t.tenant_reference :company                # agrega company_id + FK compuesta (organization_id, company_id)
   t.string :name, null: false
   t.string :time_zone, null: false, default: "America/Managua"
@@ -26,20 +27,50 @@ create_tenant_table :branches do |t|        # agrega organization_id NOT NULL + 
 end
 ```
 
-El helper:
+### Firma real de los helpers (`Database::SchemaStatements`, `Database::TableDefinition`)
 
-1. Agrega `organization_id uuid NOT NULL` con FK a `organizations` y lo pone **primero** en los índices compuestos.
-2. Agrega `UNIQUE (organization_id, id)` para que otras tablas puedan referenciarla con FK compuesta.
-3. Crea la política RLS `tenant_isolation` (RLS deshabilitado hasta M4.03).
-4. Registra la tabla en la lista de tablas tenant, que usan la suite de aislamiento y la migración de activación de RLS.
+Se instalan en el adaptador de PostgreSQL (initializer del pack `platform/database`), así que están disponibles en cualquier migración de cualquier pack. Son reversibles en migraciones `change` (`Database::CommandRecorder`).
+
+| Helper | Firma | Qué hace |
+| --- | --- | --- |
+| `create_tenant_table` | `create_tenant_table(table_name, **create_table_options) { \|t\| ... }` | Ver abajo. No acepta `id:` distinto de uuid ni `organization_id` declarado a mano ni la tabla `organizations` (es la raíz del tenant: se crea con `create_table`) |
+| `t.tenant_reference` | `t.tenant_reference(name, null: false, to_table: nil, index: true, foreign_key: true)` | Solo dentro de `create_tenant_table`. `company_id uuid NOT NULL`, FK compuesta `fk_<tabla>_<name>` `(organization_id, company_id) → <to_table \|\| name.pluralize>(organization_id, id)` e índice `(organization_id, company_id)` |
+| `enable_tenant_rls` | `enable_tenant_rls(table_name, force: false)` | `ENABLE ROW LEVEL SECURITY` (y `FORCE` si `force: true`). Lo usa M4.03. Solo para tablas creadas con `create_tenant_table` |
+| `disable_tenant_rls` | `disable_tenant_rls(table_name)` | Inversa de la anterior |
+| `Database::TenantTables` | `.names(connection)`, `.rls_enabled(connection)`, `.tenant?(table, connection)` | El **registro** de tablas tenant, para la suite de aislamiento (M0.05) y la migración de M4.03 |
+
+`create_tenant_table`:
+
+1. Crea la tabla con `id uuid DEFAULT uuidv7()` y `organization_id uuid NOT NULL` (primera columna tras `id`) con FK `fk_<tabla>_organization` a `organizations`.
+2. Agrega `UNIQUE (organization_id, id)` (`uq_<tabla>_organization_id_id`) para que otras tablas puedan referenciarla con FK compuesta. Ese índice único también sirve como índice por organización (prefijo `organization_id`), por eso no se crea otro.
+3. Crea la política RLS `tenant_isolation` (`FOR ALL`, `USING` y `WITH CHECK`) **sin** `ENABLE ROW LEVEL SECURITY` (se activa en M4.03).
+4. **Registro:** una tabla es tenant si tiene la política `tenant_isolation`. El registro se **deriva del catálogo** (`pg_policies`), no vive en una tabla propia: no puede desincronizarse, viaja en `db/structure.sql` y no necesita migraciones.
+
+La condición de la política difiere en un detalle de la del doc 03: usa `NULLIF(current_setting('app.organization_id', true), '')::uuid`. Tras un `SET LOCAL app.organization_id` previo, al terminar la transacción el setting queda como cadena vacía (no `NULL`) y `''::uuid` lanzaría un error en lugar de devolver cero filas; con `NULLIF` una conexión sin contexto no ve nada y no falla (`packs/platform/database/spec/database/tenant_rls_spec.rb`).
+
+`organizations` llega en M0.05; los specs de M0.04 crean una tabla `organizations` mínima **solo dentro del spec** (transacción de dueño que se revierte), no hay tablas de prueba en migraciones.
+
+## Roles de base de datos
+
+| Rol | Quién lo usa | Permisos |
+| --- | --- | --- |
+| `app_owner` | Las tareas `db:*` (create, drop, migrate, rollback, schema:load, prepare, seeds ejecutados vía `db:*`) | Dueño de la base y de todas las tablas; `CREATEDB`; sin superusuario ni `BYPASSRLS` |
+| `app_user` | La aplicación en ejecución: servidor, worker, consola, `rspec` | Solo `SELECT/INSERT/UPDATE/DELETE` y uso de secuencias; **no es dueño de nada**, sin DDL, sin superusuario, **sin `BYPASSRLS`** |
+
+- `config/database.yml` elige el rol solo: si se invoca una tarea `db:*` conecta como `app_owner`; en cualquier otro caso como `app_user`. `DB_ROLE=owner|user` lo fuerza. Contraseñas: `APP_OWNER_PASSWORD`, `APP_USER_PASSWORD` (defaults de desarrollo en `compose.yaml`, valores efímeros en `ci.yml`).
+- Los crea `infra/db/init-roles.sh`, **idempotente** (converge roles, contraseñas, propietarios y privilegios): (1) el contenedor `db` lo ejecuta desde `docker-entrypoint-initdb.d`, pero PostgreSQL **solo corre initdb con el volumen vacío**; (2) con un volumen existente se aplica con **`make db-roles`** (`make up` también lo ejecuta antes de levantar la API); (3) en CI el servicio `postgres` de GitHub Actions no tiene `initdb.d`, así que es un paso del workflow, y `bin/ci` lo ejecuta antes de las etapas con base de datos.
+- Privilegios de tablas futuras: `ALTER DEFAULT PRIVILEGES FOR ROLE app_owner ... GRANT ... TO app_user`. Los privilegios por defecto son **por base de datos**: el script también los fija en `template1`, de modo que cualquier base creada con `db:create` (p. ej. `ceiba_test`) nace con ellos. `structure.sql` se vuelca con `--no-privileges --no-owner`, así que **no** transporta GRANT ni propietarios: al cargarlo como `app_owner` las tablas quedan suyas y los privilegios por defecto hacen el resto.
+- Un rol sin `BYPASSRLS` y que no es dueño es lo que hace que la RLS de M4.03 le aplique a la aplicación (el dueño ignora RLS salvo `FORCE`). Los caminos privilegiados (back-office) usarán un tercer rol con `BYPASSRLS`, fuera de M0.04.
+- Los specs que necesitan DDL (crear tablas de prueba) usan `OwnerConnection` (`spec/support/owner_connection.rb`): una conexión de dueño aparte, dentro de una transacción que siempre se revierte.
 
 ## Migraciones
 
-- `strong_migrations` en CI: bloquea operaciones peligrosas sin una estrategia segura (índices sin `CONCURRENTLY`, cambios de tipo, `NOT NULL` sobre tablas grandes, etc.).
-- Las migraciones de cada pack viven en `packs/<pack>/db/migrate`.
+- `strong_migrations` (2.8.0, `config/initializers/strong_migrations.rb`) bloquea operaciones peligrosas sin una estrategia segura (índices sin `CONCURRENTLY`, cambios de tipo, `NOT NULL` sobre tablas grandes, etc.). Configuración: `target_version = 18`, `lock_timeout = 10 s` (con 3 reintentos cada 5 s), `statement_timeout = 1 h`, `auto_analyze`. Está activo en desarrollo, test y CI: `spec/config/strong_migrations_spec.rb` demuestra que un `add_index` sin `algorithm: :concurrently` es rechazado y la etapa `backend-migrations` falla con cualquier migración peligrosa. Nota: strong_migrations considera segura una operación sobre una tabla **creada en la misma migración**.
+- Las migraciones de cada pack viven en `packs/<pack>/db/migrate`. Las extensiones (`btree_gist`, `citext`) las habilita una migración de `platform/database`.
 - PostgreSQL tiene **DDL transaccional**: una migración que falla se revierte completa. No se desactiva salvo en índices concurrentes (aislados en su propia migración).
 - Migraciones de datos: separadas de las de esquema e idempotentes.
-- `schema.rb` → **`structure.sql`**, porque se usan exclusion constraints, políticas RLS, triggers y extensiones que `schema.rb` no representa.
+- `schema.rb` → **`structure.sql`** (`config.active_record.schema_format = :sql`), porque se usan exclusion constraints, políticas RLS, triggers y extensiones que `schema.rb` no representa. Requiere `pg_dump` de la **misma versión mayor que el servidor**: la imagen del api instala `postgresql-client-18` desde PGDG (Debian trixie trae el 17 y `pg_dump` se niega a volcar un servidor 18).
+- **CI de migraciones** (`backend/bin/ci-migrations`, job `backend-migrations`, `bin/ci backend-migrations`): migra desde una base vacía, revierte la última migración y vuelve a migrar, y en ambos puntos exige que `db/structure.sql` quede **idéntico** al versionado (migración sin volcar = fallo); por último carga `structure.sql` en una base vacía y comprueba extensiones, rol `app_user` y que no queden migraciones pendientes. `spec/db/structure_sql_spec.rb` prueba además, sobre una copia de la app con tablas tenant reales, que el volcado incluye extensiones, políticas `tenant_isolation`, FKs compuestas y `UNIQUE (organization_id, id)`, que es determinista y que se carga en una base vacía.
 
 ## Tiempo
 
@@ -50,7 +81,11 @@ El helper:
 | Fechas "de calendario" | Horarios semanales y ausencias de día completo: `time` / `date` locales a la sucursal, interpretados con su zona |
 | Intervalos | `tstzrange` para los bloqueos de agenda (`blocks_from`, `blocks_to`) |
 | DST | Nicaragua no usa DST, pero el motor de disponibilidad se prueba con zonas que sí lo usan |
-| Rails | `config.time_zone = "UTC"`; conversiones explícitas con `ActiveSupport::TimeZone[branch.time_zone]` |
+| Rails | `config.time_zone = "UTC"` y `config.active_record.default_timezone = :utc`; conversiones explícitas con `ActiveSupport::TimeZone[branch.time_zone]` |
+
+## Idioma (i18n)
+
+`rails-i18n` 8.1.0; `config.i18n.default_locale = :"es-NI"` y `available_locales = [:"es-NI", :en]` (`en` solo como respaldo técnico). Los textos del backend viven en `config/locales` del pack que los usa (el generador de packs crea `es-NI.yml`). Cubierto por `spec/config/i18n_spec.rb`.
 
 ## Dinero
 
@@ -100,3 +135,5 @@ No se usa una gema de soft delete global (`paranoia` y similares): esconden fila
 | `btree_gist` | Exclusion constraints que combinan `=` y `&&` |
 | `citext` | Correos y slugs sin distinguir mayúsculas y minúsculas |
 | `pg_stat_statements` | Diagnóstico de rendimiento (staging y producción) |
+
+`btree_gist` y `citext` son extensiones *trusted* de PostgreSQL: las habilita la migración `EnableCoreExtensions` ejecutándose como `app_owner`, sin superusuario, y aparecen en `db/structure.sql`. `pg_stat_statements` **no es una extensión de migraciones**: exige superusuario y `shared_preload_libraries`. Se precarga en el contenedor `db` de desarrollo (`compose.yaml`) y `infra/db/init-roles.sh` la crea solo en la base de mantenimiento `postgres` (las estadísticas son de todo el clúster), por lo que no entra en `structure.sql`. En staging y producción la habilita operaciones (M4.04).

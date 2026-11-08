@@ -59,8 +59,9 @@ CREATE POLICY tenant_isolation ON <tabla>
   WITH CHECK (organization_id = current_setting('app.organization_id', true)::uuid);
 ```
 
+- La condición real (`create_tenant_table`) envuelve el setting en `NULLIF(..., '')` antes del cast a `uuid`: tras un `SET LOCAL` previo el setting queda como cadena vacía y `''::uuid` fallaría; así una conexión sin contexto ve cero filas en lugar de un error. Ver [09](09-data-conventions.md#tablas-tenant).
 - Hasta M4.03 la política **existe pero RLS está deshabilitado** en la tabla. Activarlo es una migración, no un rediseño.
-- La aplicación se conecta con un rol **sin** `BYPASSRLS` y que **no es dueño** de las tablas (el dueño ignora RLS salvo `FORCE ROW LEVEL SECURITY`). Las migraciones usan un rol dueño distinto.
+- La aplicación se conecta con un rol **sin** `BYPASSRLS` y que **no es dueño** de las tablas (el dueño ignora RLS salvo `FORCE ROW LEVEL SECURITY`). Las migraciones usan un rol dueño distinto (`app_owner`; la app usa `app_user`: ver [09](09-data-conventions.md#roles-de-base-de-datos)).
 - `Tenancy.with_context` ejecuta `SET LOCAL app.organization_id = '<uuid>'` dentro de una transacción. `SET LOCAL` muere con la transacción, así que no hay fugas entre requests que comparten conexión del pool.
 - Los caminos privilegiados (back-office, reportes consolidados de plataforma) usan un rol de BD separado con `BYPASSRLS`, en código explícito y auditado.
 

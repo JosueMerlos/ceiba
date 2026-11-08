@@ -53,6 +53,7 @@ Servicios de `compose.yaml`: `db` (PostgreSQL 18), `redis`, `api` (Rails), `work
 | `make logs` (`s=api`) | Sigue los logs, de todos los servicios o de uno |
 | `make sh-api` | Shell dentro del contenedor de la API |
 | `make console` | Consola de Rails |
+| `make db-roles` | Aplica (idempotente) los roles `app_owner`/`app_user` a un volumen de BD que ya existía |
 | `make reset-db` | Recrea la base de datos desde cero (destructivo) |
 | `make test` | Suite completa: backend (RSpec) y frontend (Vitest) |
 | `make ci` | Los mismos pasos que CI, en Docker (`bin/ci`; `make ci s=backend-test` para una etapa) |
@@ -74,7 +75,7 @@ compose.yaml entorno de desarrollo
 
 ## Configuración
 
-Los valores por defecto de `compose.yaml` funcionan sin configurar nada. Para cambiar puertos o credenciales de desarrollo, define las variables (`PROXY_PORT`, `MAILPIT_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `REDIS_URL`) en un archivo `.env` en la raíz (ignorado por git), partiendo de [`.env.example`](.env.example): `cp .env.example .env`. Los valores por defecto son solo de desarrollo; nunca se versionan secretos reales.
+Los valores por defecto de `compose.yaml` funcionan sin configurar nada. Para cambiar puertos o credenciales de desarrollo, define las variables (`PROXY_PORT`, `MAILPIT_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `APP_OWNER_PASSWORD`, `APP_USER_PASSWORD`, `REDIS_URL`) en un archivo `.env` en la raíz (ignorado por git), partiendo de [`.env.example`](.env.example): `cp .env.example .env`. Los valores por defecto son solo de desarrollo; nunca se versionan secretos reales.
 
 `make up` pasa tu UID/GID a los Dockerfiles: los contenedores no corren como root y los archivos que crean (gems, `pnpm-lock.yaml`, migraciones) pertenecen a tu usuario. Si usas `docker compose up` directamente en Linux con un UID distinto de 1000, exporta antes `HOST_UID=$(id -u) HOST_GID=$(id -g)`.
 
@@ -84,6 +85,7 @@ Los valores por defecto de `compose.yaml` funcionan sin configurar nada. Para ca
 | --- | --- |
 | `port is already allocated` (8080 u 8025) | Otro proceso usa el puerto. Cambia `PROXY_PORT` / `MAILPIT_PORT` en `.env` (y abre esa URL) |
 | `make up` tarda mucho la primera vez | Es normal (imágenes, gems, paquetes). Los volúmenes con nombre hacen que las siguientes veces sean rápidas |
+| `role "app_owner" does not exist` / la API no conecta tras actualizar | El volumen de PostgreSQL es anterior a M0.04: `initdb` solo corre con el volumen vacío. `make db-roles` (o `make up`, que lo ejecuta) crea los roles sin perder datos |
 | La API no queda `healthy` | `make logs s=api`. Suele ser un error en una migración o en una gem recién añadida |
 | Cambié el `Gemfile` o `package.json` | `docker compose exec api bundle install` / `docker compose exec panel pnpm install` (o reinicia el servicio: el arranque instala lo que falte) |
 | Archivos con dueño `root` | Se construyó la imagen sin tu UID: `make down && make up` (reconstruye con `HOST_UID`/`HOST_GID`) |
