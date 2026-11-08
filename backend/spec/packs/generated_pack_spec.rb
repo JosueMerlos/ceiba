@@ -7,8 +7,8 @@ require "tmpdir"
 # (no se escribe en packs/ del repositorio): genera un pack y, en un proceso nuevo, comprueba que
 # packwerk lo valida y que Rails/Zeitwerk lo cargan (app/*, namespace, eager_load! y db/migrate).
 RSpec.describe "Pack generado" do
-  namespace = "GeneratorProbe"
-  migration_version = "20260101000000"
+  def namespace = "GeneratorProbe"
+  def migration_version = "20260101000000"
 
   let(:app_root) { Pathname(Dir.mktmpdir("ceiba-app-copy")) }
   let(:pack_name) { "generator_probe" }
