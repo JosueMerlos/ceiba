@@ -35,10 +35,13 @@ module Database
     # una razón documentada. Lo ejecuta el spec del pack contra el esquema real.
     def inconsistencies(connection = ActiveRecord::Base.connection, exempt: [])
       exempt = exempt.map(&:to_s)
+      # pg_attribute y no information_schema.columns: este solo muestra las columnas de tablas con algún privilegio
+      # para el rol actual y una tabla sin GRANT a app_user pasaría desapercibida.
       with_column = connection.select_values(<<~SQL)
-        SELECT table_name FROM information_schema.columns
-        WHERE table_schema = current_schema() AND column_name = 'organization_id' AND table_name NOT IN (
-          SELECT table_name FROM information_schema.views WHERE table_schema = current_schema())
+        SELECT c.relname FROM pg_attribute a
+        JOIN pg_class c ON c.oid = a.attrelid
+        WHERE c.relnamespace = current_schema()::regnamespace AND c.relkind IN ('r', 'p') AND NOT c.relispartition
+          AND a.attname = 'organization_id' AND a.attnum > 0 AND NOT a.attisdropped
       SQL
       registered = names(connection)
       {
