@@ -77,6 +77,8 @@ CREATE POLICY tenant_isolation ON <tabla>
 
 Los modelos (`Tenancy::Organization`, `Company`, `Branch`) son **privados** del pack. API pública: `Tenancy.with_context`, `Tenancy::Context`, `Tenancy::ProvisionOrganization`, `Tenancy::AddCompany`, `Tenancy::AddBranch`, `Tenancy::TenantWriteGuard`, `Tenancy::Error`, `Tenancy::InconsistentContext`, `Tenancy::ProvisioningFailed`, `Tenancy::TenantMismatch`, `Tenancy::TenantIsImmutable` (fijado por `packs/platform/tenancy/spec/public_api_spec.rb`; packwerk impide usar el resto desde fuera).
 
+**Errores en la API (M0.06):** `ProvisioningFailed` → 409 (`tenancy.slug_taken`) o 422 (`tenancy.slug_reserved`, `tenancy.invalid`, con `errors[]`); `InconsistentContext` → 404 (`tenancy.inconsistent_context`, no revela la otra entidad); `TenantMismatch` y `TenantIsImmutable` **no se traducen**: indican un bug y responden `500 internal.error` genérico. Registro en `packs/platform/tenancy/config/initializers/api_errors.rb`; ver [07](07-api-contract.md#errores-applicationproblemjson-rfc-9457). El controlador de ejemplo `Api::V1::Tenancy::OrganizationsController` vive en el pack para usar el modelo privado sin ampliar la API pública.
+
 **Barrera de escritura (`Tenancy::TenantWriteGuard`).** `acts_as_tenant` filtra lecturas y valida, pero `save(validate: false)` y las escrituras masivas se saltan las validaciones. El guard actúa en la **capa de persistencia** (`_insert_record`, `_update_record`, `_delete_row`), es decir, **después de todos los callbacks del modelo**: un `before_save` declarado más abajo que cambiara `organization_id` correría después de un guard en `before_save` y escaparía (`tenant_write_guard_spec.rb` lo prueba con modelos sonda). Qué rechaza:
 
 | Operación | Resultado |

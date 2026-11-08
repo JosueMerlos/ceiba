@@ -116,6 +116,7 @@ packs/modules/appointments/
 
 - Se usa `packs-rails` para que Rails cargue `app/*` y `db/migrate` de cada pack.
 - Namespace Ruby = nombre del pack (`Appointments::`), sin excepción.
+- API HTTP (M0.06): los controladores de un pack heredan de `Api::BaseController` (pack raíz: rescates problem+json), sirven un serializer por representación (`Api::Serializer`/Alba) y registran sus errores de dominio en `config/initializers/api_errors.rb` (`Api::ErrorRegistry`); sus specs de rswag viven en `spec/api/` del pack. Convenciones en [07](07-api-contract.md).
 - Rutas: cada pack aporta su archivo de rutas montado bajo `/api/v1`; el registro de módulos condiciona su acceso ([05](05-module-system.md)).
 
 ## Comunicación entre packs
