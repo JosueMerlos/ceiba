@@ -74,4 +74,52 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
       expect { loaded.destroy }.to raise_error(Tenancy::TenantMismatch)
     end
   end
+
+  # Escrituras masivas: upsert_all con el id de un registro de B desde A lo sobrescribiría y lo movería a A.
+  describe "escrituras masivas" do
+    let(:row_of_b) { record_b.attributes }
+    let(:unique_by_tenant) { %i[organization_id id] }
+
+    it "upsert_all sin unique_by sobre un índice con organization_id se rechaza (ArgumentError)" do
+      with_tenant(organization_a) do
+        expect { model.upsert_all([ row_of_b ], unique_by: :id) }.to raise_error(ArgumentError, /organization_id/)
+      end
+    end
+
+    it "upsert_all con la fila de B desde A se rechaza (TenantMismatch) y B queda intacto" do
+      with_tenant(organization_a) do
+        expect { model.upsert_all([ row_of_b ], unique_by: unique_by_tenant) }.to raise_error(Tenancy::TenantMismatch)
+      end
+      with_tenant(organization_b) { expect(model.find(record_b.id).organization_id).to eq(organization_b.id) }
+    end
+
+    it "insert_all e insert_all! con la fila de B desde A se rechazan" do
+      with_tenant(organization_a) do
+        expect { model.insert_all([ row_of_b ]) }.to raise_error(Tenancy::TenantMismatch)
+        expect { model.insert_all!([ row_of_b ]) }.to raise_error(Tenancy::TenantMismatch)
+      end
+    end
+
+    it "upsert_all de una fila propia con unique_by (organization_id, id) sigue permitido" do
+      own = record_a.attributes
+
+      with_tenant(organization_a) do
+        expect { model.upsert_all([ own ], unique_by: unique_by_tenant) }.not_to raise_error
+      end
+    end
+
+    it "update_columns con organization_id lanza TenantIsImmutable" do
+      record = record_a
+
+      with_tenant(organization_a) do
+        expect { model.find(record.id).update_columns(organization_id: organization_b.id) }.to raise_error(Tenancy::TenantIsImmutable)
+      end
+    end
+
+    it "update_all con organization_id lanza TenantIsImmutable" do
+      with_tenant(organization_a) do
+        expect { model.update_all(organization_id: organization_b.id) }.to raise_error(Tenancy::TenantIsImmutable)
+      end
+    end
+  end
 end
