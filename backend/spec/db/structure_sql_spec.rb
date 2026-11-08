@@ -1,27 +1,22 @@
 require "rails_helper"
 
 # Criterio 6 de M0.04: db/structure.sql, cargado en una BD vacía, incluye extensiones, políticas y FKs compuestas.
-# Se prueba sobre una copia de la app con migraciones reales de tablas tenant (las del repo llegan en M0.05)
-# y su propia base: migrar, volcar, volcar de nuevo (determinismo), revertir/migrar y cargar en una BD vacía.
+# Se prueba sobre una copia de la app con las migraciones reales (organizations/companies/branches, M0.05) más una
+# tabla de sonda con exclusion constraint y citext, y su propia base: migrar, volcar, volcar de nuevo (determinismo), revertir/migrar y cargar en una BD vacía.
 RSpec.describe "db/structure.sql" do
   let(:app) { TemporaryAppCopy.new(database: "ceiba_structure_probe").create }
 
   after { app.destroy }
 
   before do
-    app.write("db/migrate/20261108000001_create_probe_tables.rb", <<~RUBY)
+    app.write("db/migrate/20261109000001_create_probe_tables.rb", <<~RUBY)
       class CreateProbeTables < ActiveRecord::Migration[8.1]
         def change
-          create_table :organizations, id: :uuid do |t|
-            t.string :name, null: false
-          end
-          create_tenant_table :companies do |t|
-            t.citext :slug, null: false
-          end
-          create_tenant_table :branches do |t|
+          create_tenant_table :probe_slots do |t|
             t.tenant_reference :company
+            t.citext :code, null: false
             t.tstzrange :blocks
-            t.exclusion_constraint "organization_id WITH =, blocks WITH &&", using: :gist, name: "branches_no_overlap"
+            t.exclusion_constraint "organization_id WITH =, blocks WITH &&", using: :gist, name: "probe_slots_no_overlap"
           end
         end
       end
@@ -36,7 +31,7 @@ RSpec.describe "db/structure.sql" do
   end
 
   it "incluye las políticas tenant_isolation" do
-    expect(structure).to include("CREATE POLICY tenant_isolation ON public.branches", "CREATE POLICY tenant_isolation ON public.companies")
+    expect(structure).to include("CREATE POLICY tenant_isolation ON public.probe_slots", "CREATE POLICY tenant_isolation ON public.companies")
   end
 
   it "incluye las FKs compuestas y las UNIQUE (organization_id, id)" do
@@ -73,11 +68,11 @@ RSpec.describe "db/structure.sql" do
       c = ActiveRecord::Base.connection
       extensions = c.select_values("SELECT extname FROM pg_extension").sort & %w[btree_gist citext]
       policies = c.select_values("SELECT tablename FROM pg_policies WHERE policyname = 'tenant_isolation' ORDER BY 1")
-      composite = c.select_value("SELECT count(*) FROM pg_constraint WHERE contype = 'f' AND array_length(conkey, 1) = 2")
+      composite = c.select_value("SELECT count(*) FROM pg_constraint WHERE contype = 'f' AND conrelid = 'probe_slots'::regclass AND array_length(conkey, 1) = 2")
       puts [extensions.join(","), policies.join(","), composite, c.select_value("SELECT current_user")].join(" ")
     RUBY
 
-    expect(report).to eq("btree_gist,citext branches,companies 1 app_user")
+    expect(report).to eq("btree_gist,citext companies,probe_slots 1 app_user")
   end
 
   it "las tablas cargadas desde structure.sql pertenecen a app_owner y app_user puede usarlas" do
@@ -85,7 +80,7 @@ RSpec.describe "db/structure.sql" do
     report = app.rails_runner(<<~RUBY)
       c = ActiveRecord::Base.connection
       owners = c.select_values("SELECT DISTINCT tableowner FROM pg_tables WHERE schemaname = 'public'")
-      org = c.select_value("INSERT INTO organizations (name) VALUES ('o') RETURNING id")
+      org = c.select_value("INSERT INTO organizations (name, created_at, updated_at) VALUES ('o', now(), now()) RETURNING id")
       puts [owners.join(","), org.present?].join(" ")
     RUBY
 

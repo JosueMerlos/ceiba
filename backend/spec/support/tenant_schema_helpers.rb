@@ -1,10 +1,13 @@
 # Utilidades para los specs de las convenciones de BD. Todo ocurre en una conexión de dueño dentro de una
-# transacción que se revierte: las tablas de prueba (incluida una `organizations` mínima, que llega de verdad
-# en M0.05) solo existen dentro del spec, nunca en migraciones reales.
+# transacción que se revierte, y en un ESQUEMA de prueba aparte (`tenant_probe`, con una `organizations` mínima):
+# desde M0.05 existen las tablas reales organizations/companies/branches en `public` y las de prueba no deben
+# chocar con ellas. Todo el catálogo que consultan los helpers usa current_schema(), así que sigue funcionando.
 module TenantSchemaHelpers
   def with_tenant_schema(&block)
     ActiveRecord::Migration.suppress_messages do
       OwnerConnection.rolled_back do |owner|
+        owner.execute("CREATE SCHEMA tenant_probe")
+        owner.execute("SET LOCAL search_path TO tenant_probe, public")
         owner.execute("CREATE TABLE organizations (id uuid PRIMARY KEY DEFAULT uuidv7(), name text)")
         instance_exec(owner, &block)
       end
