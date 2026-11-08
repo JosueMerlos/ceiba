@@ -1,8 +1,9 @@
 require "rails_helper"
 
 # Configuración de rswag (M0.06, ADR-0012). Los specs de rswag (spec/api y packs/*/*/spec/api) hacen dos cosas:
-#   1. validan cada respuesta REAL contra el esquema declarado (con `openapi_strict_schema_validation`, un campo de más
-#      o de menos en el serializer rompe el spec);
+#   1. validan cada respuesta REAL contra el esquema declarado. Los esquemas llevan `required` y `additionalProperties: false`
+#      a mano (no `openapi_strict_schema_validation`, que vuelve obligatorios los campos opcionales como `detail`): un campo
+#      de más o de menos en el serializer rompe el spec;
 #   2. generan backend/openapi/v1.yaml (`bin/rails openapi:generate`), que se versiona y del que sale el cliente TS.
 #
 # Los componentes compartidos (Problem, ValidationProblem...) se definen aquí; cada pack aporta los suyos en
@@ -62,7 +63,6 @@ end
 RSpec.configure do |config|
   config.openapi_root = Rails.root.join("openapi").to_s
   config.openapi_format = :yaml
-  config.openapi_strict_schema_validation = true
 
   config.openapi_specs = {
     "v1.yaml" => {
