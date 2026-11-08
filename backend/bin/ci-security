@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Job backend-security de CI (y de bin/ci): análisis estático de seguridad y gemas vulnerables.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+bundle exec brakeman --quiet --no-pager --exit-on-warn --exit-on-error
+bundle exec bundler-audit check --update
