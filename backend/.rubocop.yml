@@ -75,6 +75,9 @@ Ceiba/TenantBypass:
     - "lib/**/*.rb"
     - "db/**/*.rb"
     - "config/**/*.rb"
+    - "lib/**/*.rake"
+    - "packs/*/*/**/*.rake"
+    - "Rakefile"
   Exclude:
     - "lib/rubocop/**/*"
   AllowedFiles:

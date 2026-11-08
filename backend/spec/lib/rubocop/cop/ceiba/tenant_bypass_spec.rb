@@ -91,7 +91,7 @@ RSpec.describe RuboCop::Cop::Ceiba::TenantBypass, :config do
         Appointment.send(:unscoped)
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^ `unscoped` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
         ActsAsTenant.public_send("without_tenant") { 1 }
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `without_tenant` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `without_tenant` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
         Appointment.__send__(:unscope, :where)
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `unscope` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
       RUBY
@@ -102,7 +102,7 @@ RSpec.describe RuboCop::Cop::Ceiba::TenantBypass, :config do
         ActsAsTenant::Current.current_tenant = org
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `current_tenant=` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
         ::ActsAsTenant::Current.set(current_tenant: org) { 1 }
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `set` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `set` salta el aislamiento de tenant: usa `Tenancy.with_context` (o añade el archivo a AllowedFiles tras revisión).
       RUBY
     end
 
@@ -127,7 +127,7 @@ RSpec.describe RuboCop::Cop::Ceiba::TenantBypass, :config do
         Other.without_tenant { 1 }
         Tenancy.with_context(organization: org) { Appointment.count }
         ActsAsTenant.current_tenant
-        relation.unscope(:where)
+        relation.unscope(:order)
       RUBY
     end
   end
