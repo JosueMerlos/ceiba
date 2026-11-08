@@ -14,3 +14,7 @@ RSpec.configure do |config|
     Sidekiq.testing!(:fake)
   end
 end
+
+# `drain`/`perform_one` ejecutan los jobs de prueba por la cadena de middleware de servidor de Sidekiq::Testing: se añade
+# el mismo middleware de tenant que en producción (packs/platform/tenancy/config/initializers/sidekiq_tenant.rb).
+Sidekiq::Testing.server_middleware { |chain| chain.add TenantJobMiddleware::Server }
