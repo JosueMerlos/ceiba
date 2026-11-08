@@ -11,7 +11,11 @@ RSpec.describe Events, ".publish" do
   before { register_event_schema(event_name) }
 
   after do
-    with_tenant(organization) { Events::OutboxEvent.delete_all }
+    with_tenant(organization) do
+      Events::OutboxEvent.delete_all
+      Tenancy::Branch.delete_all
+      Tenancy::Company.delete_all
+    end
     Tenancy::Organization.where(id: organization.id).delete_all
   end
 
@@ -49,12 +53,9 @@ RSpec.describe Events, ".publish" do
     end
 
     it "NO encola nada en Sidekiq: publicar solo inserta (el relay publica después del commit)" do
-      Sidekiq::Testing.fake! do
-        Sidekiq::Queues.clear_all
-        Tenancy.with_context(organization:) { described_class.publish(event_name, { thing_id: "t-1" }) }
+      Tenancy.with_context(organization:) { described_class.publish(event_name, { thing_id: "t-1" }) }
 
-        expect(Sidekiq::Queues.jobs_by_queue.values.flatten.map { |job| job["class"] }).not_to include("Events::DeliverJob")
-      end
+      expect(Sidekiq::Queues.jobs_by_queue.values.flatten.map { |job| job["class"] }).not_to include("Events::DeliverJob")
     end
   end
 
