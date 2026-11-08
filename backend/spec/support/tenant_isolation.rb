@@ -49,7 +49,8 @@ module TenantIsolation
   #   - cualquier asociación hacia un modelo tenant cuya clave foránea sea organization_id.
   # Los hijos se relacionan con su padre tenant por la clave del padre (company_id), dentro del tenant activo.
   def association_violations(models = nil)
-    candidates = models || (Rails.application.eager_load! && ApplicationRecord.descendants.select { |model| named?(model) && !model.abstract_class? })
+    Rails.application.eager_load! if models.nil?
+    candidates = models || ApplicationRecord.descendants.select { |model| named?(model) && !model.abstract_class? }
     candidates.flat_map do |model|
       model.reflect_on_all_associations.filter_map do |reflection|
         target = target_of(reflection)

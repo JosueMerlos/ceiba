@@ -4,9 +4,11 @@ module Tenancy
   class Organization < ApplicationRecord
     enum :status, { active: "active", suspended: "suspended" }, default: "active", validate: true
 
-    # Sus empresas son datos tenant: recorrerlas exige un contexto activo (NoTenantSet si no lo hay). Sin `dependent`
-    # a propósito: borrar una organización es un offboarding explícito y la FK (restrict) lo impide mientras tenga datos.
-    has_many :companies, class_name: "Tenancy::Company", inverse_of: :organization # rubocop:disable Rails/HasManyOrHasOneDependent
+    # SIN `has_many :companies`, a propósito: una asociación cuya condición es `organization_id = <esta organización>`
+    # REEMPLAZA el scope del tenant, así que desde el contexto A `Organization.find(b.id).companies` devolvería las
+    # empresas de B. Las empresas se consultan dentro de un tenant (`Tenancy.with_context(...) { Company.all }`). Lo
+    # vigila TenantIsolation.association_violations (spec/platform/tenancy/isolation_spec.rb).
+    # Borrar una organización con datos lo impide la FK (restrict), no el modelo.
 
     validates :name, presence: true
     validates :country_code, format: { with: /\A[A-Z]{2}\z/ }
