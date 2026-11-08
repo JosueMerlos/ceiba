@@ -34,6 +34,16 @@ RSpec.describe Events::Schemas do
     end
   end
 
+  describe ".definition" do
+    it "devuelve el esquema crudo de un evento del catálogo" do
+      expect(described_class.definition("platform.organization_provisioned.v1")).to include("required" => %w[organization_id company_id branch_id])
+    end
+
+    it "lanza UnknownEvent si no existe" do
+      expect { described_class.definition("test.nada.v1") }.to raise_error(Events::UnknownEvent)
+    end
+  end
+
   describe ".validate!" do
     it "acepta un payload que cumple el esquema y devuelve el payload normalizado a JSON" do
       described_class.register("test.cosa.v1", EventSchemaHelpers::THING_HAPPENED)

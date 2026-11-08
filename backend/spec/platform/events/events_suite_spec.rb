@@ -5,7 +5,7 @@ require "rails_helper"
 RSpec.describe "Suite de eventos de plataforma" do
   let(:published_names) do
     sources = Rails.root.glob("{app,lib,db,config}/**/*.rb") + Rails.root.glob("packs/*/*/{app,lib,db,config}/**/*.rb")
-    sources.flat_map { |file| file.read.scan(/Events\.publish\(\s*"([a-z0-9_.]+)"/).flatten }.uniq
+    sources.flat_map { |file| file.readlines.grep_v(/\A\s*#/).join.scan(/Events\.publish\(\s*"([a-z0-9_.]+)"/).flatten }.uniq
   end
 
   it "todo evento publicado en el código tiene esquema registrado" do
@@ -26,7 +26,7 @@ RSpec.describe "Suite de eventos de plataforma" do
 
   it "todo evento del catálogo publicado con un payload mínimo válido valida contra su esquema" do
     Events::Schemas.names.each do |name|
-      sample = Events::Schemas.sample_payload(name)
+      sample = EventSamples.payload_for(Events::Schemas.definition(name))
 
       expect { Events::Schemas.validate!(name, sample) }.not_to raise_error, "#{name}: el payload de muestra no valida"
     end

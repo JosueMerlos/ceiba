@@ -17,6 +17,11 @@ module Events
         LOCK.synchronize { registry[name.to_s] = JSONSchemer.schema(schema) }
       end
 
+      # El esquema crudo (Hash) de un evento registrado; UnknownEvent si no existe.
+      def definition(name)
+        (LOCK.synchronize { registry[name.to_s] } or raise UnknownEvent, name).value
+      end
+
       def unregister(name)
         LOCK.synchronize { registry.delete(name.to_s) }
       end

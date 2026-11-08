@@ -7,7 +7,10 @@ RSpec.shared_examples "un suscriptor idempotente" do |event_name, subscriber, pa
   it "ejecutado dos veces con el mismo evento produce un solo efecto (#{subscriber} <- #{event_name})" do
     original = Events::Subscriptions.find(event_name, subscriber)
     effects = 0
-    spy = ->(event) { effects += 1 && original.handler.call(event) }
+    spy = lambda do |event|
+      effects += 1
+      original.handler.call(event)
+    end
     Events::Subscriptions.register(event_name:, subscriber:, handler: spy, queue: original.queue)
     event = create_in(organization, :outbox_event, name: event_name, payload:)
 
