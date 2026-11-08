@@ -7,7 +7,7 @@ module TenantSchemaHelpers
     ActiveRecord::Migration.suppress_messages do
       OwnerConnection.rolled_back do |owner|
         owner.execute("CREATE SCHEMA tenant_probe")
-        owner.execute("SET LOCAL search_path TO tenant_probe, public")
+        owner.execute("SET LOCAL search_path TO tenant_probe")
         owner.execute("CREATE TABLE organizations (id uuid PRIMARY KEY DEFAULT uuidv7(), name text)")
         instance_exec(owner, &block)
       end
