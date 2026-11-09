@@ -66,10 +66,11 @@ Cualquier otro comando se ejecuta dentro del contenedor, por ejemplo `docker com
 
 ```
 backend/     Rails 8 en modo API (rutas bajo /api)
-frontend/    workspace pnpm: apps/panel, apps/booking, packages/config (ESLint, Prettier, tsconfig)
+frontend/    workspace pnpm: apps/panel, apps/booking, packages/config (ESLint, Prettier, tsconfig), packages/api-client (cliente TS generado desde OpenAPI)
 infra/       docker/ (Dockerfiles de desarrollo), proxy/ (Caddy), scripts/ (verificación), github/ (protección de rama)
 .github/     workflows de CI, Dependabot y plantilla de PR
 bin/ci       los mismos pasos que CI, dentro de Docker
+bin/api-generate  regenera el contrato OpenAPI y el cliente TS (tras cambiar un endpoint o serializer)
 docs/        documentación: fuente única de verdad
 compose.yaml entorno de desarrollo
 ```

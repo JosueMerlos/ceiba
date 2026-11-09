@@ -1,0 +1,196 @@
+---
+components:
+  schemas:
+    FieldError:
+      additionalProperties: false
+      properties:
+        code:
+          description: Tipo del error (blank, taken, invalid...)
+          example: blank
+          type: string
+        field:
+          example: company.slug
+          type: string
+        message:
+          example: no puede estar en blanco
+          type: string
+      required:
+      - field
+      - code
+      - message
+      type: object
+    Organization:
+      additionalProperties: false
+      description: 'Organización: el tenant (ADR-0003)'
+      properties:
+        country_code:
+          description: ISO 3166-1 alfa-2
+          example: NI
+          type: string
+        created_at:
+          description: UTC
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        legal_name:
+          nullable: true
+          type: string
+        name:
+          type: string
+        status:
+          enum:
+          - active
+          - suspended
+          type: string
+        updated_at:
+          description: UTC
+          format: date-time
+          type: string
+      required:
+      - id
+      - name
+      - legal_name
+      - country_code
+      - status
+      - created_at
+      - updated_at
+      type: object
+    PageInfo:
+      additionalProperties: false
+      description: Metadatos de la paginación por cursor
+      properties:
+        has_more:
+          type: boolean
+        next_cursor:
+          description: Cursor opaco para pedir la siguiente página (?after=); null en la última
+          nullable: true
+          type: string
+      required:
+      - next_cursor
+      - has_more
+      type: object
+    Problem:
+      additionalProperties: false
+      description: application/problem+json (RFC 9457)
+      properties:
+        code:
+          description: Código estable y traducible por el frontend (i18n)
+          example: resource.not_found
+          type: string
+        detail:
+          description: Explicación específica, solo cuando el error la define
+          type: string
+        instance:
+          description: Ruta de la petición
+          example: "/api/v1/organizations/0198f0a0-0000-7000-8000-000000000000"
+          type: string
+        request_id:
+          description: Mismo valor que la cabecera X-Request-Id; sirve para buscar el detalle en el log
+          type: string
+        status:
+          description: Código HTTP, repetido en el cuerpo
+          example: 404
+          type: integer
+        title:
+          description: Resumen legible, en el idioma de la API
+          example: No se encontró el recurso
+          type: string
+        type:
+          description: URN estable del tipo de problema
+          example: urn:ceiba:error:resource.not_found
+          type: string
+      required:
+      - type
+      - title
+      - status
+      - code
+      - instance
+      - request_id
+      type: object
+    ValidationProblem:
+      additionalProperties: false
+      description: Problema con errores por campo (422 y algunos 400)
+      properties:
+        code:
+          description: Código estable y traducible por el frontend (i18n)
+          example: resource.not_found
+          type: string
+        detail:
+          description: Explicación específica, solo cuando el error la define
+          type: string
+        errors:
+          items:
+            "$ref": "#/components/schemas/FieldError"
+          type: array
+        instance:
+          description: Ruta de la petición
+          example: "/api/v1/organizations/0198f0a0-0000-7000-8000-000000000000"
+          type: string
+        request_id:
+          description: Mismo valor que la cabecera X-Request-Id; sirve para buscar el detalle en el log
+          type: string
+        status:
+          description: Código HTTP, repetido en el cuerpo
+          example: 404
+          type: integer
+        title:
+          description: Resumen legible, en el idioma de la API
+          example: No se encontró el recurso
+          type: string
+        type:
+          description: URN estable del tipo de problema
+          example: urn:ceiba:error:resource.not_found
+          type: string
+      required:
+      - type
+      - title
+      - status
+      - code
+      - instance
+      - request_id
+      - errors
+      type: object
+info:
+  description: Contrato de la API v1. Generado por los specs de rswag; no se edita a mano (docs/architecture/07-api-contract.md).
+  title: Ceiba API
+  version: v1
+openapi: 3.0.3
+paths:
+  "/api/v1/organizations/{id}":
+    get:
+      description: Endpoint de ejemplo del contrato. Hoy sin autenticación y solo disponible en desarrollo; se protegerá en M0.07/M0.08.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Organization"
+                required:
+                - data
+                type: object
+          description: la organización
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: no existe (o el id no es un UUID)
+      summary: Obtiene una organización
+      tags:
+      - Organizaciones
+    parameters:
+    - description: ID de la organización (UUIDv7)
+      in: path
+      name: id
+      required: true
+      schema:
+        format: uuid
+        type: string
+servers:
+- description: Mismo origen (ADR-0013)
+  url: "/"

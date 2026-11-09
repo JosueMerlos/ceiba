@@ -11,7 +11,7 @@ frontend/                      pnpm workspace
     booking/                   reserva pública (móvil primero, 3G)
   packages/
     ui/                        design system: primitivas (shadcn/ui), tokens, componentes compuestos
-    api-client/                cliente generado desde OpenAPI + hooks de TanStack Query
+    api-client/                cliente generado desde OpenAPI (M0.06: openapi-fetch, ApiError, unwrap) + hooks de TanStack Query (M0.12)
     branding/                  tema por empresa: CSS vars, validación de contraste, fallback
     i18n/                      configuración de i18next y catálogos compartidos
     config/                    tsconfig, eslint, prettier y vitest compartidos
@@ -54,7 +54,7 @@ apps/panel/src/
 - **Registro de módulos:** `modules/registry.ts` importa estáticamente los `index.ts` de cada módulo. Al arrancar, `/api/v1/me` dice cuáles están activos y qué permisos hay. El router monta **solo** las rutas de los módulos activos (lazy, un chunk por módulo) y la navegación se filtra por permiso.
 - **Gates:** `<Can permission="appointments.appointment.create">` y `useCan()` solo **reflejan**; el backend es el que decide.
 - **Selector de contexto:** organización → empresa → sucursal. Si el usuario solo tiene uno de cada nivel, el selector no se muestra. Cambiar de contexto invalida la caché de TanStack Query.
-- **Errores:** un `ApiError` con `code` se traduce por i18n; un `401` lleva al login; un `403` muestra una pantalla de permiso; un `409` en la agenda refresca y avisa "el horario ya no está disponible".
+- **Errores:** `@ceiba/api-client` ya entrega el error tipado (`ApiError { status, code, errors, requestId }`, M0.06; ver [07](07-api-contract.md#generación-del-contrato-y-del-cliente-typescript)). Un `ApiError` con `code` se traduce por i18n; un `401` lleva al login; un `403` muestra una pantalla de permiso; un `409` en la agenda refresca y avisa "el horario ya no está disponible".
 
 ## `AgendaView`: calendario detrás de un adaptador
 

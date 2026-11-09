@@ -1,0 +1,6 @@
+{
+  "extends": "@ceiba/config/tsconfig.base.json",
+  "compilerOptions": { "types": ["node"] },
+  "include": ["src", "test", "vitest.config.ts"],
+  "exclude": ["test/fixtures"]
+}

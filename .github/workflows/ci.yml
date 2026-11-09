@@ -211,3 +211,59 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: frontend/bin/ci-security
+
+  # Contrato API (M0.06, ADR-0012): regenera backend/openapi/v1.yaml (rswag) y el cliente TS (openapi-typescript) y falla
+  # si difieren de lo versionado. Mismos pasos que `bin/ci api-contract`.
+  api-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.6-trixie
+        env:
+          POSTGRES_USER: ceiba
+          POSTGRES_PASSWORD: ceiba_ci_password
+          POSTGRES_DB: ceiba_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ceiba -d ceiba_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7.4.12-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Casos de prueba del check de drift
+        run: infra/scripts/check-api-contract_test.sh
+      # Mismo motivo que en backend-test: la tarea de esquema usa pg_dump y exige la misma versión mayor que el servidor.
+      - name: Cliente PostgreSQL 18 (pg_dump igual que el servidor)
+        run: |
+          sudo install -d /usr/share/keyrings
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor --yes -o /usr/share/keyrings/pgdg.gpg
+          echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt noble-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client-18
+          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
+      - name: Roles de base de datos (app_owner, app_user)
+        run: infra/db/init-roles.sh
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          bundler-cache: true
+          working-directory: backend
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          version: 12.18.0
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .tool-versions
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Contrato y cliente al día
+        env:
+          OPENAPI_GENERATE: backend/bin/ci-openapi
+          CLIENT_GENERATE: frontend/bin/ci-api-client
+        run: infra/scripts/check-api-contract.sh

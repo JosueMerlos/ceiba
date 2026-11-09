@@ -26,7 +26,7 @@ module Backend
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
-    config.autoload_lib(ignore: %w[assets tasks ci generators rubocop])
+    config.autoload_lib(ignore: %w[assets tasks ci generators rubocop openapi])
 
     # packs-rails añade app/* de cada pack a las rutas de carga, pero no db/migrate (M0.03):
     # las migraciones de cada pack se registran aquí para que `db:migrate` las encuentre.
@@ -65,6 +65,10 @@ module Backend
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    # Los errores que ocurren antes de un controlador (ruta inexistente, JSON mal formado) también salen como
+    # problem+json bajo /api (docs/architecture/07-api-contract.md).
+    config.exceptions_app = ->(env) { Api::ExceptionsApp.new.call(env) } # constante autocargada: se resuelve por petición
 
     # Los jobs van en Sidekiq (ADR-0009); Solid Queue no se usa.
     config.active_job.queue_adapter = :sidekiq

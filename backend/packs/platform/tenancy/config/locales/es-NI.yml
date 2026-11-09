@@ -1,4 +1,11 @@
 es-NI:
+  api:
+    errors:
+      tenancy:
+        slug_reserved: "El identificador está reservado"
+        slug_taken: "El identificador ya está en uso"
+        invalid: "Los datos de la organización no son válidos"
+        inconsistent_context: "No se encontró el recurso"
   tenancy:
     provisioning_failed:
       slug_reserved: 'El identificador "%{slug}" está reservado: elige otro.'

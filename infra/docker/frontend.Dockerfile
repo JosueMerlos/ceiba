@@ -13,7 +13,7 @@ RUN npm install --global "pnpm@${PNPM_VERSION}" \
 # el choque con el usuario `node` (1000) de la imagen base.
 RUN groupadd --gid "${HOST_GID}" --non-unique app \
  && useradd --uid "${HOST_UID}" --gid "${HOST_GID}" --non-unique --create-home --shell /bin/bash app \
- && mkdir -p /app/frontend/node_modules /app/frontend/apps/panel/node_modules /app/frontend/apps/booking/node_modules /app/frontend/packages/config/node_modules \
+ && mkdir -p /app/frontend/node_modules /app/frontend/apps/panel/node_modules /app/frontend/apps/booking/node_modules /app/frontend/packages/config/node_modules /app/frontend/packages/api-client/node_modules /app/backend/openapi \
  && chown -R "${HOST_UID}:${HOST_GID}" /app
 
 COPY --chmod=0755 infra/docker/frontend-entrypoint.sh /usr/local/bin/frontend-entrypoint

@@ -35,6 +35,8 @@ RSpec/ContextWording:
 RSpec/DescribeClass:
   Exclude:
     - "spec/requests/**/*"
+    - "spec/api/**/*"
+    - "packs/*/*/spec/api/**/*"
     - "spec/config/**/*"
     - "spec/packs/**/*"
     - "spec/db/**/*"

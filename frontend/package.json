@@ -10,7 +10,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r --if-present typecheck",
-    "test": "pnpm -r --if-present test"
+    "test": "pnpm -r --if-present test",
+    "api:generate": "pnpm --filter @ceiba/api-client generate"
   },
   "devDependencies": {
     "@ceiba/config": "workspace:*",

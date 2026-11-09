@@ -1,0 +1,26 @@
+{
+  "name": "@ceiba/api-client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Cliente TypeScript de la API v1, GENERADO desde backend/openapi/v1.yaml (ADR-0012). No se escriben tipos de respuesta a mano.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "openapi-typescript ../../../backend/openapi/v1.yaml --output src/schema.d.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "@ceiba/config": "workspace:*",
+    "@types/node": "26.6.6",
+    "msw": "3.0.4",
+    "openapi-typescript": "7.13.0",
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
+  }
+}
