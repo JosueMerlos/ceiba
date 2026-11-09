@@ -20,7 +20,10 @@ export interface paths {
         post: {
             parameters: {
                 query?: never;
-                header?: never;
+                header?: {
+                    /** @description Lo envía el navegador; si está presente debe ser el origen propio */
+                    Origin?: string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -57,6 +60,24 @@ export interface paths {
                 };
                 /** @description credenciales inválidas (código `auth.invalid_credentials`) */
                 401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `Origin` que no es el propio (código `auth.origin_forbidden`); frena el login CSRF */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el cuerpo no es `application/json` (código `request.unsupported_media_type`) */
+                415: {
                     headers: {
                         [name: string]: unknown;
                     };

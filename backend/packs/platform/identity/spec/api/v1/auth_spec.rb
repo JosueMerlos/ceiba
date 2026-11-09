@@ -16,6 +16,7 @@ RSpec.describe "API v1: autenticación" do
                   "Un correo inexistente y una contraseña errónea dan EXACTAMENTE la misma respuesta."
       consumes "application/json"
       produces "application/json", "application/problem+json"
+      parameter name: "Origin", in: :header, type: :string, required: false, description: "Lo envía el navegador; si está presente debe ser el origen propio"
       parameter name: :credentials, in: :body, required: true, schema: {
         type: :object, properties: { email: { type: :string, format: :email }, password: { type: :string, format: :password } },
         required: %w[email password]
@@ -35,6 +36,27 @@ RSpec.describe "API v1: autenticación" do
         let(:credentials) { { email: "nadie@ceiba.test", password: "contraseña-segura-1" } }
 
         run_test! { |response| expect(response.parsed_body["code"]).to eq("auth.invalid_credentials") }
+      end
+
+      response "403", "`Origin` que no es el propio (código `auth.origin_forbidden`); frena el login CSRF" do
+        schema "$ref" => "#/components/schemas/Problem"
+        let(:credentials) { { email: user.email, password: "contraseña-segura-1" } }
+        let("Origin") { "https://evil.example" }
+
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("auth.origin_forbidden") }
+      end
+
+      response "415", "el cuerpo no es `application/json` (código `request.unsupported_media_type`)" do
+        schema "$ref" => "#/components/schemas/Problem"
+        let(:credentials) { { email: "ana@ceiba.test", password: "x" } }
+
+        # rswag siempre envía `consumes` (JSON): la petición con otro tipo se hace a mano; la respuesta documenta el contrato.
+        it "responde 415 con un formulario" do
+          post "/api/v1/auth/login", params: "email=ana@ceiba.test&password=x", headers: { "CONTENT_TYPE" => "application/x-www-form-urlencoded" }
+
+          expect(response).to have_http_status(:unsupported_media_type)
+          expect(response.parsed_body["code"]).to eq("request.unsupported_media_type")
+        end
       end
 
       response "400", "faltan el correo o la contraseña" do
