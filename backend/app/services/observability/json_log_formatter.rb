@@ -12,11 +12,21 @@ module Observability
     def call(severity, timestamp, _progname, message)
       entry = { ts: timestamp.utc.iso8601(3), level: severity }
       entry[:tags] = current_tags.dup if current_tags.any?
+      entry.merge!(job_fields)
       entry.merge!(payload_for(message))
       "#{entry.to_json}\n"
     end
 
     private
+
+    # Dentro de un job de Sidekiq, TODA línea del logger de Rails (no solo las de Sidekiq) lleva el job y su organización.
+    # Los pone JobObservability::JobLogger en el contexto de Sidekiq.
+    def job_fields
+      return {} unless defined?(Sidekiq::Context)
+
+      context = Sidekiq::Context.current
+      { jid: context[:jid], job_class: context[:class], organization_id: context[:organization_id] }.compact
+    end
 
     def payload_for(message)
       case message

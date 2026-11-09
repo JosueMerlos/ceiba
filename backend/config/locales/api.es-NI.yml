@@ -20,6 +20,7 @@ es-NI:
         query_not_allowed: "Las mutaciones no admiten parámetros en la query string"
         unsupported_media_type: "La API solo acepta cuerpos application/json"
         malformed: "El cuerpo de la solicitud está mal formado"
+        too_large: "El cuerpo de la solicitud es demasiado grande"
       pagination:
         invalid_cursor: "El cursor de paginación no es válido"
         invalid_limit: "El límite de paginación no es válido"

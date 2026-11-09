@@ -28,6 +28,7 @@ module SentrySetup
     config.release = env["APP_RELEASE"].presence
     config.send_default_pii = false
     config.breadcrumbs_logger = []
+    config.sdk_logger = Rails.logger # el log interno del SDK, en JSON como el resto (por defecto escribe texto plano en STDOUT)
     config.auto_session_tracking = false # release health no se usa; sin esto avisa en cada arranque si falta APP_RELEASE
     config.rails.register_error_subscriber = true # los 500 los rescata Api::ErrorHandling y los reporta con Rails.error
     config.before_send = method(:before_send)

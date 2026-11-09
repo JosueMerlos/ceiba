@@ -22,6 +22,8 @@ module JobObservability
       entry = { ts: time.utc.iso8601(3), level: severity, pid: ::Process.pid, tid: tid, msg: message.to_s }
       Sidekiq::Context.current.each { |key, value| entry[CONTEXT_KEYS.fetch(key.to_sym, key.to_sym)] = value }
       entry[:duration] = (entry[:duration] * 1000).round(2) if entry[:duration]
+      # Mismo esquema que las requests: tenant y principal vivos (company_id, branch_id y principal_* de LogFields).
+      Observability::LogFields.current.each { |key, value| entry[key] = value if entry[key].nil? }
       "#{Sidekiq.dump_json(entry)}\n"
     end
   end

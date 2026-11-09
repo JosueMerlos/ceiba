@@ -25,6 +25,9 @@ Rails.application.configure do
   config.lograge.ignore_custom = ->(event) { silenced_paths.include?(event.payload[:path].to_s.split("?").first) }
 end
 
+# Sin códigos de color ANSI: romperían el JSON de cada línea (el SQL de desarrollo los lleva).
+ActiveSupport::LogSubscriber.colorize_logging = false
+
 # Las constantes de app/ no se pueden usar al cargar un initializer (Zeitwerk aún no está listo): van en to_prepare, que
 # vuelve a correr tras cada recarga de código en desarrollo.
 Rails.application.config.to_prepare do
