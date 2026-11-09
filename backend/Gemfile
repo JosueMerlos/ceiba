@@ -38,6 +38,18 @@ gem "bcrypt", "3.1.22"
 # Control de acceso (M0.08, ADR-0007): Pundit con una policy por modelo dentro de su pack. Versión fijada.
 gem "pundit", "2.5.2"
 
+# Observabilidad y seguridad base (M0.13). Versiones fijadas.
+# Logs de request en una línea estructurada (lograge, ver config/initializers/structured_logging.rb).
+gem "lograge", "0.15.1"
+# Errores a Sentry: Rails (incluye Rails.error), Sidekiq y el SDK base. Sin DSN no se activa.
+gem "sentry-ruby", "7.2.0"
+gem "sentry-rails", "7.2.0"
+gem "sentry-sidekiq", "7.2.0"
+# Rate limiting capa 1 (ADR-0027). Se monta a mano en config/initializers/throttling.rb, después de RemoteIp.
+gem "rack-attack", "6.8.0", require: false
+# Store de Rack::Attack: ActiveSupport::Cache::RedisCacheStore necesita la gema redis (Sidekiq usa redis-client).
+gem "redis", "6.0.0"
+
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
