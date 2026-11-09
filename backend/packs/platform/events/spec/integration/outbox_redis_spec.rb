@@ -111,10 +111,13 @@ RSpec.describe "Outbox con Redis real", :redis do
     end
 
     it "con tres relays y lotes pequeños tampoco queda ningún pendiente ni se repite un evento" do
-      run_relays(count: 3, batch_size: 10)
+      published = run_relays(count: 3, batch_size: 10)
+      event_ids = queued_jobs.map { |job| job["args"].first }
 
       expect(Events::OutboxLag.measure[:pending]).to eq(0)
-      expect(queued_jobs.map { |job| job["args"].first }.uniq.size).to eq(total)
+      expect(event_ids.size).to eq(total)
+      expect(event_ids.uniq.size).to eq(total)
+      expect(published.count(&:positive?)).to be >= 2 # concurrencia real: el trabajo se repartió
     end
 
     it "cada DeliverJob lleva el organization_id de su evento" do

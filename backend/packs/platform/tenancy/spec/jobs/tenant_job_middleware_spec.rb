@@ -85,9 +85,29 @@ RSpec.describe TenantJobMiddleware do
         expect(dead_jobs.size).to eq(1)
       end
 
-      it "una organización inexistente va a la cola muerta (no RecordNotFound reintentable)" do
-        expect { run({ "organization_id" => SecureRandom.uuid, "jid" => "j3" }) { nil } }.to raise_error(Sidekiq::JobRetry::Skip)
-        expect(dead_jobs).to contain_exactly(a_hash_including("jid" => "j3", "error_class" => "ActiveRecord::RecordNotFound"))
+      it "una organización inexistente se reintenta unas pocas veces (el job pudo encolarse dentro de la transacción que la crea)" do
+        job = { "organization_id" => SecureRandom.uuid, "jid" => "j3" }
+
+        [ nil, 0, 1, 2 ].each do |retry_count|
+          expect { run(job.merge("retry_count" => retry_count).compact) { nil } }.to raise_error(ActiveRecord::RecordNotFound)
+        end
+        expect(dead_jobs).to be_empty
+      end
+
+      it "agotados esos reintentos, va a la cola muerta" do
+        job = { "organization_id" => SecureRandom.uuid, "jid" => "j4", "retry_count" => TenantJobMiddleware::MAX_ORGANIZATION_RETRIES - 1 }
+
+        expect { run(job) { nil } }.to raise_error(Sidekiq::JobRetry::Skip)
+        expect(dead_jobs).to contain_exactly(a_hash_including("jid" => "j4", "error_class" => "ActiveRecord::RecordNotFound"))
+      end
+
+      it "una organización que aparece entre reintentos ejecuta el job" do
+        organization = create(:organization)
+        ran = false
+
+        run({ "organization_id" => organization.id, "retry_count" => 1 }) { ran = true }
+
+        expect(ran).to be(true)
       end
     end
 
@@ -108,6 +128,10 @@ RSpec.describe TenantJobMiddleware do
 
       expect(with_tenant(organization) { Tenancy::Company.count }).to eq(0)
     end
+  end
+
+  it "canario: Sidekiq::JobRetry::Skip existe y es un Handled (API interna de la que depende el descarte)" do
+    expect(Sidekiq::JobRetry::Skip.ancestors).to include(Sidekiq::JobRetry::Handled)
   end
 
   describe "de extremo a extremo con un job real de Sidekiq" do

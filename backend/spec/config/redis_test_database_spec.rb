@@ -8,7 +8,6 @@ RSpec.describe "Base de Redis de test" do
   end
 
   it "gana aunque REDIS_URL apunte a la base 0 (que es lo que da compose)" do
-    expect(ENV.fetch("REDIS_URL", "redis://redis:6379/0")).not_to be_nil
     expect(Sidekiq.redis { |connection| connection.call("CLIENT", "INFO") }).to include("db=15")
   end
 
