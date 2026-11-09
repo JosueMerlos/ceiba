@@ -142,6 +142,7 @@ Hooks previstos, que otros packs registran:
 
 - `events` (M0.10, ya registrado): publica `platform.organization_provisioned.v1` en la misma transacción (`Events::ProvisioningHook`, clave `:events_organization_provisioned`).
 - `access` (M0.08, ya registrado: `Access::OwnerHook`, clave `:access_owner`): crea el membership `org_owner` del `extras[:owner]`.
+- `audit` (M0.11, ya registrado): audita `organization.provisioned` en la misma transacción (`Audit::ProvisioningHook`, clave `:audit_organization_provisioned`).
 - `modules`: activa los módulos por defecto según el plan (hoy, `appointments`).
 - `notifications`: siembra las plantillas por defecto.
 

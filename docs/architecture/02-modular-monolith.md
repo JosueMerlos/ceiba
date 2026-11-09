@@ -32,7 +32,8 @@ Si algún día un módulo necesita escalar por separado, los límites ya existen
 | `platform/access` | Permisos, roles, memberships, principal, base de Pundit, API keys | `Access.register_permissions`, `Access.sync!`, `Access::Principal` (+ `::User`, `::System`, `::ApiKey`, `::PublicToken`), `Access::Scope`, `Access::Reach`, `Access::BasePolicy`, `Access::Authorization`, `Access::GrantRole` y los errores. Además aloja las policies, controladores y rutas de organización/empresa/sucursal (tenancy no puede depender de access: ciclo). Detalle en [04](04-access-control.md#implementación-m008) |
 | `platform/modules` | Registro de manifiestos, `company_modules`, entitlements, settings | `Modules.registry`, `Modules.enabled?(company, key)`, `Modules.settings_for` |
 | `platform/events` | Outbox, relay, suscripciones, consumidores idempotentes | `Events.publish`, `Events.subscribe` |
-| `platform/audit` | `audit_events` append-only | `Audit.record` |
+| `platform/audit` | `audit_events` (tenant) y `auth_audit_events` (global) append-only, diff sin datos sensibles | `Audit.record`, `Audit.record_auth`, `Audit::Error`, `Audit::NoContext` |
+| `platform/idempotency` | `idempotency_keys`: repetición segura de creaciones con `Idempotency-Key` | `Idempotency::Idempotent` (concern), `Idempotency::KeyReused`, `KeyRequired`, `KeyInvalid`, `MissingContext` |
 | `platform/notifications` | Canales (correo, WhatsApp), plantillas, consentimientos, delivery log | `Notifications.deliver`, `Notifications::Consent` |
 | `platform/customers` | Cliente final, único **por empresa** | `Customers::FindOrCreate`, `Customers::Lookup` |
 | `modules/appointments` | Servicios, profesionales, recursos, horarios, disponibilidad, citas | `Appointments::Book`, `Appointments::Availability` |

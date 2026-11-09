@@ -12,6 +12,8 @@
 
 ## Principal
 
+> **Contrato con la auditoría y la idempotencia (M0.11):** todo principal expone `actor_type` (`"user"`, `"api_key"`, `"platform_staff"`) e `id`. Sin `actor_type`, `Audit` e `Idempotency` lo derivan del nombre de la clase. `Access::Principal` (M0.08) debe declararlo.
+
 La autorización nunca pregunta "¿puede el **usuario**…?" sino "¿puede el **principal**…?":
 
 ```
