@@ -9,6 +9,12 @@ module Tenancy
   #   )
   #   result.organization / result.company / result.branch
   #
+  # `extras:` (opcional) lleva a los hooks datos que este servicio NO interpreta, p. ej. el dueño que access convierte en un
+  # membership `org_owner` (M0.08) o el plan que fija los módulos por defecto (M0.09). Llegan en `result.extras`, congelados.
+  # Cada hook valida los suyos y decide si la ausencia de un dato es un error. Sin `extras:` todo funciona como antes:
+  #
+  #   Tenancy::ProvisionOrganization.call(organization:, company:, branch:, extras: { owner: Identity::ProvisionUser.call(...) })
+  #
   # - Una sola transacción: si algo falla (incluido un hook), no queda nada a medias.
   # - Los errores previstos se lanzan como Tenancy::ProvisioningFailed (slug reservado o repetido, datos inválidos).
   #   La unicidad del slug la decide la BASE: si dos provisiones compiten, la restricción UNIQUE gana y el perdedor
@@ -17,8 +23,11 @@ module Tenancy
   #   M0.09: módulos por defecto). Corren en orden de registro, dentro de la transacción y dentro del contexto de la
   #   organización nueva. Un hook que lanza revierte TODO y su error se propaga tal cual.
   class ProvisionOrganization
-    Result = Data.define(:organization, :company, :branch)
-
+    Result = Data.define(:organization, :company, :branch, :extras) do
+      def initialize(organization:, company:, branch:, extras: {})
+        super(organization:, company:, branch:, extras: extras.dup.freeze)
+      end
+    end
 
     # El registro de hooks vive en la configuración de la aplicación y NO en la clase: en desarrollo la clase se
     # recarga y un ivar de clase perdería los hooks. Cada hook puede llevar una `key`: registrar otro con la misma
@@ -27,8 +36,8 @@ module Tenancy
     STORE = Rails.application.config.x.tenancy
 
     class << self
-      def call(organization:, company:, branch:)
-        new(organization:, company:, branch:).call
+      def call(organization:, company:, branch:, extras: {})
+        new(organization:, company:, branch:, extras:).call
       end
 
       # Registra un hook (lambda, proc u objeto con #call(result)). Devuelve el hook para poder quitarlo.
@@ -58,7 +67,10 @@ module Tenancy
       def lock = STORE.after_provision_lock ||= Mutex.new
     end
 
-    def initialize(organization:, company:, branch:)
+    def initialize(organization:, company:, branch:, extras: {})
+      raise ArgumentError, "extras debe ser un Hash (recibió #{extras.class})" unless extras.is_a?(Hash)
+
+      @extras = extras
       @organization_attributes = AllowedAttributes.permit(organization, AllowedAttributes::ORGANIZATION, :organization)
       @company_attributes = AllowedAttributes.permit(company, AllowedAttributes::COMPANY, :company)
       @branch_attributes = AllowedAttributes.permit(branch, AllowedAttributes::BRANCH, :branch)
@@ -69,7 +81,7 @@ module Tenancy
       # requires_new: dentro de una transacción ajena (tests, un job) un fallo hace rollback a un savepoint y deja la
       # conexión utilizable, en vez de abortar la transacción entera.
       ApplicationRecord.transaction(requires_new: true) do
-        result = FailureTranslator.translating(slug: @company_attributes[:slug]) { create_records }
+        result = FailureTranslator.translating(slug: @company_attributes[:slug]) { create_records }.with(extras: @extras)
         # Los hooks corren en la MISMA transacción pero FUERA del traductor: su error se propaga tal cual (y revierte todo),
         # no se disfraza de ProvisioningFailed.
         run_hooks(result)
