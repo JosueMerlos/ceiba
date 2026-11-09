@@ -10,13 +10,20 @@ RSpec.describe SentrySetup, type: :request do
   let(:dsn) { "http://12345:67890@sentry.localdomain/sentry/42" }
   let(:organization_id) { "0198f0a0-0000-7000-8000-0000000000aa" }
   let(:events) { Sentry.get_current_client.transport.events }
-  let(:captured) { events.map(&:to_h) }
+  let(:captured) { wait_for_events.map(&:to_h) }
+
+  # El envío es asíncrono: espera a que el hilo de fondo entregue al menos un evento.
+  def wait_for_events(count = 1)
+    Timeout.timeout(5) { sleep 0.01 until Sentry.get_current_client.transport.events.size >= count }
+    Sentry.get_current_client.transport.events
+  end
 
   def init_with_dummy_transport(env = {})
     Sentry.init do |config|
       described_class.configure(config, env: { "SENTRY_DSN" => dsn }.merge(env), rails_env: "production")
       config.transport.transport_class = Sentry::DummyTransport
-      config.background_worker_threads = 0
+      # Hilos de fondo POR DEFECTO, como en producción: before_send corre en el hilo del worker de Sentry, donde Current y
+      # LogContext (por hilo) están vacíos. Los tags tienen que ponerse al capturar, en el hilo de la request o del job.
     end
   end
 
@@ -66,14 +73,21 @@ RSpec.describe SentrySetup, type: :request do
     expect(captured.first.to_json).not_to include("ana@ceiba.test", "Ana Pérez")
   end
 
-  it "criterio 4: un error en un job lleva organization_id y el nombre del job" do
+  it "criterio 4: un error en un job lleva organization_id y el nombre del job, en el ORDEN REAL de Sidekiq" do
     job = { "class" => "Events::DeliverJob", "jid" => "abc123", "queue" => "critical", "organization_id" => organization_id, "args" => [ "ana@ceiba.test" ] }
     config = Sidekiq::Config.new.tap { |c| c.logger = Sidekiq::Logger.new(StringIO.new) }
     job_logger = JobObservability::JobLogger.new(config)
+    error = nil
 
+    # processor.rb: el middleware de Sentry y el job corren DENTRO de prepare; el error handler (handle_exception) corre FUERA,
+    # cuando prepare ya terminó y LogContext se reinició.
     job_logger.prepare(job) do
-      Sentry::Sidekiq::ErrorHandler.new.call(RuntimeError.new("falló"), { context: "Job raised exception", job: }, config)
+      Sentry::Sidekiq::SentryContextServerMiddleware.new.call(Object.new, job, "critical") { raise "falló" }
+    rescue RuntimeError => e
+      error = e
     end
+    expect(Observability::LogContext.organization_id).to be_nil
+    Sentry::Sidekiq::ErrorHandler.new.call(error, { context: "Job raised exception", job: }, config)
 
     expect(captured.first[:tags]).to include(organization_id:, job: "Events::DeliverJob")
     expect(captured.first.to_json).not_to include("ana@ceiba.test")
