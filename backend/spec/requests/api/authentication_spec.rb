@@ -10,6 +10,9 @@ RSpec.describe "Autenticación obligatoria por defecto (deny by default)" do
       "GET /api/health" => "sonda de vida del proxy/Docker: infraestructura, no devuelve datos",
       "GET /api/ready" => "sonda de disponibilidad (BD, Redis): infraestructura",
       "POST /api/v1/auth/login" => "es la puerta de entrada: aún no hay sesión; protegido por Origin y, en M0.13, por rate limit",
+      # Rswag monta DOS engines en /api/docs (UI y contrato) y sus subrutas (/api/docs/v1.yaml, assets) no aparecen en la
+      # tabla de rutas de la app, así que este spec no las recorre: son públicas por diseño y solo existen donde
+      # Api::Docs.enabled? (desarrollo, test, staging); en producción la ruta no existe.
       "GET /api/docs" => "Swagger UI y contrato: solo existen en desarrollo, test y staging (Api::Docs.enabled?)"
     }
   end
