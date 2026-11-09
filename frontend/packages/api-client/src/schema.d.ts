@@ -290,7 +290,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            data: components["schemas"]["Organization"][];
+                            data: components["schemas"]["OrganizationSummary"][];
                             page: components["schemas"]["PageInfo"];
                         };
                     };
@@ -793,6 +793,14 @@ export interface components {
              * @description UTC
              */
             updated_at: string;
+        };
+        /** @description Resumen de una organización para el selector de contexto (id, nombre, estado) */
+        OrganizationSummary: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            status: "active" | "suspended";
         };
         /** @description Metadatos de la paginación por cursor */
         PageInfo: {

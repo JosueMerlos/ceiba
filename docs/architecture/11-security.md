@@ -176,7 +176,7 @@ Access token de 15 min con algoritmo asimétrico (EdDSA o RS256) y `kid` para ro
 - [ ] Rack::Attack y `rate_limit` con la IP real verificada (M0.13, M4.02)
 - [ ] 2FA obligatorio para `org_owner`, `org_admin` y `PlatformStaff` (M4.02)
 - [x] Principal `User` pasando por Pundit (M0.08); `ApiKey` y `PublicToken` existen como interfaz que niega todo hasta M4.02 / M3.04
-- [x] Matriz de autorización en specs (M0.08, `bin/ci backend-test`)
+- [x] Matriz de autorización en specs (M0.08, `bin/ci backend-test`), con la allowlist de `skip_authorization!` verificada contra las rutas reales y los cops `Ceiba/AccessPolicyRoles` y `Ceiba/AuthorizationSkips`
 - [ ] Suite de aislamiento de tenant (M0.05) y **RLS activo** (M4.03)
 - [ ] `brakeman` + `bundler-audit` en CI (M0.02)
 - [ ] Aviso de privacidad y consentimientos según la Ley 787 (M3.01, M4.05)
