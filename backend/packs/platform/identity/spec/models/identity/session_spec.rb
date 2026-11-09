@@ -133,8 +133,9 @@ RSpec.describe Identity::Session do
   end
 
   it "la sesión necesita usuario (FK)" do
-    expect { described_class.create!(user_id: SecureRandom.uuid, token_digest: "x", last_seen_at: now, expires_at: now + 1.day) }
-      .to raise_error(ActiveRecord::InvalidForeignKey)
+    orphan = described_class.new(user_id: SecureRandom.uuid, token_digest: "x", last_seen_at: now, expires_at: now + 1.day)
+
+    expect { orphan.save!(validate: false) }.to raise_error(ActiveRecord::InvalidForeignKey)
   end
 
   it "es global: no es una tabla tenant" do

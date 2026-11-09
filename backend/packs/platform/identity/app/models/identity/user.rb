@@ -8,6 +8,8 @@ module Identity
 
     has_secure_password
 
+    has_many :sessions, dependent: :restrict_with_exception
+
     normalizes :email, with: ->(email) { email.strip.downcase }
 
     validates :email, presence: true, format: { with: URI::MailTo::EMAIL_REGEXP, allow_blank: true },
