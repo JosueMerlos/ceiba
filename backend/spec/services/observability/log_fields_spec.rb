@@ -70,4 +70,29 @@ RSpec.describe Observability::LogFields do
 
     expect(described_class.current).to include(principal_type: "api_key", principal_id: "k-1")
   end
+
+  it "con Access::Principal::User (M0.08) da el tipo del contrato (actor_type) y el id del usuario" do
+    organization = new_organization
+    user = create(:user)
+    Current.principal = access_principal_for(user, organization)
+
+    expect(described_class.current).to include(principal_type: "user", principal_id: user.id)
+  ensure
+    purge_organizations(organization) if organization
+  end
+
+  describe ".request" do
+    let(:request) { instance_double(ActionDispatch::Request, request_id: "req-del-request", remote_ip: "198.51.100.1") }
+
+    it "request_id y remote_ip salen de Current (una sola fuente con la auditoría)" do
+      Current.request_id = "req-de-current"
+      Current.ip = "203.0.113.7"
+
+      expect(described_class.request(request)).to eq(request_id: "req-de-current", remote_ip: "203.0.113.7")
+    end
+
+    it "sin Current (request que no pasó por Api::RequestMetadata) usa los de la request" do
+      expect(described_class.request(request)).to eq(request_id: "req-del-request", remote_ip: "198.51.100.1")
+    end
+  end
 end

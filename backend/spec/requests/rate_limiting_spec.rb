@@ -207,6 +207,23 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
       expect(response).to have_http_status(:unauthorized)
     end
 
+    it "los 404 del Access::RouteContextResolver real (empresa o sucursal fuera de alcance) tampoco cuentan" do
+      Rack::Attack.enabled = false
+      world = build_access_world
+      manager = user_with_role("branch_manager", world, branch: world.branch_a1)
+      sign_in(manager)
+      Rack::Attack.enabled = true
+      other_branch = "/api/v1/organizations/#{world.organization.id}/companies/#{world.company_a.id}/branches/#{world.branch_a2.id}"
+
+      12.times do
+        get other_branch, headers: { "REMOTE_ADDR" => ip }
+        expect(response).to have_http_status(:not_found)
+      end
+      get "/api/v1/auth/session", headers: { "REMOTE_ADDR" => ip }
+
+      expect(response).to have_http_status(:ok)
+    end
+
     it "9 respuestas 404 no bloquean" do
       9.times { get "/api/v1/no-existe", headers: { "REMOTE_ADDR" => ip } }
 

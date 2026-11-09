@@ -123,6 +123,14 @@ RSpec.describe SentrySetup, type: :request do
     expect(captured.first[:contexts].values_at(:"rails.error", "rails.error").compact.first).to include(code: "internal.error", request_id: response.headers["X-Request-Id"])
   end
 
+  it "etiqueta el request_id de Current (el mismo del log y de la auditoría)" do
+    Current.request_id = "req-123"
+
+    Sentry.capture_exception(RuntimeError.new("fallo"))
+
+    expect(captured.first[:tags]).to include(request_id: "req-123")
+  end
+
   it "se suscribe al reporter de errores de Rails (sin eso los 500 rescatados no llegarían)" do
     expect(Sentry.configuration.rails.register_error_subscriber).to be(true)
   end
