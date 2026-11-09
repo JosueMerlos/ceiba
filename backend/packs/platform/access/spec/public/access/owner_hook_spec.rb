@@ -2,7 +2,7 @@ require "rails_helper"
 
 # Hook after_provision de access: el dueño de la organización recibe el membership org_owner EN LA MISMA transacción de la
 # provisión. Los datos del dueño llegan en `extras: { owner: }` (Tenancy no los interpreta).
-RSpec.describe "Provisión de una organización con dueño" do
+RSpec.describe "Provisión de una organización con dueño", type: :request do
   let(:owner) { Identity::ProvisionUser.call(email: "dueno@ceiba.test", full_name: "Rosa Mendoza", password: "contraseña-segura-1") }
   let(:params) do
     {
@@ -43,7 +43,6 @@ RSpec.describe "Provisión de una organización con dueño" do
   end
 
   it "el hook está registrado una sola vez, con clave (idempotente en cada recarga)" do
-    Rails.application.config.to_prepare_blocks.size # no-op: solo comprobar que el registro con key existe
     entries = Rails.application.config.x.tenancy.after_provision_hooks.map(&:first)
 
     expect(entries.count(:access_owner)).to eq(1)
