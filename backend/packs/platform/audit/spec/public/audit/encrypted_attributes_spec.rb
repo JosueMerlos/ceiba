@@ -13,10 +13,6 @@ RSpec.describe "Audit.record con atributos cifrados (criterio 5)" do
 
   before do
     stub_const("ProbeOrganization", probe_class)
-    ActiveRecord::Encryption.configure(
-      primary_key: "test-primary-key-0123456789abcdef", deterministic_key: "test-deterministic-key-0123456789ab",
-      key_derivation_salt: "test-derivation-salt-0123456789ab"
-    )
   end
 
   it "el diff de un campo cifrado muestra [FILTERED], no el valor" do
