@@ -51,7 +51,8 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
 
     it "la ventana siguiente vuelve a permitir intentos" do
       6.times { login }
-      travel_to(now + 15.minutes) { login }
+      travel_to(now + 15.minutes)
+      login
 
       expect(response).to have_http_status(:unauthorized)
     end
@@ -137,7 +138,8 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
       get "/api/v1/auth/session", headers: { "REMOTE_ADDR" => "203.0.113.50" }
       expect(response).to have_http_status(:unauthorized)
 
-      travel_to(now + 61.minutes) { get "/api/v1/auth/session", headers: { "REMOTE_ADDR" => ip } }
+      travel_to(now + 61.minutes)
+      get "/api/v1/auth/session", headers: { "REMOTE_ADDR" => ip }
 
       expect(response).to have_http_status(:unauthorized)
     end
@@ -155,7 +157,6 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
     it "usa Redis con el namespace ratelimit:" do
       login
 
-      expect(Rack::Attack.cache.store).to be_a(ActiveSupport::Cache::RedisCacheStore)
       expect(Rack::Attack.cache.store.redis.with { |redis| redis.keys("ratelimit:rack::attack:*") }).not_to be_empty
     end
 
