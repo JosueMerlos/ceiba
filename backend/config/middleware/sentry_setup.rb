@@ -63,7 +63,7 @@ module SentrySetup
     job = event.contexts.to_h.with_indifferent_access[:sidekiq] || {}
     {
       organization_id: fields[:organization_id] || job[:organization_id], company_id: fields[:company_id], branch_id: fields[:branch_id],
-      principal_type: fields[:principal_type], principal_id: fields[:principal_id],
+      principal_type: fields[:principal_type], principal_id: fields[:principal_id], request_id: Current.request_id,
       job: Observability::LogContext.job_class || job[:wrapped] || job[:class]
     }.compact
   end

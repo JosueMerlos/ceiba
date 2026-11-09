@@ -17,7 +17,7 @@ Rails.application.configure do
   config.lograge.base_controller_class = "ActionController::API"
 
   config.lograge.custom_payload_method = lambda do |controller|
-    Observability::LogFields.current.merge(request_id: controller.request.request_id, remote_ip: controller.request.remote_ip)
+    Observability::LogFields.current.merge(Observability::LogFields.request(controller.request))
   end
 
   # Las sondas de infraestructura se llaman cada pocos segundos: su línea solo es ruido.
