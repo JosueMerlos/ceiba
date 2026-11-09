@@ -38,6 +38,19 @@ CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
 
 
+--
+-- Name: reject_audit_mutation(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_audit_mutation() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION '% es append-only: % no está permitido', TG_TABLE_NAME, TG_OP USING ERRCODE = 'restrict_violation';
+END
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -51,6 +64,44 @@ CREATE TABLE public.ar_internal_metadata (
     value character varying,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: audit_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.audit_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    actor_type character varying NOT NULL,
+    actor_id uuid,
+    request_id character varying,
+    ip inet,
+    user_agent character varying,
+    action character varying NOT NULL,
+    auditable_type character varying NOT NULL,
+    auditable_id uuid NOT NULL,
+    before jsonb,
+    after jsonb,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: auth_audit_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.auth_audit_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    action character varying NOT NULL,
+    user_id uuid,
+    request_id character varying,
+    ip inet,
+    user_agent character varying,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL
 );
 
 
@@ -92,6 +143,26 @@ CREATE TABLE public.companies (
     CONSTRAINT chk_companies_currency CHECK (((currency)::text = ANY (ARRAY[('NIO'::character varying)::text, ('USD'::character varying)::text]))),
     CONSTRAINT chk_companies_slug_format CHECK (((slug)::text ~ '^[a-z0-9-]{3,40}$'::text)),
     CONSTRAINT chk_companies_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
+);
+
+
+--
+-- Name: idempotency_keys; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.idempotency_keys (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    principal_key character varying NOT NULL,
+    key character varying NOT NULL,
+    request_fingerprint character varying NOT NULL,
+    response_status integer,
+    response_body text,
+    response_headers jsonb DEFAULT '{}'::jsonb NOT NULL,
+    content_type character varying,
+    expires_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
 );
 
 
@@ -257,6 +328,22 @@ ALTER TABLE ONLY public.ar_internal_metadata
 
 
 --
+-- Name: audit_events audit_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_events
+    ADD CONSTRAINT audit_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: auth_audit_events auth_audit_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.auth_audit_events
+    ADD CONSTRAINT auth_audit_events_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: branches branches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -270,6 +357,14 @@ ALTER TABLE ONLY public.branches
 
 ALTER TABLE ONLY public.companies
     ADD CONSTRAINT companies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idempotency_keys idempotency_keys_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.idempotency_keys
+    ADD CONSTRAINT idempotency_keys_pkey PRIMARY KEY (id);
 
 
 --
@@ -345,6 +440,14 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: audit_events uq_audit_events_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_events
+    ADD CONSTRAINT uq_audit_events_organization_id_id UNIQUE (organization_id, id);
+
+
+--
 -- Name: branches uq_branches_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -358,6 +461,14 @@ ALTER TABLE ONLY public.branches
 
 ALTER TABLE ONLY public.companies
     ADD CONSTRAINT uq_companies_organization_id_id UNIQUE (organization_id, id);
+
+
+--
+-- Name: idempotency_keys uq_idempotency_keys_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.idempotency_keys
+    ADD CONSTRAINT uq_idempotency_keys_organization_id_id UNIQUE (organization_id, id);
 
 
 --
@@ -390,6 +501,41 @@ ALTER TABLE ONLY public.processed_events
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_audit_events_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_events_created_at ON public.audit_events USING btree (organization_id, created_at);
+
+
+--
+-- Name: idx_audit_events_subject; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_audit_events_subject ON public.audit_events USING btree (organization_id, auditable_type, auditable_id);
+
+
+--
+-- Name: idx_auth_audit_events_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_auth_audit_events_created_at ON public.auth_audit_events USING btree (created_at);
+
+
+--
+-- Name: idx_auth_audit_events_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_auth_audit_events_user ON public.auth_audit_events USING btree (user_id, created_at);
+
+
+--
+-- Name: idx_idempotency_keys_expires_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_idempotency_keys_expires_at ON public.idempotency_keys USING btree (expires_at);
 
 
 --
@@ -491,6 +637,13 @@ CREATE UNIQUE INDEX uq_companies_slug ON public.companies USING btree (slug);
 
 
 --
+-- Name: uq_idempotency_keys_scope; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_idempotency_keys_scope ON public.idempotency_keys USING btree (organization_id, principal_key, key);
+
+
+--
 -- Name: uq_memberships_user_role_scope; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -519,6 +672,28 @@ CREATE UNIQUE INDEX uq_roles_key ON public.roles USING btree (key);
 
 
 --
+-- Name: audit_events audit_events_append_only; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER audit_events_append_only BEFORE DELETE OR UPDATE OR TRUNCATE ON public.audit_events FOR EACH STATEMENT EXECUTE FUNCTION public.reject_audit_mutation();
+
+
+--
+-- Name: auth_audit_events auth_audit_events_append_only; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER auth_audit_events_append_only BEFORE DELETE OR UPDATE OR TRUNCATE ON public.auth_audit_events FOR EACH STATEMENT EXECUTE FUNCTION public.reject_audit_mutation();
+
+
+--
+-- Name: audit_events fk_audit_events_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.audit_events
+    ADD CONSTRAINT fk_audit_events_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: branches fk_branches_company; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -540,6 +715,14 @@ ALTER TABLE ONLY public.branches
 
 ALTER TABLE ONLY public.companies
     ADD CONSTRAINT fk_companies_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: idempotency_keys fk_idempotency_keys_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.idempotency_keys
+    ADD CONSTRAINT fk_idempotency_keys_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
 
 
 --
@@ -623,6 +806,13 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
+-- Name: audit_events tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.audit_events USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
 -- Name: branches tenant_isolation; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -634,6 +824,13 @@ CREATE POLICY tenant_isolation ON public.branches USING ((organization_id = (NUL
 --
 
 CREATE POLICY tenant_isolation ON public.companies USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
+-- Name: idempotency_keys tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.idempotency_keys USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
 
 
 --
@@ -664,6 +861,9 @@ CREATE POLICY tenant_isolation ON public.processed_events USING ((organization_i
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261110000200'),
+('20261110000100'),
+('20261110000000'),
 ('20261109000200'),
 ('20261109000100'),
 ('20261109000000'),
