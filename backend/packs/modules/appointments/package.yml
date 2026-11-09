@@ -1,0 +1,14 @@
+# Pack modules/appointments (namespace Appointments). Reglas: docs/architecture/02-modular-monolith.md
+layer: modules
+enforce_dependencies: true
+enforce_privacy: true
+enforce_layers: true
+# Ningún otro pack puede usar este módulo (visibilidad): los módulos se hablan solo por eventos.
+# El layer checker permite dependencias dentro de la misma capa, por eso hace falta esto.
+enforce_visibility: true
+visible_to: []
+
+# Declara aquí SOLO lo que el pack usa. "." es el pack raíz (ApplicationRecord, ApplicationController...).
+# Un módulo depende de packs de platform/, nunca de otro módulo (los módulos se hablan por eventos).
+dependencies:
+  - "."
