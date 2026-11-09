@@ -24,6 +24,9 @@ module ApiProbes
       def tenant_mismatch = raise(Tenancy::TenantMismatch, "organization_id ajeno")
       def boom = raise("kaboom: /app/backend/secret_path.rb contraseña=hunter2")
       def organizations = render_page(Tenancy::Organization.all, serializer: ApiProbes::OrganizationSerializer)
+      def unknown_format = raise(ActionController::UnknownFormat)
+      def not_implemented = raise(ActionController::NotImplemented)
+      def client_error_unregistered = raise(ActionController::InvalidAuthenticityToken)
       def unregistered = raise(ProbeDomainError, "detalle interno que no debe salir")
     end)
   end
@@ -60,6 +63,9 @@ module ApiProbes
           get "tenant_mismatch"
           get "boom"
           get "unregistered"
+          get "unknown_format"
+          get "not_implemented"
+          get "client_error_unregistered"
           get "organizations"
           post "create"
         end
