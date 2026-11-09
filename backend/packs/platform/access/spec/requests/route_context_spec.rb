@@ -206,9 +206,10 @@ RSpec.describe "El contexto solo sale de la ruta" do
   before { sign_in(user_with_role("org_owner", world)) }
 
   it "GET /auth/session?organization_id=<ajena> no fija ningún contexto (la query se ignora)" do
+    query = { organization_id: foreign.organization.id, company_id: foreign.company_a.id }
     allow(Tenancy).to receive(:with_context).and_call_original
 
-    get "/api/v1/auth/session", params: { organization_id: foreign.organization.id, company_id: foreign.company_a.id }
+    get "/api/v1/auth/session", params: query
 
     expect(response).to have_http_status(:ok)
     expect(Tenancy).not_to have_received(:with_context)
