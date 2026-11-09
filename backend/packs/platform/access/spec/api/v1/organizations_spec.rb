@@ -18,11 +18,15 @@ RSpec.describe "API v1: organizaciones" do
       response "200", "las organizaciones del usuario" do
         let!(:signed_in) { sign_in(user_with_role("branch_manager", world, branch: world.branch_a1)) }
         schema type: :object, required: %w[data page], additionalProperties: false, properties: {
-          data: { type: :array, items: { "$ref" => "#/components/schemas/Organization" } },
+          data: { type: :array, items: { "$ref" => "#/components/schemas/OrganizationSummary" } },
           page: { "$ref" => "#/components/schemas/PageInfo" }
         }
 
-        run_test! { |response| expect(response.parsed_body["data"].pluck("id")).to eq([ world.organization.id ]) }
+        run_test! do |response|
+          expect(response.parsed_body["data"].pluck("id")).to eq([ world.organization.id ])
+          # El selector de contexto no expone razón social, país ni fechas: solo lo necesario para elegir (id, name, status).
+          expect(response.parsed_body["data"].first.keys).to contain_exactly("id", "name", "status")
+        end
       end
 
       response "401", "sin sesión válida" do
