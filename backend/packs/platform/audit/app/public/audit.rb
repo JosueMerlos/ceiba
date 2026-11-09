@@ -10,7 +10,7 @@ module Audit
   # - Es una escritura más de la transacción del llamador: si hace rollback, el evento desaparece con el cambio.
   # - El actor sale de `actor:` o, si falta, de Current.principal / el principal del contexto; sin principal es `system`.
   #   Un principal declara su tipo con `actor_type` (user, api_key, platform_staff...); sin él se deriva del nombre de la clase.
-  # - `before:`/`after:` son hashes de atributos; se guarda el DIFF (solo lo que cambió), sin campos sensibles
+  # - `before:`/`after:` son hashes de atributos; se guarda el DIFF (solo lo que cambió) con los campos sensibles
   #   enmascarados como "[FILTERED]" (mismo criterio que filter_parameters, recursivo) y con la PII cifrada del sujeto
   #   también como "[FILTERED]" (Audit::Diff).
   #   Una creación pasa solo `after:`; un borrado, solo `before:`.
