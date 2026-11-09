@@ -84,9 +84,9 @@ RSpec.describe "Contexto de la ruta y alcance de los memberships" do
     end
 
     it "en la ruta de X solo aplican los permisos de X (su rol de admin en Y no se filtra)" do
-      get_as(user, "#{base}/companies/#{world.company_a.id}")
+      get_as(user, base)
 
-      expect(response).to have_http_status(:forbidden) # visible por su sucursal, pero company.read no es de branch_manager
+      expect(response).to have_http_status(:forbidden) # branch_manager en X no lee la organización; su rol de admin en Y no se filtra
     end
 
     it "en la ruta de Y aplican los de Y" do
@@ -134,21 +134,34 @@ RSpec.describe "Contexto de la ruta y alcance de los memberships" do
   end
 
   describe "403: visible pero la acción no está permitida" do
-    it "un recepcionista ve su sucursal en la ruta pero no puede leerla (la matriz no se lo da)" do
-      receptionist = user_with_role("receptionist", world, branch: world.branch_a1)
+    it "un rol sin el permiso (sucursal visible por su membership) recibe 403 access.forbidden" do
+      user = user_with_custom_role(world, scope_level: "branch", branch: world.branch_a1)
 
-      get_as(receptionist, "#{base}/companies/#{world.company_a.id}/branches/#{world.branch_a1.id}")
+      get_as(user, "#{base}/companies/#{world.company_a.id}/branches/#{world.branch_a1.id}")
 
       expect(response).to have_http_status(:forbidden)
       expect(response.parsed_body["code"]).to eq("access.forbidden")
     end
 
-    it "un branch_manager lee su sucursal pero la empresa le da 403 (visible por su sucursal)" do
-      manager = user_with_role("branch_manager", world, branch: world.branch_a1)
+    it "lo mismo con la empresa de una sucursal propia" do
+      user = user_with_custom_role(world, scope_level: "branch", branch: world.branch_a1)
 
-      get_as(manager, "#{base}/companies/#{world.company_a.id}")
+      get_as(user, "#{base}/companies/#{world.company_a.id}")
 
       expect(response).to have_http_status(:forbidden)
+    end
+
+    it "el personal de sucursal LEE su empresa y su sucursal (decisión de producto), y no las hermanas" do
+      receptionist = user_with_role("receptionist", world, branch: world.branch_a1)
+      sign_in(receptionist)
+
+      get "#{base}/companies/#{world.company_a.id}"
+      company_status = response.status
+      get "#{base}/companies/#{world.company_a.id}/branches/#{world.branch_a1.id}"
+      branch_status = response.status
+      get "#{base}/companies/#{world.company_a.id}/branches/#{world.branch_a2.id}"
+
+      expect([ company_status, branch_status, response.status ]).to eq([ 200, 200, 404 ])
     end
 
     it "el detalle de la organización: 403 para quien no es owner/admin" do

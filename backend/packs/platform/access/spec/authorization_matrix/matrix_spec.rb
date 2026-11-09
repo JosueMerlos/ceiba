@@ -17,10 +17,11 @@ module AuthorizationMatrix
     "platform.organization.manage_billing" => %w[org_owner],
     "platform.organization.delete" => %w[org_owner],
     "platform.organization.transfer_ownership" => %w[org_owner],
-    "platform.company.read" => %w[org_owner org_admin company_manager],
+    # Decisión de producto (M0.08): todo rol con membership LEE la empresa y la sucursal a las que pertenece (datos básicos).
+    "platform.company.read" => %w[org_owner org_admin company_manager branch_manager receptionist professional],
     "platform.company.create" => %w[org_owner org_admin],
     "platform.company.update" => %w[org_owner org_admin],
-    "platform.branch.read" => %w[org_owner org_admin company_manager branch_manager],
+    "platform.branch.read" => %w[org_owner org_admin company_manager branch_manager receptionist professional],
     "platform.branch.create" => %w[org_owner org_admin company_manager],
     "platform.branch.update" => %w[org_owner org_admin company_manager],
     "platform.company_module.manage" => %w[org_owner org_admin],
@@ -32,6 +33,8 @@ module AuthorizationMatrix
   # Alcances que CUBRE cada rol, dado el mundo: org_*, toda la organización; company_manager de A, A y sus sucursales; los
   # roles de sucursal, solo A1 (org ⊃ empresa ⊃ sucursal).
   TARGETS = %i[organization company_a company_b branch_a1 branch_a2 branch_b1].freeze
+  # Permisos de LECTURA que un membership de sucursal ejerce también sobre la empresa de esa sucursal (nunca sobre sus hermanas).
+  UPWARD = %w[platform.company.read].freeze
   REACH = {
     "org_owner" => TARGETS, "org_admin" => TARGETS,
     "company_manager" => %i[company_a branch_a1 branch_a2],
@@ -42,18 +45,29 @@ module AuthorizationMatrix
     "org_owner" => [ 200, 200, 200, 200, 200 ],
     "org_admin" => [ 200, 200, 200, 200, 200 ],
     "company_manager" => [ 200, 404, 200, 200, 404 ],
-    "branch_manager" => [ 403, 404, 200, 404, 404 ],
-    "receptionist" => [ 403, 404, 403, 404, 404 ],
-    "professional" => [ 403, 404, 403, 404, 404 ]
+    "branch_manager" => [ 200, 404, 200, 404, 404 ],
+    "receptionist" => [ 200, 404, 200, 404, 404 ],
+    "professional" => [ 200, 404, 200, 404, 404 ]
+  }.freeze
+
+  # GET /organizations/:id (platform.organization.read: solo owner y admin)
+  ORGANIZATION_SHOW = {
+    "org_owner" => 200, "org_admin" => 200, "company_manager" => 403, "branch_manager" => 403, "receptionist" => 403, "professional" => 403
+  }.freeze
+
+  # Contenido de los listados: [empresas de GET .../companies, sucursales de .../companies/A/branches, sucursales de .../companies/B/branches]
+  # (:none = 200 con lista vacía; 404 = la ruta no es visible para el rol).
+  INDEXES = {
+    "org_owner" => [ %i[company_a company_b], %i[branch_a1 branch_a2], %i[branch_b1] ],
+    "org_admin" => [ %i[company_a company_b], %i[branch_a1 branch_a2], %i[branch_b1] ],
+    "company_manager" => [ %i[company_a], %i[branch_a1 branch_a2], 404 ],
+    "branch_manager" => [ %i[company_a], %i[branch_a1], 404 ],
+    "receptionist" => [ %i[company_a], %i[branch_a1], 404 ],
+    "professional" => [ %i[company_a], %i[branch_a1], 404 ]
   }.freeze
 end
 
 RSpec.describe "Matriz de autorización", type: :request do
-  # Permiso => roles que lo reciben (04-access-control, "Matriz de permisos", filas de plataforma).
-
-  # Alcances que CUBRE cada rol, dado el mundo: org_*, toda la organización; company_manager de A, A y sus sucursales; los
-  # roles de sucursal, solo A1 (org ⊃ empresa ⊃ sucursal).
-
   let(:world) { build_access_world }
   let(:organization) { world.organization }
 
@@ -63,6 +77,15 @@ RSpec.describe "Matriz de autorización", type: :request do
     when "branch_manager", "receptionist", "professional" then user_with_role(role_key, world, branch: world.branch_a1)
     else user_with_role(role_key, world)
     end
+  end
+
+  # org ⊃ empresa ⊃ sucursal, más la lectura ascendente (UPWARD) de la empresa propia para los roles de sucursal.
+  def world_id(target) = world.public_send(target).id
+
+  def reaches?(role_key, permission, target)
+    reach = AuthorizationMatrix::REACH.fetch(role_key)
+    reach += %i[company_a] if AuthorizationMatrix::UPWARD.include?(permission) && Access::SYSTEM_ROLES.fetch(role_key) == "branch"
+    reach.include?(target)
   end
 
   def scope_for(target)
@@ -106,7 +129,7 @@ RSpec.describe "Matriz de autorización", type: :request do
 
         mismatches = AuthorizationMatrix::MATRIX.flat_map do |permission, roles|
           AuthorizationMatrix::TARGETS.filter_map do |target|
-            expected = roles.include?(role_key) && AuthorizationMatrix::REACH.fetch(role_key).include?(target)
+            expected = roles.include?(role_key) && reaches?(role_key, permission, target)
             actual = principal.can?(permission, scope_for(target))
             "#{role_key} #{permission} @#{target}: esperado #{expected}, fue #{actual}" unless actual == expected
           end
@@ -147,6 +170,45 @@ RSpec.describe "Matriz de autorización", type: :request do
 
         expect(statuses).to eq(AuthorizationMatrix::EXPECTED.fetch(role_key))
       end
+    end
+
+    it "GET /organizations/:id solo lo leen owner y admin; el resto es 403 (visible, sin permiso)" do
+      statuses = AuthorizationMatrix::ROLES.to_h do |role_key|
+        sign_in(member_of(role_key))
+        get "/api/v1/organizations/#{organization.id}"
+        [ role_key, response.status ]
+      end
+
+      expect(statuses).to eq(AuthorizationMatrix::ORGANIZATION_SHOW)
+    end
+
+    AuthorizationMatrix::ROLES.each do |role_key|
+      it "#{role_key}: los listados devuelven solo lo que su alcance contiene" do
+        sign_in(member_of(role_key))
+        base = "/api/v1/organizations/#{organization.id}/companies"
+        urls = [ base, "#{base}/#{world.company_a.id}/branches", "#{base}/#{world.company_b.id}/branches" ]
+
+        actual = urls.map do |url|
+          get url
+          response.status == 200 ? response.parsed_body["data"].pluck("id").sort : response.status
+        end
+
+        expect(actual).to eq(AuthorizationMatrix::INDEXES.fetch(role_key).map { |expected| expected.is_a?(Array) ? expected.map { |target| world_id(target) }.sort : expected })
+      end
+    end
+
+    it "un usuario de OTRA organización recibe 404 en todo, y su lista de organizaciones es solo la suya" do
+      other = build_access_world
+      sign_in(user_with_role("org_owner", other))
+
+      statuses = [ "", "/companies", "/companies/#{world.company_a.id}", "/companies/#{world.company_a.id}/branches/#{world.branch_a1.id}" ].map do |suffix|
+        get "/api/v1/organizations/#{organization.id}#{suffix}"
+        response.status
+      end
+      get "/api/v1/organizations"
+
+      expect(statuses).to all(eq(404))
+      expect(response.parsed_body["data"].pluck("id")).to eq([ other.organization.id ])
     end
 
     it "ningún 404 distingue 'no existe' de 'existe pero no es tuyo'" do

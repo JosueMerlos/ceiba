@@ -76,7 +76,7 @@ RSpec.describe "API v1: empresas" do
       end
 
       response "403", "visible por una sucursal, pero sin permiso sobre la empresa (`access.forbidden`)" do
-        let!(:signed_in) { sign_in(user_with_role("branch_manager", world, branch: world.branch_a1)) }
+        let!(:signed_in) { sign_in(user_with_custom_role(world, scope_level: "branch", branch: world.branch_a1)) }
         let(:id) { world.company_a.id }
         schema "$ref" => "#/components/schemas/Problem"
 

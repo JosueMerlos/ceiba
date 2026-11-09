@@ -72,7 +72,7 @@ RSpec.describe "API v1: sucursales" do
       end
 
       response "403", "visible pero sin permiso (`access.forbidden`)" do
-        let!(:signed_in) { sign_in(user_with_role("receptionist", world, branch: world.branch_a1)) }
+        let!(:signed_in) { sign_in(user_with_custom_role(world, scope_level: "branch", branch: world.branch_a1)) }
         let(:id) { world.branch_a1.id }
         schema "$ref" => "#/components/schemas/Problem"
 

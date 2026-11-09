@@ -46,6 +46,16 @@ RSpec.describe "Policies de organización, empresa y sucursal" do
   end
 
   describe Access::CompanyPolicy do
+    it "branch_manager, receptionist y professional leen la empresa de su sucursal (solo lectura) y no la otra" do
+      %w[branch_manager receptionist professional].each do |role|
+        user = user_with_role(role, world, branch: world.branch_a1)
+
+        expect(policy(described_class, user, world.company_a).show?).to be(true)
+        expect(policy(described_class, user, world.company_b).show?).to be(false)
+        expect([ policy(described_class, user, world.company_a).update?, policy(described_class, user, world.company_a).create? ]).to all(be(false))
+      end
+    end
+
     it "company_manager lee SU empresa y no la otra" do
       manager = user_with_role("company_manager", world, company: world.company_a)
 
@@ -78,12 +88,14 @@ RSpec.describe "Policies de organización, empresa y sucursal" do
       expect(policy(described_class, manager, world.branch_a2).show?).to be(false)
     end
 
-    it "receptionist y professional no leen sucursales (la matriz solo da 'ver la suya' al gerente de sucursal)" do
-      receptionist = user_with_role("receptionist", world, branch: world.branch_a1)
-      professional = user_with_role("professional", world, branch: world.branch_a1)
+    it "todo rol de sucursal lee SU sucursal (datos básicos) y no las hermanas; no la edita" do
+      %w[branch_manager receptionist professional].each do |role|
+        user = user_with_role(role, world, branch: world.branch_a1)
 
-      expect(policy(described_class, receptionist, world.branch_a1).show?).to be(false)
-      expect(policy(described_class, professional, world.branch_a1).show?).to be(false)
+        expect(policy(described_class, user, world.branch_a1).show?).to be(true)
+        expect(policy(described_class, user, world.branch_a2).show?).to be(false)
+        expect(policy(described_class, user, world.branch_a1).update?).to be(false)
+      end
     end
 
     it "el Scope de un company_manager de A contiene A1 y A2 y ninguna de B (criterio 2)" do
