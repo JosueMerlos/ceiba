@@ -50,6 +50,10 @@ RSpec.describe SentrySetup, type: :request do
     expect(Sentry.configuration.environment).to eq("production")
   end
 
+  it "el log interno del SDK sale por el logger de Rails (JSON), no por STDOUT en texto plano" do
+    expect(Sentry.configuration.sdk_logger).to eq(Rails.logger)
+  end
+
   it "no envía datos personales por defecto (send_default_pii false)" do
     expect(Sentry.configuration.send_default_pii).to be(false)
   end

@@ -71,4 +71,14 @@ RSpec.describe JobObservability do # rubocop:disable RSpec/MultipleMemoizedHelpe
 
     expect(Observability::LogContext.organization_id).to be_nil
   end
+
+  it "la línea del job lleva también company_id, branch_id y el principal (los de LogFields), no solo organization_id" do
+    Current.principal = Identity::Principal::User.new(id: "u-1", email: "ana@ceiba.test", full_name: "Ana")
+    run_job(job_logger, job) { Observability::LogContext.company_id = "c-1" }
+
+    expect(lines.last).to include("company_id" => "c-1", "branch_id" => nil, "principal_type" => "user", "principal_id" => "u-1")
+    expect(output.string).not_to include("ana@ceiba.test")
+  ensure
+    Current.reset
+  end
 end

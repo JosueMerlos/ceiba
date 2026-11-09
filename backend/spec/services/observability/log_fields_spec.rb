@@ -45,4 +45,29 @@ RSpec.describe Observability::LogFields do
   ensure
     purge_organizations(organization) if organization
   end
+
+  it "usa UNA sola fuente: con contexto vivo no mezcla campos recordados de otro contexto anterior" do
+    organization = new_organization
+
+    Tenancy.with_context(organization:) do
+      Observability::LogContext.company_id = "empresa-de-un-contexto-anterior" # lo recordado difiere del contexto vivo
+      expect(described_class.current).to include(organization_id: organization.id, company_id: nil, branch_id: nil)
+    end
+  ensure
+    purge_organizations(organization) if organization
+  end
+
+  it "un principal sin id (p. ej. el del sistema) no rompe el log: principal_id nil y el tipo sale de su kind o su clase" do
+    stub_const("Fake::Principal::System", Data.define(:kind))
+    Current.principal = Fake::Principal::System.new(kind: :system)
+
+    expect(described_class.current).to include(principal_type: "system", principal_id: nil)
+  end
+
+  it "un principal que define principal_type lo manda sobre el nombre de su clase" do
+    principal = Struct.new(:id, :principal_type).new("k-1", "api_key")
+    Current.principal = principal
+
+    expect(described_class.current).to include(principal_type: "api_key", principal_id: "k-1")
+  end
 end

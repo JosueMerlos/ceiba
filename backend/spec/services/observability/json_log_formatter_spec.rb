@@ -33,4 +33,14 @@ RSpec.describe Observability::JsonLogFormatter do
   it "una línea multilínea sigue siendo UNA línea JSON (el salto va escapado)" do
     expect(formatter.call("ERROR", time, nil, "a\nb").lines.size).to eq(1)
   end
+
+  it "dentro de un job de Sidekiq añade jid, job_class y organization_id a CUALQUIER línea del logger de Rails" do
+    Sidekiq::Context.with(jid: "abc123", class: "Events::DeliverJob", organization_id: "org-1") do
+      expect(line("hola")).to include("jid" => "abc123", "job_class" => "Events::DeliverJob", "organization_id" => "org-1")
+    end
+  end
+
+  it "fuera de un job no añade campos de job" do
+    expect(line("hola").keys).to eq(%w[ts level msg])
+  end
 end
