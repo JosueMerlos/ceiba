@@ -23,7 +23,11 @@ RSpec.describe "Log estructurado de requests" do
     purge_organizations(organization)
   end
 
-  before { sign_in(user) }
+  before do
+    sign_in(user)
+    output.truncate(0) # el login también se registra: cada ejemplo mira solo la request que le interesa
+    output.rewind
+  end
 
   it "criterio 1: es una línea JSON con request_id, organization_id, principal_id, duración y status" do
     organization # se crea antes de la request
