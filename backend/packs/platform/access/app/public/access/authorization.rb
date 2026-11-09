@@ -95,6 +95,7 @@ module Access
         principal:, organization_id:,
         company_id: route[route_context_params.fetch(:company)].presence,
         branch_id: route[route_context_params.fetch(:branch)].presence,
+        read_only: request.get? || request.head?,
         &
       )
     end

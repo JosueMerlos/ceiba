@@ -10,13 +10,17 @@ module Access
   #   - Empresa o sucursal fuera del alcance de sus memberships, o de otra organización/empresa => 404.
   #   - Organización suspendida (el principal es miembro) => 403 Access::OrganizationSuspended. Es una decisión de ACCESO, no de
   #     tenancy: Tenancy.with_context sí acepta una organización suspendida.
-  #   - Todo corre dentro de Tenancy.with_context (una transacción); lo que lance la acción, o un verify_*, revierte lo escrito.
+  #   - Todo corre dentro de Tenancy.with_context (una transacción, de SOLO LECTURA en GET/HEAD); lo que lance la acción, o un
+  #     verify_*, revierte lo escrito.
   #
   # La única consulta de permisos de la request ocurre aquí (Principal::User#activate!).
   class RouteContextResolver
-    def self.call(principal:, organization_id:, company_id: nil, branch_id: nil, &) = new(principal:, organization_id:, company_id:, branch_id:).call(&)
+    def self.call(principal:, organization_id:, company_id: nil, branch_id: nil, read_only: false, &)
+      new(principal:, organization_id:, company_id:, branch_id:, read_only:).call(&)
+    end
 
-    def initialize(principal:, organization_id:, company_id:, branch_id:)
+    def initialize(principal:, organization_id:, company_id:, branch_id:, read_only:)
+      @read_only = read_only
       @principal = principal
       @organization_id = organization_id
       @company_id = company_id
@@ -25,7 +29,7 @@ module Access
 
     def call(&block)
       organization = Tenancy::Directory.organization!(identifier(@organization_id))
-      Tenancy.with_context(organization:, principal: @principal) do
+      Tenancy.with_context(organization:, principal: @principal, read_only: @read_only) do
         @principal.activate!(organization.id)
         not_found! unless @principal.member?
         raise OrganizationSuspended, "La organización está suspendida" if organization.suspended?

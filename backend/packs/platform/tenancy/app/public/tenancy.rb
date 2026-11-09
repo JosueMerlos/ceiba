@@ -13,14 +13,18 @@ module Tenancy
   # - El id se envía como parámetro enlazado (`set_config($1, $2, true)`), nunca interpolado en el SQL.
   # - Al terminar bien, el setting vuelve al valor que tenía (el del contexto externo si estaba anidado), de modo que
   #   no se filtra a lo que siga corriendo en la misma transacción ni en la misma conexión del pool.
+  # - `read_only: true` (las lecturas de la API, GET) hace la transacción de SOLO LECTURA (`SET TRANSACTION READ ONLY`): una
+  #   escritura accidental falla en la base y la transacción larga de una lectura es más barata. Solo lo fija el contexto MÁS
+  #   EXTERNO (una transacción ajena —fixtures de test, un job— no cambia de modo); un contexto anidado lo hereda.
   # - Lanza Tenancy::InconsistentContext, sin tocar nada, si las entidades no encajan.
-  def self.with_context(organization:, company: nil, branch: nil, principal: nil, &block)
+  def self.with_context(organization:, company: nil, branch: nil, principal: nil, read_only: false, &block)
     raise ArgumentError, "with_context requiere un bloque" unless block
 
     context = Context.new(organization:, company:, branch:, principal:)
 
     ApplicationRecord.with_connection do |connection|
       connection.transaction(requires_new: true) do
+        connection.execute("SET TRANSACTION READ ONLY") if read_only && connection.open_transactions == 1
         previous = read_setting(connection)
         write_setting(connection, organization.id)
         run_in_context(connection, organization, context, previous, &block)

@@ -10,6 +10,7 @@ RSpec.describe "Transacciones de solo lectura en GET", type: :request do
 
   after do
     purge_organizations([ world.organization ])
+    ApplicationRecord.connection.execute("DELETE FROM sessions WHERE user_id = #{ApplicationRecord.connection.quote(user.id)}")
     Identity::User.where(id: user.id).delete_all
   end
 

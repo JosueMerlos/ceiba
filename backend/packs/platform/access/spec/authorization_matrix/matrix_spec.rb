@@ -56,7 +56,7 @@ module AuthorizationMatrix
   }.freeze
 
   # Contenido de los listados: [empresas de GET .../companies, sucursales de .../companies/A/branches, sucursales de .../companies/B/branches]
-  # (:none = 200 con lista vacía; 404 = la ruta no es visible para el rol).
+  # (un número = esa respuesta, p. ej. 404 si la ruta no es visible para el rol).
   INDEXES = {
     "org_owner" => [ %i[company_a company_b], %i[branch_a1 branch_a2], %i[branch_b1] ],
     "org_admin" => [ %i[company_a company_b], %i[branch_a1 branch_a2], %i[branch_b1] ],
@@ -147,8 +147,6 @@ RSpec.describe "Matriz de autorización", type: :request do
   end
 
   describe "3. HTTP: empresa propia/ajena × sucursal propia/hermana/ajena" do
-    # status esperado por objetivo: [empresa A (propia), empresa B (ajena), sucursal A1, sucursal A2 (hermana), sucursal B1 (ajena)]
-
     def paths
       base = "/api/v1/organizations/#{organization.id}/companies"
       [

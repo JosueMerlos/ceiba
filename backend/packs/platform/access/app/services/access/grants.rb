@@ -16,13 +16,13 @@ module Access
     SQL
     PERMISSIONS = "LEFT JOIN role_permissions ON role_permissions.role_id = memberships.role_id".freeze
 
-    def self.load(user_id:, upward_keys: [], branch_company: ->(_branch_id) {})
+    def self.load(user_id:, upward_keys: [], branch_company: ->(_branch_id) { })
       rows = Membership.where(user_id:).joins(PERMISSIONS).joins(COMPANY_BRANCHES)
         .pluck(:scope_level, :company_id, :branch_id, Arel.sql("role_permissions.permission_key"), Arel.sql("branches.id"))
       new(rows, upward_keys:, branch_company:)
     end
 
-    def initialize(rows, upward_keys: [], branch_company: ->(_branch_id) {})
+    def initialize(rows, upward_keys: [], branch_company: ->(_branch_id) { })
       @upward_keys = upward_keys.to_set
       @branch_company = branch_company
       @verified = {}
