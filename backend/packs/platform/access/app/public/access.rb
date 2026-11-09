@@ -22,6 +22,9 @@ module Access
     #       "appointments.appointment.create" => { description: "Crear citas", roles: %w[company_manager branch_manager receptionist] })
     #   end
     #
+    # Opción `from_descendants: true`: solo para permisos de LECTURA de un alcance superior (p. ej. leer la empresa) que un
+    # membership de sucursal ejerce también sobre la empresa a la que pertenece su sucursal. No cubre sucursales hermanas.
+    #
     # Las claves siguen <modulo>.<recurso>.<accion> y empiezan por el módulo que las declara. Lanza ArgumentError ante una
     # declaración inválida (clave mal formada, prefijo ajeno, rol desconocido, clave repetida en otro módulo). Un permiso
     # que una policy usa y nadie registró hace fallar la suite (Access::BasePolicy#can? lo lanza y un spec escanea las

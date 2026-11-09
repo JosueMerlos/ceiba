@@ -12,10 +12,14 @@ Rails.application.config.to_prepare do
     "platform.organization.manage_billing" => { description: "Gestionar el cobro de la organización", roles: %w[org_owner] },
     "platform.organization.delete" => { description: "Borrar la organización", roles: %w[org_owner] },
     "platform.organization.transfer_ownership" => { description: "Transferir la propiedad de la organización", roles: %w[org_owner] },
-    "platform.company.read" => { description: "Ver una empresa", roles: %w[org_owner org_admin company_manager] },
+    # Decisión de producto (M0.08): todo rol con membership LEE la empresa y la sucursal a las que pertenece (datos básicos: el
+    # personal opera la agenda de una sucursal y los necesita). `from_descendants`: un membership de sucursal lee también la empresa
+    # de su sucursal. Editar sigue según la matriz.
+    "platform.company.read" => { description: "Ver una empresa", from_descendants: true,
+                                 roles: %w[org_owner org_admin company_manager branch_manager receptionist professional] },
     "platform.company.create" => { description: "Crear empresas", roles: %w[org_owner org_admin] },
     "platform.company.update" => { description: "Editar una empresa", roles: %w[org_owner org_admin] },
-    "platform.branch.read" => { description: "Ver una sucursal", roles: %w[org_owner org_admin company_manager branch_manager] },
+    "platform.branch.read" => { description: "Ver una sucursal", roles: %w[org_owner org_admin company_manager branch_manager receptionist professional] },
     "platform.branch.create" => { description: "Crear sucursales", roles: %w[org_owner org_admin company_manager] },
     "platform.branch.update" => { description: "Editar una sucursal", roles: %w[org_owner org_admin company_manager] },
     "platform.company_module.manage" => { description: "Activar y desactivar módulos de una empresa", roles: %w[org_owner org_admin] },

@@ -27,6 +27,7 @@ RSpec.describe Access::Principal::User do
   end
 
   def principal_for(target = user, org: organization)
+    [ branch_a1, branch_a2, branch_b1 ] # el árbol existe ANTES de activar (así se precargan las sucursales de las empresas)
     described_class.new(Identity::Principal::User.new(id: target.id, email: target.email, full_name: target.full_name)).tap do |principal|
       with_tenant(org) { principal.activate!(org.id) }
     end

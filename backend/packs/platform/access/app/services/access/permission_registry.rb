@@ -2,10 +2,10 @@ module Access
   # Registro en memoria de los permisos declarados por los packs. Una instancia global vive en `Access.registry` (se
   # reconstruye en cada recarga de código y los packs vuelven a declarar desde `config.to_prepare`).
   class PermissionRegistry
-    Definition = Data.define(:key, :module_key, :description, :roles)
+    Definition = Data.define(:key, :module_key, :description, :roles, :from_descendants)
 
     MODULE_KEY = /\A[a-z][a-z0-9_]*\z/
-    OPTIONS = %i[description roles].freeze
+    OPTIONS = %i[description roles from_descendants].freeze
 
     def initialize
       @definitions = {}
@@ -34,6 +34,9 @@ module Access
     def registered?(key) = @definitions.key?(key)
     def definitions = @definitions.values
 
+    # Permisos de LECTURA que un membership de sucursal ejerce también sobre la empresa de esa sucursal (nunca sobre sus hermanas).
+    def upward_keys = @definitions.values.select(&:from_descendants).map(&:key)
+
     private
 
     def build(module_key, key, options)
@@ -49,7 +52,7 @@ module Access
       unknown_roles = roles - SYSTEM_ROLES.keys
       raise ArgumentError, "#{key} concede a roles que no son de sistema: #{unknown_roles.join(', ')}" if unknown_roles.any?
 
-      Definition.new(key:, module_key:, description:, roles: roles.uniq.freeze)
+      Definition.new(key:, module_key:, description:, roles: roles.uniq.freeze, from_descendants: options[:from_descendants] == true)
     end
   end
 end
