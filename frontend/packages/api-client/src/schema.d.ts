@@ -885,8 +885,32 @@ export interface components {
             type: string;
         };
     };
-    responses: never;
-    parameters: never;
+    responses: {
+        /** @description `Idempotency-Key` inválida (`idempotency.key_invalid`) o ausente en un endpoint que la exige (`idempotency.key_required`) */
+        IdempotencyKeyInvalid: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description La `Idempotency-Key` ya se usó con otro método, ruta o cuerpo (código `idempotency.key_reused`) */
+        IdempotencyKeyReused: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+    };
+    parameters: {
+        /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+        IdempotencyKey: string;
+        /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+        IdempotencyKeyRequired: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
