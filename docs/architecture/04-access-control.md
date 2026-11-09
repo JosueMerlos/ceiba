@@ -12,7 +12,7 @@
 
 ## Principal
 
-> **Contrato con la auditoría y la idempotencia (M0.11):** todo principal expone `actor_type` (`"user"`, `"api_key"`, `"platform_staff"`) e `id`. Sin `actor_type`, `Audit` e `Idempotency` lo derivan del nombre de la clase. `Access::Principal` (M0.08) debe declararlo.
+> **Contrato con la auditoría y la idempotencia (M0.11, implementado):** todo principal expone `actor_type` e `id`. `Access::Principal` los define (`actor_type` = `kind.to_s`: `user`, `system`, `api_key`, `public_token`; `id` = nil si no tiene identidad propia) e `Identity::Principal::User` declara `user`. `Audit` e `Idempotency` los usan tal cual y **lanzan `ArgumentError` si un principal no declara `actor_type`** (no se deriva del nombre de la clase). `PlatformStaff` (M4.01) deberá declarar `platform_staff`.
 
 La autorización nunca pregunta "¿puede el **usuario**…?" sino "¿puede el **principal**…?":
 
