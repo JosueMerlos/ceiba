@@ -25,7 +25,12 @@
 		reverse_proxy booking:5174
 	}
 
+	# CSP inicial del panel en MODO REPORTE (M0.13): no bloquea nada, la consola del navegador lista las violaciones.
+	# Vite en desarrollo inyecta scripts en línea (preámbulo de react-refresh) y usa websockets: esperables aquí.
+	# Se endurece (sin 'unsafe-inline', con nonces o hashes) y se pasa a Content-Security-Policy cuando exista el
+	# build de producción (M4.04). `connect-src` incluye el ingest de Sentry: ajústalo al host de tu DSN.
 	handle {
+		header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws: wss: https://*.ingest.sentry.io; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 		reverse_proxy panel:5173
 	}
 }

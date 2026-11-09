@@ -19,6 +19,9 @@ check "GET /api/health -> {\"status\":\"ok\"}"    body_has '"status":"ok"' "$pro
 check "GET /api/ready -> 200"                     status_is 200 "$proxy/api/ready"
 check "GET / sirve el panel"                      body_has "Ceiba · Panel" "$proxy/"
 check "GET /c/demo sirve booking"                 body_has "Ceiba · Reserva pública" "$proxy/c/demo"
+header_has() { curl -fsSI "$2" | grep -qi "^$1"; }
+check "GET / lleva la CSP en modo reporte (panel)"  header_has "content-security-policy-report-only:" "$proxy/"
+check "GET /api/health lleva nosniff y frame-ancestors"  bash -c "curl -fsSI '$proxy/api/health' | grep -qi '^x-content-type-options: nosniff' && curl -fsSI '$proxy/api/health' | grep -qi \"^content-security-policy: frame-ancestors 'none'\""
 check "Mailpit UI accesible"                      status_is 200 "$mailpit/"
 
 # El upgrade a websocket de HMR debe atravesar el proxy (101 Switching Protocols).
