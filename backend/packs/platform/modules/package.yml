@@ -14,3 +14,5 @@ dependencies:
   - "packs/platform/access"
   # Enable/Disable publican platform.module_enabled/disabled.v1; el manifiesto valida que sus eventos tengan esquema.
   - "packs/platform/events"
+  # Enable/Disable/UpdateSettings auditan con Audit.record en su misma transacción (ADR-0022).
+  - "packs/platform/audit"
