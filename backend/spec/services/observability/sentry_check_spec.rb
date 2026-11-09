@@ -30,7 +30,7 @@ RSpec.describe Observability::SentryCheck do
     expect(Observability::SentryTestJob.jobs).to be_empty
   end
 
-  it "con DSN envía un error de prueba con organization_id y encola un job que falla para verlo también desde Sidekiq" do
+  it "con DSN envía un error de prueba con organization_id y encola un job que falla para verlo también desde Sidekiq", :aggregate_failures do
     init_sentry
 
     expect(described_class.run(organization_id: organization.id)).to eq(:sent)

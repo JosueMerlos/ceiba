@@ -8,12 +8,12 @@ module Observability
     def run(organization_id:)
       return :disabled unless Sentry.configuration.sending_allowed?
 
-      organization = Tenancy::Organization.find(organization_id)
-      Tenancy.with_context(organization:) do
-        Sentry.capture_exception(RuntimeError.new("Error de prueba de Sentry desde la consola (sentry:test)"))
-        SentryTestJob.perform_async
-      end
+      LogContext.organization_id = organization_id
+      Sentry.capture_exception(RuntimeError.new("Error de prueba de Sentry desde la consola (sentry:test)"))
+      SentryTestJob.set("organization_id" => organization_id).perform_async # explícito: aquí no hay Tenancy.with_context
       :sent
+    ensure
+      LogContext.reset
     end
   end
 end

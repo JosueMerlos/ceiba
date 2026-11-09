@@ -94,7 +94,7 @@ RSpec.describe SentrySetup, type: :request do
     expect(captured.first[:extra]).to include(password: "[FILTERED]", phone: "[FILTERED]", limit: 20)
   end
 
-  it "un 500 de la API (rescatado por Api::ErrorHandling) llega a Sentry por Rails.error" do
+  it "un 500 de la API (rescatado por Api::ErrorHandling) llega a Sentry por Rails.error", :aggregate_failures do
     ApiProbes.define_controller!
     Rails.application.reload_routes_unless_loaded
     get "/api/v1/probes/boom"

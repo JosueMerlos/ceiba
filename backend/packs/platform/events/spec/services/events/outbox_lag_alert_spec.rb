@@ -19,7 +19,7 @@ RSpec.describe Events::OutboxLagAlert do
     Rails.error.unsubscribe(subscriber)
   end
 
-  it "criterio 6: el chequeo con un evento sin publicar desde hace más de 5 min emite una alerta con el detalle" do
+  it "criterio 6: el chequeo con un evento sin publicar desde hace más de 5 min emite una alerta con el detalle", :aggregate_failures do
     create_in(organization, :outbox_event, occurred_at: 6.minutes.ago)
 
     Events::OutboxLagJob.new.perform

@@ -112,7 +112,7 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
   end
 
   describe "regla 8: 404/405 repetidos (10 / 5 min, bloqueo de 1 h)" do
-    it "tras 10 respuestas 404 la IP queda bloqueada 1 h con 429 y Retry-After" do
+    it "tras 10 respuestas 404 la IP queda bloqueada 1 h con 429 y Retry-After", :aggregate_failures do
       10.times do
         get "/api/v1/no-existe", headers: { "REMOTE_ADDR" => ip }
         expect(response).to have_http_status(:not_found)

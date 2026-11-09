@@ -3,7 +3,7 @@ require Rails.root.join("config/middleware/job_observability").to_s
 
 # M0.13: cada job deja líneas JSON con el mismo esquema que las requests (organization_id, jid, clase, duración), sin
 # argumentos (pueden llevar datos personales) y deja el tenant en Observability::LogContext para Sentry.
-RSpec.describe JobObservability do
+RSpec.describe JobObservability do # rubocop:disable RSpec/MultipleMemoizedHelpers -- config, logger y job de prueba comparten el mismo montaje
   let(:output) { StringIO.new }
   let(:organization_id) { "0198f0a0-0000-7000-8000-0000000000aa" }
   let(:job) do
@@ -29,7 +29,7 @@ RSpec.describe JobObservability do
     expect(config.logger.formatter).to be_a(described_class::Formatter)
   end
 
-  it "una línea JSON por evento del job (start y done) con clase, jid, organization_id y duración en ms" do
+  it "una línea JSON por evento del job (start y done) con clase, jid, organization_id y duración en ms", :aggregate_failures do
     run_job(job_logger, job) { :ok }
 
     expect(lines.map { |line| line["msg"] }).to eq(%w[start done])
