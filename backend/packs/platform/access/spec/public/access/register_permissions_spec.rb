@@ -53,6 +53,13 @@ RSpec.describe "Access.register_permissions" do
     expect { register("appointments", { "appointments.appointment.create" => { description: "x", roles: [], rol: [] } }) }.to raise_error(ArgumentError, /rol/)
   end
 
+  it "from_descendants marca un permiso de lectura que un membership de sucursal ejerce también sobre su empresa" do
+    register("appointments", { "appointments.appointment.read" => { description: "Ver", roles: %w[receptionist], from_descendants: true } })
+
+    expect(permission_registry.fetch("appointments.appointment.read").from_descendants).to be(true)
+    expect(permission_registry.upward_keys).to eq([ "appointments.appointment.read" ])
+  end
+
   it "el registro global expone las mismas operaciones a través de Access" do
     expect(Access.permission_keys).to include("platform.branch.read")
     expect(Access.registered?("platform.branch.read")).to be(true)

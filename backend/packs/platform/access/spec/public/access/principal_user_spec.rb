@@ -94,6 +94,40 @@ RSpec.describe Access::Principal::User do
     end
   end
 
+  describe "un alcance de sucursal con la empresa equivocada (sonda)" do
+    it "company_manager de A NO obtiene permisos sobre la sucursal B1 aunque el Scope diga company_id: A" do
+      grant(role_with(permission, "company"), company: company_a)
+      principal = principal_for
+      forged = Access::Scope.branch(organization_id: organization.id, company_id: company_a.id, branch_id: branch_b1.id)
+
+      expect(principal.can?(permission, forged)).to be(false)
+      expect(principal.can?(permission, branch_scope(branch_a1))).to be(true)
+    end
+
+    it "un membership de sucursal tampoco vale con una empresa distinta de la suya" do
+      grant(role_with(permission, "branch"), company: company_a, branch: branch_a1)
+      forged = Access::Scope.branch(organization_id: organization.id, company_id: company_b.id, branch_id: branch_a1.id)
+
+      expect(principal_for.can?(permission, forged)).to be(false)
+    end
+
+    it "una sucursal creada después de activar (no precargada) se verifica contra la base, una vez, y se memoriza" do
+      grant(role_with(permission, "company"), company: company_a)
+      principal = principal_for
+      late = create_in(organization, :branch, company: company_a)
+      scope = branch_scope(late)
+      statements = []
+      callback = ->(*, payload) { statements << payload[:sql] if payload[:sql].include?("branches") }
+
+      allowed = with_tenant(organization) do
+        ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { 3.times.map { principal.can?(permission, scope) } }
+      end
+
+      expect(allowed).to all(be(true))
+      expect(statements.size).to eq(1)
+    end
+  end
+
   describe "criterio 4: varias organizaciones" do
     let(:other_organization) { create(:organization) }
     let(:other_company) { create_in(other_organization, :company) }
