@@ -67,19 +67,32 @@ RSpec.describe TenantJobMiddleware do
       expect(ApplicationRecord.connection.select_value("SELECT current_setting('app.organization_id', true)")).to be_blank
     end
 
-    it "un job sin organization_id lanza MissingOrganization y NO ejecuta el bloque" do
-      ran = false
+    # Un reintento no arregla un job sin organización ni uno de una organización inexistente: va directo a la cola muerta
+    # (no se reintenta ~21 días) y el worker lo da por tratado (Sidekiq::JobRetry::Skip).
+    describe "errores irrecuperables", :redis do
+      def dead_jobs = Sidekiq::DeadSet.new.map(&:item)
 
-      expect { run({ "class" => "ProbeJob" }) { ran = true } }.to raise_error(TenantJobMiddleware::MissingOrganization)
-      expect(ran).to be(false)
+      it "un job sin organization_id va a la cola muerta y NO ejecuta el bloque" do
+        ran = false
+
+        expect { run({ "class" => "ProbeJob", "jid" => "j1" }) { ran = true } }.to raise_error(Sidekiq::JobRetry::Skip)
+        expect(ran).to be(false)
+        expect(dead_jobs).to contain_exactly(a_hash_including("jid" => "j1", "error_class" => "TenantJobMiddleware::MissingOrganization"))
+      end
+
+      it "un organization_id vacío cuenta como ausente" do
+        expect { run({ "organization_id" => "", "jid" => "j2" }) { nil } }.to raise_error(Sidekiq::JobRetry::Skip)
+        expect(dead_jobs.size).to eq(1)
+      end
+
+      it "una organización inexistente va a la cola muerta (no RecordNotFound reintentable)" do
+        expect { run({ "organization_id" => SecureRandom.uuid, "jid" => "j3" }) { nil } }.to raise_error(Sidekiq::JobRetry::Skip)
+        expect(dead_jobs).to contain_exactly(a_hash_including("jid" => "j3", "error_class" => "ActiveRecord::RecordNotFound"))
+      end
     end
 
-    it "un organization_id vacío cuenta como ausente" do
-      expect { run({ "organization_id" => "" }) { nil } }.to raise_error(TenantJobMiddleware::MissingOrganization)
-    end
-
-    it "una organización inexistente lanza ActiveRecord::RecordNotFound" do
-      expect { run({ "organization_id" => SecureRandom.uuid }) { nil } }.to raise_error(ActiveRecord::RecordNotFound)
+    it "un error del propio job NO se descarta: se propaga para que Sidekiq lo reintente" do
+      expect { run({ "organization_id" => organization.id }) { raise ArgumentError, "reintentable" } }.to raise_error(ArgumentError, "reintentable")
     end
 
     it "un job tenant: false corre sin tenant" do
@@ -121,12 +134,13 @@ RSpec.describe TenantJobMiddleware do
       expect { ProbeJob.perform_async }.to raise_error(TenantJobMiddleware::MissingOrganization)
     end
 
-    it "un payload sin organización que llega a la cola (p. ej. de una versión anterior) falla al procesarse" do
-      Sidekiq::Client.push("class" => ProbeJob, "args" => [], "organization_id" => nil, "tenant" => false)
-      job = ProbeJob.jobs.last.except("tenant")
-      ProbeJob.jobs.replace([ job ])
+    it "un payload sin organización que llega a la cola (p. ej. de una versión anterior) no corre el job" do
+      Sidekiq::Client.push("class" => ProbeJob, "args" => [], "tenant" => false)
+      ProbeJob.jobs.replace([ ProbeJob.jobs.last.except("tenant").merge("jid" => "viejo") ])
+      allow(Sidekiq::DeadSet).to receive(:new).and_return(instance_spy(Sidekiq::DeadSet))
 
-      expect { ProbeJob.drain }.to raise_error(TenantJobMiddleware::MissingOrganization)
+      expect { ProbeJob.drain }.to raise_error(Sidekiq::JobRetry::Skip)
+      expect(ProbeJob.seen).to be_nil
     end
   end
 end

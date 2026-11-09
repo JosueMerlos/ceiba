@@ -10,6 +10,9 @@ RSpec.configure do |config|
 
   config.around(:each, :redis) do |example|
     Sidekiq.testing!(:disable)
+    # Jamás se limpia una base que no sea la exclusiva de test (/15): la 0 es la de desarrollo.
+    raise "Redis de test mal configurado: #{Sidekiq.redis { |c| c.call('CLIENT', 'INFO') }}" unless Sidekiq.redis { |c| c.call("CLIENT", "INFO") }.include?("db=15")
+
     Sidekiq.redis(&:flushdb)
     example.run
   ensure

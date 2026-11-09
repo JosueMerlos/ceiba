@@ -34,6 +34,21 @@ RSpec.describe Events::Schemas do
     end
   end
 
+  describe "catálogo con un archivo inválido" do
+    after { described_class.reload! }
+
+    it "falla al cargar con el nombre del archivo (valid_schema?), no al publicar" do
+      Dir.mktmpdir do |dir|
+        bad = Pathname(dir).join("test.malo.v1.json")
+        bad.write('{ "type": "nope" }')
+        allow(Rails.root).to receive(:glob).and_call_original
+        allow(Rails.root).to receive(:glob).with(described_class::GLOB).and_return([ bad ])
+
+        expect { described_class.reload! }.to raise_error(ArgumentError, /test\.malo\.v1\.json.*JSON Schema/)
+      end
+    end
+  end
+
   describe ".definition" do
     it "devuelve el esquema crudo de un evento del catálogo" do
       expect(described_class.definition("platform.organization_provisioned.v1")).to include("required" => %w[organization_id company_id branch_id])

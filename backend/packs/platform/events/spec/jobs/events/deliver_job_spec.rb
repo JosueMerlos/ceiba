@@ -114,6 +114,13 @@ RSpec.describe Events::DeliverJob do
       expect { deliver(outbox_event, "test.no_existe") }.to raise_error(Events::UnknownSubscriber, /test\.no_existe/)
     end
 
+    it "un suscriptor desconocido NO se reintenta (~21 días): va directo a la cola muerta; un error cualquiera sí se reintenta" do
+      retry_in = described_class.sidekiq_retry_in_block
+
+      expect(retry_in.call(0, Events::UnknownSubscriber.new("e", "s"), {})).to eq(:kill)
+      expect(retry_in.call(0, RuntimeError.new("boom"), {})).to eq(:default)
+    end
+
     it "un evento que ya no existe lanza RecordNotFound" do
       ghost = Events::Event.new(id: SecureRandom.uuid, name: event_name, organization_id: organization.id, payload: {}, metadata: {}, occurred_at: Time.current)
 
