@@ -47,6 +47,8 @@ RSpec/DescribeClass:
     - "packs/*/*/spec/package_spec.rb"
     - "packs/platform/database/spec/database/**/*"
     - "packs/platform/events/spec/**/*"
+    - "packs/platform/audit/spec/**/*"
+    - "packs/platform/idempotency/spec/**/*"
     - "packs/platform/tenancy/spec/config/**/*"
     - "packs/platform/tenancy/spec/factories_spec.rb"
     - "packs/platform/tenancy/spec/public_api_spec.rb"
