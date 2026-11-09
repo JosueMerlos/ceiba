@@ -37,6 +37,10 @@ module Modules
     # todos los planes tienen entitlement a todo (sin límites): activar solo exige `requires`.
     def entitled?(_company, _key) = true
 
+    # Módulos que se activan al provisionar una organización. Hoy todos los planes incluyen `appointments`.
+    # TODO(F6): derivarlos del plan contratado (plans/plan_entitlements, docs/roadmap/README.md, F6).
+    def default_keys = %w[appointments]
+
     # Carga y valida todos los manifiestos de packs/modules y registra sus permisos en access. Corre al arrancar (y en cada
     # recarga de código, config/initializers/modules.rb): un manifiesto inválido FALLA el arranque con un mensaje claro.
     def load!(root: Rails.root)
