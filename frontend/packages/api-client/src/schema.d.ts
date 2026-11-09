@@ -259,6 +259,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista las organizaciones del usuario
+         * @description Las organizaciones donde el usuario autenticado tiene algún membership (selector de contexto, ADR-0028). Incluye las suspendidas, con su `status`.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    /** @description Cursor opaco de la página anterior */
+                    after?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description las organizaciones del usuario */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Organization"][];
+                            page: components["schemas"]["PageInfo"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{id}": {
         parameters: {
             query?: never;
@@ -271,7 +326,7 @@ export interface paths {
         };
         /**
          * Obtiene una organización
-         * @description Endpoint de ejemplo del contrato. Exige sesión desde M0.07; sin autorización por membership todavía (M0.08), por eso sigue disponible solo en desarrollo y test.
+         * @description Exige el permiso `platform.organization.read` (org_owner y org_admin). Una organización donde el usuario no tiene membership responde 404, igual que una inexistente.
          */
         get: {
             parameters: {
@@ -305,7 +360,315 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description no existe (o el id no es un UUID) */
+                /** @description miembro de la organización sin el permiso, o la organización está suspendida (`access.forbidden`, `access.organization_suspended`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description no existe, no es un UUID o el usuario no pertenece a ella */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Lista las empresas que el usuario puede ver
+         * @description Solo las empresas donde el usuario tiene `platform.company.read` (org_owner y org_admin, todas; company_manager, la suya).
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    after?: string;
+                };
+                header?: never;
+                path: {
+                    organization_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description las empresas visibles */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Company"][];
+                            page: components["schemas"]["PageInfo"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description organización suspendida (`access.organization_suspended`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description la organización no existe o el usuario no pertenece a ella */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/branches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Lista las sucursales de una empresa que el usuario puede ver
+         * @description Solo las sucursales donde el usuario tiene `platform.branch.read`: un company_manager ve todas las de su empresa; un branch_manager, la suya.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    after?: string;
+                };
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description las sucursales visibles */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Branch"][];
+                            page: components["schemas"]["PageInfo"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description la empresa está fuera del alcance del usuario */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                /** @description ID de la sucursal */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Obtiene una sucursal
+         * @description Exige `platform.branch.read`. Una sucursal fuera del alcance del usuario (p. ej. la hermana de la suya) responde 404.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description ID de la sucursal */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description la sucursal */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Branch"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description visible pero sin permiso (`access.forbidden`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description la sucursal no existe o está fuera del alcance del usuario */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                /** @description ID de la empresa */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Obtiene una empresa
+         * @description Exige `platform.company.read`. Una empresa fuera del alcance de los memberships del usuario responde 404.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    /** @description ID de la empresa */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description la empresa */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Company"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description visible por una sucursal, pero sin permiso sobre la empresa (`access.forbidden`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description la empresa no existe o está fuera del alcance del usuario */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -338,6 +701,63 @@ export interface components {
              */
             expires_at: string;
             user: components["schemas"]["User"];
+        };
+        /** @description Sucursal: una ubicación de una empresa */
+        Branch: {
+            address: string | null;
+            /** Format: uuid */
+            company_id: string;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            created_at: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @example +50588887777 */
+            phone_e164: string | null;
+            /** @enum {string} */
+            status: "active" | "inactive";
+            /**
+             * @description Zona horaria IANA
+             * @example America/Managua
+             */
+            time_zone: string;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            updated_at: string;
+        };
+        /** @description Empresa: un negocio dentro de una organización (ADR-0004) */
+        Company: {
+            /** @example barbershop */
+            business_type: string;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            created_at: string;
+            /** @enum {string} */
+            currency: "NIO" | "USD";
+            /** Format: uuid */
+            id: string;
+            /** @example es-NI */
+            locale: string;
+            name: string;
+            /**
+             * @description Único en toda la plataforma (URL pública /c/:slug)
+             * @example barberia-guegu
+             */
+            slug: string;
+            /** @enum {string} */
+            status: "active" | "inactive";
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            updated_at: string;
         };
         FieldError: {
             /**
