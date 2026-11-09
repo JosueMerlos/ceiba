@@ -1,6 +1,6 @@
 # 04 — Control de acceso
 
-> Decisiones: [ADR-0007](../adr/0007-pundit-sobre-cancancan.md), [ADR-0008](../adr/0008-permisos-como-datos.md), [ADR-0016](../adr/0016-credenciales-por-superficie.md). Hitos: M0.07, M0.08, M4.01, M4.02.
+> **Implementado en M0.08** (`packs/platform/access`); la sección "Implementación (M0.08)" al final resume lo real y los desvíos. Decisiones: [ADR-0007](../adr/0007-pundit-sobre-cancancan.md), [ADR-0008](../adr/0008-permisos-como-datos.md), [ADR-0016](../adr/0016-credenciales-por-superficie.md). Hitos: M0.07, M0.08, M4.01, M4.02.
 
 ## Tres capas que no se sustituyen entre sí
 
@@ -29,7 +29,7 @@ Todos responden a la misma interfaz: `can?(permission_key, scope) → bool`.
 
 ```
 permissions          (key PK, module_key, description)          ← declarados por los manifiestos
-roles                (id, key, scope_level, organization_id NULL, system BOOL)
+roles                (id, key, scope_level, system BOOL)                  ← sin organization_id hasta los roles personalizados (P3)
 role_permissions     (role_id, permission_key)
 memberships          (id, organization_id, user_id, role_id, company_id NULL, branch_id NULL)
 ```
@@ -133,3 +133,83 @@ Correcciones respecto a `plans/`: `org_admin` **sí** edita branding (la decisi�
 ## API keys
 
 Ver [11-security §API keys](11-security.md#api-keys). Pertenecen a la organización, tienen scopes `read:<modulo>` / `write:<modulo>`, y su principal se evalúa con el mismo Pundit: un scope se traduce a un conjunto de permisos del módulo.
+
+## Implementación (M0.08)
+
+Pack `platform/access` (depende de `tenancy` e `identity`). Lo que existe y cómo se usa:
+
+### Datos
+
+| Tabla | Tipo | Notas |
+| --- | --- | --- |
+| `permissions` | **global** | PK `key`; CHECK `<modulo>.<recurso>.<accion>` y que la clave empiece por su `module_key` |
+| `roles` | **global** | `key` única, `scope_level` (CHECK), `system`; UNIQUE `(id, scope_level)` para la FK compuesta de memberships |
+| `role_permissions` | **global** | PK `(role_id, permission_key)`, FKs con `ON DELETE CASCADE` |
+| `memberships` | **tenant** (`create_tenant_table`) | FKs: `users`, `(role_id, scope_level) -> roles`, `(organization_id, company_id) -> companies`, `(organization_id, company_id, branch_id) -> branches`; CHECK `chk_memberships_scope`; UNIQUE `NULLS NOT DISTINCT (organización, usuario, rol, empresa, sucursal)` |
+
+- **Por qué esas tres son globales y no tenant:** son el catálogo de la plataforma (los permisos los declaran los packs, los roles de sistema son plantillas iguales para todos). El guardián de tablas tenant (`Database::TenantTables.inconsistencies`) exige que "tiene `organization_id`" y "tiene política `tenant_isolation`" sean lo mismo: por eso estas tablas **no tienen `organization_id`** y `memberships` sí es tenant. Lo comprueba `packs/platform/access/spec/db/access_schema_spec.rb`.
+- **Desvío:** `roles` no lleva `organization_id NULL` todavía. Una columna `organization_id` habría obligado a registrar `roles` como tabla tenant (y la suite de aislamiento la trata como tal), y una tabla mixta —filas globales y filas de una organización— necesita una política RLS propia (`organization_id IS NULL OR = tenant`). Cuando lleguen los roles personalizados (P3) se decide entonces: la columna con esa política, o una tabla tenant aparte. Hoy `roles.system` es siempre `true`.
+- **Sucursal coherente con su empresa:** la FK compuesta `(organization_id, company_id, branch_id) -> branches` necesita un UNIQUE en `branches (organization_id, company_id, id)`; lo añade una migración de tenancy (`uq_branches_organization_id_company_id_id`, `CONCURRENTLY`). La base impide un membership de sucursal con la empresa equivocada.
+- `scope_level` se denormaliza desde el rol (`before_validation` del modelo) y la FK `(role_id, scope_level)` impide que lo contradiga.
+
+### Permisos: registro y sincronización
+
+- `Access.register_permissions(module_key, "clave" => { description:, roles: [...] })`: lo llaman los packs desde `config.to_prepare` (sobrevive a la recarga de desarrollo; volver a registrar un módulo **reemplaza** lo que declaró). Valida formato de clave, prefijo = módulo, roles de sistema conocidos y claves repetidas entre módulos (`ArgumentError`).
+- Los **roles que reciben cada permiso van en la declaración**: la matriz es dato. La parte de plataforma está en `packs/platform/access/config/initializers/platform_permissions.rb` (organización, empresa, sucursal, módulos, branding, usuarios, API keys, reportes consolidados). Solo organización, empresa y sucursal (lectura) tienen endpoint en M0.08; el resto se declara ya para que la matriz sea completa.
+- `Access.sync!` lleva el registro a la base (permisos, 6 roles de sistema, `role_permissions`), es **idempotente** y el registro es la fuente de verdad (lo no declarado se retira). Corre en cada despliegue: `bin/rails access:sync`, encadenado a `db:migrate`, y al inicio de `db:seed`. La suite lo ejecuta una vez en `before(:suite)` (`spec/support/access_catalog.rb`).
+- **Criterio 8 (permiso usado y no registrado):** (a) en ejecución, `can?`/`reach` con una clave sin registrar lanza `Access::UnknownPermission` (un bug, nunca una denegación silenciosa; sale como 500); (b) estáticamente, `lib/ci/policy_permissions.rb` escanea `packs/*/*/app/policies/**` y `spec/lib/ci/policy_permissions_spec.rb` falla si alguna policy usa un permiso que no está en `Access.permission_keys`.
+
+### Principal y permisos efectivos
+
+- `Access::Principal` es la interfaz (`can?(key, scope)` y `kind`): `User` (memberships), `System` (todo permiso registrado), y `ApiKey` / `PublicToken` **solo como interfaz que niega todo** hasta M4.02 / M3.04.
+- `Access::Scope` (organización | empresa | sucursal, con sus ids) es lo que las policies pasan a `can?`; los modelos de otros packs son privados, así que se pasan ids.
+- `Principal::User#activate!(organization_id)` hace **la única consulta de permisos de la request** (un `LEFT JOIN` de `memberships` con `role_permissions`, acotado por el tenant) y deja los datos en un `Access::Grants` inmutable. Después `can?`, `reach`, `member?`, `sees_company?` no tocan la base (`principal_user_spec`: 1 consulta al activar, 0 en 250 `can?`).
+- Cobertura jerárquica: org ⊃ empresa ⊃ sucursal. Un permiso de **organización** solo lo cubre un membership de organización (uno de empresa no cubre "la organización").
+- **Solo cuenta la organización activa** (criterio 4): un scope de otra organización, o un principal sin activar, niega.
+- `Principal::User#reach(key)` (`Access::Reach`: toda la organización / empresas / sucursales) alimenta los `Scope` de las policies con una condición SQL en vez de preguntar fila por fila.
+- `Principal::User#organization_ids` (selector de contexto, `GET /organizations`) cruza tenants a propósito: vive en `Access::MembershipDirectory`, único archivo con `ActsAsTenant.without_tenant` en este pack, en `AllowedFiles` del cop `Ceiba/TenantBypass`. **Con RLS (M4.03)** necesitará una política por usuario o el rol de plataforma (tarea de M4.03).
+
+### Del request al recurso
+
+`Api::BaseController` incluye `Access::Authorization`, así que **todo** controlador de la API:
+
+1. envuelve la identidad de la sesión en `Access::Principal::User`;
+2. si la ruta trae `organization_id` (o el parámetro equivalente), resuelve el contexto con `Access::RouteContextResolver` **antes** de la acción;
+3. verifica `verify_authorized` y, en `index`, `verify_policy_scoped` **dentro** del contexto: si la acción no autoriza, el error revierte la transacción (nada escrito sobrevive) y responde 500 sin el cuerpo.
+
+Orden de decisiones del resolvedor (`organizations/:organization_id/companies/:company_id/branches/:branch_id`):
+
+| Situación | Respuesta |
+| --- | --- |
+| Organización inexistente, id que no es un UUID, o sin membership del principal | `404 resource.not_found` (idéntico: no revela existencia) |
+| Organización **suspendida** y el principal es miembro | `403 access.organization_suspended` |
+| Empresa/sucursal inexistente, de otra organización/empresa, o fuera del alcance de sus memberships | `404 resource.not_found` |
+| Visible, pero la policy niega la acción | `403 access.forbidden` |
+
+- **Organizaciones suspendidas (decisión M0.08):** `Tenancy.with_context` las acepta (es tenancy, no autorización); el resolvedor las rechaza con 403 para sus miembros en **toda** ruta bajo la organización (incluido su `show`), pero `GET /organizations` las sigue listando con `status: "suspended"` para que la SPA lo explique. A quien no es miembro se le sigue respondiendo 404: la suspensión no revela que existe. Los jobs (que no pasan por rutas) no se ven afectados; si un job debe omitir organizaciones suspendidas lo decide él (M0.09/M0.13).
+- Un controlador cuyo recurso **es** la organización/empresa/sucursal declara qué parámetro la identifica: `route_context organization: :id` (así `organizations#show` valida el membership igual que una ruta anidada).
+- Una acción que de verdad no autoriza (login, sesión, logout) declara `skip_authorization!(reason: "...")`; la lista queda en `authorization_skips` y el motivo es obligatorio.
+- Todo el request corre dentro de `Tenancy.with_context` (una transacción). La guarda `transaction_open?` de `Events.publish` ([06](06-events-and-jobs.md)) se satisface en cualquier acción; sigue siendo disciplina del caso de uso publicar junto al cambio de datos.
+
+### Policies de organización, empresa y sucursal
+
+Viven en **`access`** (`Access::OrganizationPolicy`, `CompanyPolicy`, `BranchPolicy`) y no en `tenancy`: `access` depende de `tenancy` (resuelve el contexto y registra el hook) y `packwerk validate` rechaza los ciclos. Los controladores las pasan con `policy_class:` / `policy_scope_class:`. Sus controladores también viven en `access` (`Api::V1::Access::*`); `tenancy` expone para ello `Tenancy::Directory` (lectura) y los serializers públicos. **Las policies de los módulos de negocio sí viven en su pack** y heredan de `Access::BasePolicy` (deny by default: todas las acciones `false`, `Scope#resolve` = `none`).
+
+| Endpoint | Autorización |
+| --- | --- |
+| `GET /api/v1/organizations` | `index?` para cualquier usuario; el Scope lista las organizaciones con membership |
+| `GET /api/v1/organizations/:id` | `platform.organization.read` (owner, admin); el resto, `403` |
+| `GET .../companies` · `GET .../companies/:id` | `platform.company.read`; el Scope lista solo las alcanzadas |
+| `GET .../companies/:company_id/branches` · `.../branches/:id` | `platform.branch.read`; el Scope: empresas alcanzadas más sucursales alcanzadas |
+
+Por la matriz literal, `receptionist` y `professional` **no** leen sucursales y `branch_manager` no lee la empresa (los ve como rutas visibles pero recibe 403). Si el producto necesita que el personal de sucursal vea el nombre de su sucursal/empresa, es una corrección de la matriz (un permiso más), no un cambio de código; `/me` (M0.09) devolverá lo que la SPA necesita.
+
+### Pruebas y linter
+
+- **Harness de la matriz** (`packs/platform/access/spec/authorization_matrix/matrix_spec.rb`, corre en `bin/ci backend-test`): la matriz de plataforma copiada a mano como tabla de casos; compara (1) los datos sembrados, (2) el motor `can?` para 6 roles × 16 permisos × {organización, empresa propia/ajena, sucursal propia/hermana/ajena} y (3) la API real (404/403/200) para 6 roles × empresa propia/ajena × sucursal propia/hermana/ajena. Si el seed o el motor divergen de la tabla, falla.
+- **Cop `Ceiba/AccessPolicyRoles`** (`lib/rubocop/cop/ceiba/`, `backend-lint`): en `packs/*/*/app/policies` prohíbe `admin?`, `role`/`roles`/`has_role?`/`memberships`... y cualquier literal que sea una clave de rol de sistema.
+- Para un rol nuevo de sistema hay que tocar `Access::SYSTEM_ROLES`, el cop (lista `ROLE_KEYS`) y la matriz del spec: es a propósito.
+
+### Alta de una organización con dueño
+
+`Tenancy::ProvisionOrganization.call(organization:, company:, branch:, extras: { owner: })`. `extras` es un Hash que Tenancy **no interpreta**; llega congelado a los hooks en `result.extras` (sin `extras:` todo funciona como antes). El hook `Access::OwnerHook` (clave `:access_owner`, registrado en `config.to_prepare`) espera `owner` = `Identity::Principal::User` (lo que devuelve `Identity::ProvisionUser.call(email:, full_name:, password:)`), crea el membership `org_owner` **en la misma transacción** y un `owner` de otro tipo revierte todo. Sin `owner` la organización nace sin dueño (el alta con invitación llega con M4.01). `Access::GrantRole.call(user:, role_key:, organization:, company: nil, branch: nil)` es el camino público para el resto de concesiones (seeds; invitaciones en M4.01).

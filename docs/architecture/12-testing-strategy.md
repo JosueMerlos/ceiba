@@ -32,6 +32,8 @@ Son las que hacen que la extensibilidad sea **segura**: cubren automáticamente 
 
 ### 3. Matriz de autorización (M0.08)
 
+> **Implementada** en `packs/platform/access/spec/authorization_matrix/matrix_spec.rb` (datos sembrados, motor `can?` y API real) y corre en `bin/ci backend-test`. Ver [04](04-access-control.md#pruebas-y-linter).
+
 - Tabla de casos: **rol × alcance × recurso × acción → permitido/denegado**, generada desde la matriz de [04](04-access-control.md).
 - Cubre explícitamente los casos de "misma organización, otra empresa" y "misma empresa, otra sucursal".
 - Un permiso usado en una policy y no declarado en ningún manifiesto → falla.
