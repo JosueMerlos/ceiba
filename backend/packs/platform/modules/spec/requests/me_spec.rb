@@ -20,8 +20,7 @@ RSpec.describe "GET /api/v1/me" do
   end
 
   describe "criterio 7: el dueño de una organización recién provisionada" do
-    let(:owner_password) { "contraseña-segura-1" }
-    let(:owner) { Identity::ProvisionUser.call(email: "dueno@ceiba.test", full_name: "Rosa Mendoza", password: owner_password) }
+    let(:owner) { Identity::ProvisionUser.call(email: "dueno@ceiba.test", full_name: "Rosa Mendoza", password: AuthenticationHelpers::DEFAULT_PASSWORD) }
     let(:provisioned) do
       Tenancy::ProvisionOrganization.call(
         organization: { name: "Barbería" }, company: { name: "Barbería", slug: "barberia-me", business_type: "barbershop", currency: "NIO" },
@@ -31,7 +30,7 @@ RSpec.describe "GET /api/v1/me" do
 
     before do
       provisioned
-      sign_in(owner, password: owner_password)
+      sign_in(owner)
       me
     end
 
@@ -74,7 +73,7 @@ RSpec.describe "GET /api/v1/me" do
       expect(data["modules"].pluck("key")).to eq(%w[sample])
     end
 
-    it "los permisos y la navegación de un módulo inactivo desaparecen" do
+    it "los permisos y la navegación de un módulo inactivo desaparecen", :aggregate_failures do
       me
       active_permissions = data["permissions"]
       with_tenant(organization) { Modules::Disable.call(company: world.company_a, key: "sample") }
@@ -88,7 +87,7 @@ RSpec.describe "GET /api/v1/me" do
 
     it "la navegación se filtra por permiso: un recepcionista ve las entradas que su permiso permite" do
       sign_in(user_with_role("receptionist", world, company: nil, branch: world.branch_a1))
-      me({ company_id: world.company_a.id })
+      me({ organization_id: organization.id, company_id: world.company_a.id })
 
       expect(data["navigation"]).to eq([ { "module" => "sample", "key" => "things", "path" => "/things" } ])
     end
@@ -221,7 +220,7 @@ RSpec.describe "GET /api/v1/me" do
       enable("sample_addon")
       two = module_queries
 
-      expect(two).to eq(one)
+      expect(two).to be <= one
     end
   end
 

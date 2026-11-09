@@ -52,10 +52,8 @@ RSpec.describe "API v1: yo (contexto, módulos, permisos y navegación)" do
       end
 
       response "403", "la organización elegida está suspendida (`access.organization_suspended`)" do
-        let!(:signed_in) { sign_in(user_with_role("org_admin", world)) }
+        let!(:signed_in) { sign_in(user_with_role("org_admin", world)).tap { world.organization.update!(status: "suspended") } }
         let(:organization_id) { world.organization.id }
-
-        before { world.organization.update!(status: "suspended") }
 
         schema "$ref" => "#/components/schemas/Problem"
 

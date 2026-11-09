@@ -18,8 +18,10 @@ RSpec.describe "Sincronización de permisos desde los manifiestos" do
     expect(granted("professional")).to include("appointments.appointment.update_own").and(satisfy { |keys| keys.exclude?("appointments.appointment.create") })
   end
 
-  it "los roles de organización no reciben permisos de citas (solo conteos, matriz de 04)" do
-    expect(granted("org_owner") + granted("org_admin")).to all(start_with("platform."))
+  it "los roles de organización solo reciben de citas el permiso de conteos (matriz de 04)" do
+    appointments = (granted("org_owner") + granted("org_admin")).grep(/\Aappointments\./)
+
+    expect(appointments.uniq).to eq([ "appointments.appointment.count" ])
   end
 
   it "es idempotente" do

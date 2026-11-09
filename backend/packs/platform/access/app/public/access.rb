@@ -47,6 +47,14 @@ module Access
     # transacción serializa despliegues simultáneos.
     def sync!(registry = self.registry, allow_prune: ENV["ACCESS_SYNC_ALLOW_PRUNE"] == "1") = CatalogSync.call(registry, allow_prune:)
 
+    # Abre el contexto (organización y, opcionalmente, empresa y sucursal) para un principal y lo valida contra sus memberships, igual
+    # que una ruta anidada (Access::RouteContextResolver): 404 si no lo ve, 403 si la organización está suspendida. Para los endpoints
+    # que no llevan el contexto en la ruta, como GET /api/v1/me. Cede el Tenancy::Context al bloque; con `read_only: true` la
+    # transacción es de solo lectura.
+    def with_context(principal:, organization_id:, company_id: nil, branch_id: nil, read_only: false, &)
+      RouteContextResolver.call(principal:, organization_id:, company_id:, branch_id:, read_only:, &)
+    end
+
     # Punto de extensión de los MÓDULOS (docs/architecture/04 y 05): además del membership, el permiso de un módulo exige que ese
     # módulo esté ACTIVO en la empresa del recurso. access no conoce a platform/modules (modules depende de access: un ciclo no
     # valida), así que modules se registra aquí desde su arranque. Un gate responde:

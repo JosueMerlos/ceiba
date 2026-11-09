@@ -14,16 +14,19 @@ Modules.define :appointments do
     permission "appointments.appointment.create",     description: "Crear citas"
     permission "appointments.appointment.update",     description: "Editar, mover y cancelar citas"
     permission "appointments.appointment.update_own", description: "Editar las propias citas (profesional)"
+    permission "appointments.appointment.count",      description: "Ver conteos de citas (sin detalle)"
     permission "appointments.service.read",           description: "Ver servicios y precios"
     permission "appointments.service.manage",         description: "Gestionar servicios y precios"
   end
 
-  # La matriz de docs/architecture/04-access-control.md: org_owner y org_admin solo ven conteos (platform.reports.consolidated).
+  # La matriz de docs/architecture/04-access-control.md: org_owner y org_admin solo ven CONTEOS de citas, nunca el detalle.
   role_grants do
+    grant :org_owner,       %w[appointments.appointment.count]
+    grant :org_admin,       %w[appointments.appointment.count]
     grant :company_manager, %w[appointments.appointment.read appointments.appointment.create appointments.appointment.update
-                               appointments.service.read appointments.service.manage]
+                               appointments.appointment.count appointments.service.read appointments.service.manage]
     grant :branch_manager,  %w[appointments.appointment.read appointments.appointment.create appointments.appointment.update
-                               appointments.service.read]
+                               appointments.appointment.count appointments.service.read]
     grant :receptionist,    %w[appointments.appointment.read appointments.appointment.create appointments.appointment.update
                                appointments.service.read]
     grant :professional,    %w[appointments.appointment.read appointments.appointment.update_own appointments.service.read]
@@ -39,5 +42,6 @@ Modules.define :appointments do
   publishes   []
   subscribes  { }
 
-  navigation  [ { key: "agenda", path: "/agenda", permission: "appointments.appointment.read" } ]
+  navigation  [ { key: "agenda", path: "/agenda", permission: "appointments.appointment.read" },
+                { key: "summary", path: "/agenda/summary", permission: "appointments.appointment.count" } ]
 end

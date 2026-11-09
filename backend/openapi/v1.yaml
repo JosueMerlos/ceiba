@@ -181,6 +181,101 @@ components:
       - code
       - message
       type: object
+    Me:
+      additionalProperties: false
+      description: Respuesta de GET /api/v1/me
+      properties:
+        data:
+          additionalProperties: false
+          properties:
+            context:
+              additionalProperties: false
+              description: Lo elegido; cada nivel es null si no hay (usuario sin memberships, sin sucursal elegida)
+              properties:
+                branch:
+                  allOf:
+                  - "$ref": "#/components/schemas/Branch"
+                  nullable: true
+                company:
+                  allOf:
+                  - "$ref": "#/components/schemas/Company"
+                  nullable: true
+                organization:
+                  allOf:
+                  - "$ref": "#/components/schemas/OrganizationSummary"
+                  nullable: true
+              required:
+              - organization
+              - company
+              - branch
+              type: object
+            modules:
+              description: Módulos ACTIVOS en la empresa del contexto, con los settings resueltos (default -> empresa -> sucursal)
+              items:
+                additionalProperties: false
+                properties:
+                  key:
+                    example: appointments
+                    type: string
+                  settings:
+                    additionalProperties: true
+                    type: object
+                  version:
+                    example: '1.0'
+                    type: string
+                required:
+                - key
+                - version
+                - settings
+                type: object
+              type: array
+            navigation:
+              items:
+                additionalProperties: false
+                properties:
+                  key:
+                    type: string
+                  module:
+                    type: string
+                  path:
+                    example: "/agenda"
+                    type: string
+                required:
+                - module
+                - key
+                - path
+                type: object
+              type: array
+            permissions:
+              description: Permisos que el usuario ejerce en el contexto, de los módulos activos y de la plataforma. El frontend los refleja; no decide.
+              items:
+                type: string
+              type: array
+            principal:
+              additionalProperties: false
+              properties:
+                email:
+                  type: string
+                id:
+                  format: uuid
+                  type: string
+                name:
+                  type: string
+              required:
+              - id
+              - name
+              - email
+              type: object
+          required:
+          - principal
+          - context
+          - modules
+          - permissions
+          - navigation
+          type: object
+      required:
+      - data
+      type: object
     Organization:
       additionalProperties: false
       description: 'Organización: el tenant (ADR-0003)'
@@ -516,6 +611,66 @@ paths:
       summary: Cierra todas las sesiones
       tags:
       - Autenticación
+  "/api/v1/me":
+    get:
+      description: 'El contexto elegido (organización, empresa y sucursal), los módulos ACTIVOS en esa empresa con sus settings resueltos (default del esquema, empresa, sucursal), los permisos que el usuario ejerce ahí y la navegación permitida. El frontend solo lo REFLEJA: ocultar algo no es control de acceso. Sin parámetros usa el último contexto elegido (cookie firmada `ceiba_context`) o, si no hay, la primera organización y empresa que el usuario ve. Un usuario sin memberships recibe el contexto vacío.'
+      parameters:
+      - description: Requerido si se pasa company_id
+        in: query
+        name: organization_id
+        required: false
+        schema:
+          format: uuid
+          type: string
+      - in: query
+        name: company_id
+        required: false
+        schema:
+          format: uuid
+          type: string
+      - description: Requiere company_id
+        in: query
+        name: branch_id
+        required: false
+        schema:
+          format: uuid
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Me"
+          description: el contexto del usuario
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: company_id o branch_id sin su organización/empresa
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: la organización elegida está suspendida (`access.organization_suspended`)
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: la organización, empresa o sucursal no existe o el usuario no la ve
+      security:
+      - cookieAuth: []
+      summary: Contexto del usuario autenticado
+      tags:
+      - Contexto
   "/api/v1/organizations":
     get:
       description: Las organizaciones donde el usuario autenticado tiene algún membership (selector de contexto, ADR-0028). Incluye las suspendidas, con su `status`.

@@ -15,6 +15,7 @@ Rails.application.routes.draw do
     scope path: "v1", module: "api/v1" do
       draw(:identity)
       draw(:access)
+      draw(:modules)
     end
   end
 end

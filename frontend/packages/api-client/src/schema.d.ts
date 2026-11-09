@@ -259,6 +259,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Contexto del usuario autenticado
+         * @description El contexto elegido (organización, empresa y sucursal), los módulos ACTIVOS en esa empresa con sus settings resueltos (default del esquema, empresa, sucursal), los permisos que el usuario ejerce ahí y la navegación permitida. El frontend solo lo REFLEJA: ocultar algo no es control de acceso. Sin parámetros usa el último contexto elegido (cookie firmada `ceiba_context`) o, si no hay, la primera organización y empresa que el usuario ve. Un usuario sin memberships recibe el contexto vacío.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Requerido si se pasa company_id */
+                    organization_id?: string;
+                    company_id?: string;
+                    /** @description Requiere company_id */
+                    branch_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el contexto del usuario */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Me"];
+                    };
+                };
+                /** @description company_id o branch_id sin su organización/empresa */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description la organización elegida está suspendida (`access.organization_suspended`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description la organización, empresa o sucursal no existe o el usuario no la ve */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations": {
         parameters: {
             query?: never;
@@ -769,6 +850,41 @@ export interface components {
             field: string;
             /** @example no puede estar en blanco */
             message: string;
+        };
+        /** @description Respuesta de GET /api/v1/me */
+        Me: {
+            data: {
+                /** @description Lo elegido; cada nivel es null si no hay (usuario sin memberships, sin sucursal elegida) */
+                context: {
+                    branch: components["schemas"]["Branch"] | null;
+                    company: components["schemas"]["Company"] | null;
+                    organization: components["schemas"]["OrganizationSummary"] | null;
+                };
+                /** @description Módulos ACTIVOS en la empresa del contexto, con los settings resueltos (default -> empresa -> sucursal) */
+                modules: {
+                    /** @example appointments */
+                    key: string;
+                    settings: {
+                        [key: string]: unknown;
+                    };
+                    /** @example 1.0 */
+                    version: string;
+                }[];
+                navigation: {
+                    key: string;
+                    module: string;
+                    /** @example /agenda */
+                    path: string;
+                }[];
+                /** @description Permisos que el usuario ejerce en el contexto, de los módulos activos y de la plataforma. El frontend los refleja; no decide. */
+                permissions: string[];
+                principal: {
+                    email: string;
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                };
+            };
         };
         /** @description Organización: el tenant (ADR-0003) */
         Organization: {
