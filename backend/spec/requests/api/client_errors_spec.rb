@@ -27,7 +27,7 @@ RSpec.describe "Errores de cliente de la API y rutas fuera de /api" do
     expect(Api::ErrorReporter).not_to have_received(:call)
   end
 
-  it "un Accept inválido responde 406 problem+json y no se reporta" do
+  it "un Content-Type malformado responde 406 problem+json y no se reporta" do
     post "/api/v1/probes/create", headers: { "CONTENT_TYPE" => "malformado" }, params: "x"
 
     expect_problem(status: :not_acceptable, code: "request.not_acceptable")
