@@ -7,7 +7,10 @@ RSpec.describe Observability::SentryCheck do
   include TenancyHelpers
 
   let(:organization) { new_organization }
-  let(:events) { Sentry.get_current_client.transport.events.map(&:to_h) }
+  let(:events) do
+    Timeout.timeout(5) { sleep 0.01 until Sentry.get_current_client.transport.events.size >= 1 }
+    Sentry.get_current_client.transport.events.map(&:to_h)
+  end
 
   after do
     Sentry.close
@@ -19,7 +22,6 @@ RSpec.describe Observability::SentryCheck do
     Sentry.init do |config|
       SentrySetup.configure(config, env: { "SENTRY_DSN" => "http://12345:67890@sentry.localdomain/sentry/42" }, rails_env: "production")
       config.transport.transport_class = Sentry::DummyTransport
-      config.background_worker_threads = 0
     end
   end
 

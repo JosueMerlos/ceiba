@@ -14,14 +14,6 @@ require "sentry-sidekiq"
 
 module SentrySetup
   EMAIL = /[\w.+%-]+@[\w-]+(?:\.[\w-]+)+/
-  TENANT_TAGS = {
-    organization_id: ->(fields, _log) { fields[:organization_id] },
-    company_id: ->(fields, _log) { fields[:company_id] },
-    branch_id: ->(fields, _log) { fields[:branch_id] },
-    principal_type: ->(fields, _log) { fields[:principal_type] },
-    principal_id: ->(fields, _log) { fields[:principal_id] },
-    job: ->(_fields, log) { log.job_class }
-  }.freeze
 
   module_function
 
@@ -39,18 +31,40 @@ module SentrySetup
     config.auto_session_tracking = false # release health no se usa; sin esto avisa en cada arranque si falta APP_RELEASE
     config.rails.register_error_subscriber = true # los 500 los rescata Api::ErrorHandling y los reporta con Rails.error
     config.before_send = method(:before_send)
+    install_event_processor
+  end
+
+  # `before_send` corre en el hilo de fondo del cliente de Sentry, donde Current y LogContext (por hilo) están vacíos: solo
+  # sirve para limpiar datos. Los tags se ponen con un procesador global, que corre SÍNCRONO al capturar, en el hilo de la
+  # request o del job. Se registra una sola vez (los procesadores globales se acumulan entre `Sentry.init`).
+  def install_event_processor
+    return if @processor_installed
+
+    Sentry.add_global_event_processor { |event, _hint| add_tags(event) }
+    @processor_installed = true
+  end
+
+  def add_tags(event)
+    event.tags.merge!(tenant_tags(event)) if event.respond_to?(:tags)
+    event
   end
 
   def before_send(event, _hint = nil)
-    event.tags.merge!(tenant_tags)
     scrub(event)
     event
   end
 
-  # Solo identificadores, nunca el correo ni el nombre (misma fuente que el log: Observability::LogFields).
-  def tenant_tags
+  # Solo identificadores, nunca el correo ni el nombre (misma fuente que el log: Observability::LogFields). En un job el error
+  # se captura FUERA de JobLogger#prepare (LogContext ya está vacío): organización y clase se leen del contexto `sidekiq`
+  # que sentry-sidekiq adjunta con el job entero.
+  def tenant_tags(event)
     fields = Observability::LogFields.current
-    TENANT_TAGS.transform_values { |source| source.call(fields, Observability::LogContext) }.compact
+    job = event.contexts.to_h.with_indifferent_access[:sidekiq] || {}
+    {
+      organization_id: fields[:organization_id] || job[:organization_id], company_id: fields[:company_id], branch_id: fields[:branch_id],
+      principal_type: fields[:principal_type], principal_id: fields[:principal_id],
+      job: Observability::LogContext.job_class || job[:wrapped] || job[:class]
+    }.compact
   end
 
   def scrub(event)
