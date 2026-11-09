@@ -35,6 +35,9 @@ gem "ostruct", "0.6.3"
 # Identidad y sesiones (M0.07, ADR-0017): has_secure_password usa bcrypt. Versión fijada.
 gem "bcrypt", "3.1.22"
 
+# Control de acceso (M0.08, ADR-0007): Pundit con una policy por modelo dentro de su pack. Versión fijada.
+gem "pundit", "2.5.2"
+
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
