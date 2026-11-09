@@ -1,6 +1,6 @@
 # 07 — Contrato API
 
-> Decisiones: [ADR-0012](../adr/0012-contrato-openapi-y-cliente-generado.md), [ADR-0016](../adr/0016-credenciales-por-superficie.md). Hito: M0.06 (y cada hito que agrega endpoints). Estado: **implementado en M0.06** (errores, paginación, serializers, contrato, cliente y check de drift); lo que sigue pendiente se marca en cada sección.
+> Decisiones: [ADR-0012](../adr/0012-contrato-openapi-y-cliente-generado.md), [ADR-0016](../adr/0016-credenciales-por-superficie.md). Hito: M0.06 (y cada hito que agrega endpoints). Estado: **implementado en M0.06; la autenticación, CSRF y los endpoints `auth` en M0.07** (errores, paginación, serializers, contrato, cliente y check de drift); lo que sigue pendiente se marca en cada sección.
 
 ## Principios
 
@@ -12,7 +12,7 @@
 
 | Prefijo | Consumidor | Credencial |
 | --- | --- | --- |
-| `/api/v1/...` | Panel (SPA) e integradores | Cookie de sesión **o** API key (`Authorization: Bearer`) |
+| `/api/v1/...` | Panel (SPA) e integradores | Cookie de sesión (M0.07) **o** API key (`Authorization: Bearer`, M4.02) |
 | `/api/public/v1/c/:slug/...` | `apps/booking` (anónimo) | Ninguna; rate limit por IP + slug |
 | `/api/public/v1/manage/:token/...` | Cliente con enlace firmado | Token de un uso |
 | `/api/platform/...` | Back-office | Sesión de `PlatformStaff` + 2FA |
@@ -94,6 +94,10 @@
 | `tenancy.slug_taken` | 409 | `Tenancy::ProvisioningFailed(:slug_taken)` |
 | `tenancy.slug_reserved` / `tenancy.invalid` | 422 | `Tenancy::ProvisioningFailed`; `errors[]` con `company.slug`, etc. |
 | `tenancy.inconsistent_context` | 404 | `Tenancy::InconsistentContext` (no se revela qué entidad existe) |
+| `auth.unauthenticated` | 401 | Sin sesión válida (cookie ausente, desconocida, revocada o vencida). **Toda** ruta de la API lo devuelve salvo la allowlist ([11](11-security.md#deny-by-default-m007)) |
+| `auth.invalid_credentials` | 401 | Login con correo inexistente **o** contraseña errónea (misma respuesta) |
+| `auth.csrf_invalid` | 403 | Mutación con sesión sin `X-CSRF-Token` correcto |
+| `auth.origin_forbidden` | 403 | Mutación con `Origin`/`Referer` que no es el origen propio |
 | `internal.error` | 500 | Cualquier excepción sin registrar |
 
 - **`Tenancy::TenantMismatch` y `Tenancy::TenantIsImmutable` no se registran a propósito:** solo se lanzan si el servidor intentó escribir en otro tenant, es decir, ante un **bug**. Responden `500 internal.error` genérico y el detalle va al log. Si algún día una regla de negocio los lanzara de forma legítima, se registran con su status.
@@ -149,7 +153,7 @@ specs de rswag (spec/api, packs/*/spec/api) ──bin/rails openapi:generate─�
 - **Versiones fijadas:** rswag 2.17.0, alba 4.0.3, OpenAPI 3.0.3 (no 3.1: rswag valida con `json-schema`, que no entiende `type: [x, "null"]`), openapi-typescript 7.13.0, openapi-fetch 0.17.0.
 - **`pnpm api:generate`** (desde `frontend/`) regenera `schema.d.ts` desde `backend/openapi/v1.yaml`. En Docker el contrato se monta de solo lectura en `/app/backend/openapi`. `bin/api-generate` regenera **ambos** pasos dentro de Docker.
 - **TypeScript 6.0.3 en `packages/api-client`**: openapi-typescript usa la API programática de TypeScript (`ts.factory`), que TS 7 (compilador nativo) no expone; se comporta igual que el pin de `packages/config` (ver [10](10-infrastructure.md)). Volver a una sola versión cuando openapi-typescript soporte TS 7.
-- El cliente (`createApiClient`) envía `credentials: "include"`; el token CSRF de las mutaciones llega con M0.07 ([11](11-security.md)).
+- El cliente (`createApiClient`) envía `credentials: "include"`. El backend ya exige `X-CSRF-Token` en las mutaciones (M0.07, [11](11-security.md#csrf-panel)); **el envío automático desde el cliente (y recuperar el token con `GET /auth/session` al arrancar) llega con M0.12**.
 - **`ApiError { status, code, title, errors[], requestId, detail, type, instance }`:** `unwrap(client.GET(...))` devuelve el cuerpo de éxito (tipado por el contrato) o lanza `ApiError`. Una respuesta que no es problem+json (un 502 del proxy) también es `ApiError` con `code: "http.<status>"`. `unwrap` es el `queryFn` natural de TanStack Query.
 - **Check de drift** (`infra/scripts/check-api-contract.sh`, etapa `api-contract` de `bin/ci`, job `api-contract` de CI y check requerido en `branch-protection.sh`): regenera contrato y cliente, y falla si alguno difiere de lo versionado (compara contra una copia previa, no contra el índice de git, así funciona con cambios sin commitear). Sus casos están en `check-api-contract_test.sh`. Además, `spec/api/openapi_contract_spec.rb` falla si alguna ruta `/api/v1` no está documentada en `v1.yaml` (principio 3).
 - **Criterio 5 (campo inexistente → `tsc` falla):** `test/type-safety.test.ts` ejecuta `tsc` de verdad sobre dos fixtures (el campo existente compila; `phone_number` falla con `TS2339`), y `test/types.typecheck.ts` lo deja permanente en `pnpm typecheck` con `@ts-expect-error` ("verde cuando falla"): si el cliente dejara de tipar, el error esperado desaparece y `tsc` falla con "Unused '@ts-expect-error'".
@@ -163,12 +167,19 @@ specs de rswag (spec/api, packs/*/spec/api) ──bin/rails openapi:generate─�
 
 `GET /api/v1/organizations/:id` (`Api::V1::Tenancy::OrganizationsController`, en el pack `platform/tenancy`, que así usa su modelo privado sin ampliar su API pública). `Organization` es la raíz del tenant: se consulta sin contexto.
 
-**Temporal:** aún no hay autenticación (M0.07) ni autorización (M0.08), así que cualquiera podría leer cualquier organización. Solo existe con `config.x.api.open_organization_endpoint` (activo en development y test; **desactivado en producción**, donde responde `404 route.not_found`). M0.07/M0.08 lo protegen —la organización saldrá de los memberships del principal— y eliminan el flag.
+**Desde M0.07 exige sesión** (como toda la API, sin `skip_authentication!`) y responde `401 auth.unauthenticated` sin ella. **Temporal:** todavía no hay autorización (M0.08), así que cualquier usuario autenticado podría leer cualquier organización. Por eso sigue existiendo solo con `config.x.api.open_organization_endpoint` (activo en development y test; **desactivado en producción**, donde responde `404 route.not_found`). M0.08 lo autoriza —la organización saldrá de los memberships del principal— y elimina el flag.
+
+## Autenticación en la API (M0.07)
+
+- `Api::BaseController` incluye `Api::Authentication`: **deny by default**. Un controlador que hereda de él sin hacer nada exige sesión; para ser público declara `skip_authentication!` (con un comentario del porqué) **y** se añade a la allowlist de `spec/requests/api/authentication_spec.rb`. Ese spec recorre todas las rutas del router sin sesión y exige `401`.
+- Las mutaciones (`POST`/`PUT`/`PATCH`/`DELETE`) con sesión exigen `X-CSRF-Token` (el `csrf_token` de `POST /auth/login` o `GET /auth/session`) y, si llega `Origin`, que sea el propio. Detalle y razones en [11](11-security.md#csrf-panel).
+- Endpoints `auth` documentados en el contrato con el esquema de seguridad `cookieAuth` (`apiKey` en cookie) y el parámetro de cabecera `X-CSRF-Token`. En los specs de rswag, el login es el real (`sign_in`, `spec/support/authentication_helpers.rb`): la cookie viaja por el jar de la sesión de integración, no se simula.
+- `Current.session` (`Identity::CurrentSession`) y `Current.principal` (`Identity::Principal::User`) quedan fijados en las acciones autenticadas.
 
 ## Cómo agregar un endpoint
 
-1. Controlador `Api::V1::<Pack>::XController < Api::BaseController` en el pack, con su archivo de rutas en el pack (`packs/<capa>/<pack>/config/routes/<pack>.rb`, montado con `draw(:<pack>)` bajo `/api/v1` en `config/routes.rb`).
+1. Controlador `Api::V1::<Pack>::XController < Api::BaseController` en el pack (exige sesión por defecto; solo si DEBE ser público, `skip_authentication!` comentado y en la allowlist del spec; ver más abajo), con su archivo de rutas en el pack (`packs/<capa>/<pack>/config/routes/<pack>.rb`, montado con `draw(:<pack>)` bajo `/api/v1` en `config/routes.rb`).
 2. Un serializer por representación (`Api::Serializer`); listados con `render_page`.
 3. Errores de dominio nuevos: `Api::ErrorRegistry.register` en el initializer del pack + título en su locale.
-4. Spec de rswag en `spec/api/` del pack (200 y los errores con `$ref` a `Problem`/`ValidationProblem`); esquemas nuevos en `spec/openapi_components.rb` del pack.
+4. Spec de rswag en `spec/api/` del pack (200 y los errores con `$ref` a `Problem`/`ValidationProblem`; `security [ { cookieAuth: [] } ]`, `sign_in` y, en mutaciones, el parámetro `X-CSRF-Token`); esquemas nuevos en `spec/openapi_components.rb` del pack.
 5. `bin/api-generate` y versionar `backend/openapi/v1.yaml` y `schema.d.ts`. Si lo olvidas, `bin/ci api-contract` (y CI) fallan.

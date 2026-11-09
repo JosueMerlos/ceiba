@@ -68,8 +68,10 @@ Son las que hacen que la extensibilidad sea **segura**: cubren automáticamente 
 
 - Spec por regla de Rack::Attack (`freeze_time`, store reiniciado entre ejemplos).
 - Test del falso positivo de NAT: 6 usuarios distintos tras una misma IP no se bloquean.
-- Specs de CSRF: una mutación sin token o con `Origin` ajeno → `403`.
-- Specs de cookies: flags presentes; sesión revocada → `401`.
+- Specs de CSRF: una mutación sin token o con `Origin` ajeno → `403` (`packs/platform/identity/spec/requests/csrf_spec.rb`).
+- Specs de cookies: flags presentes; sesión revocada → `401` (`auth_spec.rb`; `Secure`/`__Host-` con `config.x.auth.secure_cookies` activado y `https!`).
+- **Deny by default:** `spec/requests/api/authentication_spec.rb` recorre todas las rutas del router sin sesión y exige `401` salvo una allowlist comentada y sin entradas obsoletas.
+- **Login en specs de request:** `sign_in(user)` (`spec/support/authentication_helpers.rb`) hace el login real por HTTP y devuelve el token CSRF (`csrf_headers`); `browser: open_session` simula otro navegador con su propio jar de cookies. Las sesiones se prueban con `travel`/`travel_back` (12 h de inactividad, 7 días absolutos).
 
 ## E2E críticos (Playwright)
 
