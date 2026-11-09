@@ -4,7 +4,7 @@ require "rails_helper"
 # (verify_policy_scoped), y la excepción de una acción que no autoriza es explícita, con motivo y en una allowlist.
 RSpec.describe "verify_authorized y verify_policy_scoped globales" do
   before(:context) do # rubocop:disable RSpec/BeforeAfterAll -- dibujar rutas es caro y global
-    stub_const("AccessProbes", Module.new)
+    Object.const_set(:AccessProbes, Module.new) unless Object.const_defined?(:AccessProbes)
     AccessProbes.const_set(:ProbesController, Class.new(Api::BaseController) do
       skip_authorization! reason: "probe de test: la acción ok sí autoriza explícitamente", only: :exempt
 
@@ -19,7 +19,8 @@ RSpec.describe "verify_authorized y verify_policy_scoped globales" do
         authorize Tenancy::Directory.organizations, :index?, policy_class: Access::OrganizationPolicy
         render json: { data: [] }
       end
-    end)
+    end) unless AccessProbes.const_defined?(:ProbesController, false)
+
     Rails.application.reload_routes_unless_loaded
     Rails.application.routes.disable_clear_and_finalize = true
     Rails.application.routes.draw do

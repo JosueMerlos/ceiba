@@ -11,9 +11,18 @@ module Api
     private
 
     def render_problem(exception)
+      # Un error lanzado tras renderizar (p. ej. verify_authorized en un after_action) no debe dejar salir el cuerpo ya generado.
+      discard_rendered_body if performed?
       problem = Problem.from_exception(exception, request:)
       report(exception, problem) if problem.internal?
       render json: problem.to_h, status: problem.status, content_type: Problem::MEDIA_TYPE
+    end
+
+    # Descarta el cuerpo ya renderizado (Rails no lo permite con `response_body = nil`: solo vacía la respuesta, y el segundo
+    # `render` seguiría lanzando DoubleRenderError).
+    def discard_rendered_body
+      response.reset_body!
+      @_response_body = nil
     end
 
     # El detalle real (clase, mensaje, backtrace) va SOLO al log, ligado al request_id; la respuesta no lo lleva nunca,

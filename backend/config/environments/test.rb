@@ -22,8 +22,6 @@ Rails.application.configure do
   # en test (el detalle va al log con el request_id; docs/architecture/07-api-contract.md).
   config.consider_all_requests_local = false
 
-  # Endpoint de ejemplo GET /api/v1/organizations/:id sin autenticación: SOLO aquí hasta M0.07/M0.08.
-  config.x.api.open_organization_endpoint = true
   config.cache_store = :null_store
 
   # Render exception templates for rescuable exceptions and raise for other exceptions.

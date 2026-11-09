@@ -1,2 +1,14 @@
 es-NI:
-  access: {}
+  api:
+    errors:
+      access:
+        forbidden: "No tienes permiso para realizar esta acción"
+        organization_suspended: "La organización está suspendida"
+  access:
+    roles:
+      org_owner: Dueño de la organización
+      org_admin: Administrador de la organización
+      company_manager: Responsable de empresa
+      branch_manager: Responsable de sucursal
+      receptionist: Recepcionista
+      professional: Profesional
