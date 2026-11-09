@@ -104,6 +104,7 @@
 | `idempotency.key_reused` | 409 | `Idempotency-Key` ya usada con otro método, ruta o cuerpo (M0.11) |
 | `idempotency.key_required` / `idempotency.key_invalid` | 400 | Endpoint con `required: true` sin el header; clave vacía, de más de 255 caracteres o no ASCII imprimible (M0.11) |
 | `rate_limit.exceeded` | 429 | Ventana de Rack::Attack agotada (login por IP o correo, catch-all). `Retry-After` y `RateLimit-*`; lo responde un middleware, no un controlador ([11](11-security.md)) |
+| `request.too_large` | 413 | Cuerpo de `POST /api/v1/auth/login` de más de 4 KB (o sin longitud conocida): lo rechaza Rack::Attack |
 | `rate_limit.blocked` | 429 | IP bloqueada 1 h por 404/405 repetidos (regla 8). `Retry-After` = lo que queda de bloqueo |
 | `internal.error` | 500 | Cualquier excepción sin registrar |
 
