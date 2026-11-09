@@ -71,6 +71,14 @@ RSpec.describe "db/seeds.rb" do
       expect(ok).to eq("true")
     end
 
+    it "una SEED_DEMO_PASSWORD vacía cuenta como ausente: en producción no siembra usuarios" do
+      app.write("config/database.yml", app.read("config/database.yml").gsub("ceiba_production", app.database))
+      output = app.run!("bin/rails", "db:seed", env: { "RAILS_ENV" => "production", "SECRET_KEY_BASE" => "x" * 64, "RAILS_LOG_LEVEL" => "fatal", "SEED_DEMO_PASSWORD" => "" })
+
+      expect(output).to include("define SEED_DEMO_PASSWORD")
+      expect(users_report.call).to eq("[]")
+    end
+
     it "en producción NO siembra usuarios con la contraseña de desarrollo (exige SEED_DEMO_PASSWORD)", :aggregate_failures do
       app.write("config/database.yml", app.read("config/database.yml").gsub("ceiba_production", app.database))
       output = app.run!("bin/rails", "db:seed", env: { "RAILS_ENV" => "production", "SECRET_KEY_BASE" => "x" * 64, "RAILS_LOG_LEVEL" => "fatal" })

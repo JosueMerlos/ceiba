@@ -47,6 +47,21 @@ RSpec.describe Identity::User do
       expect(user.errors.details[:password]).to include(a_hash_including(error: :too_short, count: 12))
     end
 
+    it "rechaza más de 72 bytes (límite de bcrypt, que truncaría en silencio)", :aggregate_failures do
+      user = build(:user, password: "a" * 73)
+
+      expect(user).not_to be_valid
+      expect(user.errors.details[:password]).to include(a_hash_including(error: :password_too_long))
+    end
+
+    it "cuenta bytes, no caracteres: 40 caracteres de 2 bytes superan el límite" do
+      expect(build(:user, password: "ñ" * 40)).not_to be_valid
+    end
+
+    it "acepta exactamente 72 bytes" do
+      expect(build(:user, password: "a" * 72)).to be_valid
+    end
+
     it "acepta 12 caracteres sin reglas de complejidad" do
       expect(build(:user, password: "a" * 12)).to be_valid
     end
