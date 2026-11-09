@@ -9,7 +9,7 @@ module IdempotencyProbes
     const_set(:ProbesController, Class.new(Api::BaseController) do
       include Idempotency::Idempotent
 
-      skip_authentication! only: %i[public_create no_context]
+      skip_authentication! only: %i[public_create slow_create no_context]
       around_action :in_organization, except: :no_context
 
       idempotent :create, :public_create, :slow_create
@@ -50,6 +50,7 @@ module IdempotencyProbes
       Rails.application.routes.draw do
         scope path: "api/v1/idempotency_probes", controller: "idempotency_probes/probes" do
           post "organizations/:organization_id/companies", action: :create
+          post "organizations/:organization_id/companies_alias", action: :create
           post "organizations/:organization_id/slow_companies", action: :slow_create
           post "organizations/:organization_id/required_companies", action: :required_create
           post "organizations/:organization_id/public_companies", action: :public_create

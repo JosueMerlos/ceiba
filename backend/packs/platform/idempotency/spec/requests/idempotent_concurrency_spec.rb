@@ -33,6 +33,11 @@ RSpec.describe "Idempotencia: peticiones concurrentes" do
     expect(responses.map(&:status)).to eq([ 201, 201 ])
     expect(responses.map(&:body).uniq.size).to eq(1)
     expect(companies_named("Carrera Uno").size).to eq(1)
+  end
+
+  it "una de las dos respuestas es la repetida (Idempotency-Replayed)" do
+    responses = run_concurrently(-> { post_company("Carrera Marca") }, -> { post_company("Carrera Marca") })
+
     expect(responses.map { |response| response.headers["Idempotency-Replayed"] }).to contain_exactly(nil, "true")
   end
 

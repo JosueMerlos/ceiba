@@ -66,6 +66,12 @@ RSpec.describe "Idempotencia de escrituras (Idempotency-Key)" do
       expect(response).to have_http_status(:conflict)
       expect(response.media_type).to eq("application/problem+json")
       expect(response.parsed_body).to include("code" => "idempotency.key_reused", "status" => 409)
+    end
+
+    it "no crea el segundo recurso" do
+      create_company(name: "Sucursal Uno")
+      create_company(name: "Sucursal Dos")
+
       expect(companies_named("Sucursal Dos")).to be_empty
     end
 
@@ -77,7 +83,7 @@ RSpec.describe "Idempotencia de escrituras (Idempotency-Key)" do
 
     it "la misma clave y el mismo cuerpo en otra RUTA también es otro request (409)" do
       create_company
-      response = create_company(kind: "public_companies") # otra ruta, mismo cuerpo
+      response = create_company(kind: "companies_alias") # otra ruta, mismo principal y cuerpo
 
       expect(response).to have_http_status(:conflict)
       expect(response.parsed_body["code"]).to eq("idempotency.key_reused")
