@@ -49,7 +49,7 @@ RSpec/DescribeClass:
     - "packs/platform/tenancy/spec/public_api_spec.rb"
     - "packs/platform/identity/spec/public_api_spec.rb"
     - "packs/platform/tenancy/spec/public/**/*"
-    - "packs/platform/access/spec/db/**/*"
+    - "packs/platform/access/spec/**/*"
     - "spec/platform/**/*"
 
 # Los ejemplos de resiliencia (timeouts, conexiones colgadas) necesitan varias expectativas.
