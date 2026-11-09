@@ -100,6 +100,7 @@
 | `auth.invalid_credentials` | 401 | Login con correo inexistente **o** contraseña errónea (misma respuesta) |
 | `auth.csrf_invalid` | 403 | Mutación con sesión sin `X-CSRF-Token` correcto |
 | `auth.origin_forbidden` | 403 | Mutación con `Origin`/`Referer` que no es el origen propio |
+| `idempotency.request_in_progress` | 409 | Otra petición con la misma clave sigue en curso y no terminó en 5 s; reintentar con la misma clave (M0.11) |
 | `idempotency.key_reused` | 409 | `Idempotency-Key` ya usada con otro método, ruta o cuerpo (M0.11) |
 | `idempotency.key_required` / `idempotency.key_invalid` | 400 | Endpoint con `required: true` sin el header; clave vacía, de más de 255 caracteres o no ASCII imprimible (M0.11) |
 | `internal.error` | 500 | Cualquier excepción sin registrar |
@@ -134,7 +135,7 @@
 ```
 idempotency_keys
   organization_id, principal_key, key, request_fingerprint (SHA-256 de método + ruta + cuerpo), response_status,
-  response_body, response_headers (jsonb: Location), content_type, expires_at (24 h), created_at, updated_at
+  response_body (CIFRADO), response_headers (jsonb: Location), content_type, expires_at (24 h), created_at, updated_at
   UNIQUE (organization_id, principal_key, key)
 ```
 
@@ -147,14 +148,17 @@ end
 ```
 
 - Misma clave y mismo fingerprint → NO se ejecuta la acción: se devuelve la respuesta guardada (estado, cuerpo, `Content-Type`, `Location`) con `Idempotency-Replayed: true`.
+- **Fingerprint:** SHA-256 de método + ruta **con query** + cuerpo **tal cual llegó**. El JSON se compara por **bytes**: el mismo contenido con otro orden de claves es otra petición (un cliente que reintenta reenvía los mismos bytes; canonizar el JSON no compensa el riesgo de equiparar peticiones distintas). Los `multipart` no existen en la API: `ApiRequestGuard` exige `application/json` en toda mutación y rechaza la query string, así que no hace falta un fingerprint sobre parámetros parseados. Un endpoint de subida de archivos futuro (branding) no será idempotente por este camino.
 - Misma clave y distinto fingerprint (otro cuerpo, **otra ruta u otro método**) → `409 idempotency.key_reused` (el cuerpo guardado no se revela).
 - Sin header: la acción corre normal, salvo `required: true` → `400 idempotency.key_required`. Clave inválida (vacía, > 255 caracteres, fuera de ASCII imprimible) → `400 idempotency.key_invalid`.
 - **Solo las respuestas 2xx se guardan.** Un error (422, excepción) libera la clave: el cliente puede corregir y reintentar con la misma. Las filas vencidas (24 h) se ignoran y se reemplazan al reutilizar la clave.
 - **Desvío de la forma original (`UNIQUE (organization_id, key)`):** la unicidad incluye al principal (`principal_key` = `user:<uuid>`, `api_key:<uuid>`... o `anonymous` para la reserva pública). Con la clave global por organización, el segundo usuario que eligiera la misma clave recibiría la **respuesta guardada del primero** (fuga). Una sola columna de texto y no `(type, id)`, porque un `UNIQUE` no trata los `NULL` como iguales y el anónimo no tiene id. La reserva pública anónima comparte alcance dentro de la organización: la protege la entropía de la clave (UUID); añadir IP o slug al alcance si hiciera falta (M2).
-- **Concurrencia (dos peticiones simultáneas con la misma clave):** la reserva (INSERT de la fila) y la acción corren en la **misma transacción** (se une a la del contexto). La segunda petición choca en el índice único y **espera** a que la primera confirme o revierta: si confirma, lee la fila y repite la respuesta; si revierte, la reserva desaparece y la segunda se ejecuta. Nunca corren dos acciones con la misma clave, y la clave y el recurso nacen o desaparecen juntos. Coste: la segunda petición queda bloqueada lo que dure la primera (acotado por `statement_timeout`).
+- **Concurrencia (dos peticiones simultáneas con la misma clave):** la reserva (INSERT de la fila) y la acción corren en la **misma transacción** (se une a la del contexto). La segunda petición choca en el índice único y **espera** a que la primera confirme o revierta: si confirma, lee la fila y repite la respuesta; si revierte, la reserva desaparece y la segunda se ejecuta. Nunca corren dos acciones con la misma clave, y la clave y el recurso nacen o desaparecen juntos. **La espera está acotada:** `lock_timeout` de 5 s (`Idempotency::Processor::LOCK_TIMEOUT`) solo durante la reserva; vencida, `409 idempotency.request_in_progress` y el cliente reintenta con la misma clave (la primera ya habrá terminado y se repite su respuesta). La acción en sí no lleva ese límite: sigue sujeta a `statement_timeout`.
+- **Anónimos (reserva pública):** el alcance es `anonymous` y lo comparten todos los anónimos de la organización, así que la **entropía de la clave** es la protección: para un principal sin sesión la clave debe tener **formato UUID** (`400 idempotency.key_invalid` si no). No se añade la IP al alcance a propósito: un cliente móvil que reintenta tras cambiar de red perdería la idempotencia y duplicaría la cita, que es justo lo que la clave evita.
+- **Datos en reposo:** `response_body` se guarda **cifrado** (Active Record Encryption, no determinista: no se busca por él) porque es una respuesta de negocio que puede llevar datos personales. Las claves se derivan de `secret_key_base` en desarrollo y test y vienen del entorno en producción ([09](09-data-conventions.md#datos-personales-pii)). **Retención:** `Idempotency::PurgeExpiredJob` (sidekiq-cron, 03:37 UTC, cola `low`, por lotes de 1 000, de todas las organizaciones vía `Idempotency::CrossTenant`) borra las claves vencidas.
 - Requiere un contexto de tenancy abierto y, si la acción es autenticada, `Current.principal`. Sin contexto lanza `Idempotency::MissingContext` (bug, `500`).
-- **Contrato:** `components.parameters.IdempotencyKey` / `IdempotencyKeyRequired` y `components.responses.IdempotencyKeyReused` / `IdempotencyKeyInvalid` (en `spec/swagger_helper.rb`); cada endpoint idempotente los referencia con `$ref` (los endpoints de creación llegan en M1; hoy no hay ninguno real, y el concern se prueba con una sonda que crea empresas: `spec/support/idempotency_probes.rb`).
-- **Pendiente:** purga masiva de filas vencidas (el índice `expires_at` ya existe); `reminder_dispatches` con clave única (ADR-0022) llega con notificaciones.
+- **Contrato:** `components.parameters.IdempotencyKey` / `IdempotencyKeyRequired`, `components.headers.IdempotencyReplayed` y `components.responses.IdempotencyKeyReused` / `IdempotencyKeyInvalid` / `IdempotencyRequestInProgress` (en `spec/swagger_helper.rb`); cada endpoint idempotente los referencia con `$ref` (los endpoints de creación llegan en M1; hoy no hay ninguno real, y el concern se prueba con una sonda que crea empresas: `spec/support/idempotency_probes.rb`).
+- **Pendiente:** `reminder_dispatches` con clave única (ADR-0022) llega con notificaciones.
 
 ## Generación del contrato y del cliente TypeScript
 

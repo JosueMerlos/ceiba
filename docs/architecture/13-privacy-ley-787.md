@@ -78,6 +78,15 @@ Cada solicitud queda registrada (`data_subject_requests`) con la fecha de recepc
 
 - Pendiente de definición legal (P2): si un menor puede ser cliente (pediatría, cortes infantiles), el consentimiento lo otorga el tutor. Modelo propuesto: `customers.guardian_customer_id`. No entra al MVP; se revisa con el abogado antes de F5.
 
+## Auditoría y datos personales
+
+> Implementado en M0.11. Detalle técnico: [11](11-security.md#auditoría-append-only-m011).
+
+- La auditoría es **append-only**: lo que entra no sale desde la aplicación, así que el cumplimiento se decide **antes de escribir**. La **PII auditable debe ir cifrada** (`encrypts`, y el diff la guarda como `[FILTERED]`) **o auditarse por id** (se registra que *este* registro cambió, no el valor personal). Un campo libre con datos personales en `before`/`after`/`metadata` no se enmascara solo.
+- El derecho de supresión (anonimización del cliente) **no reescribe** la auditoría: por eso nunca debe contener el dato personal en claro.
+- `auth_audit_events` guarda IP y user agent (datos personales) y un seudónimo HMAC del correo en login fallido. **Pendiente (M4.x):** política de retención (propuesta de 12 meses) y su procedimiento privilegiado de purga; ver [11](11-security.md#auditoría-append-only-m011).
+- `idempotency_keys.response_body` es una respuesta de negocio: va cifrada y se purga a las 24 h.
+
 ## Checklist antes de los pilotos
 
 - [ ] Revisión legal del aviso de privacidad y del acuerdo de tratamiento de datos.

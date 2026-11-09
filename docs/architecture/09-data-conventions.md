@@ -115,7 +115,8 @@ La condición de la política difiere en un detalle de la del doc 03: usa `NULLI
 ## Datos personales (PII)
 
 - **Active Record Encryption** para PII sensible del cliente final: teléfono y correo con cifrado **determinista** (permite buscar por igualdad), y notas con cifrado no determinista.
-- Claves de cifrado en Rails credentials / Kamal secrets, con un runbook de rotación.
+- **Claves (M0.11, `config/initializers/active_record_encryption.rb`):** nunca en el repositorio. En desarrollo y test se **derivan de `secret_key_base`** con `key_generator` (como el token CSRF); en producción y staging vienen del entorno (`AR_ENCRYPTION_PRIMARY_KEY`, `AR_ENCRYPTION_DETERMINISTIC_KEY`, `AR_ENCRYPTION_KEY_DERIVATION_SALT`; `bin/rails db:encryption:init` genera valores) y, si faltan, `encrypts` **falla cerrado** al usarse. Hoy cifra `idempotency_keys.response_body`. Con estas claves, cambiar `secret_key_base` en desarrollo hace ilegibles los datos cifrados de esa base (irrelevante en dev). Pendiente (M4.04): runbook de rotación (`previous` keys) y alta de las variables en el despliegue.
+- **Auditoría y PII:** `audit_events.before/after` enmascara por nombre y por `encrypts`, pero NO puede adivinar que un campo libre contiene un dato personal. La PII auditable debe ir **cifrada** (`encrypts`, y entonces sale `[FILTERED]`) o **auditarse por id** (el sujeto es el registro; el valor no se copia al diff). Ver [11](11-security.md#auditoría-append-only-m011).
 - `filter_parameters` cubre teléfono, correo, token y contraseña: no aparecen en los logs.
 - Los datos de salud **no** viven en `appointments`: las notas de la cita son operativas ("llega 5 min tarde"), no clínicas.
 
