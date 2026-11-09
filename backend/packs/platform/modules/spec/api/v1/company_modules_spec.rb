@@ -2,6 +2,8 @@ require "swagger_helper"
 
 # Activar/desactivar un módulo de una empresa y escribir sus settings (M0.09). Exige `platform.company_module.manage` (org_owner y
 # org_admin, matriz de 04). Criterio 6: settings inválidos => 422 con el detalle por campo. La UI llega con M4.01.
+# rswag exige que el `let` se llame igual que el parámetro de cabecera (`X-CSRF-Token`).
+# rubocop:disable RSpec/VariableName, RSpec/VariableDefinition, RSpec/MultipleMemoizedHelpers
 RSpec.describe "API v1: módulos de una empresa" do
   include_context "con el módulo sample sincronizado"
 
@@ -10,6 +12,8 @@ RSpec.describe "API v1: módulos de una empresa" do
   let(:company_id) { world.company_a.id }
   let(:key) { "sample" }
   let(:admin) { user_with_role("org_admin", world) }
+  # rswag exige que el `let` se llame igual que el parámetro de cabecera.
+  let("X-CSRF-Token") { signed_in.csrf_token }
 
   def enable_sample = with_tenant(world.organization) { Modules::Enable.call(company: world.company_a, key: "sample") }
 
@@ -25,6 +29,7 @@ RSpec.describe "API v1: módulos de una empresa" do
       consumes "application/json"
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
+      parameter name: "X-CSRF-Token", in: :header, type: :string, required: true, description: "`csrf_token` de la sesión (login o GET /auth/session)"
       parameter name: :body, in: :body, required: true, schema: { type: :object, required: %w[enabled], additionalProperties: false, properties: { enabled: { type: :boolean } } }
 
       response "200", "el estado del módulo tras la llamada" do
@@ -58,6 +63,7 @@ RSpec.describe "API v1: módulos de una empresa" do
       end
 
       response "401", "sin sesión válida" do
+        let("X-CSRF-Token") { "sin-sesion" }
         let(:body) { { enabled: true } }
 
         schema "$ref" => "#/components/schemas/Problem"
@@ -103,14 +109,13 @@ RSpec.describe "API v1: módulos de una empresa" do
 
     patch "Cambia los settings del módulo (empresa o sucursal)" do
       tags "Módulos"
-      description "Cambia SOLO las claves enviadas (un valor `null` quita el override). Sin `branch_id` escribe a nivel empresa; con " \
-                  "`?branch_id=` (de esa empresa), a nivel sucursal y solo en claves que el esquema permite ahí. Cada valor se valida " \
-                  "contra el JSON Schema del módulo: un valor inválido da 422 con el detalle por campo. Exige el módulo activo y " \
+      description "Cambia SOLO las claves enviadas (un valor `null` quita el override), a nivel empresa. Cada valor se valida contra el " \
+                  "JSON Schema del módulo: un valor inválido da 422 con el detalle por campo. Exige el módulo activo y " \
                   "`platform.company_module.manage`."
       consumes "application/json"
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
-      parameter name: :branch_id, in: :query, schema: { type: :string, format: :uuid }, required: false
+      parameter name: "X-CSRF-Token", in: :header, type: :string, required: true, description: "`csrf_token` de la sesión (login o GET /auth/session)"
       parameter name: :body, in: :body, required: true, schema: { type: :object, required: %w[settings], additionalProperties: false, properties: { settings: { type: :object } } }
 
       response "200", "los settings resueltos de ese nivel" do
@@ -122,17 +127,8 @@ RSpec.describe "API v1: módulos de una empresa" do
         run_test! { |response| expect(response.parsed_body["data"]).to include("key" => "sample", "settings" => include("max_advance_days" => 30, "min_lead_time_minutes" => 120)) }
       end
 
-      response "200", "a nivel sucursal (criterio 5)" do
-        let!(:signed_in) { sign_in(admin).tap { enable_sample } }
-        let(:branch_id) { world.branch_a1.id }
-        let(:body) { { settings: { min_lead_time_minutes: 60 } } }
-
-        schema "$ref" => "#/components/schemas/ModuleSettings"
-
-        run_test! { |response| expect(response.parsed_body.dig("data", "settings", "min_lead_time_minutes")).to eq(60) }
-      end
-
       response "401", "sin sesión válida" do
+        let("X-CSRF-Token") { "sin-sesion" }
         let(:body) { { settings: {} } }
 
         schema "$ref" => "#/components/schemas/Problem"
@@ -147,16 +143,6 @@ RSpec.describe "API v1: módulos de una empresa" do
         schema "$ref" => "#/components/schemas/Problem"
 
         run_test! { |response| expect(response.parsed_body["code"]).to eq("access.forbidden") }
-      end
-
-      response "404", "la sucursal no es de la empresa o no existe" do
-        let!(:signed_in) { sign_in(admin).tap { enable_sample } }
-        let(:branch_id) { world.branch_b1.id }
-        let(:body) { { settings: { max_advance_days: 30 } } }
-
-        schema "$ref" => "#/components/schemas/Problem"
-
-        run_test! { |response| expect(response.parsed_body["code"]).to eq("resource.not_found") }
       end
 
       response "409", "el módulo no está activo en la empresa (`modules.not_enabled`)" do
@@ -182,10 +168,60 @@ RSpec.describe "API v1: módulos de una empresa" do
           )
         end
       end
+    end
+  end
 
-      response "422", "una clave que el esquema solo permite a nivel empresa, escrita en una sucursal" do
+  path "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/modules/{key}/settings" do
+    parameter name: :organization_id, in: :path, schema: { type: :string, format: :uuid }, required: true
+    parameter name: :company_id, in: :path, schema: { type: :string, format: :uuid }, required: true
+    parameter name: :branch_id, in: :path, schema: { type: :string, format: :uuid }, required: true
+    parameter name: :key, in: :path, schema: { type: :string }, required: true
+
+    patch "Cambia los settings del módulo a nivel sucursal" do
+      tags "Módulos"
+      description "Igual que a nivel empresa, pero solo para las claves que el esquema permite sobrescribir en una sucursal; las demás dan 422 " \
+                  "(`not_allowed_at_level`). La sucursal debe ser de la empresa de la ruta y visible para el usuario (404 si no)."
+      consumes "application/json"
+      produces "application/json", "application/problem+json"
+      security [ { cookieAuth: [] } ]
+      parameter name: "X-CSRF-Token", in: :header, type: :string, required: true, description: "`csrf_token` de la sesión (login o GET /auth/session)"
+      parameter name: :body, in: :body, required: true, schema: { type: :object, required: %w[settings], additionalProperties: false, properties: { settings: { type: :object } } }
+
+      let(:branch_id) { world.branch_a1.id }
+
+      response "200", "los settings resueltos de la sucursal (criterio 5)" do
         let!(:signed_in) { sign_in(admin).tap { enable_sample } }
-        let(:branch_id) { world.branch_a1.id }
+        let(:body) { { settings: { min_lead_time_minutes: 60 } } }
+
+        schema "$ref" => "#/components/schemas/ModuleSettings"
+
+        run_test! do |response|
+          expect(response.parsed_body.dig("data", "settings", "min_lead_time_minutes")).to eq(60)
+          expect(with_tenant(world.organization) { Modules.settings_for("sample", company: world.company_a)["min_lead_time_minutes"] }).to eq(120)
+        end
+      end
+
+      response "403", "sin `platform.company_module.manage` en la sucursal" do
+        let!(:signed_in) { sign_in(user_with_role("branch_manager", world, branch: world.branch_a1)).tap { enable_sample } }
+        let(:body) { { settings: { min_lead_time_minutes: 60 } } }
+
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("access.forbidden") }
+      end
+
+      response "404", "la sucursal no es de la empresa o no existe" do
+        let!(:signed_in) { sign_in(admin).tap { enable_sample } }
+        let(:branch_id) { world.branch_b1.id }
+        let(:body) { { settings: { min_lead_time_minutes: 60 } } }
+
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("resource.not_found") }
+      end
+
+      response "422", "una clave que el esquema solo permite a nivel empresa" do
+        let!(:signed_in) { sign_in(admin).tap { enable_sample } }
         let(:body) { { settings: { cancellation_window_hours: 2 } } }
 
         schema "$ref" => "#/components/schemas/ValidationProblem"
@@ -195,3 +231,4 @@ RSpec.describe "API v1: módulos de una empresa" do
     end
   end
 end
+# rubocop:enable RSpec/VariableName, RSpec/VariableDefinition, RSpec/MultipleMemoizedHelpers

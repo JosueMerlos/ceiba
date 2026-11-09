@@ -276,6 +276,46 @@ components:
       required:
       - data
       type: object
+    ModuleActivation:
+      additionalProperties: false
+      properties:
+        data:
+          additionalProperties: false
+          properties:
+            changed:
+              description: false si la llamada fue una repetición
+              type: boolean
+            enabled:
+              type: boolean
+            key:
+              type: string
+          required:
+          - key
+          - enabled
+          - changed
+          type: object
+      required:
+      - data
+      type: object
+    ModuleSettings:
+      additionalProperties: false
+      properties:
+        data:
+          additionalProperties: false
+          properties:
+            key:
+              type: string
+            settings:
+              additionalProperties: true
+              description: Settings resueltos del nivel escrito (default -> empresa -> sucursal)
+              type: object
+          required:
+          - key
+          - settings
+          type: object
+      required:
+      - data
+      type: object
     Organization:
       additionalProperties: false
       description: 'Organización: el tenant (ADR-0003)'
@@ -892,6 +932,82 @@ paths:
       schema:
         format: uuid
         type: string
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/modules/{key}/settings":
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: key
+      required: true
+      schema:
+        type: string
+    patch:
+      description: Igual que a nivel empresa, pero solo para las claves que el esquema permite sobrescribir en una sucursal; las demás dan 422 (`not_allowed_at_level`). La sucursal debe ser de la empresa de la ruta y visible para el usuario (404 si no).
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                settings:
+                  type: object
+              required:
+              - settings
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ModuleSettings"
+          description: los settings resueltos de la sucursal (criterio 5)
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin `platform.company_module.manage` en la sucursal
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: la sucursal no es de la empresa o no existe
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: una clave que el esquema solo permite a nivel empresa
+      security:
+      - cookieAuth: []
+      summary: Cambia los settings del módulo a nivel sucursal
+      tags:
+      - Módulos
   "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{id}":
     get:
       description: Exige `platform.branch.read`. Una sucursal fuera del alcance del usuario (p. ej. la hermana de la suya) responde 404.
@@ -951,6 +1067,165 @@ paths:
       schema:
         format: uuid
         type: string
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/modules/{key}":
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: Key estable del módulo (p. ej. appointments)
+      in: path
+      name: key
+      required: true
+      schema:
+        type: string
+    put:
+      description: 'Idempotente: repetir no cambia nada (`changed: false`). Activar exige que los módulos de `requires` estén activos; desactivar no borra datos y no deja si otro módulo activo lo requiere. Exige `platform.company_module.manage`.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                enabled:
+                  type: boolean
+              required:
+              - enabled
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ModuleActivation"
+          description: desactivar (y repetir no cambia nada)
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: falta `enabled`
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin `platform.company_module.manage` (p. ej. company_manager)
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: módulo inexistente (`modules.unknown_module`) o empresa no visible
+        '409':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: faltan módulos requeridos (`modules.requirements_not_met`) o lo requiere otro activo (`modules.required_by_others`)
+      security:
+      - cookieAuth: []
+      summary: Activa o desactiva un módulo en la empresa
+      tags:
+      - Módulos
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/modules/{key}/settings":
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: key
+      required: true
+      schema:
+        type: string
+    patch:
+      description: 'Cambia SOLO las claves enviadas (un valor `null` quita el override), a nivel empresa. Cada valor se valida contra el JSON Schema del módulo: un valor inválido da 422 con el detalle por campo. Exige el módulo activo y `platform.company_module.manage`.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                settings:
+                  type: object
+              required:
+              - settings
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ModuleSettings"
+          description: los settings resueltos de ese nivel
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin `platform.company_module.manage`
+        '409':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el módulo no está activo en la empresa (`modules.not_enabled`)
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: 'criterio 6: valores inválidos según el esquema, con el detalle por campo'
+      security:
+      - cookieAuth: []
+      summary: Cambia los settings del módulo (empresa o sucursal)
+      tags:
+      - Módulos
   "/api/v1/organizations/{organization_id}/companies/{id}":
     get:
       description: Exige `platform.company.read`. Una empresa fuera del alcance de los memberships del usuario responde 404.

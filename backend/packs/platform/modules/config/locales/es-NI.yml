@@ -1,4 +1,13 @@
 es-NI:
+  api:
+    errors:
+      modules:
+        unknown_module: "El módulo no existe"
+        not_entitled: "El plan contratado no incluye el módulo"
+        requirements_not_met: "Faltan módulos requeridos"
+        required_by_others: "Otros módulos activos dependen de este"
+        not_enabled: "El módulo no está activo en la empresa"
+        invalid_settings: "Los ajustes del módulo no son válidos"
   modules:
     settings_errors:
       invalid: "no es válido"
