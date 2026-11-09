@@ -27,19 +27,73 @@ RSpec.describe Audit::Diff do
     expect(diff(before: { name: "A" }, after: { name: "B" })).to eq(before: { "name" => "A" }, after: { "name" => "B" })
   end
 
+  # Mismo criterio que filter_parameters de la aplicación (passw, email, secret, token, _key, crypt, salt, certificate, otp,
+  # ssn, cvv, cvc) más digest, csrf y ciphertext. El valor sale como [FILTERED] y la CLAVE se conserva: que cambió una
+  # contraseña es un hecho auditable; cuál era, no.
   describe "campos sensibles" do
-    %w[password password_digest password_confirmation token token_digest session_token csrf_token secret client_secret otp_secret api_key_digest].each do |field|
-      it "excluye #{field} por completo (ni la clave ni el valor)" do
-        result = diff(before: { field => "viejo", "name" => "A" }, after: { field => "nuevo", "name" => "B" })
+    %w[password password_digest password_confirmation token token_digest session_token csrf_token secret client_secret otp_secret api_key
+       api_key_digest private_key encryption_salt tls_certificate card_cvv ssn email name_ciphertext].each do |field|
+      it "enmascara #{field} (antes y después), sin revelar ningún valor" do
+        result = diff(before: { field => "valor-viejo", "name" => "A" }, after: { field => "valor-nuevo", "name" => "B" })
 
-        expect(result.to_json).not_to include(field)
-        expect(result.to_json).not_to include("viejo")
-        expect(result.to_json).not_to include("nuevo")
+        expect(result).to eq(before: { field => "[FILTERED]", "name" => "A" }, after: { field => "[FILTERED]", "name" => "B" })
       end
     end
 
-    it "excluye los sensibles también en una creación" do
-      expect(diff(before: nil, after: { "email" => "a@b.test", "password_digest" => "$2a$secreto" })).to eq(before: nil, after: { "email" => "a@b.test" })
+    it "en una creación también enmascara los sensibles" do
+      expect(diff(before: nil, after: { "full_name" => "Ana", "password_digest" => "$2a$secreto" }))
+        .to eq(before: nil, after: { "full_name" => "Ana", "password_digest" => "[FILTERED]" })
+    end
+
+    it "un sensible que NO cambió no aparece" do
+      result = diff(before: { "token" => "t", "name" => "A" }, after: { "token" => "t", "name" => "B" })
+
+      expect(result).to eq(before: { "name" => "A" }, after: { "name" => "B" })
+    end
+
+    it "nunca deja un valor sensible en el JSON resultante" do
+      result = diff(before: { "password" => "viejo-1" }, after: { "password" => "nuevo-2" })
+
+      expect(result.to_json).not_to match(/viejo-1|nuevo-2/)
+    end
+  end
+
+  describe "estructuras anidadas (jsonb)" do
+    it "enmascara los sensibles dentro de hashes anidados, conservando el resto" do
+      before = { "settings" => { "whatsapp_token" => "tok-viejo", "language" => "es", "sms" => { "api_key" => "k-1", "sender" => "Ceiba" } } }
+      after = { "settings" => { "whatsapp_token" => "tok-nuevo", "language" => "en", "sms" => { "api_key" => "k-2", "sender" => "Ceiba" } } }
+
+      result = diff(before:, after:)
+
+      expect(result[:after]).to eq("settings" => { "whatsapp_token" => "[FILTERED]", "language" => "en", "sms" => { "api_key" => "[FILTERED]", "sender" => "Ceiba" } })
+      expect(result.to_json).not_to match(/tok-viejo|tok-nuevo|k-1|k-2/)
+    end
+
+    it "enmascara los sensibles dentro de arrays de hashes" do
+      after = { "channels" => [ { "kind" => "sms", "secret" => "s-1" }, { "kind" => "wa", "token" => "t-1" } ] }
+
+      result = diff(before: nil, after:)
+
+      expect(result[:after]).to eq("channels" => [ { "kind" => "sms", "secret" => "[FILTERED]" }, { "kind" => "wa", "token" => "[FILTERED]" } ])
+    end
+
+    it "acepta claves simbólicas anidadas" do
+      result = diff(before: nil, after: { config: { token: "t-1", mode: "x" } })
+
+      expect(result[:after]).to eq("config" => { "token" => "[FILTERED]", "mode" => "x" })
+    end
+
+    it "un cambio SOLO en un secreto anidado deja la clave de primer nivel, con el secreto enmascarado" do
+      result = diff(before: { "settings" => { "token" => "a" } }, after: { "settings" => { "token" => "b" } })
+
+      expect(result).to eq(before: { "settings" => { "token" => "[FILTERED]" } }, after: { "settings" => { "token" => "[FILTERED]" } })
+    end
+
+    it "no modifica los hashes que recibe" do
+      after = { "settings" => { "token" => "t" } }
+      diff(before: nil, after:)
+
+      expect(after).to eq("settings" => { "token" => "t" })
     end
   end
 

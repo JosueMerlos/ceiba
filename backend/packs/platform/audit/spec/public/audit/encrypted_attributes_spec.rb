@@ -36,11 +36,11 @@ RSpec.describe "Audit.record con atributos cifrados (criterio 5)" do
     end
   end
 
-  it "cualquier campo sensible por nombre queda fuera aunque el modelo no lo declare" do
+  it "cualquier campo sensible por nombre queda enmascarado aunque el modelo no lo declare, también anidado" do
     with_tenant(organization) do
-      Audit.record(action: "x.updated", subject: organization, before: { "password_digest" => "a" }, after: { "password_digest" => "b" })
+      Audit.record(action: "x.updated", subject: organization, before: { "settings" => { "whatsapp_token" => "a" } }, after: { "settings" => { "whatsapp_token" => "b" } })
     end
 
-    with_tenant(organization) { expect(Audit::Event.last).to have_attributes(before: {}, after: {}) }
+    with_tenant(organization) { expect(Audit::Event.last.after).to eq("settings" => { "whatsapp_token" => "[FILTERED]" }) }
   end
 end
