@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/react";
+import type { ErrorEvent } from "@sentry/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { initSentry, scrubEvent } from "./sentry";
 
@@ -31,7 +32,13 @@ describe("initSentry", () => {
         dsn: "https://k@sentry.example/1",
         environment: "staging",
         release: "ceiba@abc1234",
-        sendDefaultPii: false,
+        dataCollection: expect.objectContaining({
+          userInfo: false,
+          cookies: false,
+          httpHeaders: false,
+          httpBodies: [],
+          urlQueryParams: false,
+        }),
         beforeSend: scrubEvent,
       }),
     );
@@ -40,26 +47,40 @@ describe("initSentry", () => {
   test("el entorno por defecto es el modo de Vite", () => {
     initSentry({ MODE: "production", VITE_SENTRY_DSN: "https://k@sentry.example/1" });
 
-    expect(Sentry.init).toHaveBeenCalledWith(expect.objectContaining({ environment: "production" }));
+    expect(Sentry.init).toHaveBeenCalledWith(
+      expect.objectContaining({ environment: "production" }),
+    );
   });
 });
 
+const errorEvent = (partial: Partial<ErrorEvent>) =>
+  ({ type: undefined, ...partial }) as ErrorEvent;
+
 describe("scrubEvent", () => {
   test("quita correos de mensajes y excepciones", () => {
-    const event = scrubEvent({
-      message: "falló para ana@ceiba.test",
-      exception: { values: [{ type: "Error", value: "no existe otra@ceiba.test" }] },
-    });
+    const event = scrubEvent(
+      errorEvent({
+        message: "falló para ana@ceiba.test",
+        exception: { values: [{ type: "Error", value: "no existe otra@ceiba.test" }] },
+      }),
+    );
 
     expect(JSON.stringify(event)).not.toMatch(/@ceiba\.test/);
     expect(event.message).toBe("falló para [email]");
   });
 
   test("descarta usuario, cookies, cabeceras y query string de la request", () => {
-    const event = scrubEvent({
-      user: { email: "ana@ceiba.test", ip_address: "1.2.3.4" },
-      request: { url: "https://app.example/x?token=abc", query_string: "token=abc", cookies: { s: "1" }, headers: { Cookie: "s=1" } },
-    });
+    const event = scrubEvent(
+      errorEvent({
+        user: { email: "ana@ceiba.test", ip_address: "1.2.3.4" },
+        request: {
+          url: "https://app.example/x?token=abc",
+          query_string: "token=abc",
+          cookies: { s: "1" },
+          headers: { Cookie: "s=1" },
+        },
+      }),
+    );
 
     expect(event.user).toBeUndefined();
     expect(event.request).toEqual({ url: "https://app.example/x" });
