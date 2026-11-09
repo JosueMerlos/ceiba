@@ -13,6 +13,10 @@ es-NI:
       request:
         invalid: "La solicitud no es válida"
         bad_request: "La solicitud no es válida"
+        method_not_allowed: "Método HTTP no permitido"
+        not_acceptable: "Tipo de contenido no aceptable"
+        unknown_format: "Formato no soportado"
+        not_implemented: "No implementado"
         malformed: "El cuerpo de la solicitud está mal formado"
       pagination:
         invalid_cursor: "El cursor de paginación no es válido"

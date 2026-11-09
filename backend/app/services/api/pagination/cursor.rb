@@ -7,8 +7,11 @@ module Api
     #   page.meta      # { next_cursor:, has_more: }
     #
     # Por qué es estable: el UUIDv7 lleva el instante de creación en sus primeros bits, así que ordenar por id es
-    # ordenar por creación. Una fila insertada entre dos páginas tiene un id MAYOR que todas las ya entregadas: aparece
-    # al final del recorrido y nunca desplaza lo que ya se vio (con OFFSET, una inserción duplica u omite filas).
+    # ordenar por creación. Una fila ya confirmada ANTES de empezar el recorrido no se duplica ni se omite aunque se
+    # inserten otras entre páginas (con OFFSET, una inserción desplazaría filas). Límite conocido: el id se genera en el
+    # INSERT, no en el COMMIT, y el uuidv7() de PostgreSQL solo es monótono dentro de una sesión; una fila INSERTADA
+    # CONCURRENTEMENTE (o con un id explícito) puede quedar con un id menor que el cursor y no aparecer en ese recorrido.
+    # Aparecerá en el siguiente. Es la garantía de un listado, no la de un log de eventos.
     #
     # El cursor es `{ id }` FIRMADO (MessageVerifier, propósito propio, URL-safe): el cliente no puede fabricar uno ni
     # alterarlo, y no debe interpretarlo. Se piden `limit + 1` filas para saber si hay más sin contar.

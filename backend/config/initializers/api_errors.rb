@@ -17,6 +17,11 @@ Rails.application.config.to_prepare do
     errors: ->(error) { [ { field: error.param.to_s, code: "missing", message: I18n.t("errors.messages.blank") } ] })
   registry.register(Api::Pagination::InvalidCursor, status: :bad_request, code: "pagination.invalid_cursor")
   registry.register(Api::Pagination::InvalidLimit, status: :bad_request, code: "pagination.invalid_limit")
+  # Errores de cliente que Rails ya clasifica: se registran para darles un code propio (el resto sale como http.<status>).
+  registry.register(ActionController::UnknownHttpMethod, status: :method_not_allowed, code: "request.method_not_allowed")
+  registry.register(ActionDispatch::Http::MimeNegotiation::InvalidType, status: :not_acceptable, code: "request.not_acceptable")
+  registry.register(ActionController::UnknownFormat, status: :not_acceptable, code: "request.unknown_format")
+  registry.register(ActionController::NotImplemented, status: :not_implemented, code: "request.not_implemented")
   registry.register(ActionController::BadRequest, status: :bad_request, code: "request.bad_request")
   registry.register(ActionDispatch::Http::Parameters::ParseError, status: :bad_request, code: "request.malformed")
 end

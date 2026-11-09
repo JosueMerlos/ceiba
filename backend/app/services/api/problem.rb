@@ -9,12 +9,17 @@ module Api
 
     attr_reader :status, :code
 
-    # Convierte una excepción en problema. Sin registro es un bug: 500 genérico, sin mensaje ni detalles.
+    # Convierte una excepción en problema. Sin registro se consulta cómo la clasifica Rails: un status de cliente
+    # (< 500: método desconocido, token inválido...) sale con ese status y `code: "http.<status>"`; cualquier otra cosa es
+    # un bug: 500 genérico, sin mensaje ni detalles.
     def self.from_exception(exception, request:)
       resolved = ErrorRegistry.resolve(exception)
-      return internal(request:) unless resolved
+      return new(**resolved.to_h, request:) if resolved
 
-      new(**resolved.to_h, request:)
+      status = ActionDispatch::ExceptionWrapper.status_code_for_exception(exception.class.name)
+      return internal(request:) if status >= 500
+
+      new(status:, code: "http.#{status}", request:)
     end
 
     def self.internal(request:)
@@ -30,6 +35,9 @@ module Api
       @instance = request.path
       @request_id = request.request_id
     end
+
+    # Solo un 500 genérico es un bug a investigar; un 4xx (o un 501 registrado) es del cliente y no se reporta.
+    def internal? = code == INTERNAL_CODE
 
     def title = @title || I18n.t(code, scope: "api.errors", default: Rack::Utils::HTTP_STATUS_CODES.fetch(status))
 

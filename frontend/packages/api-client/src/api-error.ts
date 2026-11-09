@@ -9,8 +9,9 @@ export type FieldError = components["schemas"]["FieldError"];
  * Error de la API traducido desde un problem+json (RFC 9457). El frontend decide qué hacer por `status` y `code`
  * (estable y traducible con i18n), nunca por `message`: ver docs/architecture/08-frontend.md ("Errores").
  *
- * Una respuesta que NO es problem+json (un 502 del proxy, un corte de red a medias) también termina aquí, con
- * `code: "http.<status>"`, para que quien captura trate un único tipo de error.
+ * Una respuesta HTTP que NO es problem+json (un 502 del proxy, una página HTML) también termina aquí, con
+ * `code: "http.<status>"`. Un fallo de red (sin respuesta HTTP) NO: `fetch` rechaza con un `TypeError` que se propaga tal
+ * cual; quien captura distingue `isApiError(error)` (el servidor respondió) de un error de red.
  */
 export class ApiError extends Error {
   override readonly name = "ApiError";

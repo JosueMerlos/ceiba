@@ -12,7 +12,7 @@ module Api
 
     def render_problem(exception)
       problem = Problem.from_exception(exception, request:)
-      report(exception, problem) if problem.status >= 500
+      report(exception, problem) if problem.internal?
       render json: problem.to_h, status: problem.status, content_type: Problem::MEDIA_TYPE
     end
 

@@ -97,13 +97,16 @@
 | `internal.error` | 500 | Cualquier excepción sin registrar |
 
 - **`Tenancy::TenantMismatch` y `Tenancy::TenantIsImmutable` no se registran a propósito:** solo se lanzan si el servidor intentó escribir en otro tenant, es decir, ante un **bug**. Responden `500 internal.error` genérico y el detalle va al log. Si algún día una regla de negocio los lanzara de forma legítima, se registran con su status.
+- **Errores de cliente no registrados:** si Rails ya clasifica la excepción con un status < 500 (método HTTP desconocido, token inválido...), se responde ese status con `code: "http.<status>"` y **no** se reporta como bug; están registrados con code propio `request.method_not_allowed` (405), `request.not_acceptable` (406), `request.unknown_format` (406) y `request.not_implemented` (501). Solo `internal.error` se reporta. Fuera de `/api`, `exceptions_app` delega en Rails con el `env` intacto.
 - **Un 500 nunca lleva stacktrace ni detalles internos, tampoco en desarrollo:** el cuerpo es `{ type, title, status, code, instance, request_id }` y nada más. El detalle real (clase, mensaje, backtrace limpio) va a `Rails.logger.error` y a `Rails.error.report` (donde se enganchará el servicio de errores), etiquetado con el `request_id`; quien depura busca ese id en el log. Para que valga también en desarrollo y test, `consider_all_requests_local = false` en esos entornos (sin la página de depuración de Rails, que mostraría el trace como JSON).
 
 ## Paginación por cursor (M0.06)
 
 `Api::Pagination::Cursor.paginate(scope, limit:, after:)` → `{ records, next_cursor, has_more }`; en un controlador, `render_page(scope, serializer: XSerializer)` responde `{ "data": [...], "page": { "next_cursor": "…", "has_more": true } }`.
 
-- **Orden = clave primaria ascendente.** El UUIDv7 lleva el instante de creación en sus primeros bits ([09](09-data-conventions.md)), así que ordenar por id es ordenar por creación. Una fila insertada entre dos páginas tiene un id **mayor** que todas las ya entregadas: aparece al final del recorrido y nunca desplaza lo ya visto (con `OFFSET`, una inserción duplicaría u omitiría filas). Criterio 6: 120 registros con `limit=50` → 3 páginas (50, 50, 20) sin duplicados ni omisiones, aunque se inserten registros entre páginas.
+- **Orden = clave primaria ascendente.** El UUIDv7 lleva el instante de creación en sus primeros bits ([09](09-data-conventions.md)), así que ordenar por id es ordenar por creación. Las filas **confirmadas antes de empezar el recorrido** no se duplican ni se omiten aunque se inserten otras entre páginas (con `OFFSET`, una inserción las desplazaría). Criterio 6: 120 registros con `limit=50` → 3 páginas (50, 50, 20), también con inserciones entre páginas.
+- **Límite conocido (concurrencia):** el id se genera en el `INSERT`, no en el `COMMIT`, y `uuidv7()` solo es monótono **dentro de una sesión**; además se pueden fijar ids explícitos. Una fila insertada concurrentemente puede quedar con un id menor que el cursor y no aparecer en ese recorrido (sí en el siguiente). Es la garantía de un listado, no la de un log de eventos (para eso está el outbox).
+- **Índice:** para listados de tablas tenant, `(organization_id, id)` (la paginación filtra por tenant y ordena por `id`); la PK sola obligaría a filtrar tras recorrerla. Cada hito que añada un listado lo crea con la tabla (`create_tenant_table` + índice).
 - **`has_more` sin contar:** se piden `limit + 1` filas. Con exactamente `limit` filas no hay página vacía de más.
 - **Cursor opaco y FIRMADO:** `{ id }` firmado con `ActiveSupport::MessageVerifier` (clave derivada de `secret_key_base`, propósito `cursor`, URL-safe). Un cursor manipulado, inventado o de otro propósito → `400 pagination.invalid_cursor`. Está firmado, **no cifrado**: el cliente no debe interpretarlo, pero no es un secreto.
 - **`limit`:** entero entre 1 y 100 (50 por defecto). Fuera de rango o no entero → `400 pagination.invalid_limit` (se rechaza, no se recorta en silencio).
@@ -164,7 +167,7 @@ specs de rswag (spec/api, packs/*/spec/api) ──bin/rails openapi:generate─�
 
 ## Cómo agregar un endpoint
 
-1. Controlador `Api::V1::<Pack>::XController < Api::BaseController` en el pack, con su ruta en `config/routes.rb`.
+1. Controlador `Api::V1::<Pack>::XController < Api::BaseController` en el pack, con su archivo de rutas en el pack (`packs/<capa>/<pack>/config/routes/<pack>.rb`, montado con `draw(:<pack>)` bajo `/api/v1` en `config/routes.rb`).
 2. Un serializer por representación (`Api::Serializer`); listados con `render_page`.
 3. Errores de dominio nuevos: `Api::ErrorRegistry.register` en el initializer del pack + título en su locale.
 4. Spec de rswag en `spec/api/` del pack (200 y los errores con `$ref` a `Problem`/`ValidationProblem`); esquemas nuevos en `spec/openapi_components.rb` del pack.
