@@ -15,7 +15,7 @@ RSpec.describe "Sincronización de permisos desde los manifiestos" do
 
   it "persiste las concesiones de role_grants (company_manager recibe lo que su concesión declara, professional solo lo suyo)" do
     expect(granted("company_manager")).to include("appointments.appointment.create", "appointments.service.manage")
-    expect(granted("professional")).to include("appointments.appointment.update_own").and(not_include("appointments.appointment.create"))
+    expect(granted("professional")).to include("appointments.appointment.update_own").and(satisfy { |keys| keys.exclude?("appointments.appointment.create") })
   end
 
   it "los roles de organización no reciben permisos de citas (solo conteos, matriz de 04)" do
@@ -23,7 +23,7 @@ RSpec.describe "Sincronización de permisos desde los manifiestos" do
   end
 
   it "es idempotente" do
-    expect { 2.times { Access.sync! } }.not_to change { Access::RolePermission.count }
+    expect { 2.times { Access.sync! } }.not_to change(Access::RolePermission, :count)
   end
 
   it "conserva la salvaguarda de Access.sync!: quitar un permiso de un manifiesto exige autorizar la retirada" do

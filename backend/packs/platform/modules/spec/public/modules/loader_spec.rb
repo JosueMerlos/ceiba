@@ -9,22 +9,22 @@ RSpec.describe "Carga de manifiestos" do
     File.write(path.join("manifest.rb"), body)
   end
 
-  around do |example|
-    Dir.mktmpdir { |dir| @root = Pathname(dir) and example.run }
-  end
+  let(:root) { Pathname(Dir.mktmpdir) }
+
+  after { FileUtils.remove_entry(root) }
 
   describe Modules::Loader do
     it "carga cada packs/modules/<key>/manifest.rb y devuelve el registro validado" do
-      write_manifest(@root, "alfa", %(Modules.define(:alfa, root: __dir__) { name "Alfa"; version "1.0" }))
-      write_manifest(@root, "beta", %(Modules.define(:beta, root: __dir__) { name "Beta"; version "1.0"; requires %i[alfa] }))
+      write_manifest(root, "alfa", %(Modules.define(:alfa, root: __dir__) { name "Alfa"; version "1.0" }))
+      write_manifest(root, "beta", %(Modules.define(:beta, root: __dir__) { name "Beta"; version "1.0"; requires %i[alfa] }))
 
-      registry = described_class.call(root: @root, registry: Modules::Registry.new)
+      registry = described_class.call(root: root, registry: Modules::Registry.new)
 
       expect(registry.keys).to contain_exactly("alfa", "beta")
     end
 
     it "falla con el mensaje del manifiesto inválido (así falla el arranque, criterio 1)" do
-      write_manifest(@root, "alfa", <<~RUBY)
+      write_manifest(root, "alfa", <<~RUBY)
         Modules.define(:alfa, root: __dir__) do
           name "Alfa"
           version "1.0"
@@ -32,33 +32,33 @@ RSpec.describe "Carga de manifiestos" do
         end
       RUBY
 
-      expect { described_class.call(root: @root, registry: Modules::Registry.new) }
+      expect { described_class.call(root: root, registry: Modules::Registry.new) }
         .to raise_error(Modules::InvalidManifest, /alfa.*"beta\.cosa\.leer".*debe empezar por "alfa\."/m)
     end
 
     it "falla si el manifiesto no define el módulo de su carpeta (la key es estable y coincide con el pack)" do
-      write_manifest(@root, "alfa", %(Modules.define(:otro, root: __dir__) { name "Otro"; version "1.0" }))
+      write_manifest(root, "alfa", %(Modules.define(:otro, root: __dir__) { name "Otro"; version "1.0" }))
 
-      expect { described_class.call(root: @root, registry: Modules::Registry.new) }
+      expect { described_class.call(root: root, registry: Modules::Registry.new) }
         .to raise_error(Modules::InvalidManifest, /packs\/modules\/alfa.*define "otro".*"alfa"/m)
     end
 
     it "falla si el manifiesto no define nada" do
-      write_manifest(@root, "alfa", "# vacío")
+      write_manifest(root, "alfa", "# vacío")
 
-      expect { described_class.call(root: @root, registry: Modules::Registry.new) }
+      expect { described_class.call(root: root, registry: Modules::Registry.new) }
         .to raise_error(Modules::InvalidManifest, /alfa.*no define/m)
     end
 
     it "valida los requires entre manifiestos una vez cargados todos" do
-      write_manifest(@root, "alfa", %(Modules.define(:alfa, root: __dir__) { name "Alfa"; version "1.0"; requires %i[beta] }))
-      write_manifest(@root, "beta", %(Modules.define(:beta, root: __dir__) { name "Beta"; version "1.0"; requires %i[alfa] }))
+      write_manifest(root, "alfa", %(Modules.define(:alfa, root: __dir__) { name "Alfa"; version "1.0"; requires %i[beta] }))
+      write_manifest(root, "beta", %(Modules.define(:beta, root: __dir__) { name "Beta"; version "1.0"; requires %i[alfa] }))
 
-      expect { described_class.call(root: @root, registry: Modules::Registry.new) }.to raise_error(Modules::InvalidManifest, /ciclo/)
+      expect { described_class.call(root: root, registry: Modules::Registry.new) }.to raise_error(Modules::InvalidManifest, /ciclo/)
     end
 
     it "sin packs/modules devuelve un registro vacío" do
-      expect(described_class.call(root: @root, registry: Modules::Registry.new).keys).to be_empty
+      expect(described_class.call(root: root, registry: Modules::Registry.new).keys).to be_empty
     end
   end
 

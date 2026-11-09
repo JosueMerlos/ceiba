@@ -6,7 +6,7 @@ RSpec.describe Modules::Registry do
   subject(:registry) { described_class.new }
 
   def define(key = :loyalty, **options, &block)
-    block ||= proc {}
+    block ||= proc { }
     registry.define(key, **options) do
       name "Lealtad"
       version "1.0"
@@ -119,7 +119,7 @@ RSpec.describe Modules::Registry do
     end
 
     it "exige nombre y versión" do
-      expect { registry.define(:loyalty) {} }.to raise_error(Modules::InvalidManifest, /name.*version|version.*name/m)
+      expect { registry.define(:loyalty) { } }.to raise_error(Modules::InvalidManifest, /name.*version|version.*name/m)
     end
 
     it "rechaza una concesión a un rol que no es de sistema o a un permiso que el módulo no declara" do

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Settings del módulo appointments",
+  "description": "docs/domain/appointments.md. `x-levels` limita en qué niveles se puede sobrescribir una clave; sin él valen todos los de settings_levels del manifiesto.",
+  "type": "object",
+  "properties": {
+    "min_lead_time_minutes": { "type": "integer", "minimum": 0, "default": 120, "description": "Anticipación mínima para reservar" },
+    "max_advance_days": { "type": "integer", "minimum": 1, "default": 60, "description": "Anticipación máxima para reservar" },
+    "slot_step_minutes": { "type": "integer", "minimum": 5, "maximum": 240, "default": 15, "description": "Paso entre horarios ofrecidos" },
+    "cancellation_window_hours": { "type": "integer", "minimum": 0, "default": 4, "x-levels": ["company"], "description": "Ventana en la que el cliente puede cancelar" },
+    "public_booking_enabled": { "type": "boolean", "default": true, "description": "Permite la reserva pública" },
+    "any_professional_policy": { "type": "string", "enum": ["least_busy"], "default": "least_busy", "x-levels": ["company"], "description": "Cómo se asigna \"cualquier profesional\"" },
+    "reminders": {
+      "type": "array",
+      "default": [ { "kind": "24h", "offset_minutes": 1440 }, { "kind": "2h", "offset_minutes": 120 } ],
+      "x-levels": ["company"],
+      "description": "Recordatorios a enviar antes de la cita",
+      "items": {
+        "type": "object",
+        "required": ["kind", "offset_minutes"],
+        "properties": { "kind": { "type": "string", "minLength": 1 }, "offset_minutes": { "type": "integer", "minimum": 1 } },
+        "additionalProperties": false
+      }
+    }
+  }
+}

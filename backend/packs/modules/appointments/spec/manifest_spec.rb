@@ -19,7 +19,7 @@ RSpec.describe "Manifiesto de appointments" do
   it "concede según la matriz: el personal opera citas, el profesional solo las suyas, solo company_manager gestiona servicios" do
     expect(manifest.role_grants).to include(
       "company_manager" => include("appointments.service.manage", "appointments.appointment.update"),
-      "branch_manager" => include("appointments.appointment.create").and(not_include("appointments.service.manage")),
+      "branch_manager" => include("appointments.appointment.create").and(satisfy { |keys| keys.exclude?("appointments.service.manage") }),
       "receptionist" => include("appointments.appointment.create", "appointments.service.read"),
       "professional" => contain_exactly("appointments.appointment.read", "appointments.appointment.update_own", "appointments.service.read")
     )
