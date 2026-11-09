@@ -50,7 +50,7 @@ RSpec.describe "Access.sync!" do
       slimmer = Access::PermissionRegistry.new
       slimmer.register("demo", { "demo.cosa.read" => { description: "Ver cosas (v2)", roles: %w[org_owner] } })
 
-      Access.sync!(slimmer)
+      Access.sync!(slimmer, allow_prune: true)
 
       expect(Access::Permission.exists?("demo.cosa.write")).to be(false)
       expect(keys_of("receptionist")).to be_empty
@@ -61,9 +61,59 @@ RSpec.describe "Access.sync!" do
       other = Access::PermissionRegistry.new
       other.register("otro", { "otro.cosa.read" => { description: "x", roles: %w[org_admin] } })
       Access.sync!(permission_registry)
-      Access.sync!(other)
+      Access.sync!(other, allow_prune: true)
 
       expect(Access::Permission.pluck(:key)).to contain_exactly("otro.cosa.read")
+    end
+  end
+
+  describe "red de seguridad: sync! no borra a ciegas" do
+    def sync_quietly(registry, **options) = Access.sync!(registry, **options)
+
+    it "aborta si el registro está vacío (nada declarado = un arranque que no cargó los packs, no 'borra todo')" do
+      Access.sync!(permission_registry)
+
+      expect { sync_quietly(Access::PermissionRegistry.new) }.to raise_error(Access::SyncRefused, /vacío/)
+      expect(Access::Permission.exists?("demo.cosa.read")).to be(true)
+    end
+
+    it "aborta, sin cambiar nada, si retiraría permisos o concesiones y no se autorizó" do
+      Access.sync!(permission_registry)
+      slimmer = Access::PermissionRegistry.new
+      slimmer.register("demo", { "demo.cosa.read" => { description: "Ver", roles: %w[org_owner] } })
+
+      expect { sync_quietly(slimmer) }.to raise_error(Access::SyncRefused, /demo\.cosa\.write.*ACCESS_SYNC_ALLOW_PRUNE/m)
+      expect(Access::Permission.exists?("demo.cosa.write")).to be(true)
+      expect(keys_of("receptionist")).to eq([ "demo.cosa.read" ])
+    end
+
+    it "retira con allow_prune: true o con ACCESS_SYNC_ALLOW_PRUNE=1" do
+      Access.sync!(permission_registry)
+      slimmer = Access::PermissionRegistry.new
+      slimmer.register("demo", { "demo.cosa.read" => { description: "Ver", roles: %w[org_owner] } })
+
+      stub_const("ENV", ENV.to_hash.merge("ACCESS_SYNC_ALLOW_PRUNE" => "1"))
+      sync_quietly(slimmer)
+
+      expect(Access::Permission.exists?("demo.cosa.write")).to be(false)
+    end
+
+    it "una sincronización que solo AÑADE no necesita autorización" do
+      Access.sync!(permission_registry)
+      bigger = Access::PermissionRegistry.new
+      bigger.register("demo", permission_registry.definitions.to_h { |d| [ d.key, { description: d.description, roles: d.roles } ] }
+        .merge("demo.cosa.nueva" => { description: "Nueva", roles: %w[org_owner] }))
+
+      expect { sync_quietly(bigger) }.not_to raise_error
+    end
+
+    it "toma un candado consultivo de transacción (dos despliegues simultáneos no se pisan)" do
+      statements = []
+      callback = ->(*, payload) { statements << payload[:sql] }
+
+      ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { Access.sync!(permission_registry) }
+
+      expect(statements).to include(a_string_matching(/pg_advisory_xact_lock/))
     end
   end
 

@@ -16,6 +16,13 @@ RSpec.describe "tarea access:sync" do
     end
   end
 
+  it "db:prepare también encadena access:sync (db:prepare no invoca db:migrate)" do
+    output, status = run("runner", 'Rails.application.load_tasks; puts Rake::Task["db:prepare"].actions.size')
+    expect(status).to be_success, output
+
+    expect(output.lines.last.to_i).to be >= 2
+  end
+
   it "db:migrate encadena access:sync" do
     output, status = run("runner", 'Rails.application.load_tasks; puts Rake::Task["db:migrate"].actions.size')
     expect(status).to be_success, output
