@@ -6,6 +6,7 @@ module Api
   class BaseController < ApplicationController
     include ErrorHandling
     include Authentication
+    include Access::Authorization
     include Paginated
   end
 end

@@ -47,12 +47,7 @@ RSpec.describe "db/seeds.rb" do
       app.run!("bin/rails", "db:seed")
 
       expect(users_report.call).to eq(first)
-      expect(JSON.parse(first)).to eq(
-        [
-          [ "luis@salud-estilo.ceiba.test", "Luis Ortega" ],
-          [ "rosa@barberia-guegu.ceiba.test", "Rosa Mendoza" ]
-        ]
-      )
+      expect(JSON.parse(first).map(&:first)).to include("luis@salud-estilo.ceiba.test", "rosa@barberia-guegu.ceiba.test")
     end
 
     it "la contraseña de desarrollo documentada permite iniciar sesión" do
@@ -85,6 +80,56 @@ RSpec.describe "db/seeds.rb" do
 
       expect(output).to include("SEED_DEMO_PASSWORD")
       expect(users_report.call).to eq("[]")
+    end
+  end
+
+  describe "roles de demo (M0.08)" do
+    let(:memberships_report) do
+      lambda do
+        app.rails_runner(<<~RUBY)
+          rows = Tenancy::Organization.order(:name).flat_map do |organization|
+            Tenancy.with_context(organization:) do
+              Access::Membership.includes(:role).map do |m|
+                email = Identity::User.find(m.user_id).email
+                scope = m.branch_id ? Tenancy::Branch.find(m.branch_id).name : (m.company_id ? Tenancy::Company.find(m.company_id).slug : "organización")
+                [ email, m.role.key, scope ]
+              end
+            end
+          end
+          puts rows.sort.to_json
+        RUBY
+      end
+    end
+
+    it "siembra dueño, gerente de empresa, gerentes de sucursal, recepcionistas y profesionales, y es idempotente" do
+      app.run!("bin/rails", "db:seed")
+      first = memberships_report.call
+      app.run!("bin/rails", "db:seed")
+
+      expect(memberships_report.call).to eq(first)
+      expect(JSON.parse(first)).to include(
+        [ "rosa@barberia-guegu.ceiba.test", "org_owner", "organización" ],
+        [ "luis@salud-estilo.ceiba.test", "org_owner", "organización" ],
+        [ "marta@salud-estilo.ceiba.test", "company_manager", "salon-estilo" ],
+        [ "gerente@barberia-guegu.ceiba.test", "branch_manager", "Sucursal Centro" ],
+        [ "recepcion@barberia-guegu.ceiba.test", "receptionist", "Sucursal Centro" ],
+        [ "profesional@salud-estilo.ceiba.test", "professional", "Estilo Centro" ]
+      )
+      expect(JSON.parse(first).map { |row| row[1] }.uniq).to match_array(%w[org_owner org_admin company_manager branch_manager receptionist professional])
+    end
+
+    it "los usuarios de demo entran por la API y ven solo lo que su rol permite", :aggregate_failures do
+      app.run!("bin/rails", "db:seed")
+
+      ok = app.rails_runner(<<~RUBY)
+        org = Tenancy::Organization.find_by!(name: "Grupo Salud & Estilo")
+        marta = Identity::User.find_by!(email: "marta@salud-estilo.ceiba.test")
+        principal = Access::Principal::User.new(Identity::Principal::User.new(id: marta.id, email: marta.email, full_name: marta.full_name))
+        Tenancy.with_context(organization: org) { principal.activate!(org.id) }
+        puts principal.can?("platform.branch.create", Access::Scope.organization(org.id))
+      RUBY
+
+      expect(ok).to eq("false") # company_manager no crea cosas a nivel de organización
     end
   end
 

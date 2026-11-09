@@ -38,7 +38,7 @@
 - **Rails en modo API no trae el middleware de cookies:** `config/initializers/authentication.rb` añade `ActionDispatch::Cookies` explícitamente (y `Api::Authentication` incluye `ActionController::Cookies`). La sesión y el flash de Rails siguen fuera; `spec/config/authentication_config_spec.rb` lo vigila.
 - **Rotación:** `Identity::Authenticate` emite SIEMPRE un token nuevo y revoca la sesión que el navegador traía (aunque fuera de otro usuario): un token fijado antes del login no sirve después (fijación de sesión). Con credenciales erróneas no se revoca nada. La rotación al elevar privilegios (2FA, back-office) llega con M4.02.
 - "Cerrar sesión en todos los dispositivos" = `revoked_at` en todas las sesiones del usuario (`DELETE /api/v1/auth/sessions`); `DELETE /api/v1/auth/logout` revoca solo la actual. Ambos borran la cookie.
-- **Principal mínimo:** `Identity::Principal::User(id, email, full_name)` en `Current.principal`; `Current.session` es la `Identity::CurrentSession`. Los memberships y `can?(permission, scope)` llegan con M0.08 (`Access::Principal`); hasta entonces nada debe inferir autorización de este objeto.
+- **Principal:** la sesión entrega `Identity::Principal::User(id, email, full_name)` (solo identidad); desde M0.08 `Access::Authorization` lo envuelve en `Access::Principal::User` (memberships y `can?(permission, scope)`) y ese es el `Current.principal` que ve el resto de la request. `Current.session` sigue siendo la `Identity::CurrentSession`. Ver [04](04-access-control.md#implementación-m008).
 
 ### Endpoints
 
@@ -61,7 +61,7 @@
 
 Decisiones tomadas en M0.07:
 
-- **El endpoint de ejemplo `GET /api/v1/organizations/:id` ya exige sesión** (deja de ser público), pero **mantiene el flag** `open_organization_endpoint` (solo desarrollo y test; 404 en producción): autenticar no es autorizar, y sin memberships (M0.08) cualquier usuario autenticado podría leer cualquier organización. M0.08 lo autoriza por membership y elimina el flag.
+- **El endpoint `GET /api/v1/organizations/:id`** exige sesión y, desde M0.08, el permiso `platform.organization.read` en una organización donde el usuario tiene membership; el flag temporal `open_organization_endpoint` se eliminó.
 - **Active Storage no dibuja sus rutas** (`config.active_storage.draw_routes = false`): sus subidas directas (`POST /rails/active_storage/direct_uploads`) no pasan por `Api::BaseController` y habrían quedado abiertas sin sesión. El spec lo vigila; se reactivan, autenticadas, cuando un hito use archivos (branding).
 
 ## CSRF (panel)
@@ -169,14 +169,14 @@ Access token de 15 min con algoritmo asimétrico (EdDSA o RS256) y `kid` para ro
 
 ## Checklist bloqueante para el primer piloto
 
-- [x] Deny by default con allowlist explícita: autenticación (M0.07, spec que recorre todas las rutas); falta la autorización (M0.08)
+- [x] Deny by default con allowlist explícita: autenticación (M0.07, spec que recorre todas las rutas) y autorización (M0.08: `verify_authorized`/`verify_policy_scoped` globales; `skip_authorization!` con motivo y allowlist)
 - [x] Sesiones en BD revocables y cookies con sus flags (M0.07)
 - [x] CSRF funcional en el panel: token + Origin en el backend (M0.07); el envío desde el cliente llega en M0.12
 - [ ] `Idempotency-Key` en la creación de citas y en el envío de recordatorios (M0.11, M1.05, M3.03)
 - [ ] Rack::Attack y `rate_limit` con la IP real verificada (M0.13, M4.02)
 - [ ] 2FA obligatorio para `org_owner`, `org_admin` y `PlatformStaff` (M4.02)
-- [ ] Principal `User` y `ApiKey` pasando por el mismo Pundit (M0.08)
-- [ ] Matriz de autorización en specs (M0.08)
+- [x] Principal `User` pasando por Pundit (M0.08); `ApiKey` y `PublicToken` existen como interfaz que niega todo hasta M4.02 / M3.04
+- [x] Matriz de autorización en specs (M0.08, `bin/ci backend-test`), con la allowlist de `skip_authorization!` verificada contra las rutas reales y los cops `Ceiba/AccessPolicyRoles` y `Ceiba/AuthorizationSkips`
 - [ ] Suite de aislamiento de tenant (M0.05) y **RLS activo** (M4.03)
 - [ ] `brakeman` + `bundler-audit` en CI (M0.02)
 - [ ] Aviso de privacidad y consentimientos según la Ley 787 (M3.01, M4.05)

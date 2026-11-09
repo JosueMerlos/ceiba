@@ -8,11 +8,12 @@ RSpec.describe "API pública de tenancy" do
     Rails.root.join("packs/platform/tenancy/app/public").glob("**/*.rb").map { |file| file.relative_path_from(Rails.root.join("packs/platform/tenancy/app/public")).to_s }
   end
 
-  it "expone solo with_context, el contexto, la provisión (y altas adicionales) y los errores de dominio" do
+  it "expone solo with_context, el contexto, la provisión (y altas adicionales), el Directory de lectura, los serializers y los errores de dominio" do
     expect(public_files).to contain_exactly(
       "tenancy.rb", "tenancy/context.rb", "tenancy/provision_organization.rb", "tenancy/add_company.rb", "tenancy/add_branch.rb",
       "tenancy/error.rb", "tenancy/inconsistent_context.rb", "tenancy/provisioning_failed.rb",
-      "tenancy/tenant_write_guard.rb", "tenancy/tenant_mismatch.rb", "tenancy/tenant_is_immutable.rb"
+      "tenancy/tenant_write_guard.rb", "tenancy/tenant_mismatch.rb", "tenancy/tenant_is_immutable.rb",
+      "tenancy/directory.rb", "tenancy/organization_serializer.rb", "tenancy/organization_summary_serializer.rb", "tenancy/company_serializer.rb", "tenancy/branch_serializer.rb"
     )
   end
 

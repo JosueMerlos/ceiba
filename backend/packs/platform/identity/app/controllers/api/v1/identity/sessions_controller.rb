@@ -6,6 +6,10 @@ module Api
         # PÚBLICO a propósito: es la puerta de entrada, todavía no hay sesión que exigir. Sigue protegido por la
         # validación de Origin; el rate limit por IP y correo llega con M0.13. Las demás acciones exigen sesión.
         skip_authentication! only: :create
+        # Estas acciones operan sobre la PROPIA sesión del principal (no sobre un recurso de una organización): no hay nada que
+        # autorizar más allá de estar autenticado.
+        skip_authorization! reason: "login, sesión y logout operan sobre la propia sesión, no sobre recursos de una organización",
+          only: %i[create show destroy destroy_all]
 
         def create
           email, password = params.expect(:email, :password)

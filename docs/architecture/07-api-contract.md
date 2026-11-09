@@ -150,7 +150,7 @@ specs de rswag (spec/api, packs/*/spec/api) ──bin/rails openapi:generate─�
                                                               + hooks de TanStack Query (M0.12, sobre `unwrap`)
 ```
 
-- **Un spec de rswag por endpoint** (en `spec/api/` o `packs/<capa>/<pack>/spec/api/`): cada `response` declara su esquema y `run_test!` ejecuta la petición real y valida el cuerpo. Los errores usan `$ref` a los componentes reutilizables **`Problem`**, **`ValidationProblem`** (con `errors[]` de **`FieldError`**) y `PageInfo` (definidos en `spec/swagger_helper.rb`); cada pack aporta los suyos (`Organization`) en `spec/openapi_components.rb`.
+- **Un spec de rswag por endpoint** (en `spec/api/` o `packs/<capa>/<pack>/spec/api/`): cada `response` declara su esquema y `run_test!` ejecuta la petición real y valida el cuerpo. Los errores usan `$ref` a los componentes reutilizables **`Problem`**, **`ValidationProblem`** (con `errors[]` de **`FieldError`**) y `PageInfo` (definidos en `spec/swagger_helper.rb`); cada pack aporta los suyos (`Organization`, `Company`, `Branch`) en `spec/openapi_components.rb`.
 - **Generación determinista** (`lib/openapi/`): el formateador `Openapi::Formatter` (subclase del de rswag) escribe el documento con **claves ordenadas en todos los niveles**, sin símbolos YAML y sin ajuste de línea (el plegado de Psych no debe decidir si hay drift). Además corrige que rswag declara `produces` por operación y lo copia a todas las respuestas: se deja `application/json` en los éxitos y `application/problem+json` en los errores (≥ 400), para que el cliente no reciba uniones absurdas. `bin/rails openapi:generate` corre el formateador en modo `--dry-run` (no ejecuta peticiones) y exige el entorno test; lo hace solo.
 - **Versiones fijadas:** rswag 2.17.0, alba 4.0.3, OpenAPI 3.0.3 (no 3.1: rswag valida con `json-schema`, que no entiende `type: [x, "null"]`), openapi-typescript 7.13.0, openapi-fetch 0.17.0.
 - **`pnpm api:generate`** (desde `frontend/`) regenera `schema.d.ts` desde `backend/openapi/v1.yaml`. En Docker el contrato se monta de solo lectura en `/app/backend/openapi`. `bin/api-generate` regenera **ambos** pasos dentro de Docker.
@@ -165,11 +165,9 @@ specs de rswag (spec/api, packs/*/spec/api) ──bin/rails openapi:generate─�
 - **Swagger UI** en `/api/docs` y el contrato en `/api/docs/v1.yaml` (rswag-ui / rswag-api), solo en **desarrollo, test y staging**: `Api::Docs.enabled?` (verdadero en development/test, o con `API_DOCS_ENABLED=true`, que es como staging —`RAILS_ENV=production`— lo activa). En producción las rutas no existen.
 - En producción, solo la documentación pública para integradores (cuando existan).
 
-## Endpoint de ejemplo y su protección pendiente
+## Endpoints de organización, empresa y sucursal (M0.08)
 
-`GET /api/v1/organizations/:id` (`Api::V1::Tenancy::OrganizationsController`, en el pack `platform/tenancy`, que así usa su modelo privado sin ampliar su API pública). `Organization` es la raíz del tenant: se consulta sin contexto.
-
-**Desde M0.07 exige sesión** (como toda la API, sin `skip_authentication!`) y responde `401 auth.unauthenticated` sin ella. **Temporal:** todavía no hay autorización (M0.08), así que cualquier usuario autenticado podría leer cualquier organización. Por eso sigue existiendo solo con `config.x.api.open_organization_endpoint` (activo en development y test; **desactivado en producción**, donde responde `404 route.not_found`). M0.08 lo autoriza —la organización saldrá de los memberships del principal— y elimina el flag.
+Solo lectura, en el pack `platform/access` (`Api::V1::Access::*`, rutas en `packs/platform/access/config/routes/access.rb`): `GET /api/v1/organizations`, `GET /api/v1/organizations/:id`, `GET .../organizations/:organization_id/companies[/:id]` y `GET .../companies/:company_id/branches[/:id]`. Los listados usan `render_page` (paginación por cursor) y **solo devuelven lo que el principal puede leer**; `GET /organizations` devuelve un resumen (`OrganizationSummary`: `id`, `name`, `status`). Códigos: `401 auth.unauthenticated`, `404 resource.not_found` (no existe o no es visible para el principal: indistinguibles), `403 access.forbidden` (visible, pero la policy lo niega) y `403 access.organization_suspended`. El endpoint de ejemplo de M0.06 dejó de estar bajo el flag `open_organization_endpoint`, que se **eliminó**. Reglas completas en [04](04-access-control.md#del-request-al-recurso).
 
 ## Autenticación en la API (M0.07)
 
@@ -180,7 +178,7 @@ specs de rswag (spec/api, packs/*/spec/api) ──bin/rails openapi:generate─�
 
 ## Cómo agregar un endpoint
 
-1. Controlador `Api::V1::<Pack>::XController < Api::BaseController` en el pack (exige sesión por defecto; solo si DEBE ser público, `skip_authentication!` comentado y en la allowlist del spec; ver más abajo), con su archivo de rutas en el pack (`packs/<capa>/<pack>/config/routes/<pack>.rb`, montado con `draw(:<pack>)` bajo `/api/v1` en `config/routes.rb`).
+1. Controlador `Api::V1::<Pack>::XController < Api::BaseController` en el pack (exige sesión **y autorización** por defecto: cada acción debe llamar a `authorize` y cada `index` a `policy_scope`, o falla en test; si el recurso cuelga de `organizations/:organization_id/...` el contexto se resuelve y valida solo; una acción que no autoriza declara `skip_authorization!(reason:)`; solo si DEBE ser público, `skip_authentication!` comentado y en la allowlist del spec; ver más abajo), con su archivo de rutas en el pack (`packs/<capa>/<pack>/config/routes/<pack>.rb`, montado con `draw(:<pack>)` bajo `/api/v1` en `config/routes.rb`).
 2. Un serializer por representación (`Api::Serializer`); listados con `render_page`.
 3. Errores de dominio nuevos: `Api::ErrorRegistry.register` en el initializer del pack + título en su locale.
 4. Spec de rswag en `spec/api/` del pack (200 y los errores con `$ref` a `Problem`/`ValidationProblem`; `security [ { cookieAuth: [] } ]`, `sign_in` y, en mutaciones, el parámetro `X-CSRF-Token`); esquemas nuevos en `spec/openapi_components.rb` del pack.

@@ -13,7 +13,7 @@ Rails.application.routes.draw do
     # API v1. Cada pack aporta sus controladores en Api::V1::<Pack> (docs/architecture/02-modular-monolith.md).
     scope path: "v1", module: "api/v1" do
       draw(:identity)
-      draw(:tenancy)
+      draw(:access)
     end
   end
 end

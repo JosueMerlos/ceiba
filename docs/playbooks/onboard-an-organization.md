@@ -18,7 +18,7 @@ Tenancy::ProvisionOrganization.call(
   organization: { name: "Grupo Salud & Estilo", legal_name: "…" },
   company:      { name: "Clínica Dental Sonrisa", slug: "sonrisa", business_type: "dental", currency: "USD" },
   branch:       { name: "Managua Centro", time_zone: "America/Managua" },
-  owner:        { email: "dueno@ejemplo.com", full_name: "…" }
+  extras:       { owner: Identity::ProvisionUser.call(email: "dueno@ejemplo.com", full_name: "…", password: "…") }
 )
 ```
 
@@ -27,7 +27,7 @@ Esto, en una transacción y mediante hooks:
 | Paso | Pack | Resultado |
 | --- | --- | --- |
 | Crear organización, empresa y sucursal | `tenancy` | Estructura mínima |
-| Crear el membership `org_owner` (y el usuario si no existe) | `access` / `identity` | Dueño con invitación pendiente |
+| Crear el membership `org_owner` del `extras[:owner]` (el usuario se crea antes con `Identity::ProvisionUser`; la invitación por correo llega con M4.01) | `access` / `identity` | Dueño con su rol |
 | Activar los módulos por defecto del plan | `modules` | `appointments` activo con settings por defecto |
 | Sembrar plantillas de notificación | `notifications` | Recordatorios listos (se envían solo con consentimiento) |
 | Enviar la invitación al dueño | `identity` | Correo con enlace (7 días) |
