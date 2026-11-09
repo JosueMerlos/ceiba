@@ -56,7 +56,7 @@ module Idempotency
 
     def process(key, &action)
       now = Time.current
-      Key.where(principal_key:, key:).expired(now).delete_all
+      purge_expired(key, now)
       stored = Key.find_by(principal_key:, key:)
       reservation = reserve(key, now) unless stored
       # Ya existía, o se adelantó otra petición mientras reservábamos: su fila ya está confirmada y se lee.
@@ -68,6 +68,11 @@ module Idempotency
       nil
     end
 
+    # Reemplazar una fila vencida con la misma clave puede esperar a otra transacción que la tiene bloqueada: misma espera acotada.
+    def purge_expired(key, now)
+      Key.transaction(requires_new: true) { with_lock_timeout { Key.where(principal_key:, key:).expired(now).delete_all } }
+    end
+
     # nil si otra petición se adelantó (violación única en un savepoint: no aborta la transacción del request). Si la otra
     # sigue en curso, el INSERT espera a que termine; la espera está ACOTADA con `lock_timeout` (solo mientras dura la
     # reserva): vencida, ActiveRecord::LockWaitTimeout => Idempotency::RequestInProgress (409, el cliente reintenta).
@@ -77,16 +82,17 @@ module Idempotency
       end
     rescue ActiveRecord::RecordNotUnique
       nil
-    rescue ActiveRecord::LockWaitTimeout
-      raise RequestInProgress, "Otra petición con la misma Idempotency-Key sigue en curso"
     end
 
-    # Si falla, el savepoint se revierte y con él el SET LOCAL; si sale bien, se restaura el valor previo a mano.
+    # Si falla, el savepoint se revierte y con él el SET LOCAL; si sale bien, se restaura el valor previo a mano. Un bloqueo
+    # que no cede a tiempo (ActiveRecord::LockWaitTimeout) es Idempotency::RequestInProgress (409: el cliente reintenta).
     def with_lock_timeout
       connection = Key.connection
       previous = connection.select_value("SELECT current_setting('lock_timeout')")
       connection.execute("SELECT set_config('lock_timeout', '#{(LOCK_TIMEOUT * 1000).to_i}ms', true)")
       yield.tap { connection.execute("SELECT set_config('lock_timeout', #{connection.quote(previous)}, true)") }
+    rescue ActiveRecord::LockWaitTimeout
+      raise RequestInProgress, "Otra petición con la misma Idempotency-Key sigue en curso"
     end
 
     def replay_of(stored)

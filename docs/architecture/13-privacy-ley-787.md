@@ -85,7 +85,7 @@ Cada solicitud queda registrada (`data_subject_requests`) con la fecha de recepc
 - La auditoría es **append-only**: lo que entra no sale desde la aplicación, así que el cumplimiento se decide **antes de escribir**. La **PII auditable debe ir cifrada** (`encrypts`, y el diff la guarda como `[FILTERED]`) **o auditarse por id** (se registra que *este* registro cambió, no el valor personal). Un campo libre con datos personales en `before`/`after`/`metadata` no se enmascara solo.
 - El derecho de supresión (anonimización del cliente) **no reescribe** la auditoría: por eso nunca debe contener el dato personal en claro.
 - `auth_audit_events` guarda IP y user agent (datos personales) y un seudónimo HMAC del correo en login fallido. **Pendiente (M4.x):** política de retención (propuesta de 12 meses) y su procedimiento privilegiado de purga; ver [11](11-security.md#auditoría-append-only-m011).
-- `idempotency_keys.response_body` es una respuesta de negocio: va cifrada y se purga a las 24 h.
+- `idempotency_keys.response_body` es una respuesta de negocio: va cifrada. La clave **vence a las 24 h** y la purga diaria (03:37 UTC) la elimina, así que una fila puede conservarse hasta **~48 h** (24 h de vigencia más hasta 24 h hasta la siguiente purga).
 
 ## Checklist antes de los pilotos
 
