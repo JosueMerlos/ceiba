@@ -47,6 +47,16 @@ module Access
     # transacción serializa despliegues simultáneos.
     def sync!(registry = self.registry, allow_prune: ENV["ACCESS_SYNC_ALLOW_PRUNE"] == "1") = CatalogSync.call(registry, allow_prune:)
 
+    # Punto de extensión de los MÓDULOS (docs/architecture/04 y 05): además del membership, el permiso de un módulo exige que ese
+    # módulo esté ACTIVO en la empresa del recurso. access no conoce a platform/modules (modules depende de access: un ciclo no
+    # valida), así que modules se registra aquí desde su arranque. Un gate responde:
+    #
+    #   gated?(module_key)               ¿es un módulo de negocio activable? (los permisos `platform.*` no lo son)
+    #   active_companies_by_module       { "appointments" => Set[company_id, ...] } de la organización activa (UNA consulta)
+    #
+    # Sin gate (nil) los permisos se conceden solo por membership. El principal pide `active_companies_by_module` una vez y lo memoriza.
+    attr_accessor :module_gate
+
     def registry = @registry ||= PermissionRegistry.new
   end
 end

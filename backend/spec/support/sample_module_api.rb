@@ -60,6 +60,8 @@ module SampleModule
 end
 
 RSpec.shared_context "con rutas de sample" do
-  before(:context) { extend SampleModule::Helpers; sample_routes } # rubocop:disable RSpec/BeforeAfterAll -- dibujar rutas es caro y global
+  include SampleModule::Helpers
+
+  before(:context) { sample_routes } # rubocop:disable RSpec/BeforeAfterAll -- dibujar rutas es caro y global
   after(:context) { Rails.application.reload_routes! } # rubocop:disable RSpec/BeforeAfterAll
 end

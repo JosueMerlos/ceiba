@@ -59,12 +59,11 @@ RSpec.describe "Concern RequiresModule" do
       expect(response.parsed_body["code"]).to eq("access.forbidden")
     end
 
-    it "el policy_scope filtra por lo que el usuario puede leer (un recepcionista de la sucursal A1)" do
-      sign_in(user_with_role("receptionist", world, branch: world.branch_a1))
+    it "el policy_scope (reach filtrado por módulo activo) lista lo de la empresa del contexto" do
+      sign_in(manager)
       get_things
 
-      expect(response).to have_http_status(:ok)
-      expect(response.parsed_body["data"]).to eq([])
+      expect(response.parsed_body["data"]).to contain_exactly(world.branch_a1.id, world.branch_a2.id)
     end
 
     it "activo en una empresa, inactivo en la otra: 404 en la otra" do

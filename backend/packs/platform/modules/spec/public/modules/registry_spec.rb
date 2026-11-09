@@ -3,11 +3,11 @@ require "rails_helper"
 # Criterio 1 de M0.09: un manifiesto inválido FALLA con un mensaje claro (al arrancar la app o en el test). El DSL implementa
 # SOLO los campos de docs/architecture/05-module-system.md; todo lo demás es un error, no se ignora.
 RSpec.describe Modules::Registry do
-  subject(:registry) { described_class.new }
+  subject(:manifests) { described_class.new }
 
   def define(key = :loyalty, **options, &block)
     block ||= proc { }
-    registry.define(key, **options) do
+    manifests.define(key, **options) do
       name "Lealtad"
       version "1.0"
       instance_eval(&block)
@@ -55,16 +55,16 @@ RSpec.describe Modules::Registry do
     it "queda en el registro y se recupera por su key" do
       manifest
 
-      expect(registry.fetch("loyalty")).to equal(manifest)
-      expect(registry.fetch(:loyalty)).to equal(manifest)
-      expect(registry.keys).to eq(%w[loyalty])
+      expect(manifests.fetch("loyalty")).to equal(manifest)
+      expect(manifests.fetch(:loyalty)).to equal(manifest)
+      expect(manifests.keys).to eq(%w[loyalty])
     end
 
     it "resuelve la ruta del esquema de settings relativa al pack" do
       Dir.mktmpdir do |root|
         File.write(File.join(root, "settings.schema.json"), { type: "object", properties: { a: { type: "integer", default: 1 } } }.to_json)
 
-        manifest = registry.define(:ruta, root:) do
+        manifest = manifests.define(:ruta, root:) do
           name "Ruta"
           version "1.0"
           settings_schema "settings.schema.json"
@@ -108,8 +108,8 @@ RSpec.describe Modules::Registry do
     end
 
     it "rechaza una key que no es snake_case o que es la de la plataforma" do
-      expect { registry.define(:"Mal-Nombre") { name("x") && version("1.0") } }.to raise_error(Modules::InvalidManifest, /snake_case/)
-      expect { registry.define(:platform) { name("x") && version("1.0") } }.to raise_error(Modules::InvalidManifest, /reservada/)
+      expect { manifests.define(:"Mal-Nombre") { name("x") && version("1.0") } }.to raise_error(Modules::InvalidManifest, /snake_case/)
+      expect { manifests.define(:platform) { name("x") && version("1.0") } }.to raise_error(Modules::InvalidManifest, /reservada/)
     end
 
     it "rechaza definir dos veces la misma key" do
@@ -119,7 +119,7 @@ RSpec.describe Modules::Registry do
     end
 
     it "exige nombre y versión" do
-      expect { registry.define(:loyalty) { } }.to raise_error(Modules::InvalidManifest, /name.*version|version.*name/m)
+      expect { manifests.define(:loyalty) { } }.to raise_error(Modules::InvalidManifest, /name.*version|version.*name/m)
     end
 
     it "rechaza una concesión a un rol que no es de sistema o a un permiso que el módulo no declara" do
@@ -200,7 +200,7 @@ RSpec.describe Modules::Registry do
     it "rechaza un requires que referencia un módulo inexistente" do
       define(:loyalty) { requires %i[fantasma] }
 
-      expect { registry.validate! }.to raise_error(Modules::InvalidManifest, /loyalty.*requires.*"fantasma"/m)
+      expect { manifests.validate! }.to raise_error(Modules::InvalidManifest, /loyalty.*requires.*"fantasma"/m)
     end
 
     it "rechaza un requires cíclico, mostrando el ciclo" do
@@ -208,7 +208,7 @@ RSpec.describe Modules::Registry do
       define(:beta) { requires %i[gamma] }
       define(:gamma) { requires %i[alfa] }
 
-      expect { registry.validate! }.to raise_error(Modules::InvalidManifest, /ciclo.*(alfa -> beta -> gamma -> alfa|beta -> gamma -> alfa -> beta|gamma -> alfa -> beta -> gamma)/m)
+      expect { manifests.validate! }.to raise_error(Modules::InvalidManifest, /ciclo.*(alfa -> beta -> gamma -> alfa|beta -> gamma -> alfa -> beta|gamma -> alfa -> beta -> gamma)/m)
     end
 
     it "rechaza que un módulo se requiera a sí mismo" do
@@ -219,8 +219,8 @@ RSpec.describe Modules::Registry do
       define(:alfa)
       define(:beta) { requires %i[alfa] }
 
-      expect { registry.validate! }.not_to raise_error
-      expect(registry.requirers_of("alfa").map(&:key)).to eq(%w[beta])
+      expect { manifests.validate! }.not_to raise_error
+      expect(manifests.requirers_of("alfa").map(&:key)).to eq(%w[beta])
     end
 
     it "rechaza el mismo permiso declarado por dos módulos" do
@@ -232,7 +232,7 @@ RSpec.describe Modules::Registry do
 
   describe "#fetch" do
     it "lanza Modules::UnknownModule con la key pedida" do
-      expect { registry.fetch("nada") }.to raise_error(Modules::UnknownModule, /nada/)
+      expect { manifests.fetch("nada") }.to raise_error(Modules::UnknownModule, /nada/)
     end
   end
 end

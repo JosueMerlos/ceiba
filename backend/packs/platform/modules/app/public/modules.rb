@@ -42,6 +42,7 @@ module Modules
     def load!(root: Rails.root)
       fresh = Loader.call(root:, registry: Registry.new)
       fresh.each { |manifest| AccessRegistration.call(manifest) }
+      Access.module_gate = AccessGate
       @registry = fresh
     end
   end

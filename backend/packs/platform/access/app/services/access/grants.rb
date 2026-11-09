@@ -57,6 +57,27 @@ module Access
       @organization_member || @company_keys.key?(company_id) || @branch_keys.key?(branch_id)
     end
 
+    # Empresa de una sucursal con membership de sucursal (o nil).
+    def branch_company_id(branch_id) = @branch_company_ids[branch_id]
+
+    # Las claves que el usuario ejerce DENTRO de un contexto (lo que /me le dice al frontend): las de organización, las de la
+    # empresa (y la lectura ascendente), las de cualquier membership de sucursal de esa empresa y, con una sucursal elegida, solo las de
+    # ESA sucursal. No filtra por módulo (eso lo hace el principal).
+    def keys_within(company_id: nil, branch_id: nil)
+      keys = @organization_keys.dup
+      return keys unless company_id
+
+      keys.merge(@upward_company_keys.fetch(company_id, NO_KEYS))
+      if branch_id
+        keys.merge(@company_keys.fetch(company_id, NO_KEYS)) if branch_in_company?(branch_id, company_id)
+        keys.merge(@branch_keys.fetch(branch_id, NO_KEYS)) if @branch_company_ids[branch_id] == company_id
+      else
+        keys.merge(@company_keys.fetch(company_id, NO_KEYS))
+        @branch_keys.each { |id, branch_keys| keys.merge(branch_keys) if @branch_company_ids[id] == company_id }
+      end
+      keys
+    end
+
     def reach(key)
       Reach.new(
         organization: @organization_keys.include?(key),
