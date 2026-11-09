@@ -71,8 +71,10 @@ RSpec.describe "API v1: autenticación" do
       description "Revoca la sesión del navegador y borra la cookie. Las demás sesiones del usuario siguen vigentes."
       produces "application/problem+json"
       security [ { cookieAuth: [] } ]
+      parameter name: "X-CSRF-Token", in: :header, type: :string, required: true, description: "`csrf_token` de la sesión (login o GET /auth/session)"
 
       response "204", "sesión cerrada" do
+        let("X-CSRF-Token") { signed_in.csrf_token }
         let!(:signed_in) { sign_in(user) }
 
         run_test!
@@ -80,8 +82,17 @@ RSpec.describe "API v1: autenticación" do
 
       response "401", "sin sesión válida" do
         schema "$ref" => "#/components/schemas/Problem"
+        let("X-CSRF-Token") { "sin-sesion" }
 
         run_test!
+      end
+
+      response "403", "sesión válida sin token CSRF correcto (`auth.csrf_invalid`) o con `Origin` ajeno (`auth.origin_forbidden`)" do
+        schema "$ref" => "#/components/schemas/Problem"
+        let!(:signed_in) { sign_in(user) }
+        let("X-CSRF-Token") { "token-incorrecto" }
+
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("auth.csrf_invalid") }
       end
     end
   end
@@ -92,8 +103,10 @@ RSpec.describe "API v1: autenticación" do
       description "Revoca todas las sesiones del usuario, en todos los dispositivos."
       produces "application/problem+json"
       security [ { cookieAuth: [] } ]
+      parameter name: "X-CSRF-Token", in: :header, type: :string, required: true, description: "`csrf_token` de la sesión (login o GET /auth/session)"
 
       response "204", "todas las sesiones revocadas" do
+        let("X-CSRF-Token") { signed_in.csrf_token }
         let!(:signed_in) { sign_in(user) }
 
         run_test!
@@ -101,8 +114,17 @@ RSpec.describe "API v1: autenticación" do
 
       response "401", "sin sesión válida" do
         schema "$ref" => "#/components/schemas/Problem"
+        let("X-CSRF-Token") { "sin-sesion" }
 
         run_test!
+      end
+
+      response "403", "sesión válida sin token CSRF correcto (`auth.csrf_invalid`) o con `Origin` ajeno (`auth.origin_forbidden`)" do
+        schema "$ref" => "#/components/schemas/Problem"
+        let!(:signed_in) { sign_in(user) }
+        let("X-CSRF-Token") { "token-incorrecto" }
+
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("auth.csrf_invalid") }
       end
     end
   end
