@@ -14,7 +14,7 @@ RSpec.describe "Modules::Enable y Modules::Disable" do
   def enabled?(key = "sample") = with_tenant(organization) { Modules.enabled?(company, key) }
 
   describe Modules::Enable do
-    it "activa el módulo: crea la fila, ejecuta on_enable y lo reporta como cambio" do
+    it "activa el módulo: crea la fila, ejecuta on_enable y lo reporta como cambio", :aggregate_failures do
       result = enable
 
       expect(result).to have_attributes(key: "sample", company_id: company.id, changed: true)
@@ -84,9 +84,9 @@ RSpec.describe "Modules::Enable y Modules::Disable" do
     it "una carrera por la misma fila (otra transacción la creó entre la lectura y el INSERT) no duplica ni falla" do
       enable
       calls = 0
-      allow(Modules::CompanyModule).to receive(:find_by).and_wrap_original do |original, *args, **kwargs|
+      allow(Modules::CompanyModule).to receive(:lock).and_wrap_original do |original|
         calls += 1
-        calls == 1 ? nil : original.call(*args, **kwargs)
+        calls == 1 ? Modules::CompanyModule.none : original.call
       end
 
       expect(enable).to have_attributes(changed: false)
@@ -103,7 +103,7 @@ RSpec.describe "Modules::Enable y Modules::Disable" do
   describe Modules::Disable do
     before { enable }
 
-    it "desactiva: marca disabled_at, ejecuta on_disable y lo reporta como cambio" do
+    it "desactiva: marca disabled_at, ejecuta on_disable y lo reporta como cambio", :aggregate_failures do
       result = disable
 
       expect(result).to have_attributes(key: "sample", company_id: company.id, changed: true)
@@ -154,7 +154,7 @@ RSpec.describe "Modules::Enable y Modules::Disable" do
   end
 
   describe "reactivar (criterio 8)" do
-    it "reutiliza la MISMA fila, refresca enabled_at, ejecuta on_enable de nuevo y emite otro evento" do
+    it "reutiliza la MISMA fila, refresca enabled_at, ejecuta on_enable de nuevo y emite otro evento", :aggregate_failures do
       enable
       original = rows.first
       disable

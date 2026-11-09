@@ -15,6 +15,16 @@ module Modules
     # Registro global de la aplicación.
     def registry = @registry ||= Registry.new
 
+    # ¿Está el módulo ACTIVO en la empresa? Una consulta. `company` es la empresa (o su id), dentro de Tenancy.with_context.
+    def enabled?(company, key)
+      CompanyModule.active.exists?(company_id: company.respond_to?(:id) ? company.id : company, module_key: key.to_s)
+    end
+
+    # ¿Permite el plan de la organización este módulo? (entitlement: docs/architecture/05-module-system.md, "Tres conceptos").
+    # TODO(F6): consultar plans/plan_entitlements cuando existan (docs/roadmap/README.md, F6 — Producto vendible). Hasta entonces
+    # todos los planes tienen entitlement a todo (sin límites): activar solo exige `requires`.
+    def entitled?(_company, _key) = true
+
     # Carga y valida todos los manifiestos de packs/modules y registra sus permisos en access. Corre al arrancar (y en cada
     # recarga de código, config/initializers/modules.rb): un manifiesto inválido FALLA el arranque con un mensaje claro.
     def load!(root: Rails.root)
