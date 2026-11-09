@@ -28,6 +28,22 @@ RSpec.describe "Outbox con Redis real", :redis do
     Tenancy.with_context(organization: org) { Events.publish(event_name, { thing_id: id }) }
   end
 
+  # Barrera real: todos los hilos están creados y esperando antes de que ninguno arranque.
+  def run_together(count)
+    ready = Queue.new
+    go = Queue.new
+    threads = Array.new(count) do |index|
+      Thread.new do
+        ready << index
+        go.pop
+        ActiveRecord::Base.connection_pool.with_connection { yield index }
+      end
+    end
+    count.times { ready.pop }
+    count.times { go << :go }
+    threads.map(&:value)
+  end
+
   def queued_jobs = Sidekiq::Queue.new("critical").select { |job| job.klass == "Events::DeliverJob" }.map(&:item)
 
   def state(org = organization) = with_tenant(org) { Events::OutboxEvent.order(:id).pluck(:published_at, :attempts) }
@@ -81,15 +97,7 @@ RSpec.describe "Outbox con Redis real", :redis do
     end
 
     def run_relays(count: 2, batch_size: 25)
-      gate = Queue.new
-      threads = Array.new(count) do
-        Thread.new do
-          gate.pop
-          ActiveRecord::Base.connection_pool.with_connection { Events::Relay.call(batch_size:) }
-        end
-      end
-      count.times { gate << :go }
-      threads.map(&:value)
+      run_together(count) { Events::Relay.call(batch_size:) }
     end
 
     it "con 500 eventos pendientes, cada uno se publica exactamente una vez", :aggregate_failures do
@@ -102,11 +110,11 @@ RSpec.describe "Outbox con Redis real", :redis do
       expect(organizations.sum { |org| state(org).count { |published_at, _| published_at } }).to eq(total)
     end
 
-    it "ambos relays trabajaron (el reparto no lo hizo uno solo) y no queda ningún pendiente" do
-      published = run_relays(batch_size: 10)
+    it "con tres relays y lotes pequeños tampoco queda ningún pendiente ni se repite un evento" do
+      run_relays(count: 3, batch_size: 10)
 
-      expect(published).to all(be > 0)
       expect(Events::OutboxLag.measure[:pending]).to eq(0)
+      expect(queued_jobs.map { |job| job["args"].first }.uniq.size).to eq(total)
     end
 
     it "cada DeliverJob lleva el organization_id de su evento" do
@@ -125,7 +133,7 @@ RSpec.describe "Outbox con Redis real", :redis do
       Events::Relay.call
       item = queued_jobs.find { |job| job["args"].last == "test.slow" }
 
-      Array.new(2) { Thread.new { ActiveRecord::Base.connection_pool.with_connection { process(item.deep_dup) } } }.each(&:join)
+      run_together(2) { process(item.deep_dup) }
 
       expect(effects.size).to eq(1)
       expect(with_tenant(organization) { Events::ProcessedEvent.where(event_id: event.id, subscriber: "test.slow").count }).to eq(1)

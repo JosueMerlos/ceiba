@@ -28,9 +28,13 @@ development:
   <<: *default
   database: ceiba_development
 
+# seeds: false — Rails 8.1 siembra la base cuando db:prepare la crea o la carga vacía (como en el job backend-test de CI).
+# Los specs asumen una base de test sin organizaciones: la de test no se siembra nunca. Los seeds se prueban con
+# `db:seed` explícito sobre una copia de la app (spec/db/seeds_spec.rb).
 test:
   <<: *default
   database: ceiba_test
+  seeds: false
 
 production:
   <<: *default

@@ -3,11 +3,12 @@ require "rails_helper"
 RSpec.describe "Disparo del relay tras el commit" do
   include ActiveSupport::Testing::TimeHelpers
 
-  before { Events::RelayKick.reset! }
-
   let(:organization) { create(:organization) }
 
-  before { register_event_schema("test.thing_happened.v1") }
+  before do
+    Events::RelayKick.reset!
+    register_event_schema("test.thing_happened.v1")
+  end
 
   def relay_jobs = Sidekiq::Queues.jobs_by_queue.values.flatten.select { |job| job["class"] == "Events::RelayJob" }
 
@@ -50,6 +51,7 @@ RSpec.describe "Disparo del relay tras el commit" do
   end
 
   it "tras un rollback el siguiente commit dispara igualmente" do
+    organization # se crea antes: dentro del savepoint revertido desaparecería
     ApplicationRecord.transaction(requires_new: true) do
       Tenancy.with_context(organization:) { Events.publish("test.thing_happened.v1", { thing_id: "t-1" }) }
       raise ActiveRecord::Rollback

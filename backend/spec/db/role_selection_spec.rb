@@ -38,6 +38,8 @@ RSpec.describe "Rol de base de datos por tarea" do
 
   %w[db:prepare db:setup].each do |task|
     it "#{task} migra como owner pero siembra como app_user" do
+      # La base de test no se siembra (seeds: false); aquí se activa en la copia para probar el rol de los seeds.
+      app.write("config/database.yml", app.read("config/database.yml").sub("\n  seeds: false", "\n  seeds: true"))
       run_as_seed_probe
 
       expect(app.run!("bin/rails", task)).to include("seed como app_user")

@@ -22,6 +22,13 @@ module Events
         (LOCK.synchronize { registry[name.to_s] } or raise UnknownEvent, name).value
       end
 
+      # Descarta lo registrado y vuelve a cargar el catálogo de archivos.
+      def reload!
+        LOCK.synchronize { @registry = nil }
+        names
+        nil
+      end
+
       def unregister(name)
         LOCK.synchronize { registry.delete(name.to_s) }
       end
@@ -42,7 +49,10 @@ module Events
 
       def load_catalog
         Rails.root.glob(GLOB).sort.to_h do |file|
-          [ file.basename(".json").to_s, JSONSchemer.schema(JSON.parse(file.read)) ]
+          definition = JSON.parse(file.read)
+          raise ArgumentError, "#{file.basename}: no es un JSON Schema válido" unless JSONSchemer.valid_schema?(definition)
+
+          [ file.basename(".json").to_s, JSONSchemer.schema(definition) ]
         end
       end
     end

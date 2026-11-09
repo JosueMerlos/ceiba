@@ -35,8 +35,6 @@ RSpec.describe Events::Schemas do
   end
 
   describe "catálogo con un archivo inválido" do
-    after { described_class.reload! }
-
     it "falla al cargar con el nombre del archivo (valid_schema?), no al publicar" do
       Dir.mktmpdir do |dir|
         bad = Pathname(dir).join("test.malo.v1.json")
@@ -45,6 +43,8 @@ RSpec.describe Events::Schemas do
         allow(Rails.root).to receive(:glob).with(described_class::GLOB).and_return([ bad ])
 
         expect { described_class.reload! }.to raise_error(ArgumentError, /test\.malo\.v1\.json.*JSON Schema/)
+        RSpec::Mocks.space.proxy_for(Rails.root).reset # restaura el catálogo real antes de que se borre el directorio
+        described_class.reload!
       end
     end
   end

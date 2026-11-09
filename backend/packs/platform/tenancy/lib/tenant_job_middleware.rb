@@ -11,6 +11,9 @@
 #
 # Vive en lib/ (no se recarga): Sidekiq guarda estas clases en su cadena de middleware y una clase recargada dejaría
 # referencias obsoletas. Tenancy::Organization se resuelve en el momento de la llamada.
+require "sidekiq/api"
+require "sidekiq/job_retry"
+
 module TenantJobMiddleware
   KEY = "organization_id".freeze
 
@@ -33,12 +36,34 @@ module TenantJobMiddleware
   class Server
     include Sidekiq::ServerMiddleware
 
+    # Un job sin organización o de una organización que no existe no se arregla reintentando: a la cola muerta de
+    # inmediato (no ~21 días de reintentos) y Skip le dice al worker que ya está tratado. Un error del propio job SÍ
+    # se propaga y Sidekiq lo reintenta.
     def call(worker, job, _queue, &)
       return yield if TenantJobMiddleware.tenant_free?(job)
 
-      organization_id = job[KEY].presence ||
-                        raise(MissingOrganization, "#{worker.class} llegó sin organization_id: ningún job tenant corre sin organización")
-      Tenancy.with_context(organization: Tenancy::Organization.find(organization_id), &)
+      organization_id = job[KEY].presence
+      return dead_letter!(job, MissingOrganization.new("#{worker.class} llegó sin organization_id: ningún job tenant corre sin organización")) unless organization_id
+
+      organization = find_organization(organization_id)
+      return dead_letter!(job, organization) if organization.is_a?(Exception)
+
+      Tenancy.with_context(organization:, &)
+    end
+
+    private
+
+    # La organización, o el RecordNotFound (no lanzado) si no existe.
+    def find_organization(id)
+      Tenancy::Organization.find(id)
+    rescue ActiveRecord::RecordNotFound => error
+      error
+    end
+
+    def dead_letter!(job, error)
+      failed = job.merge("error_class" => error.class.name, "error_message" => error.message.to_s[0, 10_000])
+      Sidekiq::DeadSet.new.kill(Sidekiq.dump_json(failed), notify_failure: true, ex: error)
+      raise Sidekiq::JobRetry::Skip
     end
   end
 end

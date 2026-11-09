@@ -13,6 +13,9 @@ module Events
 
     sidekiq_options queue: "critical"
 
+    # Un suscriptor que este proceso no conoce no se arregla reintentando durante ~21 días: cola muerta de inmediato.
+    sidekiq_retry_in { |_count, exception| exception.is_a?(UnknownSubscriber) ? :kill : :default }
+
     def perform(event_id, subscriber)
       record = OutboxEvent.find(event_id)
       subscription = Subscriptions.find(record.name, subscriber) || raise(UnknownSubscriber.new(record.name, subscriber))
