@@ -438,8 +438,8 @@ CREATE POLICY tenant_isolation ON public.processed_events USING ((organization_i
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20261108300100'),
-('20261108300000'),
+('20261108210100'),
+('20261108210000'),
 ('20261108200100'),
 ('20261108200000'),
 ('20261108100200'),

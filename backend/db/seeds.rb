@@ -72,7 +72,7 @@ end
 DEMO_PASSWORD_FOR_DEVELOPMENT = "ceiba-demo-2026".freeze
 
 def demo_password
-  ENV.fetch("SEED_DEMO_PASSWORD") { Rails.env.production? ? nil : DEMO_PASSWORD_FOR_DEVELOPMENT }
+  ENV["SEED_DEMO_PASSWORD"].presence || (DEMO_PASSWORD_FOR_DEVELOPMENT unless Rails.env.production?)
 end
 
 def seed_user(group)
