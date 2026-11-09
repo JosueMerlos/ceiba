@@ -7,6 +7,7 @@ inherit_gem:
 require:
   - ./lib/rubocop/cop/ceiba/pack_namespace
   - ./lib/rubocop/cop/ceiba/tenant_bypass
+  - ./lib/rubocop/cop/ceiba/access_policy_roles
 
 plugins:
   - rubocop-rails
@@ -93,6 +94,12 @@ Ceiba/PackNamespace:
   Enabled: true
   Include:
     - "packs/*/*/app/**/*.rb"
+
+# Las policies preguntan por permisos, nunca por roles ni por admin? (ADR-0008).
+Ceiba/AccessPolicyRoles:
+  Enabled: true
+  Include:
+    - "packs/*/*/app/policies/**/*.rb"
 
 # Nadie se salta el aislamiento de tenant (ActsAsTenant.without_tenant, unscoped...) fuera de esta lista. Cada archivo
 # que se añada aquí es un camino privilegiado y exige revisión (CODEOWNERS): reportes consolidados, back-office.
