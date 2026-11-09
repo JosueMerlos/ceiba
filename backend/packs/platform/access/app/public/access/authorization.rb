@@ -58,13 +58,16 @@ module Access
 
     def within_route_context(&)
       principal = Current.principal
-      organization_id = params[route_context_params.fetch(:organization)]
+      # SOLO los parámetros de la RUTA: `params` mezcla query y cuerpo, y un cliente podría fijar el contexto con
+      # `?organization_id=`. path_parameters viene únicamente del router.
+      route = request.path_parameters
+      organization_id = route[route_context_params.fetch(:organization)]
       return yield unless principal.is_a?(Principal::User) && organization_id.present?
 
       RouteContextResolver.call(
         principal:, organization_id:,
-        company_id: params[route_context_params.fetch(:company)].presence,
-        branch_id: params[route_context_params.fetch(:branch)].presence,
+        company_id: route[route_context_params.fetch(:company)].presence,
+        branch_id: route[route_context_params.fetch(:branch)].presence,
         &
       )
     end

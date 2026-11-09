@@ -13,7 +13,7 @@ module Api
         end
 
         def show
-          organization = ::Tenancy::Directory.organization!(params[:id])
+          organization = Current.context.organization
           authorize organization, :show?, policy_class: ::Access::OrganizationPolicy
           render json: { data: ::Tenancy::OrganizationSerializer.new(organization).serializable_hash }
         end

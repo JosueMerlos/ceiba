@@ -37,6 +37,8 @@ module Access
     private
 
     def within_company_and_branch(organization, &block)
+      # Una sucursal sin empresa no es una ruta válida: se rechaza, no se ignora.
+      not_found! if @company_id.nil? && !@branch_id.nil?
       return block.call(Current.context) if @company_id.nil?
 
       company = Tenancy::Directory.company!(identifier(@company_id))
