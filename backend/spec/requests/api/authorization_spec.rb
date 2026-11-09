@@ -10,7 +10,8 @@ RSpec.describe "Autorización obligatoria por defecto (allowlist de skip_authori
       "Api::V1::Identity::SessionsController#create" => "login: aún no hay principal ni recurso de una organización",
       "Api::V1::Identity::SessionsController#show" => "devuelve la propia sesión del principal autenticado",
       "Api::V1::Identity::SessionsController#destroy" => "revoca la propia sesión",
-      "Api::V1::Identity::SessionsController#destroy_all" => "revoca las propias sesiones"
+      "Api::V1::Identity::SessionsController#destroy_all" => "revoca las propias sesiones",
+      "Api::V1::Modules::MeController#show" => "devuelve el contexto y los permisos del propio principal; el contexto se resuelve con Access.with_context (membership validado)"
     }
   end
 

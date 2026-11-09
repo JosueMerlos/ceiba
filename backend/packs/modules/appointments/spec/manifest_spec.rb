@@ -12,7 +12,7 @@ RSpec.describe "Manifiesto de appointments" do
   it "declara los permisos de la matriz de 04 con el prefijo del módulo" do
     expect(manifest.permission_keys).to contain_exactly(
       "appointments.appointment.read", "appointments.appointment.create", "appointments.appointment.update",
-      "appointments.appointment.update_own", "appointments.service.read", "appointments.service.manage"
+      "appointments.appointment.update_own", "appointments.appointment.count", "appointments.service.read", "appointments.service.manage"
     )
   end
 
@@ -23,7 +23,11 @@ RSpec.describe "Manifiesto de appointments" do
       "receptionist" => include("appointments.appointment.create", "appointments.service.read"),
       "professional" => contain_exactly("appointments.appointment.read", "appointments.appointment.update_own", "appointments.service.read")
     )
-    expect(manifest.role_grants.keys).not_to include("org_owner", "org_admin")
+  end
+
+  it "org_owner y org_admin solo ven CONTEOS de citas (04: citas = conteos), nunca el detalle" do
+    expect(manifest.role_grants.slice("org_owner", "org_admin").values).to all(eq([ "appointments.appointment.count" ]))
+    expect(manifest.role_grants.keys).to include("org_owner", "org_admin")
   end
 
   it "los scopes de API traducen a permisos del módulo" do
@@ -49,7 +53,10 @@ RSpec.describe "Manifiesto de appointments" do
   end
 
   it "tiene navegación hacia la agenda, protegida por permiso" do
-    expect(manifest.navigation).to include({ key: "agenda", path: "/agenda", permission: "appointments.appointment.read" })
+    expect(manifest.navigation).to include(
+      { key: "agenda", path: "/agenda", permission: "appointments.appointment.read" },
+      { key: "summary", path: "/agenda/summary", permission: "appointments.appointment.count" }
+    )
   end
 
   it "no publica eventos todavía (sus esquemas llegan con el dominio, F1)" do
