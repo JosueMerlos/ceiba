@@ -89,7 +89,10 @@ export interface paths {
         delete: {
             parameters: {
                 query?: never;
-                header?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -104,6 +107,15 @@ export interface paths {
                 };
                 /** @description sin sesión válida */
                 401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sesión válida sin token CSRF correcto (`auth.csrf_invalid`) o con `Origin` ajeno (`auth.origin_forbidden`) */
+                403: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -185,7 +197,10 @@ export interface paths {
         delete: {
             parameters: {
                 query?: never;
-                header?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
                 path?: never;
                 cookie?: never;
             };
@@ -200,6 +215,15 @@ export interface paths {
                 };
                 /** @description sin sesión válida */
                 401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sesión válida sin token CSRF correcto (`auth.csrf_invalid`) o con `Origin` ajeno (`auth.origin_forbidden`) */
+                403: {
                     headers: {
                         [name: string]: unknown;
                     };

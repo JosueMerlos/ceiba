@@ -251,6 +251,13 @@ paths:
   "/api/v1/auth/logout":
     delete:
       description: Revoca la sesión del navegador y borra la cookie. Las demás sesiones del usuario siguen vigentes.
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
       responses:
         '204':
           description: sesión cerrada
@@ -260,6 +267,12 @@ paths:
               schema:
                 "$ref": "#/components/schemas/Problem"
           description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sesión válida sin token CSRF correcto (`auth.csrf_invalid`) o con `Origin` ajeno (`auth.origin_forbidden`)
       security:
       - cookieAuth: []
       summary: Cierra la sesión actual
@@ -295,6 +308,13 @@ paths:
   "/api/v1/auth/sessions":
     delete:
       description: Revoca todas las sesiones del usuario, en todos los dispositivos.
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
       responses:
         '204':
           description: todas las sesiones revocadas
@@ -304,6 +324,12 @@ paths:
               schema:
                 "$ref": "#/components/schemas/Problem"
           description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sesión válida sin token CSRF correcto (`auth.csrf_invalid`) o con `Origin` ajeno (`auth.origin_forbidden`)
       security:
       - cookieAuth: []
       summary: Cierra todas las sesiones

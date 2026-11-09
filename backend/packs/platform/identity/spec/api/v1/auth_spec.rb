@@ -1,5 +1,8 @@
 require "swagger_helper"
 
+# rswag exige que el `let` se llame igual que el parámetro de cabecera (`X-CSRF-Token`).
+# rubocop:disable RSpec/VariableName, RSpec/VariableDefinition
+
 # Contrato de los endpoints de autenticación (M0.07). Cada `response` ejecuta la petición real y valida el cuerpo contra
 # el esquema; de aquí sale backend/openapi/v1.yaml.
 RSpec.describe "API v1: autenticación" do
@@ -129,3 +132,4 @@ RSpec.describe "API v1: autenticación" do
     end
   end
 end
+# rubocop:enable RSpec/VariableName, RSpec/VariableDefinition
