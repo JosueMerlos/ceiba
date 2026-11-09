@@ -10,6 +10,8 @@ module Idempotency
     VALID_KEY = /\A[!-~]{1,255}\z/
     STORED_HEADERS = %w[Location].freeze
     SUCCESS = (200..299)
+    # Cuánto espera (segundos) una petición a que termine otra con la misma clave antes de responder 409 request_in_progress.
+    LOCK_TIMEOUT = 5
 
     Replay = Data.define(:status, :body, :content_type, :headers)
 
@@ -56,13 +58,25 @@ module Idempotency
       nil
     end
 
-    # nil si otra petición se adelantó (violación única en un savepoint: no aborta la transacción del request).
+    # nil si otra petición se adelantó (violación única en un savepoint: no aborta la transacción del request). Si la otra
+    # sigue en curso, el INSERT espera a que termine; la espera está ACOTADA con `lock_timeout` (solo mientras dura la
+    # reserva): vencida, ActiveRecord::LockWaitTimeout => Idempotency::RequestInProgress (409, el cliente reintenta).
     def reserve(key, now)
       Key.transaction(requires_new: true) do
-        Key.create!(principal_key:, key:, request_fingerprint: fingerprint, expires_at: now + Key::TTL)
+        with_lock_timeout { Key.create!(principal_key:, key:, request_fingerprint: fingerprint, expires_at: now + Key::TTL) }
       end
     rescue ActiveRecord::RecordNotUnique
       nil
+    rescue ActiveRecord::LockWaitTimeout
+      raise RequestInProgress, "Otra petición con la misma Idempotency-Key sigue en curso"
+    end
+
+    # Si falla, el savepoint se revierte y con él el SET LOCAL; si sale bien, se restaura el valor previo a mano.
+    def with_lock_timeout
+      connection = Key.connection
+      previous = connection.select_value("SELECT current_setting('lock_timeout')")
+      connection.execute("SELECT set_config('lock_timeout', '#{(LOCK_TIMEOUT * 1000).to_i}ms', true)")
+      yield.tap { connection.execute("SELECT set_config('lock_timeout', #{connection.quote(previous)}, true)") }
     end
 
     def replay_of(stored)

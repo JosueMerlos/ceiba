@@ -9,7 +9,7 @@ RSpec.describe "API pública de idempotency" do
   it "expone solo Idempotency::Idempotent y los errores de dominio" do
     expect(public_files).to contain_exactly(
       "idempotency/idempotent.rb", "idempotency/error.rb", "idempotency/key_reused.rb", "idempotency/key_required.rb",
-      "idempotency/key_invalid.rb", "idempotency/missing_context.rb"
+      "idempotency/key_invalid.rb", "idempotency/missing_context.rb", "idempotency/request_in_progress.rb"
     )
   end
 end

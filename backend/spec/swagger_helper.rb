@@ -67,9 +67,22 @@ module OpenapiComponents
     }
   end
 
+  def self.headers
+    {
+      IdempotencyReplayed: {
+        description: "`true` cuando la respuesta es la guardada de una petición anterior con la misma `Idempotency-Key` (repetida, no ejecutada de nuevo).",
+        schema: { type: :string, enum: %w[true] }
+      }
+    }
+  end
+
   def self.responses
     problem = { "application/problem+json": { schema: { "$ref" => "#/components/schemas/Problem" } } }
     {
+      IdempotencyRequestInProgress: {
+        description: "Otra petición con la misma `Idempotency-Key` sigue en curso (código `idempotency.request_in_progress`); reintenta con la misma clave",
+        content: problem
+      },
       IdempotencyKeyReused: { description: "La `Idempotency-Key` ya se usó con otro método, ruta o cuerpo (código `idempotency.key_reused`)", content: problem },
       IdempotencyKeyInvalid: {
         description: "`Idempotency-Key` inválida (`idempotency.key_invalid`) o ausente en un endpoint que la exige (`idempotency.key_required`)", content: problem
@@ -103,6 +116,7 @@ RSpec.configure do |config|
       paths: {},
       components: {
         schemas: OpenapiComponents.all,
+        headers: OpenapiComponents.headers,
         parameters: OpenapiComponents.parameters,
         responses: OpenapiComponents.responses,
         securitySchemes: {
