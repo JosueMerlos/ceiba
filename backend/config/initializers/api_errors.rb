@@ -22,6 +22,7 @@ Rails.application.config.to_prepare do
   registry.register(ActionDispatch::Http::MimeNegotiation::InvalidType, status: :not_acceptable, code: "request.not_acceptable")
   registry.register(ActionController::UnknownFormat, status: :not_acceptable, code: "request.unknown_format")
   registry.register(ActionController::NotImplemented, status: :not_implemented, code: "request.not_implemented")
+  registry.register(Api::QueryNotAllowed, status: :bad_request, code: "request.query_not_allowed")
   registry.register(Api::UnsupportedMediaType, status: :unsupported_media_type, code: "request.unsupported_media_type")
   registry.register(ActionController::BadRequest, status: :bad_request, code: "request.bad_request")
   registry.register(ActionDispatch::Http::Parameters::ParseError, status: :bad_request, code: "request.malformed")

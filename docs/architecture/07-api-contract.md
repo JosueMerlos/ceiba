@@ -89,7 +89,8 @@
 | `resource.conflict` | 409 | `ActiveRecord::RecordNotUnique` (sin exponer SQL ni nombre de índice) |
 | `request.invalid` | 400 | Parámetro obligatorio ausente (`errors[]` con el campo) |
 | `request.malformed` | 400 | JSON mal formado |
-| `request.unsupported_media_type` | 415 | Mutación con cuerpo que no es `application/json` |
+| `request.unsupported_media_type` | 415 | Mutación con cuerpo que no es `application/json` (`ApiRequestGuard`) |
+| `request.query_not_allowed` | 400 | Mutación con parámetros en la query string |
 | `request.bad_request` | 400 | `ActionController::BadRequest` |
 | `pagination.invalid_cursor` / `pagination.invalid_limit` | 400 | Cursor manipulado o `limit` fuera de 1–100 |
 | `tenancy.slug_taken` | 409 | `Tenancy::ProvisioningFailed(:slug_taken)` |

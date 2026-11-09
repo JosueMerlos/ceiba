@@ -68,7 +68,7 @@ RSpec.describe "La API solo acepta cuerpos JSON en las mutaciones" do
       user = create(:user)
 
       expect do
-        post "/api/v1/auth/login?email=#{user.email}&password=#{AuthenticationHelpers::DEFAULT_PASSWORD}"
+        post "/api/v1/auth/login?#{{ email: user.email, password: AuthenticationHelpers::DEFAULT_PASSWORD }.to_query}"
       end.not_to change(Identity::Session, :count)
 
       expect_query_rejected

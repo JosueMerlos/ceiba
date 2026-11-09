@@ -5,6 +5,10 @@
 # spec/config/authentication_config_spec.rb). Sesión y flash de Rails siguen fuera: la sesión es nuestra, en BD.
 Rails.application.config.middleware.use ActionDispatch::Cookies
 
+# Formato de las mutaciones de la API (JSON, sin query string) antes de parsear y de registrar parámetros.
+require Rails.root.join("config/middleware/api_request_guard").to_s
+Rails.application.config.middleware.use ApiRequestGuard
+
 # Cookie `Secure` y prefijo `__Host-` (Secure + Path=/ + sin Domain: el navegador no deja que un subdominio la pise).
 # Solo con HTTPS: producción y staging (RAILS_ENV=production, ADR-0013). En desarrollo y test se sirve por HTTP.
 Rails.application.config.x.auth.secure_cookies = Rails.env.production?

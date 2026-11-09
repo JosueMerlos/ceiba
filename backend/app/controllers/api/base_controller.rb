@@ -5,7 +5,6 @@ module Api
   # heredan de aquí: son infraestructura.
   class BaseController < ApplicationController
     include ErrorHandling
-    include JsonBody
     include Authentication
     include Paginated
   end
