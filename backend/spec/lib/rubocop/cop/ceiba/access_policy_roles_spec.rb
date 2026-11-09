@@ -33,6 +33,18 @@ RSpec.describe RuboCop::Cop::Ceiba::AccessPolicyRoles, :config do
     expect(flagged("  def destroy? = user.admin? || user.has_role?(:x) || user.roles.any?")).to eq([ "admin?", "has_role?", "roles" ])
   end
 
+  it "rechaza send/public_send/__send__ con una consulta de rol y instance_variable_get" do
+    expect(flagged("  def a? = user.send(:admin?)\n  def b? = user.public_send(:roles)\n  def c? = user.__send__(\"has_role?\", 1)\n  def d? = user.instance_variable_get(:@role)")).to eq(
+      [ ":admin?", ":roles", '"has_role?"', "instance_variable_get" ]
+    )
+  end
+
+  it "rechaza claves de rol partidas: cadenas adyacentes, interpolación y concatenación" do
+    expect(flagged(%q(  def a? = x == "org_" "owner"
+  def b? = x == "org_#{kind}"
+  def c? = x == "recep" + "tionist"))).to eq([ '"org_" "owner"', '"org_#{kind}"', '"recep" + "tionist"' ])
+  end
+
   it "el mensaje explica el porqué" do
     offense = inspect_source("class P; def a? = admin?; end", policy_path).first
 

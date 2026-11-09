@@ -6,17 +6,34 @@ RSpec.describe "verify_authorized y verify_policy_scoped globales" do
   before(:context) do # rubocop:disable RSpec/BeforeAfterAll -- dibujar rutas es caro y global
     Object.const_set(:AccessProbes, Module.new) unless Object.const_defined?(:AccessProbes)
     AccessProbes.const_set(:ProbesController, Class.new(Api::BaseController) do
-      skip_authorization! reason: "probe de test: la acción ok sí autoriza explícitamente", only: :exempt
+      skip_authorization! reason: "probe de test: la acción exempt no devuelve recursos", only: :exempt
 
       def unauthorized = render(json: { data: { ok: true } })
       def exempt = render(json: { data: { ok: true } })
       def authorized
-        authorize Tenancy::Directory.organizations, :index?, policy_class: Access::OrganizationPolicy
+        authorize Tenancy::Directory.organizations_for([]), :index?, policy_class: Access::OrganizationPolicy
         render json: { data: { ok: true } }
       end
 
+      # Acción de colección que NO se llama index: también debe usar policy_scope.
+      def search
+        authorize Tenancy::Directory.organizations_for([]), :index?, policy_class: Access::OrganizationPolicy
+        render json: { data: [] }
+      end
+
+      def member
+        authorize Tenancy::Directory.organizations_for([]).first_or_initialize, :create?, policy_class: Access::OrganizationPolicy
+      rescue Pundit::NotAuthorizedError
+        render json: { data: { ok: true } }
+      end
+
+      def scoped_search
+        authorize Tenancy::Directory.organizations_for([]), :index?, policy_class: Access::OrganizationPolicy
+        render json: { data: policy_scope(Tenancy::Directory.organizations_for([]), policy_scope_class: Access::OrganizationPolicy::Scope).to_a }
+      end
+
       def index
-        authorize Tenancy::Directory.organizations, :index?, policy_class: Access::OrganizationPolicy
+        authorize Tenancy::Directory.organizations_for([]), :index?, policy_class: Access::OrganizationPolicy
         render json: { data: [] }
       end
     end) unless AccessProbes.const_defined?(:ProbesController, false)
@@ -29,6 +46,9 @@ RSpec.describe "verify_authorized y verify_policy_scoped globales" do
         get "authorized"
         get "exempt"
         get "index"
+        get "search"
+        get "member"
+        get "scoped_search"
       end
     end
   ensure
@@ -69,8 +89,29 @@ RSpec.describe "verify_authorized y verify_policy_scoped globales" do
     expect(Api::ErrorReporter).to have_received(:call).with(instance_of(Pundit::PolicyScopingNotPerformedError), any_args)
   end
 
+  it "una acción de colección que no se llama index también exige policy_scope" do
+    allow(Api::ErrorReporter).to receive(:call)
+
+    get "/api/v1/access_probes/search"
+
+    expect(response).to have_http_status(:internal_server_error)
+    expect(Api::ErrorReporter).to have_received(:call).with(instance_of(Pundit::PolicyScopingNotPerformedError), any_args)
+  end
+
+  it "una acción de colección con policy_scope responde normal" do
+    get "/api/v1/access_probes/scoped_search"
+
+    expect(response).to have_http_status(:ok)
+  end
+
+  it "autorizar un registro concreto no exige policy_scope (acciones de miembro)" do
+    get "/api/v1/access_probes/member"
+
+    expect(response).to have_http_status(:ok)
+  end
+
   it "skip_authorization! exige un motivo y deja constancia" do
-    expect { Class.new(Api::BaseController) { skip_authorization!(reason: " ") } }.to raise_error(ArgumentError, /motivo|reason/)
+    expect { Class.new(Api::BaseController) { skip_authorization!(reason: " ", only: :x) } }.to raise_error(ArgumentError, /motivo|reason/)
     expect(AccessProbes::ProbesController.authorization_skips).to include(a_hash_including(reason: a_string_matching(/probe/)))
   end
 end
