@@ -53,6 +53,7 @@ RSpec/DescribeClass:
     - "packs/platform/tenancy/spec/factories_spec.rb"
     - "packs/platform/tenancy/spec/public_api_spec.rb"
     - "packs/platform/identity/spec/public_api_spec.rb"
+    - "packs/platform/identity/spec/public/identity/authenticate_audit_spec.rb"
     - "packs/platform/tenancy/spec/public/**/*"
     - "packs/platform/access/spec/**/*"
     - "spec/platform/**/*"
