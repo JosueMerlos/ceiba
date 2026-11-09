@@ -43,6 +43,7 @@ RSpec/DescribeClass:
     - "spec/generators/model_generator_spec.rb"
     - "packs/*/*/spec/package_spec.rb"
     - "packs/platform/database/spec/database/**/*"
+    - "packs/platform/events/spec/**/*"
     - "packs/platform/tenancy/spec/config/**/*"
     - "packs/platform/tenancy/spec/factories_spec.rb"
     - "packs/platform/tenancy/spec/public_api_spec.rb"
@@ -84,6 +85,8 @@ Ceiba/TenantBypass:
     - "lib/rubocop/**/*"
   AllowedFiles:
     - "packs/platform/tenancy/app/public/tenancy.rb"
+    # Lecturas del outbox de todas las organizaciones (relay, purgas, lag): ver el comentario del archivo.
+    - "packs/platform/events/app/services/events/cross_tenant.rb"
 
 # rubocop-rails limita estos cops a app/models, app/controllers... de la raíz; sin esto no
 # revisarían los packs (packs-rails, "Ecosystem and Integrations").

@@ -11,14 +11,7 @@ RSpec.describe Tenancy::ProvisionOrganization, ".call" do
 
   after do
     hooks.each { |hook| described_class.remove_after_provision(hook) }
-    organizations = Tenancy::Organization.where("name LIKE 'Carrera %'")
-    organizations.each do |organization|
-      Tenancy.with_context(organization:) do
-        Tenancy::Branch.delete_all
-        Tenancy::Company.delete_all
-      end
-    end
-    organizations.delete_all
+    purge_organizations(Tenancy::Organization.where("name LIKE 'Carrera %'").to_a)
   end
 
   def provision(name) = described_class.call(organization: { name: "Carrera #{name}" }, company: { name: name, slug:, business_type: "salon", currency: "NIO" }, branch: { name: "Centro" })

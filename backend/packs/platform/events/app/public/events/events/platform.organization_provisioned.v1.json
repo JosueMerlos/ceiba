@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "platform.organization_provisioned.v1",
+  "description": "Se provisionó una organización con su primera empresa y sucursal.",
+  "type": "object",
+  "required": ["organization_id", "company_id", "branch_id"],
+  "properties": {
+    "organization_id": { "type": "string", "format": "uuid" },
+    "company_id": { "type": "string", "format": "uuid" },
+    "branch_id": { "type": "string", "format": "uuid" }
+  },
+  "additionalProperties": false
+}

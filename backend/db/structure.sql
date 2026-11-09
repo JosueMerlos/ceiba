@@ -113,6 +113,41 @@ CREATE TABLE public.organizations (
 
 
 --
+-- Name: outbox_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.outbox_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    name character varying NOT NULL,
+    payload jsonb DEFAULT '{}'::jsonb NOT NULL,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    occurred_at timestamp(6) without time zone NOT NULL,
+    published_at timestamp(6) without time zone,
+    attempts integer DEFAULT 0 NOT NULL,
+    last_error text,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_outbox_events_name_format CHECK (((name)::text ~ '^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*\.v[0-9]+$'::text))
+);
+
+
+--
+-- Name: processed_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.processed_events (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    event_id uuid NOT NULL,
+    subscriber character varying NOT NULL,
+    processed_at timestamp(6) without time zone DEFAULT now() NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -154,6 +189,22 @@ ALTER TABLE ONLY public.organizations
 
 
 --
+-- Name: outbox_events outbox_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.outbox_events
+    ADD CONSTRAINT outbox_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: processed_events processed_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processed_events
+    ADD CONSTRAINT processed_events_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -178,6 +229,43 @@ ALTER TABLE ONLY public.companies
 
 
 --
+-- Name: outbox_events uq_outbox_events_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.outbox_events
+    ADD CONSTRAINT uq_outbox_events_organization_id_id UNIQUE (organization_id, id);
+
+
+--
+-- Name: processed_events uq_processed_events_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processed_events
+    ADD CONSTRAINT uq_processed_events_organization_id_id UNIQUE (organization_id, id);
+
+
+--
+-- Name: idx_outbox_events_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_outbox_events_pending ON public.outbox_events USING btree (id) WHERE (published_at IS NULL);
+
+
+--
+-- Name: idx_outbox_events_published_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_outbox_events_published_at ON public.outbox_events USING btree (published_at) WHERE (published_at IS NOT NULL);
+
+
+--
+-- Name: idx_processed_events_processed_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_processed_events_processed_at ON public.processed_events USING btree (processed_at);
+
+
+--
 -- Name: index_branches_on_organization_id_and_company_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -189,6 +277,13 @@ CREATE INDEX index_branches_on_organization_id_and_company_id ON public.branches
 --
 
 CREATE UNIQUE INDEX uq_companies_slug ON public.companies USING btree (slug);
+
+
+--
+-- Name: uq_processed_events_event_subscriber; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_processed_events_event_subscriber ON public.processed_events USING btree (event_id, subscriber);
 
 
 --
@@ -216,6 +311,22 @@ ALTER TABLE ONLY public.companies
 
 
 --
+-- Name: outbox_events fk_outbox_events_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.outbox_events
+    ADD CONSTRAINT fk_outbox_events_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: processed_events fk_processed_events_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.processed_events
+    ADD CONSTRAINT fk_processed_events_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: branches tenant_isolation; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -230,12 +341,28 @@ CREATE POLICY tenant_isolation ON public.companies USING ((organization_id = (NU
 
 
 --
+-- Name: outbox_events tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.outbox_events USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
+-- Name: processed_events tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.processed_events USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261108200100'),
+('20261108200000'),
 ('20261108100200'),
 ('20261108100100'),
 ('20261108100000'),
