@@ -21,9 +21,9 @@ RSpec.describe Tenancy::ProvisionOrganization, ".call" do
     seen = nil
     register_hook { |result| seen = result.extras }
 
-    described_class.call(**params, extras: { owner: { id: "abc" }, plan: "pilot" })
+    described_class.call(**params, extras: { plan: "pilot", note: { id: "abc" } })
 
-    expect(seen).to eq(owner: { id: "abc" }, plan: "pilot")
+    expect(seen).to eq(plan: "pilot", note: { id: "abc" })
   end
 
   it "sin extras, result.extras es un hash vacío y el Result conserva su forma" do
