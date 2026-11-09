@@ -1,0 +1,28 @@
+module Access
+  # Dónde se ejerce un permiso: la organización, una empresa o una sucursal (siempre dentro de UNA organización). Value
+  # object: las policies lo construyen desde el registro que autorizan (los modelos de otros packs son privados, así que
+  # se pasan sus ids).
+  #
+  #   Access::Scope.organization(org.id)
+  #   Access::Scope.company(organization_id: org.id, company_id: company.id)
+  #   Access::Scope.branch(organization_id: org.id, company_id: branch.company_id, branch_id: branch.id)
+  Scope = Data.define(:organization_id, :company_id, :branch_id) do
+    def self.organization(organization_id) = new(organization_id:, company_id: nil, branch_id: nil)
+    def self.company(organization_id:, company_id:) = new(organization_id:, company_id:, branch_id: nil)
+    def self.branch(organization_id:, company_id:, branch_id:) = new(organization_id:, company_id:, branch_id:)
+
+    def initialize(organization_id:, company_id: nil, branch_id: nil)
+      raise ArgumentError, "Un alcance requiere organization_id" if organization_id.blank?
+      raise ArgumentError, "Un alcance de sucursal requiere company_id" if branch_id.present? && company_id.blank?
+
+      super
+    end
+
+    def level
+      return :branch if branch_id
+      return :company if company_id
+
+      :organization
+    end
+  end
+end

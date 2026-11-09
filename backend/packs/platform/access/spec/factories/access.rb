@@ -1,4 +1,11 @@
 FactoryBot.define do
+  # Rol de prueba (NO de sistema) para probar la semántica de cobertura con un solo permiso, sin depender de la matriz sembrada.
+  factory :role, class: "Access::Role" do
+    sequence(:key) { |n| "rol_de_prueba_#{n}" }
+    scope_level { "organization" }
+    system { false }
+  end
+
   # Un membership se crea DENTRO de un tenant (`create_in(org, :membership)`), como el resto de modelos tenant. El rol es uno
   # de los de sistema, sincronizados al arrancar la suite (spec/support/access_catalog.rb). Por defecto: org_admin de la
   # organización activa. Para otros alcances: `role_key:`, `company_id:` y `branch_id:`.

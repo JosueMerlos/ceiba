@@ -179,9 +179,10 @@ RSpec.describe Access::Principal::User do
 
     it "un membership de empresa hace visibles todas sus sucursales; uno de organización, todo" do
       grant(role_with(permission, "company"), company: company_a)
-      grant(role_with(permission, "organization"), for_user: create(:user))
+      owner = create(:user)
+      grant(role_with(permission, "organization"), for_user: owner)
       company_principal = principal_for
-      org_principal = principal_for(Identity::Principal::User.new(id: Access::Membership.unscoped.last&.user_id, email: "", full_name: ""))
+      org_principal = principal_for(owner)
 
       expect(company_principal.sees_branch?(branch_a2.id, company_a.id)).to be(true)
       expect(company_principal.sees_company?(company_b.id)).to be(false)
