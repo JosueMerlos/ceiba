@@ -1,7 +1,9 @@
 # Endpoints de prueba de la idempotencia (M0.11). Aún no hay endpoints de creación reales, así que el concern
 # Idempotency::Idempotent se prueba sobre una sonda que CREA UNA EMPRESA (un recurso real, contable). Las rutas existen solo
 # en los grupos que las piden (mismo patrón que ApiProbes). La sonda hereda de Api::BaseController, como cualquier
-# controlador de un pack, y abre el contexto de tenancy desde la ruta (lo que hará el control de acceso en M0.08).
+# controlador de un pack. En las acciones autenticadas el contexto lo abre Access::Authorization desde la ruta
+# (/organizations/:organization_id/..., exige un membership); las acciones PÚBLICAS (principal anónimo) abren el suyo, como
+# hará la reserva pública al resolver la organización por el slug.
 module IdempotencyProbes
   def self.define_controller!
     return if const_defined?(:ProbesController, false)
@@ -10,16 +12,28 @@ module IdempotencyProbes
       include Idempotency::Idempotent
 
       skip_authentication! only: %i[public_create slow_create no_context]
-      around_action :in_organization, except: :no_context
+      skip_authorization! reason: "sondas de test de la idempotencia: crean empresas de prueba, no autorizan un recurso", only: %i[
+        create required_create soft_fail public_create slow_create no_context audit_in_get idempotent_get
+      ]
+      # Declarado ANTES que `idempotent`: el contexto debe estar abierto cuando corre el filtro de la clave.
+      around_action :in_public_organization, only: %i[public_create slow_create]
 
       idempotent :create, :public_create, :slow_create, :soft_fail
       idempotent :required_create, required: true
-      idempotent :no_context
+      idempotent :no_context, :idempotent_get
 
       def create = create_company
       def public_create = create_company
       def required_create = create_company
       def no_context = head(:created)
+
+      # Lecturas: corren en una transacción de SOLO LECTURA (Access::RouteContextResolver). Escribir en ellas debe fallar.
+      def audit_in_get
+        Audit.record(action: "probe.read", subject: Current.context.organization)
+        head :ok
+      end
+
+      def idempotent_get = head(:ok)
 
       # Responde 422 SIN lanzar una excepción (el camino "render 4xx").
       def soft_fail = render(json: { error: "rechazada" }, status: :unprocessable_content)
@@ -31,7 +45,7 @@ module IdempotencyProbes
 
       private
 
-      def in_organization(&)
+      def in_public_organization(&)
         Tenancy.with_context(organization: Tenancy::Organization.find(params[:organization_id]), principal: Current.principal, &)
       end
 
@@ -59,6 +73,8 @@ module IdempotencyProbes
           post "organizations/:organization_id/public_companies", action: :public_create
           post "organizations/:organization_id/soft_fails", action: :soft_fail
           post "no_context", action: :no_context
+          get "organizations/:organization_id/audit_in_get", action: :audit_in_get
+          get "organizations/:organization_id/idempotent_get", action: :idempotent_get
         end
       end
     ensure

@@ -9,7 +9,7 @@ RSpec.describe "Transacciones de solo lectura en GET", type: :request do
   let!(:user) { user_with_role("org_admin", world) }
 
   after do
-    purge_organizations([ world.organization ])
+    purge_organizations([ world.organization ], user_ids: [ user.id ])
     ApplicationRecord.connection.execute("DELETE FROM sessions WHERE user_id = #{ApplicationRecord.connection.quote(user.id)}")
     Identity::User.where(id: user.id).delete_all
   end

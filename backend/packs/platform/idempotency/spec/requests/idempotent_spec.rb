@@ -6,9 +6,11 @@ RSpec.describe "Idempotencia de escrituras (Idempotency-Key)" do
   include ActiveSupport::Testing::TimeHelpers
   include_context "con endpoints de prueba de idempotencia"
 
-  let(:organization) { create(:organization) }
+  let(:world) { build_access_world }
+  let(:organization) { world.organization }
   let(:other_organization) { create(:organization) }
-  let(:user) { create(:user) }
+  # Un usuario con membership en AMBAS organizaciones: el contexto lo abre Access::Authorization desde la ruta.
+  let(:user) { user_with_role("org_admin", organization).tap { |member| user_with_role("org_admin", other_organization, user: member) } }
   let!(:signed_in) { sign_in(user) }
   let(:key) { SecureRandom.uuid }
 
@@ -118,7 +120,7 @@ RSpec.describe "Idempotencia de escrituras (Idempotency-Key)" do
     it "es por principal: otro usuario con la misma clave y cuerpo no recibe la respuesta del primero" do
       create_company
       browser = open_session
-      other = sign_in(browser:)
+      other = sign_in(user_with_role("org_admin", organization), browser:)
       response = create_company(browser:, csrf: other.csrf_headers)
 
       expect(response).to have_http_status(:created)
