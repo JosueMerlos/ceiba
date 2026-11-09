@@ -31,9 +31,13 @@ RSpec.describe "Auditoría de la autenticación" do
       login(email: "Nadie@Ceiba.test", pass: "intento-secreto-99")
       serialized = events.map { |event| event.attributes.to_json }.join
 
-      expect(serialized).not_to include("intento-secreto-99")
-      expect(serialized).not_to include(password)
+      expect(serialized).not_to include("intento-secreto-99", password)
       expect(serialized).not_to include("nadie@ceiba.test")
+    end
+
+    it "guarda solo el digest SHA-256 del correo normalizado" do
+      login(email: "Nadie@Ceiba.test")
+
       expect(events.first.metadata).to eq("email_digest" => OpenSSL::Digest::SHA256.hexdigest("nadie@ceiba.test"))
     end
 
