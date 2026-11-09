@@ -18,10 +18,10 @@ RSpec.describe "Active Record Encryption: claves" do
     it "la derivación es estable (la misma secret_key_base da las mismas claves) y cambia con ella" do
       other = ActiveSupport::KeyGenerator.new("otra-secret-key-base", hash_digest_class: OpenSSL::Digest::SHA256)
 
-      expect(described_class.for(production: false, env: {}, key_generator: generator))
-        .to eq(described_class.for(production: false, env: {}, key_generator: generator))
-      expect(described_class.for(production: false, env: {}, key_generator: other))
-        .not_to eq(described_class.for(production: false, env: {}, key_generator: generator))
+      first = described_class.for(production: false, env: {}, key_generator: generator)
+
+      expect(described_class.for(production: false, env: {}, key_generator: Rails.application.key_generator)).to eq(first)
+      expect(described_class.for(production: false, env: {}, key_generator: other)).not_to eq(first)
     end
 
     it "en producción lee las claves del entorno" do
