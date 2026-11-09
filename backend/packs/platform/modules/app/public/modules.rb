@@ -20,6 +20,18 @@ module Modules
       CompanyModule.active.exists?(company_id: company.respond_to?(:id) ? company.id : company, module_key: key.to_s)
     end
 
+    # Settings RESUELTOS y validados de un módulo: default del esquema -> empresa -> sucursal (si se da `branch`). El módulo debe estar
+    # activo en la empresa (Modules::NotEnabled); lo guardado que ya no cumpla el esquema lanza Modules::InvalidSettings.
+    # Dentro de Tenancy.with_context. Devuelve un Hash nuevo. Escribir: Modules::UpdateSettings.
+    def settings_for(key, company:, branch: nil)
+      raise ArgumentError, "la sucursal #{branch.id} no es de la empresa #{company.id}" if branch && branch.company_id != company.id
+
+      manifest = registry.fetch(key)
+      company_row = CompanyModule.active.find_by(company_id: company.id, module_key: manifest.key) or raise NotEnabled, manifest.key
+      branch_settings = branch && BranchModuleSetting.find_by(branch_id: branch.id, module_key: manifest.key)&.settings
+      SettingsResolver.call!(manifest, company_row.settings, branch_settings)
+    end
+
     # ¿Permite el plan de la organización este módulo? (entitlement: docs/architecture/05-module-system.md, "Tres conceptos").
     # TODO(F6): consultar plans/plan_entitlements cuando existan (docs/roadmap/README.md, F6 — Producto vendible). Hasta entonces
     # todos los planes tienen entitlement a todo (sin límites): activar solo exige `requires`.

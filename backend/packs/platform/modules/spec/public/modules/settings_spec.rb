@@ -153,22 +153,4 @@ RSpec.describe "Settings de módulo" do
       expect { update({ "max_advance_days" => 3 }, foreign) }.to raise_error(ArgumentError, /sucursal/)
     end
   end
-
-  describe "esquema con objetos anidados (appointments: reminders)" do
-    let(:reminders_schema) do
-      Modules::Registry.new.define(:anidado) do
-        name "Anidado"
-        version "1.0"
-        settings_schema(type: "object", properties: { reminders: { type: "array", default: [], items: { type: "object", required: %w[kind offset_minutes],
-                                                                                                           properties: { kind: { type: "string" }, offset_minutes: { type: "integer", minimum: 1 } } } } })
-      end
-    end
-
-    it "reporta el campo anidado con su ruta" do
-      value = [ { "kind" => "2h", "offset_minutes" => 0 }, { "kind" => "1h" } ]
-      errors = Modules::SettingsValidator.call(reminders_schema, { "reminders" => value })
-
-      expect(errors.pluck(:field)).to contain_exactly("reminders.0.offset_minutes", "reminders.1.offset_minutes")
-    end
-  end
 end

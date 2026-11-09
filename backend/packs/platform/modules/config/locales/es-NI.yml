@@ -1,2 +1,16 @@
 es-NI:
-  modules: {}
+  modules:
+    settings_errors:
+      invalid: "no es válido"
+      type: "no tiene el tipo esperado"
+      minimum: "es menor que el mínimo permitido"
+      maximum: "es mayor que el máximo permitido"
+      exclusiveMinimum: "es menor o igual que el mínimo permitido"
+      exclusiveMaximum: "es mayor o igual que el máximo permitido"
+      minLength: "es demasiado corto"
+      maxLength: "es demasiado largo"
+      enum: "no es un valor permitido"
+      const: "no es el valor permitido"
+      required: "es obligatorio"
+      unknown: "no es un ajuste de este módulo"
+      not_allowed_at_level: "no se puede sobrescribir a nivel sucursal"
