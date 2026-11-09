@@ -35,6 +35,9 @@ RSpec.describe Tenancy::Directory do
       expect(loaded).to be_readonly
       expect { loaded.update!(name: "Otro") }.to raise_error(ActiveRecord::ReadOnlyRecord)
       expect { described_class.organizations_for([ organization.id ]).first.destroy }.to raise_error(ActiveRecord::ReadOnlyRecord)
+    end
+
+    it "también las empresas y sucursales" do
       with_tenant(organization) do
         expect { described_class.company!(company.id).update!(name: "x") }.to raise_error(ActiveRecord::ReadOnlyRecord)
         expect { described_class.branches.first.destroy }.to raise_error(ActiveRecord::ReadOnlyRecord)
