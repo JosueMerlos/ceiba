@@ -6,6 +6,8 @@ module Access
 
     MODULE_KEY = /\A[a-z][a-z0-9_]*\z/
     OPTIONS = %i[description roles from_descendants].freeze
+    # Acciones de LECTURA: las únicas a las que se aplica `from_descendants` (la lectura ascendente nunca concede escribir).
+    READ_ACTIONS = %w[read list show view].freeze
 
     def initialize
       @definitions = {}
@@ -44,6 +46,10 @@ module Access
       raise ArgumentError, "opciones desconocidas para #{key}: #{unknown.join(', ')}" if unknown.any?
       raise ArgumentError, "#{key} no sigue <modulo>.<recurso>.<accion>" unless Permission::KEY_FORMAT.match?(key)
       raise ArgumentError, "#{key} debe empezar por el módulo que lo declara (#{module_key})" unless key.start_with?("#{module_key}.")
+
+      if options[:from_descendants] && !READ_ACTIONS.include?(key.split(".").last)
+        raise ArgumentError, "#{key}: from_descendants solo se acepta en permisos de lectura (acciones #{READ_ACTIONS.join(', ')})"
+      end
 
       description = options[:description].to_s.strip
       raise ArgumentError, "#{key} necesita una descripción" if description.empty?

@@ -18,7 +18,7 @@ module Access
 
       ApplicationRecord.transaction(requires_new: true) do
         # Serializa despliegues simultáneos; se libera solo al terminar la transacción.
-        ApplicationRecord.connection.select_value("SELECT pg_advisory_xact_lock(hashtext(#{ApplicationRecord.connection.quote(LOCK_NAME)}))")
+        ApplicationRecord.connection.execute("SELECT pg_advisory_xact_lock(hashtext(#{ApplicationRecord.connection.quote(LOCK_NAME)}))")
         refuse_unauthorized_prune!
         sync_permissions
         roles = sync_roles

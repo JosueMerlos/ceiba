@@ -9,6 +9,7 @@ require:
   - ./lib/rubocop/cop/ceiba/tenant_bypass
   - ./lib/rubocop/cop/ceiba/access_policy_roles
   - ./lib/rubocop/cop/ceiba/authorization_skips
+  - ./lib/rubocop/cop/ceiba/directory_writes
 
 plugins:
   - rubocop-rails
@@ -108,6 +109,17 @@ Ceiba/AuthorizationSkips:
   Include:
     - "app/controllers/**/*.rb"
     - "packs/*/*/app/controllers/**/*.rb"
+
+# Tenancy::Directory es de solo lectura: nada de update_all/delete_all/readonly(false) a través de él.
+Ceiba/DirectoryWrites:
+  Enabled: true
+  Include:
+    - "app/**/*.rb"
+    - "packs/*/*/app/**/*.rb"
+    - "lib/**/*.rb"
+    - "db/**/*.rb"
+  Exclude:
+    - "lib/rubocop/**/*"
 
 # Nadie se salta el aislamiento de tenant (ActsAsTenant.without_tenant, unscoped...) fuera de esta lista. Cada archivo
 # que se añada aquí es un camino privilegiado y exige revisión (CODEOWNERS): reportes consolidados, back-office.

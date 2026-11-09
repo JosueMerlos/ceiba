@@ -25,10 +25,10 @@ module RuboCop
         ROLE_KEYS = %w[org_owner org_admin company_manager branch_manager receptionist professional].freeze
         ROLE_QUERIES = %i[admin? role roles role_key role_name role? has_role? in_role? memberships].freeze
         DYNAMIC_SENDS = %i[send public_send __send__].freeze
-        BACKDOORS = %i[instance_variable_get instance_variable_set].freeze
+        BACKDOORS = %i[instance_variable_get instance_variable_set instance_eval instance_exec].freeze
         MIN_PREFIX = 4
 
-        RESTRICT_ON_SEND = (ROLE_QUERIES + DYNAMIC_SENDS + BACKDOORS + [ :+ ]).freeze
+        RESTRICT_ON_SEND = (ROLE_QUERIES + DYNAMIC_SENDS + BACKDOORS + [ :+, :method, :join ]).freeze
 
         def on_send(node)
           name = node.method_name
@@ -38,6 +38,10 @@ module RuboCop
             add_offense(node.loc.selector, message: format(MSG, found: name))
           elsif name == :+
             check_concatenation(node)
+          elsif name == :method
+            check_method_reference(node)
+          elsif name == :join
+            check_join(node)
           elsif node.receiver || node.method?(:admin?)
             add_offense(node.loc.selector, message: format(MSG, found: name))
           end
@@ -67,6 +71,25 @@ module RuboCop
           return unless target&.type?(:sym, :str) && ROLE_QUERIES.include?(target.value.to_sym)
 
           add_offense(target, message: format(MSG, found: target.value))
+        end
+
+        # user.method(:admin?).call
+        def check_method_reference(node)
+          target = node.first_argument
+          return unless target&.type?(:sym, :str) && ROLE_QUERIES.include?(target.value.to_sym)
+
+          add_offense(target, message: format(MSG, found: target.value))
+        end
+
+        # %w[org_ owner].join: un arreglo literal de cadenas cuyas piezas, unidas, forman una clave de rol.
+        def check_join(node)
+          array = node.receiver
+          return unless array&.array_type? && array.values.all?(&:str_type?)
+
+          pieces = array.values.map(&:value)
+          return unless [ "", "_", node.first_argument&.str_type? ? node.first_argument.value : "" ].any? { |separator| contains_role?(pieces.join(separator)) }
+
+          add_offense(node, message: format(MSG, found: "una clave de rol construida con join"))
         end
 
         def check_concatenation(node)

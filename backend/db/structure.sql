@@ -203,7 +203,7 @@ CREATE TABLE public.roles (
     system boolean DEFAULT true NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT chk_roles_scope_level CHECK (((scope_level)::text = ANY (ARRAY[('organization'::character varying)::text, ('company'::character varying)::text, ('branch'::character varying)::text])))
+    CONSTRAINT chk_roles_scope_level CHECK (((scope_level)::text = ANY ((ARRAY['organization'::character varying, 'company'::character varying, 'branch'::character varying])::text[])))
 );
 
 

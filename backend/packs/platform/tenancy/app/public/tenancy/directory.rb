@@ -1,5 +1,5 @@
 module Tenancy
-  # Lectura PÚBLICA de organizaciones, empresas y sucursales para otros packs. SOLO LECTURA: devuelve registros y relaciones `readonly` (guardar, actualizar o borrar lanza ActiveRecord::ReadOnlyRecord). Los modelos de tenancy son privados
+  # Lectura PÚBLICA de organizaciones, empresas y sucursales para otros packs. Devuelve registros y relaciones `readonly`: guardar, actualizar o borrar UN registro lanza ActiveRecord::ReadOnlyRecord. LÍMITE: una relación sigue admitiendo `update_all`/`delete_all`/`readonly(false)` (no pasan por los registros) y Tenancy::Context exige modelos reales, así que no se devuelven value objects; el cop Ceiba/DirectoryWrites detecta esas escrituras masivas fuera de tenancy. Los modelos de tenancy son privados
   # (docs/architecture/02-modular-monolith.md): quien necesita resolver una ruta o listar (access) lo hace por aquí y recibe
   # registros opacos y relaciones que filtra desde fuera. NO escribe: las altas son ProvisionOrganization / AddCompany /
   # AddBranch.

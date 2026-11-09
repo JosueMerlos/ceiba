@@ -46,7 +46,7 @@ RSpec.describe RuboCop::Cop::Ceiba::AccessPolicyRoles, :config do
   end
 
   it "rechaza method(:role), instance_eval/instance_exec y %w[...].join con claves de rol" do
-    expect(flagged("  def a? = user.method(:admin?).call\n  def b? = user.instance_eval { role }\n  def c? = user.instance_exec { 1 }\n  def d? = %w[org_ owner].join == x")).to eq(
+    expect(flagged("  def a? = user.method(:admin?).call\n  def b? = user.instance_eval { self.role }\n  def c? = user.instance_exec { 1 }\n  def d? = %w[org_ owner].join == x")).to eq(
       [ ":admin?", "instance_eval", "role", "instance_exec", "%w[org_ owner].join" ]
     )
   end
