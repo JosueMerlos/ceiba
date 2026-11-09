@@ -22,11 +22,14 @@ RSpec.describe "Policies de organización, empresa y sucursal" do
       expect(policy(described_class, manager, organization).show?).to be(false)
     end
 
-    it "no permite crear, editar ni borrar (no hay endpoint en M0.08: deny by default)" do
+    it "crear una organización nunca se autoriza aquí (la provisión es el único camino); editar y borrar siguen la matriz" do
       owner = user_with_role("org_owner", world)
-      subject_policy = policy(described_class, owner, organization)
+      admin = user_with_role("org_admin", world)
 
-      expect([ subject_policy.create?, subject_policy.update?, subject_policy.destroy? ]).to all(be(false))
+      expect(policy(described_class, owner, organization).create?).to be(false)
+      expect([ policy(described_class, owner, organization).update?, policy(described_class, admin, organization).update? ]).to all(be(true))
+      expect(policy(described_class, owner, organization).destroy?).to be(true)
+      expect(policy(described_class, admin, organization).destroy?).to be(false)
     end
 
     it "el Scope lista solo las organizaciones donde el usuario tiene membership" do
