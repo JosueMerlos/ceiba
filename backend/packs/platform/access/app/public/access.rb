@@ -39,8 +39,13 @@ module Access
     def registered?(key) = registry.registered?(key)
 
     # Lleva el registro a la base: permisos, roles de sistema y role_permissions. Idempotente; corre en cada despliegue
-    # (db:migrate lo encadena y db:seed lo ejecuta), nunca en el arranque de los procesos.
-    def sync!(registry = self.registry) = CatalogSync.call(registry)
+    # (db:migrate y db:prepare lo encadenan y db:seed lo ejecuta), nunca en el arranque de los procesos.
+    #
+    # Red de seguridad (lanza Access::SyncRefused SIN cambiar nada): un registro vacío (un proceso que no cargó los packs no debe
+    # "borrar todo") y cualquier retirada de permisos o concesiones, que exige `allow_prune: true` o ACCESS_SYNC_ALLOW_PRUNE=1
+    # (el despliegue que de verdad retira un permiso lo dice). Solo AÑADIR nunca necesita autorización. Un candado consultivo de
+    # transacción serializa despliegues simultáneos.
+    def sync!(registry = self.registry, allow_prune: ENV["ACCESS_SYNC_ALLOW_PRUNE"] == "1") = CatalogSync.call(registry, allow_prune:)
 
     def registry = @registry ||= PermissionRegistry.new
   end

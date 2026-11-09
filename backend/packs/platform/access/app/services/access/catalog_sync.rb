@@ -4,14 +4,22 @@ module Access
   #
   # Sin escrituras masivas (insert_all/upsert_all): el catálogo es pequeño y el cop Ceiba/TenantBypass las prohíbe.
   class CatalogSync
-    def self.call(registry) = new(registry).call
+    LOCK_NAME = "ceiba.access.sync".freeze
 
-    def initialize(registry)
+    def self.call(registry, allow_prune: false) = new(registry, allow_prune:).call
+
+    def initialize(registry, allow_prune:)
       @definitions = registry.definitions
+      @allow_prune = allow_prune
     end
 
     def call
+      raise SyncRefused, "El registro de permisos está vacío (¿se cargaron los packs?): no se sincroniza para no borrar el catálogo." if @definitions.empty?
+
       ApplicationRecord.transaction(requires_new: true) do
+        # Serializa despliegues simultáneos; se libera solo al terminar la transacción.
+        ApplicationRecord.connection.select_value("SELECT pg_advisory_xact_lock(hashtext(#{ApplicationRecord.connection.quote(LOCK_NAME)}))")
+        refuse_unauthorized_prune!
         sync_permissions
         roles = sync_roles
         sync_grants(roles)
@@ -19,6 +27,21 @@ module Access
     end
 
     private
+
+    # Lo que esta sincronización RETIRARÍA: permisos que ya nadie declara y concesiones que un rol ya no recibe.
+    def refuse_unauthorized_prune!
+      return if @allow_prune
+
+      wanted_keys = @definitions.map(&:key)
+      stale_permissions = Permission.where.not(key: wanted_keys).pluck(:key)
+      stale_grants = RolePermission.joins(:role).where(roles: { key: SYSTEM_ROLES.keys }).pluck("roles.key", :permission_key)
+        .reject { |role_key, key| @definitions.any? { |definition| definition.key == key && definition.roles.include?(role_key) } }
+        .reject { |_role_key, key| stale_permissions.include?(key) }
+      return if stale_permissions.empty? && stale_grants.empty?
+
+      raise SyncRefused, "Access.sync! retiraría permisos #{stale_permissions.inspect} y concesiones #{stale_grants.inspect}. " \
+                         "Si es intencional, repite con ACCESS_SYNC_ALLOW_PRUNE=1 (nada se ha modificado)."
+    end
 
     def sync_permissions
       existing = Permission.all.index_by(&:key)

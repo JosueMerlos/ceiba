@@ -2,5 +2,6 @@
 # plataforma (tablas globales), no de un ejemplo: los specs los usan igual que en producción tras `Access.sync!`.
 # Los tests que prueban la sincronización la ejecutan dentro de la transacción del ejemplo (se revierte).
 RSpec.configure do |config|
-  config.before(:suite) { Access.sync! }
+  # allow_prune: la suite puede arrancar con un catálogo que una ejecución anterior dejó modificado.
+  config.before(:suite) { Access.sync!(allow_prune: true) }
 end

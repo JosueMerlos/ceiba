@@ -12,6 +12,9 @@ RSpec.describe "Access.sync!" do
     end
   end
 
+  # Deja la base EXACTAMENTE como el registro dado (la suite arranca con el catálogo real, que un registro de prueba retiraría).
+  def prime(registry) = Access.sync!(registry, allow_prune: true)
+
   def keys_of(role_key) = Access::Role.find_by!(key: role_key).role_permissions.pluck(:permission_key).sort
 
   describe "roles de sistema" do
@@ -25,14 +28,14 @@ RSpec.describe "Access.sync!" do
 
   describe "permisos" do
     it "carga en la base los permisos declarados con su módulo y descripción" do
-      Access.sync!(permission_registry)
+      prime(permission_registry)
 
       expect(Access::Permission.find("demo.cosa.read")).to have_attributes(module_key: "demo", description: "Ver cosas")
       expect(Access::Permission.where(module_key: "demo").pluck(:key)).to contain_exactly("demo.cosa.read", "demo.cosa.write")
     end
 
     it "asigna a cada rol de sistema exactamente los permisos que se le declararon" do
-      Access.sync!(permission_registry)
+      prime(permission_registry)
 
       expect(keys_of("receptionist")).to eq([ "demo.cosa.read" ])
       expect(keys_of("org_owner")).to eq([ "demo.cosa.read", "demo.cosa.write" ])
@@ -40,13 +43,13 @@ RSpec.describe "Access.sync!" do
     end
 
     it "es idempotente: una segunda ejecución no cambia nada" do
-      Access.sync!(permission_registry)
+      prime(permission_registry)
 
-      expect { Access.sync!(permission_registry) }.not_to change { [ Access::Permission.count, Access::Role.count, Access::RolePermission.count ] }
+      expect { prime(permission_registry) }.not_to change { [ Access::Permission.count, Access::Role.count, Access::RolePermission.count ] }
     end
 
     it "reconcilia: un permiso retirado de un rol, o del registro, desaparece de la base" do
-      Access.sync!(permission_registry)
+      prime(permission_registry)
       slimmer = Access::PermissionRegistry.new
       slimmer.register("demo", { "demo.cosa.read" => { description: "Ver cosas (v2)", roles: %w[org_owner] } })
 
@@ -60,7 +63,7 @@ RSpec.describe "Access.sync!" do
     it "el registro es la fuente de verdad: lo que ya no está registrado se elimina de la base" do
       other = Access::PermissionRegistry.new
       other.register("otro", { "otro.cosa.read" => { description: "x", roles: %w[org_admin] } })
-      Access.sync!(permission_registry)
+      prime(permission_registry)
       Access.sync!(other, allow_prune: true)
 
       expect(Access::Permission.pluck(:key)).to contain_exactly("otro.cosa.read")
@@ -71,14 +74,14 @@ RSpec.describe "Access.sync!" do
     def sync_quietly(registry, **options) = Access.sync!(registry, **options)
 
     it "aborta si el registro está vacío (nada declarado = un arranque que no cargó los packs, no 'borra todo')" do
-      Access.sync!(permission_registry)
+      prime(permission_registry)
 
       expect { sync_quietly(Access::PermissionRegistry.new) }.to raise_error(Access::SyncRefused, /vacío/)
       expect(Access::Permission.exists?("demo.cosa.read")).to be(true)
     end
 
     it "aborta, sin cambiar nada, si retiraría permisos o concesiones y no se autorizó" do
-      Access.sync!(permission_registry)
+      prime(permission_registry)
       slimmer = Access::PermissionRegistry.new
       slimmer.register("demo", { "demo.cosa.read" => { description: "Ver", roles: %w[org_owner] } })
 
@@ -88,7 +91,7 @@ RSpec.describe "Access.sync!" do
     end
 
     it "retira con allow_prune: true o con ACCESS_SYNC_ALLOW_PRUNE=1" do
-      Access.sync!(permission_registry)
+      prime(permission_registry)
       slimmer = Access::PermissionRegistry.new
       slimmer.register("demo", { "demo.cosa.read" => { description: "Ver", roles: %w[org_owner] } })
 
@@ -99,7 +102,7 @@ RSpec.describe "Access.sync!" do
     end
 
     it "una sincronización que solo AÑADE no necesita autorización" do
-      Access.sync!(permission_registry)
+      prime(permission_registry)
       bigger = Access::PermissionRegistry.new
       bigger.register("demo", permission_registry.definitions.to_h { |d| [ d.key, { description: d.description, roles: d.roles } ] }
         .merge("demo.cosa.nueva" => { description: "Nueva", roles: %w[org_owner] }))
@@ -111,7 +114,7 @@ RSpec.describe "Access.sync!" do
       statements = []
       callback = ->(*, payload) { statements << payload[:sql] }
 
-      ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { Access.sync!(permission_registry) }
+      ActiveSupport::Notifications.subscribed(callback, "sql.active_record") { Access.sync!(permission_registry, allow_prune: true) }
 
       expect(statements).to include(a_string_matching(/pg_advisory_xact_lock/))
     end
