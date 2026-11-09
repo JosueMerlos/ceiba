@@ -110,7 +110,7 @@ RSpec.describe "Outbox con Redis real", :redis do
       expect(organizations.sum { |org| state(org).count { |published_at, _| published_at } }).to eq(total)
     end
 
-    it "con tres relays y lotes pequeños tampoco queda ningún pendiente ni se repite un evento" do
+    it "con tres relays y lotes pequeños tampoco queda ningún pendiente ni se repite un evento", :aggregate_failures do
       published = run_relays(count: 3, batch_size: 10)
       event_ids = queued_jobs.map { |job| job["args"].first }
 

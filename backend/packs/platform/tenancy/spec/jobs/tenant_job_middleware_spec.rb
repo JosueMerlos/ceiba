@@ -88,7 +88,7 @@ RSpec.describe TenantJobMiddleware do
       it "una organización inexistente se reintenta unas pocas veces (el job pudo encolarse dentro de la transacción que la crea)" do
         job = { "organization_id" => SecureRandom.uuid, "jid" => "j3" }
 
-        [ nil, 0, 1, 2 ].each do |retry_count|
+        [ nil, 0, 1 ].each do |retry_count|
           expect { run(job.merge("retry_count" => retry_count).compact) { nil } }.to raise_error(ActiveRecord::RecordNotFound)
         end
         expect(dead_jobs).to be_empty

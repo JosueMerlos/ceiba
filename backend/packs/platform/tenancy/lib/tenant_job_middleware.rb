@@ -16,6 +16,8 @@ require "sidekiq/job_retry"
 
 module TenantJobMiddleware
   KEY = "organization_id".freeze
+  # Reintentos (con el backoff por defecto de Sidekiq, ~15-30 s) antes de dar por perdida una organización que no existe.
+  MAX_ORGANIZATION_RETRIES = 3
 
   class MissingOrganization < StandardError; end
 
@@ -36,9 +38,11 @@ module TenantJobMiddleware
   class Server
     include Sidekiq::ServerMiddleware
 
-    # Un job sin organización o de una organización que no existe no se arregla reintentando: a la cola muerta de
-    # inmediato (no ~21 días de reintentos) y Skip le dice al worker que ya está tratado. Un error del propio job SÍ
-    # se propaga y Sidekiq lo reintenta.
+    # - Sin organization_id: no se arregla reintentando; a la cola muerta de inmediato y Skip le dice al worker que ya
+    #   está tratado.
+    # - Organización inexistente: unos pocos reintentos (MAX_ORGANIZATION_RETRIES) por si el job se encoló dentro de la
+    #   transacción que la crea y aún no es visible; agotados, a la cola muerta (no ~21 días).
+    # Un error del propio job SÍ se propaga y Sidekiq lo reintenta.
     def call(worker, job, _queue, &)
       return yield if TenantJobMiddleware.tenant_free?(job)
 
@@ -46,12 +50,18 @@ module TenantJobMiddleware
       return dead_letter!(job, MissingOrganization.new("#{worker.class} llegó sin organization_id: ningún job tenant corre sin organización")) unless organization_id
 
       organization = find_organization(organization_id)
-      return dead_letter!(job, organization) if organization.is_a?(Exception)
+      return give_up_on_missing_organization(job, organization) if organization.is_a?(Exception)
 
       Tenancy.with_context(organization:, &)
     end
 
     private
+
+    def give_up_on_missing_organization(job, error)
+      raise error if job["retry_count"].to_i < MAX_ORGANIZATION_RETRIES - 1
+
+      dead_letter!(job, error)
+    end
 
     # La organización, o el RecordNotFound (no lanzado) si no existe.
     def find_organization(id)
