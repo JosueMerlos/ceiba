@@ -9,11 +9,11 @@ RSpec.describe "Esquema de platform/access" do
   let(:branch) { with_tenant(organization) { create(:branch, company:) } }
   let(:user_id) { create(:user).id }
 
-  LEVELS = { "org_admin" => "organization", "company_manager" => "company", "receptionist" => "branch" }.freeze
+  let(:levels) { { "org_admin" => "organization", "company_manager" => "company", "receptionist" => "branch" } }
 
   # Roles mínimos para este spec (el catálogo de sistema completo lo prueba catalog_sync_spec). Idempotente.
   def ensure_role(key)
-    Access::Role.find_or_create_by!(key:) { |role| role.scope_level = LEVELS.fetch(key) }
+    Access::Role.find_or_create_by!(key:) { |role| role.scope_level = levels.fetch(key) }
   end
 
   # Inserta un membership SIN pasar por validaciones ni callbacks: lo que cuenta es lo que decide la base.
