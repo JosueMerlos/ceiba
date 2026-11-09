@@ -26,8 +26,22 @@ RSpec.describe "Contrato OpenAPI: Idempotency-Key" do
   it "define las respuestas 409 idempotency.key_reused y 400 idempotency.key_invalid / key_required como Problem" do
     responses = document.dig("components", "responses")
 
-    expect(responses.keys).to include("IdempotencyKeyReused", "IdempotencyKeyInvalid")
+    expect(responses.keys).to include("IdempotencyKeyReused", "IdempotencyKeyInvalid", "IdempotencyRequestInProgress")
     expect(responses.dig("IdempotencyKeyReused", "content", "application/problem+json", "schema")).to eq("$ref" => "#/components/schemas/Problem")
     expect(responses.dig("IdempotencyKeyReused", "description")).to include("idempotency.key_reused")
+  end
+
+  it "documenta 409 idempotency.request_in_progress (la primera petición sigue en curso)" do
+    response = document.dig("components", "responses", "IdempotencyRequestInProgress")
+
+    expect(response["description"]).to include("idempotency.request_in_progress")
+    expect(response.dig("content", "application/problem+json", "schema")).to eq("$ref" => "#/components/schemas/Problem")
+  end
+
+  it "documenta la cabecera de respuesta Idempotency-Replayed como componente reutilizable" do
+    header = document.dig("components", "headers", "IdempotencyReplayed")
+
+    expect(header).to include("schema" => a_hash_including("type" => "string", "enum" => [ "true" ]))
+    expect(header["description"]).to include("repetida")
   end
 end

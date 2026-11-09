@@ -20,6 +20,11 @@ RSpec.describe "Idempotencia: peticiones concurrentes" do
     session.response
   end
 
+  def delayed(seconds)
+    sleep seconds
+    yield
+  end
+
   def run_concurrently(*attempts)
     threads = attempts.map { |attempt| Thread.new { ApplicationRecord.connection_pool.with_connection { attempt.call } } }
     threads.map(&:value)
@@ -54,5 +59,53 @@ RSpec.describe "Idempotencia: peticiones concurrentes" do
 
     expect(responses.map(&:status).uniq).to eq([ 201 ])
     expect(companies_named("Carrera Diez").size).to eq(1)
+  end
+
+  it "la espera está acotada: si la primera sigue en curso más allá del límite, la segunda recibe 409 idempotency.request_in_progress" do
+    stub_const("Idempotency::Processor::LOCK_TIMEOUT", 0.3)
+
+    responses = run_concurrently(-> { post_company("Carrera Lenta", delay: 1.5) }, -> { delayed(0.4) { post_company("Carrera Lenta", delay: 1.5) } })
+
+    expect(responses.map(&:status)).to eq([ 201, 409 ])
+    expect(responses.last.parsed_body).to include("code" => "idempotency.request_in_progress", "status" => 409)
+    expect(companies_named("Carrera Lenta").size).to eq(1)
+  end
+
+  it "tras agotar la espera, el cliente puede reintentar y recibe la respuesta guardada" do
+    stub_const("Idempotency::Processor::LOCK_TIMEOUT", 0.3)
+
+    first, second = run_concurrently(-> { post_company("Carrera Reintento", delay: 1.0) }, -> { delayed(0.4) { post_company("Carrera Reintento", delay: 1.0) } })
+    retried = post_company("Carrera Reintento", delay: 1.0)
+
+    expect([ first.status, second.status, retried.status ]).to eq([ 201, 409, 201 ])
+    expect(retried.body).to eq(first.body)
+  end
+
+  it "si la primera petición falla (rollback) mientras la segunda espera, la segunda SE EJECUTA" do
+    first_fails = lambda do
+      session = open_session
+      session.post "/api/v1/idempotency_probes/organizations/#{organization.id}/slow_companies",
+        params: { name: "", delay: 0.6 }, headers: { "Idempotency-Key" => key }, as: :json
+      session.response
+    end
+
+    responses = run_concurrently(first_fails, -> { delayed(0.2) { post_company("", delay: 0.0) } })
+
+    expect(responses.map(&:status)).to eq([ 422, 422 ]) # mismo cuerpo inválido: ambas se evalúan; ninguna consumió la clave
+    expect(with_tenant(organization) { Idempotency::Key.where(key:).count }).to eq(0)
+  end
+
+  it "con la primera fallida y la segunda con cuerpo válido, la segunda crea el recurso (la reserva desapareció)" do
+    first_fails = lambda do
+      session = open_session
+      session.post "/api/v1/idempotency_probes/organizations/#{organization.id}/slow_companies",
+        params: { name: "", delay: 0.6 }, headers: { "Idempotency-Key" => key }, as: :json
+      session.response
+    end
+
+    responses = run_concurrently(first_fails, -> { delayed(0.2) { post_company("Carrera Recuperada", delay: 0.0) } })
+
+    expect(responses.map(&:status)).to eq([ 422, 201 ])
+    expect(companies_named("Carrera Recuperada").size).to eq(1)
   end
 end
