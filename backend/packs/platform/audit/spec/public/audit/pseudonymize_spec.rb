@@ -13,7 +13,9 @@ RSpec.describe "Audit.pseudonymize" do
   end
 
   it "es estable y distingue valores" do
-    expect(Audit.pseudonymize("a")).to eq(Audit.pseudonymize("a"))
+    first = Audit.pseudonymize("a")
+
+    expect(Audit.pseudonymize("a")).to eq(first)
     expect(Audit.pseudonymize("a")).not_to eq(Audit.pseudonymize("b"))
   end
 end
