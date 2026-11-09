@@ -11,6 +11,7 @@
 DEMO_GROUPS = [
   {
     organization: { name: "Barbería El Güegüense", legal_name: "Barbería El Güegüense, S.A." },
+    user: { email: "rosa@barberia-guegu.ceiba.test", full_name: "Rosa Mendoza" },
     companies: [
       {
         company: { name: "Barbería El Güegüense", slug: "barberia-guegu", business_type: "barbershop", currency: "NIO" },
@@ -20,6 +21,7 @@ DEMO_GROUPS = [
   },
   {
     organization: { name: "Grupo Salud & Estilo", legal_name: "Grupo Salud & Estilo, S.A." },
+    user: { email: "luis@salud-estilo.ceiba.test", full_name: "Luis Ortega" },
     companies: [
       {
         company: { name: "Clínica Dental Sonrisa", slug: "clinica-sonrisa", business_type: "dental", currency: "USD" },
@@ -61,4 +63,27 @@ def seed_group(group)
   puts(seeded ? "Sembrada: #{group.dig(:organization, :name)}" : "Ya existe: #{group.dig(:organization, :name)}")
 end
 
-DEMO_GROUPS.each { |group| seed_group(group) }
+# Usuarios de demo (M0.07): UNO por organización, creados con la API pública de identity (idempotente por correo).
+# Todavía no se vinculan a su organización: los memberships llegan con M0.08, que ampliará este seed.
+#
+# CONTRASEÑA: la de DESARROLLO es pública y está documentada (docs/architecture/11-security.md): `ceiba-demo-2026`. NUNCA
+# se usa en producción ni en staging (RAILS_ENV=production): allí hace falta SEED_DEMO_PASSWORD, y sin ella no se
+# siembran usuarios. Los correos usan el dominio reservado `.test`, que no existe en internet.
+DEMO_PASSWORD_FOR_DEVELOPMENT = "ceiba-demo-2026".freeze
+
+def demo_password
+  ENV["SEED_DEMO_PASSWORD"].presence || (DEMO_PASSWORD_FOR_DEVELOPMENT unless Rails.env.production?)
+end
+
+def seed_user(group)
+  password = demo_password
+  return puts("Usuario omitido (#{group.dig(:user, :email)}): define SEED_DEMO_PASSWORD para sembrar usuarios en producción") unless password
+
+  Identity::ProvisionUser.call(password:, **group.fetch(:user))
+  puts "Usuario listo: #{group.dig(:user, :email)}"
+end
+
+DEMO_GROUPS.each do |group|
+  seed_group(group)
+  seed_user(group)
+end

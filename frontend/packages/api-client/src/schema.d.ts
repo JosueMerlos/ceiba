@@ -4,6 +4,261 @@
  */
 
 export interface paths {
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Inicia sesión
+         * @description Correo y contraseña. Entrega la cookie de sesión (`HttpOnly`, `SameSite=Lax`, `Secure` en producción) y el token CSRF. Un correo inexistente y una contraseña errónea dan EXACTAMENTE la misma respuesta.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: {
+                    /** @description Lo envía el navegador; si está presente debe ser el origen propio */
+                    Origin?: string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: email */
+                        email: string;
+                        /** Format: password */
+                        password: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description sesión iniciada */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["AuthSession"];
+                        };
+                    };
+                };
+                /** @description faltan el correo o la contraseña */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+                /** @description credenciales inválidas (código `auth.invalid_credentials`) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description `Origin` que no es el propio (código `auth.origin_forbidden`); frena el login CSRF */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el cuerpo no es `application/json` (código `request.unsupported_media_type`) */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cierra la sesión actual
+         * @description Revoca la sesión del navegador y borra la cookie. Las demás sesiones del usuario siguen vigentes.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description sesión cerrada */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sesión válida sin token CSRF correcto (`auth.csrf_invalid`) o con `Origin` ajeno (`auth.origin_forbidden`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sesión actual
+         * @description Quién es el usuario autenticado y su token CSRF. La SPA lo llama al arrancar para recuperar el token.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description la sesión vigente */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["AuthSession"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida (ausente, vencida o revocada; código `auth.unauthenticated`) */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Cierra todas las sesiones
+         * @description Revoca todas las sesiones del usuario, en todos los dispositivos.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description todas las sesiones revocadas */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sesión válida sin token CSRF correcto (`auth.csrf_invalid`) o con `Origin` ajeno (`auth.origin_forbidden`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{id}": {
         parameters: {
             query?: never;
@@ -16,7 +271,7 @@ export interface paths {
         };
         /**
          * Obtiene una organización
-         * @description Endpoint de ejemplo del contrato. Hoy sin autenticación y solo disponible en desarrollo; se protegerá en M0.07/M0.08.
+         * @description Endpoint de ejemplo del contrato. Exige sesión desde M0.07; sin autorización por membership todavía (M0.08), por eso sigue disponible solo en desarrollo y test.
          */
         get: {
             parameters: {
@@ -39,6 +294,15 @@ export interface paths {
                         "application/json": {
                             data: components["schemas"]["Organization"];
                         };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 /** @description no existe (o el id no es un UUID) */
@@ -64,6 +328,17 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Sesión del panel: quién es y el token CSRF que debe enviar en `X-CSRF-Token` en toda mutación */
+        AuthSession: {
+            /** @description Ligado a esta sesión; cambia cuando la sesión rota (login). Se guarda en memoria, no en almacenamiento persistente */
+            csrf_token: string;
+            /**
+             * Format: date-time
+             * @description Caducidad ABSOLUTA de la sesión (UTC); la inactividad de 12 h es aparte
+             */
+            expires_at: string;
+            user: components["schemas"]["User"];
+        };
         FieldError: {
             /**
              * @description Tipo del error (blank, taken, invalid...)
@@ -136,6 +411,17 @@ export interface components {
              * @example urn:ceiba:error:resource.not_found
              */
             type: string;
+        };
+        /** @description Persona autenticada. Global: no pertenece a una organización (ADR-0028) */
+        User: {
+            /**
+             * Format: email
+             * @description Normalizado: minúsculas y sin espacios
+             */
+            email: string;
+            full_name: string;
+            /** Format: uuid */
+            id: string;
         };
         /** @description Problema con errores por campo (422 y algunos 400) */
         ValidationProblem: {

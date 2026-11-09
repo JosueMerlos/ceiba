@@ -28,26 +28,66 @@
 
 ## Sesiones del panel
 
-- Implementación propia en `platform/identity` partiendo del **generador de autenticación de Rails 8** (`has_secure_password` + modelo `Session` en BD), adaptado a packs. **Sin Devise** ([ADR-0017](../adr/0017-sesiones-en-bd-sin-devise.md)).
-- `sessions(id, user_id, token_digest, ip, user_agent, created_at, last_seen_at, expires_at, revoked_at)`.
-- Vigencia: inactividad 12 h, absoluta 7 días. `last_seen_at` se actualiza con un throttle de 1 min por sesión.
-- Cookie: `Secure`, `HttpOnly`, `SameSite=Lax`, prefijo `__Host-` en producción.
-- Rotación del token al iniciar sesión y al elevar privilegios (2FA, cambio de contexto a back-office).
-- "Cerrar sesión en todos los dispositivos" = `revoked_at` en todas las sesiones del usuario.
+> **Implementado en M0.07** (`packs/platform/identity`, `Api::Authentication`, `Api::SessionCookie`). Sin Devise ([ADR-0017](../adr/0017-sesiones-en-bd-sin-devise.md)).
+
+- Partimos del **generador de autenticación de Rails 8** (`has_secure_password` + modelo `Session` en BD), adaptado a packs: `Identity::User` (global, ADR-0028) e `Identity::Session`. Lo que cambió respecto del generador: namespace del pack, API JSON en lugar de vistas, token **guardado como digest**, expiraciones, rotación, CSRF y `Current` con el principal.
+- `sessions(id, user_id, token_digest UNIQUE, ip inet, user_agent, last_seen_at, expires_at, revoked_at, created_at, updated_at)`.
+- **Token:** `SecureRandom.urlsafe_base64(32)` (256 bits). Solo existe en claro en la cookie del navegador y en el resultado de `Identity::Authenticate`; la BD guarda `SHA-256(token)` (hex). SHA-256 y no bcrypt porque el token tiene entropía de sobra: no hay nada que adivinar por fuerza bruta, y la búsqueda es por igualdad sobre un índice único.
+- Vigencia: **inactividad 12 h** (`last_seen_at`) y **absoluta 7 días** (`expires_at`, no se extiende con la actividad). `last_seen_at` se actualiza con un throttle de 1 min por sesión. Una sesión vale si no está revocada, `expires_at > ahora` y `last_seen_at > ahora - 12 h` (`Identity::Session.active`).
+- **Cookie** (`Api::SessionCookie`): `HttpOnly`, `SameSite=Lax`, `Path=/`, sin `Domain`, `expires` = caducidad absoluta. `Secure` y prefijo `__Host-` (`__Host-ceiba_session`) con `config.x.auth.secure_cookies`, que es `true` en `RAILS_ENV=production` (producción **y** staging, ADR-0013); en desarrollo y test es `ceiba_session` sin `Secure` (se sirve por HTTP). Rails no escribe una cookie `Secure` en una request HTTP plana.
+- **Rails en modo API no trae el middleware de cookies:** `config/initializers/authentication.rb` añade `ActionDispatch::Cookies` explícitamente (y `Api::Authentication` incluye `ActionController::Cookies`). La sesión y el flash de Rails siguen fuera; `spec/config/authentication_config_spec.rb` lo vigila.
+- **Rotación:** `Identity::Authenticate` emite SIEMPRE un token nuevo y revoca la sesión que el navegador traía (aunque fuera de otro usuario): un token fijado antes del login no sirve después (fijación de sesión). Con credenciales erróneas no se revoca nada. La rotación al elevar privilegios (2FA, back-office) llega con M4.02.
+- "Cerrar sesión en todos los dispositivos" = `revoked_at` en todas las sesiones del usuario (`DELETE /api/v1/auth/sessions`); `DELETE /api/v1/auth/logout` revoca solo la actual. Ambos borran la cookie.
+- **Principal mínimo:** `Identity::Principal::User(id, email, full_name)` en `Current.principal`; `Current.session` es la `Identity::CurrentSession`. Los memberships y `can?(permission, scope)` llegan con M0.08 (`Access::Principal`); hasta entonces nada debe inferir autorización de este objeto.
+
+### Endpoints
+
+| Endpoint | Auth | Qué hace |
+| --- | --- | --- |
+| `POST /api/v1/auth/login` | Pública (Origin validado) | `{ email, password }` → `200 { data: { user, csrf_token, expires_at } }` + cookie. Credenciales inválidas → `401 auth.invalid_credentials` |
+| `GET /api/v1/auth/session` | Sesión | Misma representación que el login (la SPA lo llama al arrancar para recuperar el token CSRF). Sin sesión → `401 auth.unauthenticated` |
+| `DELETE /api/v1/auth/logout` | Sesión + CSRF | Revoca la sesión actual → `204` |
+| `DELETE /api/v1/auth/sessions` | Sesión + CSRF | Revoca todas las sesiones del usuario → `204` |
+
+### Deny by default (M0.07)
+
+`Api::BaseController` incluye `Api::Authentication`: **todo controlador de la API exige sesión** (`before_action :authenticate!`) salvo que declare `skip_authentication!` (con un comentario del porqué). El spec `spec/requests/api/authentication_spec.rb` **recorre todas las rutas del router**, llama sin sesión y exige `401` salvo la allowlist de abajo: una ruta nueva que nadie marcó como pública pasa con `401`, y una que quede abierta por descuido rompe el spec. La allowlist no puede quedar obsoleta (cada entrada debe ser una ruta real).
+
+| Ruta pública | Por qué |
+| --- | --- |
+| `GET /api/health`, `GET /api/ready` | Sondas de Docker/proxy; no heredan de `Api::BaseController` y no devuelven datos |
+| `POST /api/v1/auth/login` | Es la puerta de entrada. Protegida por la validación de Origin; el rate limit llega en M0.13 |
+| `/api/docs` | Swagger UI y contrato; solo existen en desarrollo, test y staging (`Api::Docs.enabled?`) |
+
+Decisiones tomadas en M0.07:
+
+- **El endpoint de ejemplo `GET /api/v1/organizations/:id` ya exige sesión** (deja de ser público), pero **mantiene el flag** `open_organization_endpoint` (solo desarrollo y test; 404 en producción): autenticar no es autorizar, y sin memberships (M0.08) cualquier usuario autenticado podría leer cualquier organización. M0.08 lo autoriza por membership y elimina el flag.
+- **Active Storage no dibuja sus rutas** (`config.active_storage.draw_routes = false`): sus subidas directas (`POST /rails/active_storage/direct_uploads`) no pasan por `Api::BaseController` y habrían quedado abiertas sin sesión. El spec lo vigila; se reactivan, autenticadas, cuando un hito use archivos (branding).
 
 ## CSRF (panel)
 
-- Rails en modo API no trae protección CSRF por defecto: se activa explícitamente para los controladores que usan cookie de sesión.
-- La SPA obtiene el token desde `/api/v1/me` (o una cookie legible no-`httpOnly` específica) y lo envía en `X-CSRF-Token` en toda mutación.
-- Además se valida que `Origin` (o `Referer`) coincida con el origen propio.
-- Las requests con API key (`Authorization: Bearer`) **no** usan cookie, así que no aplica CSRF.
+> **Implementado en M0.07** (`Api::Authentication`, `Identity::CurrentSession`).
+
+- Rails en modo API no trae protección CSRF: se implementa en `Api::Authentication`, para todo controlador de la API.
+- **Token ligado a la sesión:** `HMAC-SHA256(clave derivada de secret_key_base, id de la sesión)` en hex. Sin estado en BD, distinto en cada sesión, rota con el login, no contiene el token de la cookie ni su digest. Se compara en tiempo constante.
+- **Cómo lo obtiene la SPA (desvío de lo que decía este documento):** el cuerpo de `POST /auth/login` y de `GET /auth/session` trae `csrf_token`. Se eligió esto y no `/api/v1/me` (todavía no existe: M0.09) ni una cookie legible no-`httpOnly` (una cookie más que gestionar sin ganar nada: con un XSS caen el token y la sesión por igual). La SPA lo guarda **en memoria** (no en `localStorage`), lo recupera con `GET /auth/session` al recargar y lo envía en `X-CSRF-Token` en **toda mutación** (POST, PUT, PATCH, DELETE). Cuando exista `/me` podrá repetirlo, pero la fuente es la sesión.
+- **Sin token (o con uno incorrecto) en una mutación con sesión → `403 auth.csrf_invalid`.** Las lecturas (GET/HEAD/OPTIONS) no lo exigen.
+- **Origin:** en toda mutación, si llega `Origin` (o, sin él, `Referer`) debe ser **exactamente** uno de los orígenes de `config.x.auth.allowed_origins` (esquema + host + puerto). **No se compara con `request.base_url`**: este sale de `Host`/`X-Forwarded-Host`, que un cliente que llegue directo al puerto de la app puede falsificar (con `X-Forwarded-Host: evil.test` y `Origin: evil.test` habría pasado). La lista viene de la variable `APP_ORIGINS` (orígenes separados por comas; **obligatoria en producción y staging**); sin ella, en desarrollo es `http://localhost:<PUBLIC_PORT|8080>` (el proxy de compose) y en test `http://www.example.com`. En producción sin `APP_ORIGINS` la lista queda vacía y toda mutación con `Origin` se rechaza (**falla cerrado**). `Origin: null`, otro esquema o puerto, un host que solo contiene el propio o un `Referer` ilegible → `403 auth.origin_forbidden`. Sin ninguno de los dos (curl, clientes que no son navegadores) no se rechaza por Origin: una mutación autenticada igual necesita el token. Un navegador **siempre** envía `Origin` en un POST/DELETE. **Pendiente:** `config.hosts` (rechazar `Host` desconocidos) llega con M0.13/M4.04, cuando exista el dominio de producción.
+- **Formato de las mutaciones (`ApiRequestGuard`, middleware en `config/middleware/`):** antes de que Rails parsee, enrute o registre nada, toda mutación (POST/PUT/PATCH/DELETE) bajo `/api` debe (1) traer el cuerpo, si lo hay, como `application/json` (`415 request.unsupported_media_type`) y (2) **no traer parámetros en la query string** (`400 request.query_not_allowed`): los secretos no deben viajar en la URL (proxies, historial) y el login no puede abrirse con `?email=…&password=…`. Un formulario HTML de otro sitio solo puede enviar tipos "simples", así que (1) cierra, junto con SameSite, Origin y el token, la vía del POST cross-site sin preflight. Una mutación sin cuerpo ni query (logout) pasa. Las lecturas no se tocan. No hay allowlist: si un hito necesita query en una mutación, se añade aquí con su justificación.
+- **Fuga en logs (cerrada):** un cuerpo JSON SIN `Content-Type` lo parsea Rack como formulario y la línea `Parameters:` de Rails lo registraba como *clave* (el filtro de parámetros solo oculta valores), con la contraseña en claro. Al rechazarse en el middleware, el controlador no se ejecuta y esa línea nunca se escribe; `filtered_path` ya filtra la query de la línea `Started`. Cubierto por specs que capturan el log. Un cuerpo JSON correcto sigue filtrando por `filter_parameters`.
+- **Orden de los filtros:** Origin (403) → autenticación (401) → token CSRF (403). Una mutación sin sesión responde 401, no 403.
+- **Login:** no lleva token (todavía no hay sesión) pero sí la validación de Origin, que frena el "login CSRF" (iniciar la sesión de la víctima en la cuenta del atacante); `SameSite=Lax` tampoco envía cookies en POST entre sitios.
+- Las requests con API key (`Authorization: Bearer`) **no** usan cookie, así que no aplica CSRF (M4.02).
+- **Pendiente (M0.12):** `packages/api-client` aún no envía `X-CSRF-Token`; el envío automático y la recuperación del token al arrancar llegan con el shell del panel.
 
 ## Contraseñas y 2FA
 
 - Mínimo 12 caracteres, sin reglas de complejidad ni rotación forzada; rechazo contra HIBP (k-anonymity).
 - **2FA TOTP** (`rotp`) obligatorio para `org_owner`, `org_admin` y `PlatformStaff`; opcional para el resto. 8 códigos de respaldo de un uso, guardados como digest.
 - Bloqueo progresivo por cuenta (1, 5 y 15 min…), además del límite por IP.
-- Respuesta idéntica en login y en reset de contraseña, exista o no la cuenta.
+- Respuesta idéntica en login y en reset de contraseña, exista o no la cuenta. **Login (M0.07):** correo inexistente y contraseña errónea dan el mismo `401 auth.invalid_credentials`, mismo cuerpo (solo cambia `request_id`, que es por petición), sin cookie. `User.authenticate_by` calcula bcrypt también cuando la cuenta no existe, así el tiempo no delata las cuentas (`Identity::Authenticate`; un spec exige que `BCrypt::Engine.hash_secret` se ejecute en ambos caminos). Un valor que no es texto (hash en el JSON) → `400`.
+- **Contraseña (M0.07):** `has_secure_password` (bcrypt 3.1.22 fijado), mínimo 12 y máximo 72 bytes (límite de bcrypt, validado por Rails); sin reglas de complejidad. Correo normalizado (`strip` + minúsculas) y `citext` único. HIBP en M4.02. **Riesgo para M4.01 (invitaciones):** `strip` no quita el NBSP (U+00A0) ni normaliza equivalentes Unicode, y `citext` compara con `lower()` del locale; dos correos visualmente iguales pero con distintos codepoints serían cuentas distintas. Al aceptar correos de terceros, normalizar con `unicode_normalize(:nfkc)` y rechazar espacios/controles Unicode antes de guardar.
+- **Contraseñas de demo (seeds):** `ceiba-demo-2026` en desarrollo y test (pública y documentada aquí; nunca real). En `RAILS_ENV=production` (producción y staging) los seeds **no crean usuarios** salvo que se defina `SEED_DEMO_PASSWORD`. Los correos usan el dominio reservado `.test`.
 - Todos los eventos de autenticación (login correcto o fallido, bloqueo, 2FA, reset, revocación) van a `audit_events`.
 
 ## API keys
@@ -129,9 +169,9 @@ Access token de 15 min con algoritmo asimétrico (EdDSA o RS256) y `kid` para ro
 
 ## Checklist bloqueante para el primer piloto
 
-- [ ] Deny by default con allowlist explícita (M0.07/M0.08)
-- [ ] Sesiones en BD revocables y cookies con sus flags (M0.07)
-- [ ] CSRF funcional en el panel (M0.07)
+- [x] Deny by default con allowlist explícita: autenticación (M0.07, spec que recorre todas las rutas); falta la autorización (M0.08)
+- [x] Sesiones en BD revocables y cookies con sus flags (M0.07)
+- [x] CSRF funcional en el panel: token + Origin en el backend (M0.07); el envío desde el cliente llega en M0.12
 - [ ] `Idempotency-Key` en la creación de citas y en el envío de recordatorios (M0.11, M1.05, M3.03)
 - [ ] Rack::Attack y `rate_limit` con la IP real verificada (M0.13, M4.02)
 - [ ] 2FA obligatorio para `org_owner`, `org_admin` y `PlatformStaff` (M4.02)

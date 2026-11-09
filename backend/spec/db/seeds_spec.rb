@@ -34,6 +34,60 @@ RSpec.describe "db/seeds.rb" do
     )
   end
 
+  describe "usuarios de demo (M0.07)" do
+    let(:users_report) do
+      lambda do
+        app.rails_runner('puts Identity::User.order(:email).pluck(:email, :full_name).to_json')
+      end
+    end
+
+    it "crea un usuario por organización de demo y es idempotente", :aggregate_failures do
+      app.run!("bin/rails", "db:seed")
+      first = users_report.call
+      app.run!("bin/rails", "db:seed")
+
+      expect(users_report.call).to eq(first)
+      expect(JSON.parse(first)).to eq(
+        [
+          [ "luis@salud-estilo.ceiba.test", "Luis Ortega" ],
+          [ "rosa@barberia-guegu.ceiba.test", "Rosa Mendoza" ]
+        ]
+      )
+    end
+
+    it "la contraseña de desarrollo documentada permite iniciar sesión" do
+      app.run!("bin/rails", "db:seed")
+
+      token = app.rails_runner('puts Identity::Authenticate.call(email: "rosa@barberia-guegu.ceiba.test", password: "ceiba-demo-2026").token.present?')
+
+      expect(token).to eq("true")
+    end
+
+    it "SEED_DEMO_PASSWORD reemplaza la contraseña de desarrollo" do
+      app.run!("bin/rails", "db:seed", env: { "SEED_DEMO_PASSWORD" => "otra-contraseña-segura" })
+
+      ok = app.rails_runner('puts Identity::Authenticate.call(email: "luis@salud-estilo.ceiba.test", password: "otra-contraseña-segura").token.present?')
+
+      expect(ok).to eq("true")
+    end
+
+    it "una SEED_DEMO_PASSWORD vacía cuenta como ausente: en producción no siembra usuarios" do
+      app.write("config/database.yml", app.read("config/database.yml").gsub("ceiba_production", app.database))
+      output = app.run!("bin/rails", "db:seed", env: { "RAILS_ENV" => "production", "SECRET_KEY_BASE" => "x" * 64, "RAILS_LOG_LEVEL" => "fatal", "SEED_DEMO_PASSWORD" => "" })
+
+      expect(output).to include("define SEED_DEMO_PASSWORD")
+      expect(users_report.call).to eq("[]")
+    end
+
+    it "en producción NO siembra usuarios con la contraseña de desarrollo (exige SEED_DEMO_PASSWORD)", :aggregate_failures do
+      app.write("config/database.yml", app.read("config/database.yml").gsub("ceiba_production", app.database))
+      output = app.run!("bin/rails", "db:seed", env: { "RAILS_ENV" => "production", "SECRET_KEY_BASE" => "x" * 64, "RAILS_LOG_LEVEL" => "fatal" })
+
+      expect(output).to include("SEED_DEMO_PASSWORD")
+      expect(users_report.call).to eq("[]")
+    end
+  end
+
   it "db:seed corre como app_user (el rol se comprueba DENTRO del seed real, no en un runner aparte)" do
     app.write("db/seeds.rb", "#{app.read('db/seeds.rb')}\nputs \"seed_role=\#{ActiveRecord::Base.connection.select_value('SELECT current_user')}\"\n")
 
@@ -52,6 +106,6 @@ RSpec.describe "db/seeds.rb" do
   end
 
   it "crea todo solo a través de la API pública de tenancy (sin tocar los modelos privados)" do
-    expect(Rails.root.join("db/seeds.rb").read).not_to match(/Tenancy::(Organization|Company|Branch)\b/)
+    expect(Rails.root.join("db/seeds.rb").read).not_to match(/(Tenancy::(Organization|Company|Branch)|Identity::(User|Session))\b/)
   end
 end

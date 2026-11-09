@@ -11,7 +11,12 @@ module ApiProbes
     return if const_defined?(:ProbesController, false)
 
     const_set(:ProbesController, Class.new(Api::BaseController) do
+      # Las sondas prueban los rescates de la API, no la autenticación: son públicas salvo `guarded`, que representa
+      # "una ruta nueva que nadie marcó como pública" y debe responder 401 (spec/requests/api/authentication_spec.rb).
+      skip_authentication! except: :guarded
+
       def show = render(json: { data: { ok: true } })
+      def guarded = render(json: { data: { ok: true } })
       def invalid_record = Tenancy::Organization.new.validate!
       def stale_record = raise(ActiveRecord::StaleObjectError.new(Tenancy::Organization.new, "update"))
       def duplicate = raise(ActiveRecord::RecordNotUnique, "PG::UniqueViolation: duplicate key value violates unique constraint secret_index")
@@ -52,6 +57,7 @@ module ApiProbes
       Rails.application.routes.draw do
         scope path: "api/v1/probes", controller: "api_probes/probes" do
           get "ok", action: :show
+          get "guarded"
           get "invalid_record"
           get "stale_record"
           get "duplicate"
