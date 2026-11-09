@@ -67,9 +67,9 @@ RSpec.describe "IP real del cliente tras el proxy" do
       app = ->(_env) { [ 200, {}, [ "ok" ] ] }
       guard = ActionDispatch::HostAuthorization.new(app, [ "app.ceiba.example" ], exclude: described_class::EXCLUDE)
 
-      allowed = guard.call(Rack::MockRequest.env_for("https://app.ceiba.example/api/v1/auth/session"))
-      blocked = guard.call(Rack::MockRequest.env_for("https://evil.test/api/v1/auth/session"))
-      probe = guard.call(Rack::MockRequest.env_for("http://10.0.0.5:3000/api/health"))
+      allowed = guard.call(Rack::MockRequest.env_for("/api/v1/auth/session", "HTTP_HOST" => "app.ceiba.example"))
+      blocked = guard.call(Rack::MockRequest.env_for("/api/v1/auth/session", "HTTP_HOST" => "evil.test"))
+      probe = guard.call(Rack::MockRequest.env_for("/api/health", "HTTP_HOST" => "10.0.0.5:3000"))
 
       expect([ allowed.first, blocked.first, probe.first ]).to eq([ 200, 403, 200 ])
     end
