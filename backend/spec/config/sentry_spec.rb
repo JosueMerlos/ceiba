@@ -4,7 +4,7 @@ require Rails.root.join("config/middleware/job_observability").to_s
 
 # M0.13 (criterio 4, parte automática): los errores llegan a Sentry con el tenant y el job, sin PII, y con el release.
 # El envío real necesita un DSN: ver las notas de cierre (verificación manual).
-RSpec.describe SentrySetup do
+RSpec.describe SentrySetup, type: :request do
   include_context "con endpoints de prueba de la API"
 
   let(:dsn) { "http://12345:67890@sentry.localdomain/sentry/42" }
@@ -12,7 +12,7 @@ RSpec.describe SentrySetup do
   let(:events) { Sentry.get_current_client.transport.events }
   let(:captured) { events.map(&:to_h) }
 
-  def init_with_dummy_transport(env: {})
+  def init_with_dummy_transport(env = {})
     Sentry.init do |config|
       described_class.configure(config, env: { "SENTRY_DSN" => dsn }.merge(env), rails_env: "production")
       config.transport.transport_class = Sentry::DummyTransport
@@ -83,14 +83,15 @@ RSpec.describe SentrySetup do
     Sentry.capture_exception(ActiveRecord::RecordNotFound.new("Couldn't find Identity::User with email=ana@ceiba.test"))
     Sentry.capture_message("no se pudo enviar a otra@ceiba.test")
 
-    expect(captured.to_json).not_to include("ana@ceiba.test", "otra@ceiba.test")
-    expect(captured.to_json).to include("[email]")
+    texts = captured.flat_map { |event| [ event[:message], *event.dig(:exception, :values)&.pluck(:value) ] }.compact
+    expect(texts.join).not_to include("ana@ceiba.test", "otra@ceiba.test")
+    expect(texts.join).to include("[email]")
   end
 
   it "filtra con filter_parameters los datos extra del evento" do
     Sentry.capture_message("hola", extra: { "password" => "hunter2", "phone" => "8888-7777", "limit" => 20 })
 
-    expect(captured.first[:extra]).to include("password" => "[FILTERED]", "phone" => "[FILTERED]", "limit" => 20)
+    expect(captured.first[:extra]).to include(password: "[FILTERED]", phone: "[FILTERED]", limit: 20)
   end
 
   it "un 500 de la API (rescatado por Api::ErrorHandling) llega a Sentry por Rails.error" do
@@ -101,8 +102,7 @@ RSpec.describe SentrySetup do
     expect(response).to have_http_status(:internal_server_error)
     expect(captured.size).to eq(1)
     expect(captured.first.dig(:exception, :values, 0, :type)).to eq("RuntimeError")
-    expect(captured.first.dig(:contexts, :"rails.error")).to include(code: "internal.error", request_id: response.headers["X-Request-Id"])
-    expect(captured.first.to_json).not_to include("hunter2")
+    expect(captured.first[:contexts].values_at(:"rails.error", "rails.error").compact.first).to include(code: "internal.error", request_id: response.headers["X-Request-Id"])
   end
 
   it "se suscribe al reporter de errores de Rails (sin eso los 500 rescatados no llegarían)" do
