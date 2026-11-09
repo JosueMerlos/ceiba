@@ -108,4 +108,34 @@ RSpec.describe "Idempotencia: peticiones concurrentes" do
     expect(responses.map(&:status)).to eq([ 422, 201 ])
     expect(companies_named("Carrera Recuperada").size).to eq(1)
   end
+
+  it "la espera también está acotada al reemplazar una fila VENCIDA con la misma clave que otra transacción tiene bloqueada" do
+    stub_const("Idempotency::Processor::LOCK_TIMEOUT", 0.3)
+    with_tenant(organization) { create(:idempotency_key, principal_key: "anonymous", key:, expires_at: 1.hour.ago) }
+    holder = Thread.new do
+      ApplicationRecord.connection_pool.with_connection do |connection|
+        connection.transaction do
+          connection.execute("SELECT 1 FROM idempotency_keys WHERE key = #{connection.quote(key)} FOR UPDATE")
+          sleep 1.5
+        end
+      end
+    end
+    sleep 0.3
+
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    response = public_post("Carrera Vencida")
+    elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    holder.join
+
+    expect(response.status).to eq(409)
+    expect(response.parsed_body["code"]).to eq("idempotency.request_in_progress")
+    expect(elapsed).to be < 1.0
+  end
+
+  def public_post(name)
+    session = open_session
+    session.post "/api/v1/idempotency_probes/organizations/#{organization.id}/slow_companies",
+      params: { name:, delay: 0.0 }, headers: { "Idempotency-Key" => key }, as: :json
+    session.response
+  end
 end
