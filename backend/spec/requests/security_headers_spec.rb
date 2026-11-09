@@ -1,0 +1,53 @@
+require "rails_helper"
+
+# Criterio 5 de M0.13: toda respuesta de la API lleva las cabeceras de seguridad. "Toda" incluye las que genera un
+# middleware antes de llegar a un controlador (ApiRequestGuard, rutas inexistentes) y los errores.
+RSpec.describe "Cabeceras de seguridad" do
+  let(:expected) do
+    {
+      "X-Content-Type-Options" => "nosniff",
+      "Referrer-Policy" => "strict-origin-when-cross-origin",
+      "X-Frame-Options" => "DENY",
+      "Content-Security-Policy" => "frame-ancestors 'none'"
+    }
+  end
+
+  def expect_security_headers
+    expect(response.headers).to include(expected)
+    expect(response.headers["Permissions-Policy"]).to include("camera=()", "microphone=()", "geolocation=()")
+  end
+
+  it "criterio 5: una respuesta cualquiera (sonda de vida) las incluye" do
+    get "/api/health"
+
+    expect(response).to have_http_status(:ok)
+    expect_security_headers
+  end
+
+  it "un 401 de un controlador las incluye" do
+    get "/api/v1/auth/session"
+
+    expect(response).to have_http_status(:unauthorized)
+    expect_security_headers
+  end
+
+  it "un 404 de una ruta inexistente (app de excepciones) las incluye" do
+    get "/api/v1/no-existe"
+
+    expect(response).to have_http_status(:not_found)
+    expect_security_headers
+  end
+
+  it "un 415 que responde un middleware antes de llegar a Rails las incluye" do
+    post "/api/v1/auth/login", params: "email=a@b.c", headers: { "CONTENT_TYPE" => "text/plain" }
+
+    expect(response).to have_http_status(:unsupported_media_type)
+    expect_security_headers
+  end
+
+  it "sin HSTS fuera de producción (HTTP en desarrollo y test)" do
+    get "/api/health"
+
+    expect(response.headers).not_to have_key("Strict-Transport-Security")
+  end
+end
