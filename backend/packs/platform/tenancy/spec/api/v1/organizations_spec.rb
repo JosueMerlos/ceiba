@@ -1,7 +1,7 @@
 require "swagger_helper"
 
-# Endpoint de ejemplo de M0.06 (criterio 1 y contrato). TEMPORAL: sin autenticación, solo en desarrollo y test.
-# M0.07 añade la autenticación y M0.08 la autorización; entonces deja de existir el flag `open_organization_endpoint`.
+# Endpoint de ejemplo de M0.06 (criterio 1 y contrato). Desde M0.07 exige sesión; TEMPORAL: sin autorización por membership
+# (M0.08), solo en desarrollo y test. M0.08 lo autoriza y entonces deja de existir el flag `open_organization_endpoint`.
 RSpec.describe "API v1: organizaciones" do
   let(:unknown_id) { "0198f0a0-0000-7000-8000-000000000000" }
 
@@ -10,10 +10,14 @@ RSpec.describe "API v1: organizaciones" do
 
     get "Obtiene una organización" do
       tags "Organizaciones"
-      description "Endpoint de ejemplo del contrato. Hoy sin autenticación y solo disponible en desarrollo; se protegerá en M0.07/M0.08."
+      description "Endpoint de ejemplo del contrato. Exige sesión desde M0.07; sin autorización por membership todavía (M0.08), " \
+                  "por eso sigue disponible solo en desarrollo y test."
       produces "application/json", "application/problem+json"
+      security [ { cookieAuth: [] } ]
 
+      # M0.07: la API exige sesión por defecto (deny by default). El login es el real, por HTTP.
       response "200", "la organización" do
+        before { sign_in }
         schema type: :object, properties: { data: { "$ref" => "#/components/schemas/Organization" } }, required: %w[data], additionalProperties: false
         let(:id) { create(:organization, name: "Salón Ceiba", legal_name: nil).id }
 
@@ -22,7 +26,15 @@ RSpec.describe "API v1: organizaciones" do
         end
       end
 
+      response "401", "sin sesión válida" do
+        schema "$ref" => "#/components/schemas/Problem"
+        let(:id) { unknown_id }
+
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("auth.unauthenticated") }
+      end
+
       response "404", "no existe (o el id no es un UUID)" do
+        before { sign_in }
         schema "$ref" => "#/components/schemas/Problem"
         let(:id) { unknown_id }
 
@@ -36,6 +48,8 @@ RSpec.describe "API v1: organizaciones" do
   end
 
   describe "formato y alcance" do
+    before { sign_in }
+
     it "devuelve las fechas en ISO 8601 UTC con Z" do
       organization = create(:organization)
 

@@ -12,6 +12,7 @@ module ApiProbes
 
     const_set(:ProbesController, Class.new(Api::BaseController) do
       def show = render(json: { data: { ok: true } })
+      def guarded = render(json: { data: { ok: true } })
       def invalid_record = Tenancy::Organization.new.validate!
       def stale_record = raise(ActiveRecord::StaleObjectError.new(Tenancy::Organization.new, "update"))
       def duplicate = raise(ActiveRecord::RecordNotUnique, "PG::UniqueViolation: duplicate key value violates unique constraint secret_index")
@@ -52,6 +53,7 @@ module ApiProbes
       Rails.application.routes.draw do
         scope path: "api/v1/probes", controller: "api_probes/probes" do
           get "ok", action: :show
+          get "guarded"
           get "invalid_record"
           get "stale_record"
           get "duplicate"
