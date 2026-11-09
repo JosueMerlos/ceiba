@@ -1,0 +1,46 @@
+require "rails_helper"
+
+# Criterio 5 de M0.11 con un modelo REAL con Active Record Encryption: aún no hay PII cifrada en el producto (llega con
+# customers), así que la sonda declara `encrypts` sobre una columna de organizations dentro del spec.
+RSpec.describe "Audit.record con atributos cifrados (criterio 5)" do
+  let(:organization) { create(:organization) }
+  let(:probe_class) do
+    Class.new(ApplicationRecord) do
+      self.table_name = "organizations"
+      encrypts :legal_name
+    end
+  end
+
+  before do
+    stub_const("ProbeOrganization", probe_class)
+    ActiveRecord::Encryption.configure(
+      primary_key: "test-primary-key-0123456789abcdef", deterministic_key: "test-deterministic-key-0123456789ab",
+      key_derivation_salt: "test-derivation-salt-0123456789ab"
+    )
+  end
+
+  it "el diff de un campo cifrado muestra [FILTERED], no el valor" do
+    probe = ProbeOrganization.find(organization.id)
+    before_value = probe.legal_name
+    probe.update!(legal_name: "Razón Social Secreta S.A.")
+
+    with_tenant(organization) do
+      Audit.record(action: "organization.updated", subject: probe,
+        before: { "legal_name" => before_value, "name" => "A" }, after: { "legal_name" => probe.legal_name, "name" => "B" })
+    end
+
+    with_tenant(organization) do
+      event = Audit::Event.last
+      expect(event.after).to eq("legal_name" => "[FILTERED]", "name" => "B")
+      expect(event.to_json).not_to include("Razón Social Secreta")
+    end
+  end
+
+  it "cualquier campo sensible por nombre queda fuera aunque el modelo no lo declare" do
+    with_tenant(organization) do
+      Audit.record(action: "x.updated", subject: organization, before: { "password_digest" => "a" }, after: { "password_digest" => "b" })
+    end
+
+    with_tenant(organization) { expect(Audit::Event.last).to have_attributes(before: {}, after: {}) }
+  end
+end
