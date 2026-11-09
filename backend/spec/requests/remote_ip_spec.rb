@@ -30,7 +30,55 @@ RSpec.describe "IP real del cliente tras el proxy" do
     expect(logged_remote_ip).to eq("198.51.100.7")
   end
 
+  # Cabeceras con las que un cliente puede intentar decir "mi IP es otra": ninguna debe cambiar remote_ip.
+  {
+    "Forwarded (RFC 7239)" => { "HTTP_FORWARDED" => "for=6.6.6.6" },
+    "X-Real-IP" => { "HTTP_X_REAL_IP" => "6.6.6.6" },
+    "Client-IP" => { "HTTP_CLIENT_IP" => "6.6.6.6" }
+  }.each do |name, header|
+    it "#{name}: llegando DIRECTO (IP pública) no cambia la IP del cliente" do
+      get "/api/v1/auth/session", headers: { "REMOTE_ADDR" => "198.51.100.7" }.merge(header)
+
+      expect(logged_remote_ip).to eq("198.51.100.7")
+    end
+
+    it "#{name}: llegando por el proxy (par privado) tampoco: manda X-Forwarded-For del proxy, y no hay 500" do
+      get "/api/v1/auth/session", headers: { "REMOTE_ADDR" => "172.18.0.5", "HTTP_X_FORWARDED_FOR" => "203.0.113.9" }.merge(header)
+
+      expect(response).to have_http_status(:unauthorized)
+      expect(logged_remote_ip).to eq("203.0.113.9")
+    end
+  end
+
+  describe NetworkTrust::UntrustedForwardingFilter do
+    let(:filter) { described_class.new(->(env) { env }, ActionDispatch::RemoteIp::TRUSTED_PROXIES) }
+    let(:headers) { { "HTTP_FORWARDED" => "for=1", "HTTP_CLIENT_IP" => "1", "HTTP_X_REAL_IP" => "1", "HTTP_X_FORWARDED_FOR" => "1" } }
+
+    it "borra SIEMPRE Forwarded, Client-IP y X-Real-IP, aunque el par sea de confianza; X-Forwarded-For se conserva" do
+      env = filter.call({ "REMOTE_ADDR" => "172.18.0.5" }.merge(headers))
+
+      expect(env.keys & %w[HTTP_FORWARDED HTTP_CLIENT_IP HTTP_X_REAL_IP]).to be_empty
+      expect(env["HTTP_X_FORWARDED_FOR"]).to eq("1")
+    end
+
+    it "con un par que no es de confianza borra también X-Forwarded-For" do
+      env = filter.call({ "REMOTE_ADDR" => "198.51.100.7" }.merge(headers))
+
+      expect(env.keys & headers.keys).to be_empty
+    end
+  end
+
   describe NetworkTrust::Proxies do
+    it "en producción TRUSTED_PROXIES SUSTITUYE los rangos privados (se estrecha a la IP del proxy real)" do
+      proxies = described_class.from("10.0.0.7", replace_defaults: true)
+
+      expect(proxies).to eq([ IPAddr.new("10.0.0.7") ])
+    end
+
+    it "sin TRUSTED_PROXIES, replace_defaults conserva los de Rails (no deja la app sin ningún proxy)" do
+      expect(described_class.from(nil, replace_defaults: true)).to eq(ActionDispatch::RemoteIp::TRUSTED_PROXIES)
+    end
+
     it "sin TRUSTED_PROXIES conserva los rangos privados y de loopback que Rails ya confía (red de compose, kamal-proxy)" do
       expect(described_class.from(nil)).to eq(ActionDispatch::RemoteIp::TRUSTED_PROXIES)
     end

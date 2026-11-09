@@ -3,6 +3,7 @@ require "rails_helper"
 # M0.13, capa 1 del rate limiting (ADR-0027): Rack::Attack antes de autenticar y sin tocar la BD. Reglas 1, 2, 3 y 8 de
 # docs/architecture/11-security.md. Cada regla con el reloj congelado en una ventana conocida y el store reiniciado.
 RSpec.describe "Rate limiting (Rack::Attack)" do
+  include_context "con endpoints de prueba de la API"
   include ActiveSupport::Testing::TimeHelpers
 
   # 12:00:01 UTC: 1 s dentro de una ventana de 5 y de 15 min alineada con el epoch.
@@ -41,6 +42,38 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
       expect_rate_limited(retry_after: 899, limit: 5)
     end
 
+    it "la ruta con extensión de formato (/login.json) no esquiva la regla: cuenta igual" do
+      5.times { login }
+
+      post "/api/v1/auth/login.json", params: { email: "ana@ceiba.test", password: "x" }, headers: { "REMOTE_ADDR" => ip }, as: :json
+
+      expect_rate_limited(retry_after: 899, limit: 5)
+    end
+
+    it "las rutas de la API no admiten extensión de formato (/login.json no existe)" do
+      Rack::Attack.enabled = false
+
+      post "/api/v1/auth/login.json", params: { email: "ana@ceiba.test", password: "x" }, as: :json
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "IPv6: las direcciones de un mismo /64 comparten límite (un cliente controla todo su /64)" do
+      5.times { |n| login(from: "2001:db8:1:2::#{n + 1}") }
+
+      login(from: "2001:db8:1:2:aaaa:bbbb:cccc:dddd")
+
+      expect_rate_limited(retry_after: 899, limit: 5)
+    end
+
+    it "IPv6: otro /64 no se ve afectado" do
+      6.times { |n| login(from: "2001:db8:1:2::#{n + 1}") }
+
+      login(from: "2001:db8:1:3::1")
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
     it "otra IP no se ve afectada" do
       6.times { login }
 
@@ -73,6 +106,24 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
       login(email: "ana@ceiba.test", from: "198.51.100.99")
 
       expect_rate_limited(retry_after: 899, limit: 10)
+    end
+
+    it "espacios o saltos de línea antes del JSON no esquivan la regla" do
+      body = "  \n{\"email\":\"ana@ceiba.test\",\"password\":\"x\"}"
+      10.times { |n| post "/api/v1/auth/login", params: body, headers: { "CONTENT_TYPE" => "application/json", "REMOTE_ADDR" => "198.51.100.#{n + 1}" } }
+
+      post "/api/v1/auth/login", params: body, headers: { "CONTENT_TYPE" => "application/json", "REMOTE_ADDR" => "198.51.100.99" }
+
+      expect_rate_limited(retry_after: 899, limit: 10)
+    end
+
+    it "un cuerpo de login de más de 4 KB (relleno para que no se lea el correo) se rechaza con 413 problem+json" do
+      body = { email: "ana@ceiba.test", password: "x", relleno: "a" * 5000 }.to_json
+      post "/api/v1/auth/login", params: body, headers: { "CONTENT_TYPE" => "application/json", "REMOTE_ADDR" => ip }
+
+      expect(response).to have_http_status(:content_too_large)
+      expect(response.media_type).to eq("application/problem+json")
+      expect(response.parsed_body).to include("code" => "request.too_large")
     end
 
     it "otro correo no se ve afectado" do
@@ -144,12 +195,33 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
       expect(response).to have_http_status(:unauthorized)
     end
 
+    it "los 404 de NEGOCIO (recurso no encontrado, contexto inconsistente) no cuentan: solo las rutas inexistentes" do
+      12.times do
+        get "/api/v1/probes/missing_record", headers: { "REMOTE_ADDR" => ip }
+        expect(response).to have_http_status(:not_found)
+      end
+      get "/api/v1/probes/inconsistent_context", headers: { "REMOTE_ADDR" => ip }
+
+      get "/api/v1/auth/session", headers: { "REMOTE_ADDR" => ip }
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
     it "9 respuestas 404 no bloquean" do
       9.times { get "/api/v1/no-existe", headers: { "REMOTE_ADDR" => ip } }
 
       get "/api/v1/auth/session", headers: { "REMOTE_ADDR" => ip }
 
       expect(response).to have_http_status(:unauthorized)
+    end
+  end
+
+  describe "IP del cliente ilegible" do
+    it "si resolver la IP lanza IpSpoofAttackError se usa la dirección del par en lugar de fallar con 500" do
+      env = Rack::MockRequest.env_for("/api/health", "REMOTE_ADDR" => "198.51.100.7")
+      env["action_dispatch.remote_ip"] = Class.new { def to_s = raise(ActionDispatch::RemoteIp::IpSpoofAttackError, "spoof") }.new
+
+      expect(RateLimiting.ip(Rack::Attack::Request.new(env))).to eq("198.51.100.7")
     end
   end
 
