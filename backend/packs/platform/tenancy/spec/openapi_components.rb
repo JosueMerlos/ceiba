@@ -15,6 +15,17 @@ OpenapiComponents.register(
     required: %i[id name legal_name country_code status created_at updated_at],
     additionalProperties: false
   },
+  OrganizationSummary: {
+    type: :object,
+    description: "Resumen de una organización para el selector de contexto (id, nombre, estado)",
+    properties: {
+      id: { type: :string, format: :uuid },
+      name: { type: :string },
+      status: { type: :string, enum: %w[active suspended] }
+    },
+    required: %i[id name status],
+    additionalProperties: false
+  },
   Company: {
     type: :object,
     description: "Empresa: un negocio dentro de una organización (ADR-0004)",

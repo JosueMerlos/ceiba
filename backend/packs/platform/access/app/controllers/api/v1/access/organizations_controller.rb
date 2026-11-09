@@ -11,7 +11,8 @@ module Api
           none = ::Tenancy::Directory.organizations_for([])
           authorize none, :index?, policy_class: ::Access::OrganizationPolicy
           organizations = policy_scope(none, policy_scope_class: ::Access::OrganizationPolicy::Scope)
-          render_page(organizations, serializer: ::Tenancy::OrganizationSerializer)
+          # Resumen (id, name, status): el selector de contexto no necesita el detalle, que exige platform.organization.read.
+          render_page(organizations, serializer: ::Tenancy::OrganizationSummarySerializer)
         end
 
         def show

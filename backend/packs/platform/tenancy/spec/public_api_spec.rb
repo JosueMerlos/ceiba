@@ -13,7 +13,7 @@ RSpec.describe "API pública de tenancy" do
       "tenancy.rb", "tenancy/context.rb", "tenancy/provision_organization.rb", "tenancy/add_company.rb", "tenancy/add_branch.rb",
       "tenancy/error.rb", "tenancy/inconsistent_context.rb", "tenancy/provisioning_failed.rb",
       "tenancy/tenant_write_guard.rb", "tenancy/tenant_mismatch.rb", "tenancy/tenant_is_immutable.rb",
-      "tenancy/directory.rb", "tenancy/organization_serializer.rb", "tenancy/company_serializer.rb", "tenancy/branch_serializer.rb"
+      "tenancy/directory.rb", "tenancy/organization_serializer.rb", "tenancy/organization_summary_serializer.rb", "tenancy/company_serializer.rb", "tenancy/branch_serializer.rb"
     )
   end
 
