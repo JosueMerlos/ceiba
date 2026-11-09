@@ -1,6 +1,7 @@
 Rails.application.routes.draw do
   # Todo vive bajo /api: el proxy no quita el prefijo, así desarrollo y producción coinciden (ADR-0013).
-  scope path: "api" do
+  # format: false: la API no admite extensión de formato (/login.json esquivaría las reglas de Rack::Attack por ruta).
+  scope path: "api", format: false do
     get "health", to: "health#show"
     get "ready", to: "ready#show"
 

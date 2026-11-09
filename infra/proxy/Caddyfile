@@ -13,8 +13,14 @@
 
 	# `path /api /api/*`: también /api sin barra final va a la API, no al panel
 	@api path /api /api/*
+	# Cabeceras con las que un cliente podría declarar otra IP: no deben llegar a la API (que solo lee X-Forwarded-For, que
+	# Caddy sobrescribe con la IP del cliente). La app también las descarta (NetworkTrust::UntrustedForwardingFilter).
 	handle @api {
-		reverse_proxy api:3000
+		reverse_proxy api:3000 {
+			header_up -Forwarded
+			header_up -Client-Ip
+			header_up -X-Real-Ip
+		}
 	}
 
 	# /c sin barra final -> /c/ (la base de Vite)

@@ -8,18 +8,27 @@ module NetworkTrust
   module Proxies
     module_function
 
-    def from(value)
+    # replace_defaults (producción): TRUSTED_PROXIES SUSTITUYE los rangos privados, para estrechar la confianza a la IP del
+    # proxy real (kamal-proxy). Sin TRUSTED_PROXIES se conservan los de Rails (la app no se queda sin ningún proxy). En
+    # desarrollo y test siempre se AÑADEN (la IP del Caddy de compose cambia con cada red).
+    def from(value, replace_defaults: false)
       extra = value.to_s.split(",").map(&:strip).compact_blank.map { |range| IPAddr.new(range) }
-      extra + ActionDispatch::RemoteIp::TRUSTED_PROXIES
+      return ActionDispatch::RemoteIp::TRUSTED_PROXIES if extra.empty?
+
+      replace_defaults ? extra : extra + ActionDispatch::RemoteIp::TRUSTED_PROXIES
     end
   end
 
-  # Rails confía en X-Forwarded-For aunque la conexión NO venga de un proxy de confianza (probado en
+  # Rails confía en las cabeceras de reenvío aunque la conexión NO venga de un proxy de confianza (probado en
   # spec/requests/remote_ip_spec.rb): quien llegue directo a la app podría falsear su IP y esquivar el límite por IP de
-  # Rack::Attack. Este middleware, antes de RemoteIp, descarta las cabeceras de reenvío cuando el par directo no es un proxy
-  # de confianza.
+  # Rack::Attack. Este middleware, antes de RemoteIp:
+  #   - borra SIEMPRE `Forwarded` (RFC 7239), `Client-IP` y `X-Real-IP`: la app solo lee `X-Forwarded-For`, que el proxy
+  #     sobrescribe; que lleguen otras cabeceras (el cliente las puede mandar y el proxy las reenvía) solo sirve para
+  #     falsear la IP, o para provocar IpSpoofAttackError (500) si `Client-IP` no coincide;
+  #   - borra `X-Forwarded-For` cuando el par directo no es un proxy de confianza.
   class UntrustedForwardingFilter
-    FORWARDING_HEADERS = %w[HTTP_X_FORWARDED_FOR HTTP_CLIENT_IP].freeze
+    ALWAYS_DROPPED = %w[HTTP_FORWARDED HTTP_CLIENT_IP HTTP_X_REAL_IP].freeze
+    PROXY_ONLY = %w[HTTP_X_FORWARDED_FOR].freeze
 
     def initialize(app, proxies)
       @app = app
@@ -27,7 +36,8 @@ module NetworkTrust
     end
 
     def call(env)
-      FORWARDING_HEADERS.each { |header| env.delete(header) } unless trusted_peer?(env["REMOTE_ADDR"])
+      ALWAYS_DROPPED.each { |header| env.delete(header) }
+      PROXY_ONLY.each { |header| env.delete(header) } unless trusted_peer?(env["REMOTE_ADDR"])
       @app.call(env)
     end
 

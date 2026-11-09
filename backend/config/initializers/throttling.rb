@@ -3,7 +3,9 @@
 #   1  catch-all por IP            600 / 5 min   (las sondas /api/health y /api/ready no cuentan)
 #   2  login por IP                  5 / 15 min
 #   3  login por correo normalizado 10 / 15 min  (la clave es una huella SHA-256, nunca el correo)
-#   8  404/405 repetidos por IP     10 / 5 min -> bloqueo de 1 h
+#   8  404/405 de RUTA INEXISTENTE   10 / 5 min -> bloqueo de 1 h (no cuentan los 404 de negocio)
+#   +  login con cuerpo > 4 KB      413 (cierra el relleno que esquivaría la regla 3)
+#   La clave por IP agrupa IPv6 por /64.
 #
 # - Store: Redis con namespace `ratelimit:` (la URL ya fuerza la base 15 en test: config/initializers/redis.rb). Si Redis no
 #   responde, RedisCacheStore devuelve nil y el límite FALLA ABIERTO (se prefiere dejar pasar a cerrar el login); queda un aviso.
@@ -28,14 +30,15 @@ Rack::Attack.cache.store = ActiveSupport::Cache::RedisCacheStore.new(
   }
 )
 
+Rack::Attack.blocklist("login/oversized") { |request| RateLimiting.oversized_login?(request) }
 Rack::Attack.blocklist("not-found/ip") { |request| RateLimiting.banned?(request) }
 
 Rack::Attack.throttle("catch-all/ip", limit: ->(_request) { RateLimiting.limit(:catch_all) }, period: RateLimiting.period(:catch_all)) do |request|
-  RateLimiting.ip(request) unless RateLimiting.probe?(request)
+  RateLimiting.client_key(request) unless RateLimiting.probe?(request)
 end
 
 Rack::Attack.throttle("login/ip", limit: ->(_request) { RateLimiting.limit(:login_ip) }, period: RateLimiting.period(:login_ip)) do |request|
-  RateLimiting.ip(request) if RateLimiting.login?(request)
+  RateLimiting.client_key(request) if RateLimiting.login?(request)
 end
 
 Rack::Attack.throttle("login/email", limit: ->(_request) { RateLimiting.limit(:login_email) }, period: RateLimiting.period(:login_email)) do |request|
@@ -43,7 +46,7 @@ Rack::Attack.throttle("login/email", limit: ->(_request) { RateLimiting.limit(:l
 end
 
 Rack::Attack.throttled_responder = ->(request) { RateLimiting.throttled_response(request) }
-Rack::Attack.blocklisted_responder = ->(request) { RateLimiting.blocked_response(request) }
+Rack::Attack.blocklisted_responder = ->(request) { RateLimiting.blocklisted_response(request) }
 
 # Una línea de log por request limitada (sin correo: la huella tampoco se escribe).
 ActiveSupport::Notifications.subscribe("rack.attack") do |*, payload|

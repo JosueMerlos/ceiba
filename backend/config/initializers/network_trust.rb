@@ -1,7 +1,7 @@
 # Proxies de confianza y hosts permitidos (M0.13, config/middleware/network_trust.rb).
 require Rails.root.join("config/middleware/network_trust").to_s
 
-trusted_proxies = NetworkTrust::Proxies.from(ENV["TRUSTED_PROXIES"])
+trusted_proxies = NetworkTrust::Proxies.from(ENV["TRUSTED_PROXIES"], replace_defaults: Rails.env.production?)
 Rails.application.config.action_dispatch.trusted_proxies = trusted_proxies
 Rails.application.config.middleware.insert_before ActionDispatch::RemoteIp, NetworkTrust::UntrustedForwardingFilter, trusted_proxies
 

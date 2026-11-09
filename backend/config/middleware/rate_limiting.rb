@@ -8,7 +8,7 @@ require "digest"
 require "json"
 
 module RateLimiting
-  LOGIN_PATH = "/api/v1/auth/login".freeze
+  LOGIN_PATH = %r{\A/api/v1/auth/login(\.\w+)?\z} # con o sin extensión de formato: Rails también la aceptaría
   PROBE_PATHS = %w[/api/health /api/ready].freeze
   MAX_LOGIN_BODY_BYTES = 4096
 
@@ -34,27 +34,45 @@ module RateLimiting
 
   def period(rule) = RULES.fetch(rule).fetch(:period)
 
-  # La IP del CLIENTE tal como la resuelve ActionDispatch::RemoteIp (proxies de confianza), no Rack::Request#ip.
-  def ip(request) = (request.env["action_dispatch.remote_ip"] || request.ip).to_s
+  # La IP del CLIENTE tal como la resuelve ActionDispatch::RemoteIp (proxies de confianza), no Rack::Request#ip. Si resolverla
+  # lanza IpSpoofAttackError (cabeceras de reenvío contradictorias) se usa la dirección del par: el 500 sería peor.
+  def ip(request)
+    (request.env["action_dispatch.remote_ip"] || request.ip).to_s
+  rescue ActionDispatch::RemoteIp::IpSpoofAttackError
+    request.env["REMOTE_ADDR"].to_s
+  end
+
+  # Clave de límite por cliente: IPv4 tal cual; IPv6 agrupada por /64 (a un cliente le asignan al menos un /64 y rotar
+  # direcciones dentro de él no debe darle un límite nuevo cada vez).
+  def client_key(request)
+    address = IPAddr.new(ip(request))
+    address.ipv6? && !address.ipv4_mapped? ? "#{address.mask(64)}/64" : address.to_s
+  rescue IPAddr::InvalidAddressError
+    ip(request)
+  end
+
+  def oversized_login?(request)
+    login?(request) && (request.content_length.to_i > MAX_LOGIN_BODY_BYTES || request.get_header("HTTP_TRANSFER_ENCODING").present?)
+  end
 
   def probe?(request) = PROBE_PATHS.include?(request.path)
 
-  def login?(request) = request.post? && request.path == LOGIN_PATH
+  def login?(request) = request.post? && LOGIN_PATH.match?(request.path)
 
   # Huella del correo normalizado (como Identity::User): el correo nunca se guarda en Redis. Solo lee cuerpos JSON pequeños.
   def login_email_digest(request)
     return unless login?(request) && request.media_type == "application/json"
-    return unless request.content_length.to_i.between?(1, MAX_LOGIN_BODY_BYTES)
+    return unless request.content_length.to_i.between?(1, MAX_LOGIN_BODY_BYTES) # los mayores se rechazan antes (413)
 
     body = request.body.read(MAX_LOGIN_BODY_BYTES)
     request.body.rewind
-    email = JSON.parse(body.to_s)["email"] if body.to_s.start_with?("{")
+    email = JSON.parse(body.to_s)["email"] if body.to_s.lstrip.start_with?("{")
     Digest::SHA256.hexdigest(email.strip.downcase) if email.is_a?(String) && email.present?
   rescue JSON::ParserError
     nil
   end
 
-  def ban_key(request) = "ban:not-found:#{ip(request)}"
+  def ban_key(request) = "ban:not-found:#{client_key(request)}"
 
   # El valor guardado es el instante en que termina el bloqueo; se compara con el reloj además del TTL de Redis.
   def banned?(request) = Rack::Attack.cache.read(ban_key(request)).to_i > Time.now.to_i
@@ -64,6 +82,21 @@ module RateLimiting
     data = request.env["rack.attack.match_data"]
     retry_after = (data[:period] - (data[:epoch_time] % data[:period])).to_i
     respond(request, code: "rate_limit.exceeded", retry_after:, limit: data[:limit])
+  end
+
+  # Respuesta del blocklist: el cuerpo de login demasiado grande (413) o el bloqueo de la regla 8 (429).
+  def blocklisted_response(request)
+    return request_too_large(request) if request.env["rack.attack.matched"] == "login/oversized"
+
+    blocked_response(request)
+  end
+
+  # Un login real mide unas decenas de bytes. Un cuerpo mayor (relleno para que el correo quede fuera de lo que se lee y
+  # esquivar la regla 3) se rechaza sin parsearlo. Transfer-Encoding (sin longitud conocida) también.
+  def request_too_large(request)
+    problem = Api::Problem.new(status: 413, code: "request.too_large", request: ActionDispatch::Request.new(request.env))
+    body = problem.to_h.to_json
+    [ 413, { "Content-Type" => "#{Api::Problem::MEDIA_TYPE}; charset=utf-8", "Content-Length" => body.bytesize.to_s }, [ body ] ]
   end
 
   # 429 de un bloqueo (regla 8): el valor guardado es el instante en que termina.
@@ -83,22 +116,29 @@ module RateLimiting
     [ 429, headers, [ body ] ]
   end
 
-  # Regla 8: cuenta las respuestas 404/405 por IP y, al llegar al límite, escribe el bloqueo. Va justo DENTRO de Rack::Attack
-  # (necesita la respuesta de la aplicación, que un blocklist no ve): la lista de bloqueo lee la marca que aquí se escribe.
+  # Regla 8: cuenta por IP las respuestas de RUTA INEXISTENTE (ActionController::RoutingError, o método HTTP desconocido) y, al
+  # llegar al límite, escribe el bloqueo. NO cuenta los 404 de negocio (recurso no visible, contexto inconsistente): los
+  # provoca un usuario legítimo y una clínica entera comparte IP. Va justo DENTRO de Rack::Attack (necesita la respuesta de la
+  # aplicación, que un blocklist no ve): la lista de bloqueo lee la marca que aquí se escribe. Rails deja la excepción en
+  # `action_dispatch.exception` cuando la delega en la app de excepciones; los 404 que un controlador rescata no la dejan.
   class NotFoundTracker
     def initialize(app) = @app = app
 
     def call(env)
       response = @app.call(env)
-      record(env) if Rack::Attack.enabled && [ 404, 405 ].include?(response.first)
+      record(env) if Rack::Attack.enabled && [ 404, 405 ].include?(response.first) && routing_failure?(env)
       response
     end
 
     private
 
+    ROUTING_ERRORS = [ ActionController::RoutingError, ActionController::UnknownHttpMethod ].freeze
+
+    def routing_failure?(env) = ROUTING_ERRORS.any? { |error| env["action_dispatch.exception"].is_a?(error) }
+
     def record(env)
       request = Rack::Attack::Request.new(env)
-      count = Rack::Attack.cache.count("not-found:#{RateLimiting.ip(request)}", RateLimiting.period(:not_found))
+      count = Rack::Attack.cache.count("not-found:#{RateLimiting.client_key(request)}", RateLimiting.period(:not_found))
       return if count < RateLimiting.limit(:not_found)
 
       ban = RateLimiting::RULES.dig(:not_found, :ban)
