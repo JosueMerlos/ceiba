@@ -60,6 +60,12 @@ RSpec.describe "Access.register_permissions" do
     expect(permission_registry.upward_keys).to eq([ "appointments.appointment.read" ])
   end
 
+  it "from_descendants solo se acepta en permisos de LECTURA: en uno de escritura es un error" do
+    expect do
+      register("platform", { "platform.company.update" => { description: "Editar", roles: %w[org_owner], from_descendants: true } })
+    end.to raise_error(ArgumentError, /from_descendants.*lectura/)
+  end
+
   it "el registro global expone las mismas operaciones a través de Access" do
     expect(Access.permission_keys).to include("platform.branch.read")
     expect(Access.registered?("platform.branch.read")).to be(true)

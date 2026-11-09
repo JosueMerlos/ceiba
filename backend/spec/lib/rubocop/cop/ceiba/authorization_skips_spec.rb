@@ -32,6 +32,17 @@ RSpec.describe RuboCop::Cop::Ceiba::AuthorizationSkips, :config do
     )
   end
 
+  it "rechaza asignar @_pundit_* y redefinir las verificaciones con define_method o alias" do
+    expect(flagged("  def show\n    @_pundit_policy_authorized = true\n    @_pundit_policy_scoped = true\n  end\n  define_method(:verify_authorized) { }\n  alias_method :verify_collection_scoped, :foo\n  undef_method :verify_policy_scoped")).to eq(
+      [ "@_pundit_policy_authorized = true", "@_pundit_policy_scoped = true", "define_method(:verify_authorized) { }",
+        "alias_method :verify_collection_scoped, :foo", "undef_method :verify_policy_scoped" ]
+    )
+  end
+
+  it "rechaza instance_variable_set sobre las marcas de Pundit" do
+    expect(flagged("  def show = instance_variable_set(:@_pundit_policy_authorized, true)")).to eq([ "instance_variable_set(:@_pundit_policy_authorized, true)" ])
+  end
+
   it "no toca otros skip_after_action" do
     expect(flagged("  skip_after_action :otra_cosa")).to be_empty
   end

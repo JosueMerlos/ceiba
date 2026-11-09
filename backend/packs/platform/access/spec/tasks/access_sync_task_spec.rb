@@ -23,6 +23,14 @@ RSpec.describe "tarea access:sync" do
     expect(output.lines.last.to_i).to be >= 2
   end
 
+  it "la acción añadida a db:prepare y a db:migrate es la de lib/tasks/access.rake (no cualquier otra)" do
+    script = %w[db:prepare db:migrate].map { |task| %(puts "#{task} " + Rake::Task["#{task}"].actions.map { |a| a.source_location.first }.join(",")) }.join("; ")
+    output, status = run("runner", "Rails.application.load_tasks; #{script}")
+    expect(status).to be_success, output
+
+    expect(output.lines.grep(/\Adb:/)).to all(include("lib/tasks/access.rake"))
+  end
+
   it "db:migrate encadena access:sync" do
     output, status = run("runner", 'Rails.application.load_tasks; puts Rake::Task["db:migrate"].actions.size')
     expect(status).to be_success, output
