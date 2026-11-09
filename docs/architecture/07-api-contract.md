@@ -103,6 +103,8 @@
 | `idempotency.request_in_progress` | 409 | Otra petición con la misma clave sigue en curso y no terminó en 5 s; reintentar con la misma clave (M0.11) |
 | `idempotency.key_reused` | 409 | `Idempotency-Key` ya usada con otro método, ruta o cuerpo (M0.11) |
 | `idempotency.key_required` / `idempotency.key_invalid` | 400 | Endpoint con `required: true` sin el header; clave vacía, de más de 255 caracteres o no ASCII imprimible (M0.11) |
+| `rate_limit.exceeded` | 429 | Ventana de Rack::Attack agotada (login por IP o correo, catch-all). `Retry-After` y `RateLimit-*`; lo responde un middleware, no un controlador ([11](11-security.md)) |
+| `rate_limit.blocked` | 429 | IP bloqueada 1 h por 404/405 repetidos (regla 8). `Retry-After` = lo que queda de bloqueo |
 | `internal.error` | 500 | Cualquier excepción sin registrar |
 
 - **`Tenancy::TenantMismatch` y `Tenancy::TenantIsImmutable` no se registran a propósito:** solo se lanzan si el servidor intentó escribir en otro tenant, es decir, ante un **bug**. Responden `500 internal.error` genérico y el detalle va al log. Si algún día una regla de negocio los lanzara de forma legítima, se registran con su status.

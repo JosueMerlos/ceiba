@@ -120,7 +120,7 @@ Se registran en `Events::Schedule` al arrancar Sidekiq (`config/initializers/sid
 | Job | Cron | Cola | Qué hace |
 | --- | --- | --- | --- |
 | `Events::RelayJob` | `*/5 * * * * *` (cada 5 s) | critical | Publica el outbox |
-| `Events::OutboxLagJob` | cada minuto | default | Mide el lag: `events.outbox_lag pending=N oldest_age_seconds=S` en el log y la notificación `outbox_lag.events` (la alerta de > 5 min se conecta en M0.13) |
+| `Events::OutboxLagJob` | cada minuto | default | Mide el lag: `events.outbox_lag pending=N oldest_age_seconds=S` en el log y la notificación `outbox_lag.events`; `Events::OutboxLagAlert` reporta a Sentry (`Rails.error`) si la edad supera 5 min (`OUTBOX_LAG_ALERT_SECONDS`, M0.13) |
 | `Events::PurgeOutboxJob` | 03:17 UTC | low | Borra `outbox_events` **publicados** hace más de 30 días, por lotes de 1000; nunca un pendiente |
 | `Events::PurgeProcessedJob` | 03:27 UTC | low | Borra `processed_events` de más de 30 días, por lotes |
 
