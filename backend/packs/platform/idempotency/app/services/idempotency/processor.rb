@@ -8,12 +8,21 @@ module Idempotency
   class Processor
     HEADER = "Idempotency-Key".freeze
     VALID_KEY = /\A[!-~]{1,255}\z/
+    # Un principal ANÓNIMO (reserva pública) comparte alcance con todos los anónimos de la organización: la entropía de la
+    # clave es lo único que evita que alguien repita la respuesta de otro. Se exige un UUID (122 bits aleatorios).
+    ANONYMOUS_KEY = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
     STORED_HEADERS = %w[Location].freeze
     SUCCESS = (200..299)
     # Cuánto espera (segundos) una petición a que termine otra con la misma clave antes de responder 409 request_in_progress.
     LOCK_TIMEOUT = 5
 
     Replay = Data.define(:status, :body, :content_type, :headers)
+
+    # SHA-256 de método + ruta con query + cuerpo TAL CUAL llegó. Un JSON con otro orden de claves es otra petición (el cliente
+    # que reintenta reenvía los mismos bytes). Los multipart no llegan aquí: ApiRequestGuard exige application/json.
+    def self.fingerprint(request)
+      OpenSSL::Digest::SHA256.hexdigest([ request.request_method, request.fullpath, request.raw_post ].join("\n"))
+    end
 
     def self.call(request:, response:, required:, &action) = new(request:, response:, required:).call(&action)
 
@@ -27,6 +36,7 @@ module Idempotency
       key = request.headers[HEADER]
       return validate_missing_key!(&action) if key.nil?
       raise KeyInvalid, "Idempotency-Key inválida" unless VALID_KEY.match?(key)
+      raise KeyInvalid, "Un principal anónimo debe usar una Idempotency-Key con formato UUID" if Current.principal.nil? && !ANONYMOUS_KEY.match?(key)
 
       raise MissingContext, "Idempotency::Idempotent requiere un contexto de tenancy" unless Current.context
 
@@ -100,7 +110,7 @@ module Idempotency
     end
 
     def fingerprint
-      @fingerprint ||= OpenSSL::Digest::SHA256.hexdigest([ request.request_method, request.path, request.raw_post ].join("\n"))
+      @fingerprint ||= self.class.fingerprint(request)
     end
   end
 end

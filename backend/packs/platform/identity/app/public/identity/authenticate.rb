@@ -42,13 +42,13 @@ module Identity
     end
 
     # Audita el intento y lo rechaza. Se busca la cuenta SIEMPRE (exista o no) para que ambos fallos hagan el mismo trabajo.
-    # Se guarda un digest del correo (nunca el correo ni la contraseña): permite correlacionar intentos sin retener PII ni
-    # un secreto escrito por error en el campo del correo. Se escribe fuera de cualquier transacción, así sobrevive al 401.
+    # Se guarda un seudónimo HMAC del correo (Audit.pseudonymize; nunca el correo ni la contraseña): permite correlacionar
+    # intentos sin retener el correo ni un secreto escrito por error en ese campo. Se escribe fuera de cualquier transacción, así sobrevive al 401.
     def reject_credentials!
       normalized = User.normalize_value_for(:email, @email)
       Audit.record_auth(
         action: "auth.login_failed", user_id: User.where(email: normalized).pick(:id), ip: @ip, user_agent: @user_agent,
-        metadata: { email_digest: OpenSSL::Digest::SHA256.hexdigest(normalized) }
+        metadata: { email_digest: Audit.pseudonymize(normalized) }
       )
       raise InvalidCredentials, "Credenciales inválidas"
     end

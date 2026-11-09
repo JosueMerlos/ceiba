@@ -30,4 +30,11 @@ module Audit
   def self.record_auth(action:, user_id: nil, ip: nil, user_agent: nil, metadata: {})
     AuthRecorder.call(action:, user_id:, ip:, user_agent:, metadata:)
   end
+
+  # Seudónimo estable de un dato personal (p. ej. el correo de un login fallido) para correlacionar eventos SIN guardarlo:
+  # HMAC-SHA256 con una clave derivada de secret_key_base. Sigue siendo un dato personal seudonimizado (quien tenga la clave
+  # puede confirmar un correo), no anónimo: ver docs/architecture/11-security.md.
+  def self.pseudonymize(value)
+    OpenSSL::HMAC.hexdigest("SHA256", Rails.application.key_generator.generate_key("ceiba/audit/pseudonym", 32), value.to_s)
+  end
 end

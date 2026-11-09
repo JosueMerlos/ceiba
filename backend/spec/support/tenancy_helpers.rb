@@ -19,11 +19,11 @@ module TenancyHelpers
   # Para specs SIN fixtures transaccionales (COMMIT real): borra todo lo que las organizaciones dejaron en CUALQUIER tabla
   # tenant (empresas, sucursales, eventos del outbox...) y luego las organizaciones. Tolera el orden de las FKs repitiendo
   # pasadas: una tabla que aún tiene hijos (RESTRICT) se reintenta en la pasada siguiente.
-  def purge_organizations(organizations)
+  def purge_organizations(organizations, user_ids: [])
     ids = Array(organizations).map { |organization| organization.respond_to?(:id) ? organization.id : organization }
     return if ids.empty?
 
-    purge_append_only_rows(ids)
+    purge_append_only_rows(ids, user_ids)
     pending = Database::TenantTables.names - TenantIsolation::APPEND_ONLY_TABLES
     pending.size.times do
       pending = pending.reject do |table|
@@ -40,7 +40,7 @@ module TenancyHelpers
   # Las tablas append-only (audit_events) rechazan el DELETE del rol de la aplicación por diseño. Un spec con COMMIT real
   # que audita deja filas que bloquearían el borrado de la organización (FK RESTRICT): las limpia el DUEÑO, desactivando
   # el trigger solo dentro de su transacción (control contra la aplicación, no contra el dueño; docs/architecture/11).
-  def purge_append_only_rows(ids)
+  def purge_append_only_rows(ids, user_ids = [])
     OwnerConnection.with do |owner|
       owner.transaction do
         TenantIsolation::APPEND_ONLY_TABLES.each do |table|
@@ -48,8 +48,18 @@ module TenancyHelpers
           owner.execute("DELETE FROM #{table} WHERE organization_id IN (#{ids.map { |id| owner.quote(id) }.join(',')})")
           owner.execute("ALTER TABLE #{table} ENABLE TRIGGER USER")
         end
+        purge_auth_audit_events(owner, user_ids)
       end
     end
+  end
+
+  # auth_audit_events (global, sin organización): se limpian las filas de los usuarios que el spec creó.
+  def purge_auth_audit_events(owner, user_ids)
+    return if user_ids.empty?
+
+    owner.execute("ALTER TABLE auth_audit_events DISABLE TRIGGER USER")
+    owner.execute("DELETE FROM auth_audit_events WHERE user_id IN (#{user_ids.map { |id| owner.quote(id) }.join(',')})")
+    owner.execute("ALTER TABLE auth_audit_events ENABLE TRIGGER USER")
   end
 
   def new_organization(name = "Organización #{SecureRandom.hex(3)}")
