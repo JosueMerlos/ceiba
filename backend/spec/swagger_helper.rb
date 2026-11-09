@@ -50,6 +50,46 @@ module OpenapiComponents
     }.merge(pack_components)
   end
 
+  # Header Idempotency-Key (M0.11, docs/architecture/07-api-contract.md#idempotencia) y sus errores, para que cada endpoint de
+  # creación idempotente los referencie con $ref. El patrón y el largo son los de Idempotency::Processor::VALID_KEY.
+  IDEMPOTENCY_KEY_PARAMETER = {
+    name: "Idempotency-Key", in: :header, required: false,
+    description: "Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta " \
+                 "(cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da " \
+                 "`409 idempotency.key_reused`. Vale 24 horas, por organización y principal.",
+    schema: { type: :string, minLength: 1, maxLength: 255, pattern: "^[!-~]+$", example: "0198f0a0-7c3e-7000-8000-5b1f0c2d9e11" }
+  }.freeze
+
+  def self.parameters
+    {
+      IdempotencyKey: IDEMPOTENCY_KEY_PARAMETER,
+      IdempotencyKeyRequired: IDEMPOTENCY_KEY_PARAMETER.merge(required: true)
+    }
+  end
+
+  def self.headers
+    {
+      IdempotencyReplayed: {
+        description: "`true` cuando la respuesta es la guardada de una petición anterior con la misma `Idempotency-Key` (repetida, no ejecutada de nuevo).",
+        schema: { type: :string, enum: %w[true] }
+      }
+    }
+  end
+
+  def self.responses
+    problem = { "application/problem+json": { schema: { "$ref" => "#/components/schemas/Problem" } } }
+    {
+      IdempotencyRequestInProgress: {
+        description: "Otra petición con la misma `Idempotency-Key` sigue en curso (código `idempotency.request_in_progress`); reintenta con la misma clave",
+        content: problem
+      },
+      IdempotencyKeyReused: { description: "La `Idempotency-Key` ya se usó con otro método, ruta o cuerpo (código `idempotency.key_reused`)", content: problem },
+      IdempotencyKeyInvalid: {
+        description: "`Idempotency-Key` inválida (`idempotency.key_invalid`) o ausente en un endpoint que la exige (`idempotency.key_required`)", content: problem
+      }
+    }
+  end
+
   # Cada packs/*/*/spec/openapi_components.rb llama a OpenapiComponents.register(Nombre: {...}).
   def self.register(components) = registered.merge!(components)
   def self.registered = (@registered ||= {})
@@ -76,6 +116,9 @@ RSpec.configure do |config|
       paths: {},
       components: {
         schemas: OpenapiComponents.all,
+        headers: OpenapiComponents.headers,
+        parameters: OpenapiComponents.parameters,
+        responses: OpenapiComponents.responses,
         securitySchemes: {
           cookieAuth: {
             type: :apiKey, in: :cookie, name: "ceiba_session",

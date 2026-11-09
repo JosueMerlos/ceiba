@@ -34,10 +34,20 @@ module Identity
       candidate.is_a?(String) && ActiveSupport::SecurityUtils.secure_compare(candidate, csrf_token)
     end
 
-    def revoke!(now: Time.current) = @session.revoke!(now:)
+    def revoke!(now: Time.current)
+      Session.transaction do
+        @session.revoke!(now:)
+        Audit.record_auth(action: "auth.logout", user_id: @session.user_id, metadata: { session_id: @session.id })
+      end
+    end
 
     # "Cerrar sesión en todos los dispositivos".
-    def revoke_all!(now: Time.current) = Session.revoke_all_for(@session.user, now:)
+    def revoke_all!(now: Time.current)
+      Session.transaction do
+        count = Session.revoke_all_for(@session.user, now:)
+        Audit.record_auth(action: "auth.sessions_revoked", user_id: @session.user_id, metadata: { count: })
+      end
+    end
 
     def self.csrf_key = Rails.application.key_generator.generate_key(CSRF_KEY_PURPOSE, 32)
   end

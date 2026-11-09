@@ -1,0 +1,9 @@
+es-NI:
+  api:
+    errors:
+      idempotency:
+        key_reused: "La clave de idempotencia ya se usó con otra petición"
+        request_in_progress: "Otra petición con la misma clave sigue en curso; reintenta en unos segundos"
+        key_required: "Falta la cabecera Idempotency-Key"
+        key_invalid: "La clave de idempotencia no es válida"
+  idempotency: {}

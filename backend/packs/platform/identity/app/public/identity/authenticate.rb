@@ -26,13 +26,31 @@ module Identity
 
     def call
       user = User.authenticate_by(email: @email, password: @password)
-      raise InvalidCredentials, "Credenciales inválidas" unless user
+      reject_credentials! unless user
 
       session = Session.transaction do
         Session.find_active_by_token(@previous_token, now: @now)&.revoke!(now: @now)
-        Session.issue!(user:, ip: @ip, user_agent: @user_agent, now: @now)
+        Session.issue!(user:, ip: @ip, user_agent: @user_agent, now: @now).tap { |issued| audit_success(user, issued) }
       end
       Result.new(token: session.token, current_session: CurrentSession.new(session))
+    end
+
+    private
+
+    def audit_success(user, session)
+      Audit.record_auth(action: "auth.login_succeeded", user_id: user.id, ip: @ip, user_agent: @user_agent, metadata: { session_id: session.id })
+    end
+
+    # Audita el intento y lo rechaza. Se busca la cuenta SIEMPRE (exista o no) para que ambos fallos hagan el mismo trabajo.
+    # Se guarda un seudónimo HMAC del correo (Audit.pseudonymize; nunca el correo ni la contraseña): permite correlacionar
+    # intentos sin retener el correo ni un secreto escrito por error en ese campo. Se escribe fuera de cualquier transacción, así sobrevive al 401.
+    def reject_credentials!
+      normalized = User.normalize_value_for(:email, @email)
+      Audit.record_auth(
+        action: "auth.login_failed", user_id: User.where(email: normalized).pick(:id), ip: @ip, user_agent: @user_agent,
+        metadata: { email_digest: Audit.pseudonymize(normalized) }
+      )
+      raise InvalidCredentials, "Credenciales inválidas"
     end
   end
 end

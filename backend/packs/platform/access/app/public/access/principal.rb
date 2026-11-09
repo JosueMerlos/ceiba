@@ -12,6 +12,12 @@ module Access
     def can?(_permission_key, _scope) = raise(NotImplementedError, "#{self.class} debe implementar can?(permission_key, scope)")
     def kind = raise(NotImplementedError, "#{self.class} debe implementar kind")
 
+    # Contrato con la auditoría y la idempotencia (M0.11): `actor_type` ("user", "system", "api_key", "public_token") e `id`
+    # (el uuid de quien actúa; nil si el principal no tiene identidad propia, como los jobs del sistema). Audit e Idempotency
+    # los usan tal cual: no derivan el tipo del nombre de la clase.
+    def actor_type = kind.to_s
+    def id = nil
+
     # Un permiso sin registrar es un bug del código que pregunta, no una denegación (criterio 8).
     def self.ensure_registered!(permission_key)
       raise UnknownPermission, permission_key unless Access.registered?(permission_key)

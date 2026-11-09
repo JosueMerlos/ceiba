@@ -47,10 +47,13 @@ RSpec/DescribeClass:
     - "packs/*/*/spec/package_spec.rb"
     - "packs/platform/database/spec/database/**/*"
     - "packs/platform/events/spec/**/*"
+    - "packs/platform/audit/spec/**/*"
+    - "packs/platform/idempotency/spec/**/*"
     - "packs/platform/tenancy/spec/config/**/*"
     - "packs/platform/tenancy/spec/factories_spec.rb"
     - "packs/platform/tenancy/spec/public_api_spec.rb"
     - "packs/platform/identity/spec/public_api_spec.rb"
+    - "packs/platform/identity/spec/public/identity/authenticate_audit_spec.rb"
     - "packs/platform/tenancy/spec/public/**/*"
     - "packs/platform/access/spec/**/*"
     - "spec/platform/**/*"
@@ -144,6 +147,8 @@ Ceiba/TenantBypass:
     - "packs/platform/events/app/services/events/cross_tenant.rb"
     # "¿A qué organizaciones pertenece este usuario?" (selector de contexto, GET /organizations): lee memberships de todas.
     - "packs/platform/access/app/services/access/membership_directory.rb"
+    # Purga de idempotency_keys vencidas de todas las organizaciones: ver el comentario del archivo.
+    - "packs/platform/idempotency/app/services/idempotency/cross_tenant.rb"
 
 # rubocop-rails limita estos cops a app/models, app/controllers... de la raíz; sin esto no
 # revisarían los packs (packs-rails, "Ecosystem and Integrations").

@@ -5,6 +5,7 @@ module Api
   # heredan de aquí: son infraestructura.
   class BaseController < ApplicationController
     include ErrorHandling
+    include RequestMetadata
     include Authentication
     include Access::Authorization
     include Paginated

@@ -1,5 +1,54 @@
 ---
 components:
+  headers:
+    IdempotencyReplayed:
+      description: "`true` cuando la respuesta es la guardada de una petición anterior con la misma `Idempotency-Key` (repetida, no ejecutada de nuevo)."
+      schema:
+        enum:
+        - 'true'
+        type: string
+  parameters:
+    IdempotencyKey:
+      description: 'Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal.'
+      in: header
+      name: Idempotency-Key
+      required: false
+      schema:
+        example: '0198f0a0-7c3e-7000-8000-5b1f0c2d9e11'
+        maxLength: 255
+        minLength: 1
+        pattern: "^[!-~]+$"
+        type: string
+    IdempotencyKeyRequired:
+      description: 'Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal.'
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema:
+        example: '0198f0a0-7c3e-7000-8000-5b1f0c2d9e11'
+        maxLength: 255
+        minLength: 1
+        pattern: "^[!-~]+$"
+        type: string
+  responses:
+    IdempotencyKeyInvalid:
+      content:
+        application/problem+json:
+          schema:
+            "$ref": "#/components/schemas/Problem"
+      description: "`Idempotency-Key` inválida (`idempotency.key_invalid`) o ausente en un endpoint que la exige (`idempotency.key_required`)"
+    IdempotencyKeyReused:
+      content:
+        application/problem+json:
+          schema:
+            "$ref": "#/components/schemas/Problem"
+      description: La `Idempotency-Key` ya se usó con otro método, ruta o cuerpo (código `idempotency.key_reused`)
+    IdempotencyRequestInProgress:
+      content:
+        application/problem+json:
+          schema:
+            "$ref": "#/components/schemas/Problem"
+      description: Otra petición con la misma `Idempotency-Key` sigue en curso (código `idempotency.request_in_progress`); reintenta con la misma clave
   schemas:
     AuthSession:
       additionalProperties: false
