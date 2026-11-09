@@ -2,7 +2,7 @@ require "rails_helper"
 
 # Criterio 1 de M0.13: la línea de log de una request autenticada es JSON con request_id, organization_id y principal_id,
 # y sin correo ni teléfono.
-RSpec.describe "Log estructurado de requests" do
+RSpec.describe "Log estructurado de requests" do # rubocop:disable RSpec/MultipleMemoizedHelpers -- el mundo de acceso, la ruta y la captura del log son el montaje común
   include TenancyHelpers
 
   let(:output) { StringIO.new }
