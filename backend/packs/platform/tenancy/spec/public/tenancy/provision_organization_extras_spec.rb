@@ -3,7 +3,7 @@ require "rails_helper"
 # `extras:` lleva a los hooks after_provision datos que Tenancy NO interpreta (el dueño de la organización lo usa access,
 # M0.08; los módulos por defecto, M0.09). Así el servicio no conoce a ningún otro pack y su contrato sigue igual: sin
 # extras todo se comporta como antes.
-RSpec.describe Tenancy::ProvisionOrganization, "extras" do
+RSpec.describe Tenancy::ProvisionOrganization, ".call con extras" do
   let(:params) do
     {
       organization: { name: "Extras S.A." },
