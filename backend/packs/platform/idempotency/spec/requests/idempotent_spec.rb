@@ -48,6 +48,15 @@ RSpec.describe "Idempotencia de escrituras (Idempotency-Key)" do
       expect(create_company.media_type).to eq("application/json")
     end
 
+    it "guarda el cuerpo de la respuesta CIFRADO: el valor en la columna no contiene el texto" do
+      create_company
+
+      raw = ApplicationRecord.connection.select_value("SELECT response_body FROM idempotency_keys WHERE key = '#{key}'")
+      expect(raw).to be_present
+      expect(raw).not_to include("Sucursal Uno")
+      expect(with_tenant(organization) { Idempotency::Key.find_by!(key:).response_body }).to include("Sucursal Uno")
+    end
+
     it "guarda la respuesta con caducidad de 24 horas" do
       freeze_time do
         create_company
