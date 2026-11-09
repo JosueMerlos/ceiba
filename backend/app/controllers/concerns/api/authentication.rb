@@ -56,16 +56,18 @@ module Api
     end
 
     # Defensa en profundidad junto con SameSite=Lax y el token: un navegador envía `Origin` en toda mutación; si viene
-    # (o su `Referer`) debe ser el origen propio. Sin ninguno de los dos (curl, clientes que no son navegadores) no se
+    # (o su `Referer`) debe estar en config.x.auth.allowed_origins (NO se compara con Host/X-Forwarded-Host: son falsificables). Sin ninguno de los dos (curl, clientes que no son navegadores) no se
     # rechaza aquí: sin token CSRF una mutación autenticada igual falla.
     def verify_origin!
       return if safe_method?
 
       source = request.origin.presence || origin_from(request.referer)
-      return if source.blank? || source.casecmp?(request.base_url)
+      return if source.blank? || allowed_origin?(source)
 
       raise ::Identity::ForbiddenOrigin, "El origen de la solicitud no es el propio"
     end
+
+    def allowed_origin?(source) = Rails.configuration.x.auth.allowed_origins.include?(source.downcase)
 
     def safe_method? = SAFE_METHODS.include?(request.request_method)
 
