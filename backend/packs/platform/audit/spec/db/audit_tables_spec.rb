@@ -99,18 +99,24 @@ RSpec.describe "Tablas de auditoría" do
         expect { connection.execute("TRUNCATE #{table}") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
       end
 
+      it "#{table}: el INSERT sí funciona (solo se puede añadir)" do
+        expect(connection.select_value("SELECT count(*) FROM #{table}")).to be >= 1
+      end
+    end
+  end
+
+  # Sin filas sembradas: la conexión de la suite (app_user) no debe tener la tabla bloqueada, o el DDL del dueño, desde
+  # otra conexión, esperaría eternamente a que termine la transacción de la suite.
+  describe "el dueño de la tabla" do
+    %w[audit_events auth_audit_events].each do |table|
       it "#{table}: ni siquiera el DUEÑO puede truncarla mientras el trigger exista" do
         OwnerConnection.rolled_back do |owner|
           expect { owner.execute("TRUNCATE #{table}") }.to raise_error(ActiveRecord::StatementInvalid, /append-only/)
         end
       end
-
-      it "#{table}: el INSERT sí funciona (solo se puede añadir)" do
-        expect(connection.select_value("SELECT count(*) FROM #{table}")).to be >= 1
-      end
     end
 
-    it "el dueño puede desactivar el trigger (control contra la APLICACIÓN, no contra un DBA): riesgo aceptado y documentado" do
+    it "puede desactivar el trigger (control contra la APLICACIÓN, no contra un DBA): riesgo aceptado y documentado" do
       OwnerConnection.rolled_back do |owner|
         owner.execute("ALTER TABLE audit_events DISABLE TRIGGER USER")
 
