@@ -20,8 +20,8 @@ RSpec.describe "Esquema de platform/access" do
   def insert_membership(role_key:, scope_level:, company_id: nil, branch_id: nil, org: organization)
     role = ensure_role(role_key)
     sql = <<~SQL.squish
-      INSERT INTO memberships (organization_id, user_id, role_id, scope_level, company_id, branch_id)
-      VALUES (#{[ org.id, user_id, role.id, scope_level, company_id, branch_id ].map { |value| connection.quote(value) }.join(', ')})
+      INSERT INTO memberships (organization_id, user_id, role_id, scope_level, company_id, branch_id, created_at, updated_at)
+      VALUES (#{[ org.id, user_id, role.id, scope_level, company_id, branch_id ].map { |value| connection.quote(value) }.join(', ')}, now(), now())
     SQL
     savepoint { connection.execute(sql) }
   end
@@ -97,7 +97,7 @@ RSpec.describe "Esquema de platform/access" do
     it "el usuario debe existir" do
       user_id_missing = "0198f0a0-0000-7000-8000-000000000000"
       role = ensure_role("org_admin")
-      sql = "INSERT INTO memberships (organization_id, user_id, role_id, scope_level) VALUES (#{[ organization.id, user_id_missing, role.id, 'organization' ].map { |v| connection.quote(v) }.join(', ')})"
+      sql = "INSERT INTO memberships (organization_id, user_id, role_id, scope_level, created_at, updated_at) VALUES (#{[ organization.id, user_id_missing, role.id, 'organization' ].map { |v| connection.quote(v) }.join(', ')}, now(), now())"
 
       expect { savepoint { connection.execute(sql) } }.to raise_error(ActiveRecord::InvalidForeignKey, /fk_memberships_user/)
     end
@@ -110,14 +110,14 @@ RSpec.describe "Esquema de platform/access" do
 
     it "un permiso de un rol debe estar declarado (FK a permissions)" do
       role = ensure_role("org_admin")
-      sql = "INSERT INTO role_permissions (role_id, permission_key) VALUES (#{connection.quote(role.id)}, 'nada.no.existe')"
+      sql = "INSERT INTO role_permissions (role_id, permission_key, created_at, updated_at) VALUES (#{connection.quote(role.id)}, 'nada.no.existe', now(), now())"
 
       expect { savepoint { connection.execute(sql) } }.to raise_error(ActiveRecord::InvalidForeignKey)
     end
 
     it "la clave de un permiso es <modulo>.<recurso>.<accion> y empieza por su module_key" do
-      bad_format = "INSERT INTO permissions (key, module_key, description) VALUES ('mala', 'mala', 'x')"
-      bad_module = "INSERT INTO permissions (key, module_key, description) VALUES ('a.b.c', 'otro', 'x')"
+      bad_format = "INSERT INTO permissions (key, module_key, description, created_at, updated_at) VALUES ('mala', 'mala', 'x', now(), now())"
+      bad_module = "INSERT INTO permissions (key, module_key, description, created_at, updated_at) VALUES ('a.b.c', 'otro', 'x', now(), now())"
 
       expect { savepoint { connection.execute(bad_format) } }.to raise_error(ActiveRecord::CheckViolation)
       expect { savepoint { connection.execute(bad_module) } }.to raise_error(ActiveRecord::CheckViolation)

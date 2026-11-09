@@ -96,6 +96,24 @@ CREATE TABLE public.companies (
 
 
 --
+-- Name: memberships; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.memberships (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    role_id uuid NOT NULL,
+    scope_level character varying NOT NULL,
+    company_id uuid,
+    branch_id uuid,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_memberships_scope CHECK (((((scope_level)::text = 'organization'::text) AND (company_id IS NULL) AND (branch_id IS NULL)) OR (((scope_level)::text = 'company'::text) AND (company_id IS NOT NULL) AND (branch_id IS NULL)) OR (((scope_level)::text = 'branch'::text) AND (company_id IS NOT NULL) AND (branch_id IS NOT NULL))))
+);
+
+
+--
 -- Name: organizations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -133,6 +151,21 @@ CREATE TABLE public.outbox_events (
 
 
 --
+-- Name: permissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.permissions (
+    key character varying NOT NULL,
+    module_key character varying NOT NULL,
+    description character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_permissions_key_format CHECK (((key)::text ~ '^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$'::text)),
+    CONSTRAINT chk_permissions_module_prefix CHECK ((split_part((key)::text, '.'::text, 1) = (module_key)::text))
+);
+
+
+--
 -- Name: processed_events; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -144,6 +177,33 @@ CREATE TABLE public.processed_events (
     processed_at timestamp(6) without time zone DEFAULT now() NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: role_permissions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.role_permissions (
+    role_id uuid NOT NULL,
+    permission_key character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: roles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.roles (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    key character varying NOT NULL,
+    scope_level character varying NOT NULL,
+    system boolean DEFAULT true NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_roles_scope_level CHECK (((scope_level)::text = ANY ((ARRAY['organization'::character varying, 'company'::character varying, 'branch'::character varying])::text[])))
 );
 
 
@@ -213,6 +273,14 @@ ALTER TABLE ONLY public.companies
 
 
 --
+-- Name: memberships memberships_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.memberships
+    ADD CONSTRAINT memberships_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: organizations organizations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -229,11 +297,35 @@ ALTER TABLE ONLY public.outbox_events
 
 
 --
+-- Name: permissions permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.permissions
+    ADD CONSTRAINT permissions_pkey PRIMARY KEY (key);
+
+
+--
 -- Name: processed_events processed_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.processed_events
     ADD CONSTRAINT processed_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: role_permissions role_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.role_permissions
+    ADD CONSTRAINT role_permissions_pkey PRIMARY KEY (role_id, permission_key);
+
+
+--
+-- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.roles
+    ADD CONSTRAINT roles_pkey PRIMARY KEY (id);
 
 
 --
@@ -266,6 +358,14 @@ ALTER TABLE ONLY public.branches
 
 ALTER TABLE ONLY public.companies
     ADD CONSTRAINT uq_companies_organization_id_id UNIQUE (organization_id, id);
+
+
+--
+-- Name: memberships uq_memberships_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.memberships
+    ADD CONSTRAINT uq_memberships_organization_id_id UNIQUE (organization_id, id);
 
 
 --
@@ -321,6 +421,41 @@ CREATE INDEX index_branches_on_organization_id_and_company_id ON public.branches
 
 
 --
+-- Name: index_memberships_on_organization_id_and_branch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_memberships_on_organization_id_and_branch_id ON public.memberships USING btree (organization_id, branch_id);
+
+
+--
+-- Name: index_memberships_on_organization_id_and_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_memberships_on_organization_id_and_company_id ON public.memberships USING btree (organization_id, company_id);
+
+
+--
+-- Name: index_memberships_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_memberships_on_user_id ON public.memberships USING btree (user_id);
+
+
+--
+-- Name: index_permissions_on_module_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_permissions_on_module_key ON public.permissions USING btree (module_key);
+
+
+--
+-- Name: index_role_permissions_on_permission_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_role_permissions_on_permission_key ON public.role_permissions USING btree (permission_key);
+
+
+--
 -- Name: index_sessions_on_token_digest; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -342,6 +477,13 @@ CREATE UNIQUE INDEX index_users_on_email ON public.users USING btree (email);
 
 
 --
+-- Name: uq_branches_organization_id_company_id_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_branches_organization_id_company_id_id ON public.branches USING btree (organization_id, company_id, id);
+
+
+--
 -- Name: uq_companies_slug; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -349,10 +491,31 @@ CREATE UNIQUE INDEX uq_companies_slug ON public.companies USING btree (slug);
 
 
 --
+-- Name: uq_memberships_user_role_scope; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_memberships_user_role_scope ON public.memberships USING btree (organization_id, user_id, role_id, company_id, branch_id) NULLS NOT DISTINCT;
+
+
+--
 -- Name: uq_processed_events_event_subscriber; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX uq_processed_events_event_subscriber ON public.processed_events USING btree (event_id, subscriber);
+
+
+--
+-- Name: uq_roles_id_scope_level; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_roles_id_scope_level ON public.roles USING btree (id, scope_level);
+
+
+--
+-- Name: uq_roles_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_roles_key ON public.roles USING btree (key);
 
 
 --
@@ -380,6 +543,46 @@ ALTER TABLE ONLY public.companies
 
 
 --
+-- Name: memberships fk_memberships_branch; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.memberships
+    ADD CONSTRAINT fk_memberships_branch FOREIGN KEY (organization_id, company_id, branch_id) REFERENCES public.branches(organization_id, company_id, id);
+
+
+--
+-- Name: memberships fk_memberships_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.memberships
+    ADD CONSTRAINT fk_memberships_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: memberships fk_memberships_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.memberships
+    ADD CONSTRAINT fk_memberships_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: memberships fk_memberships_role_scope; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.memberships
+    ADD CONSTRAINT fk_memberships_role_scope FOREIGN KEY (role_id, scope_level) REFERENCES public.roles(id, scope_level);
+
+
+--
+-- Name: memberships fk_memberships_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.memberships
+    ADD CONSTRAINT fk_memberships_user FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- Name: outbox_events fk_outbox_events_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -404,6 +607,22 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: role_permissions fk_role_permissions_permission; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.role_permissions
+    ADD CONSTRAINT fk_role_permissions_permission FOREIGN KEY (permission_key) REFERENCES public.permissions(key) ON DELETE CASCADE;
+
+
+--
+-- Name: role_permissions fk_role_permissions_role; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.role_permissions
+    ADD CONSTRAINT fk_role_permissions_role FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
+
+
+--
 -- Name: branches tenant_isolation; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -415,6 +634,13 @@ CREATE POLICY tenant_isolation ON public.branches USING ((organization_id = (NUL
 --
 
 CREATE POLICY tenant_isolation ON public.companies USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
+-- Name: memberships tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.memberships USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
 
 
 --
@@ -438,6 +664,9 @@ CREATE POLICY tenant_isolation ON public.processed_events USING ((organization_i
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261109000200'),
+('20261109000100'),
+('20261109000000'),
 ('20261108210100'),
 ('20261108210000'),
 ('20261108200100'),
