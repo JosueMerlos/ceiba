@@ -23,7 +23,8 @@ module TenancyHelpers
     ids = Array(organizations).map { |organization| organization.respond_to?(:id) ? organization.id : organization }
     return if ids.empty?
 
-    pending = Database::TenantTables.names
+    purge_append_only_rows(ids)
+    pending = Database::TenantTables.names - TenantIsolation::APPEND_ONLY_TABLES
     pending.size.times do
       pending = pending.reject do |table|
         savepoint { ApplicationRecord.connection.delete("DELETE FROM #{ApplicationRecord.connection.quote_table_name(table)} WHERE organization_id IN (#{ids.map { |id| ApplicationRecord.connection.quote(id) }.join(',')})") }
@@ -34,6 +35,21 @@ module TenancyHelpers
       break if pending.empty?
     end
     Tenancy::Organization.where(id: ids).delete_all
+  end
+
+  # Las tablas append-only (audit_events) rechazan el DELETE del rol de la aplicación por diseño. Un spec con COMMIT real
+  # que audita deja filas que bloquearían el borrado de la organización (FK RESTRICT): las limpia el DUEÑO, desactivando
+  # el trigger solo dentro de su transacción (control contra la aplicación, no contra el dueño; docs/architecture/11).
+  def purge_append_only_rows(ids)
+    OwnerConnection.with do |owner|
+      owner.transaction do
+        TenantIsolation::APPEND_ONLY_TABLES.each do |table|
+          owner.execute("ALTER TABLE #{table} DISABLE TRIGGER USER")
+          owner.execute("DELETE FROM #{table} WHERE organization_id IN (#{ids.map { |id| owner.quote(id) }.join(',')})")
+          owner.execute("ALTER TABLE #{table} ENABLE TRIGGER USER")
+        end
+      end
+    end
   end
 
   def new_organization(name = "Organización #{SecureRandom.hex(3)}")

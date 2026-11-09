@@ -55,7 +55,10 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
     end
   end
 
-  it "con el tenant A, mover un registro propio a la organización B lanza TenantIsImmutable" do
+  # Tablas append-only (audit_events): el UPDATE/DELETE de cualquier fila lo rechaza el trigger; no hay nada que aislar.
+  append_only = TenantIsolation.append_only?(model)
+
+  it "con el tenant A, mover un registro propio a la organización B lanza TenantIsImmutable", unless: append_only do
     record = record_a
 
     with_tenant(organization_a) do
@@ -92,7 +95,7 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
       end
     end
 
-    it "upsert_all de una fila propia con unique_by (organization_id, id) sigue permitido" do
+    it "upsert_all de una fila propia con unique_by (organization_id, id) sigue permitido", unless: append_only do
       own = record_a.attributes
 
       with_tenant(organization_a) do
@@ -126,7 +129,7 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
       with_tenant(organization_b) { target.find(record_b.id).updated_at == before }
     end
 
-    it "update_attribute, touch y update_columns desde A se rechazan y la fila de B queda intacta" do
+    it "update_attribute, touch y update_columns desde A se rechazan y la fila de B queda intacta", unless: append_only do
       before = record_b.updated_at
       stale = stale_b
 
@@ -138,7 +141,7 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
       expect(b_untouched?(before)).to be(true)
     end
 
-    it "delete y destroy desde A se rechazan y la fila de B sigue existiendo" do
+    it "delete y destroy desde A se rechazan y la fila de B sigue existiendo", unless: append_only do
       before = record_b.updated_at
       stale = stale_b
 
@@ -149,7 +152,7 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
       expect(b_untouched?(before)).to be(true)
     end
 
-    it "las sentencias llevan organization_id en las condiciones (defensa en profundidad)" do
+    it "las sentencias llevan organization_id en las condiciones (defensa en profundidad)", unless: append_only do
       before = record_b.updated_at
 
       with_tenant(organization_a) do

@@ -8,6 +8,10 @@ module TenantIsolation
   # Vacío: toda tabla tenant tiene modelo. Una exención exige un motivo escrito y revisión.
   UNMODELED_TABLES = {}.freeze
 
+  # Tablas de SOLO INSERCIÓN (trigger append-only, M0.11): ninguna fila se actualiza ni se borra, ni siquiera la propia,
+  # así que los ejemplos que prueban escrituras ajenas (UPDATE/DELETE) no aplican; sí los de lectura, INSERT e aislamiento.
+  APPEND_ONLY_TABLES = %w[audit_events].freeze
+
   class MissingFactory < StandardError; end
 
   module_function
@@ -17,6 +21,8 @@ module TenantIsolation
     Rails.application.eager_load! if candidates.nil?
     (candidates || ApplicationRecord.descendants).select { |model| tenant_model?(model) }.sort_by(&:name)
   end
+
+  def append_only?(model) = APPEND_ONLY_TABLES.include?(model.table_name)
 
   def tenant_model?(model)
     return false if model.abstract_class? || model.name.blank? || !model.name.safe_constantize.equal?(model)
