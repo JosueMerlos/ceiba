@@ -28,7 +28,9 @@ class CreatePermissionsRolesAndRolePermissions < ActiveRecord::Migration[8.1]
       t.index :key, unique: true, name: "uq_roles_key"
       # Para la FK compuesta (role_id, scope_level) de memberships: el alcance del membership ES el del rol.
       t.index %i[id scope_level], unique: true, name: "uq_roles_id_scope_level"
-      t.check_constraint "scope_level IN ('organization', 'company', 'branch')", name: "chk_roles_scope_level"
+      # Con OR y no IN (...): sobre varchar, PostgreSQL vuelca el IN de forma distinta según la BD se cree migrando o cargando el
+      # esquema, y structure.sql tendría un falso drift (mismo criterio que chk_companies_currency).
+      t.check_constraint "scope_level = 'organization' OR scope_level = 'company' OR scope_level = 'branch'", name: "chk_roles_scope_level"
     end
 
     create_table :role_permissions, primary_key: %i[role_id permission_key] do |t|
