@@ -29,7 +29,7 @@ RSpec.describe "Autenticación: login, sesión actual y cierre" do
       )
     end
 
-    it "criterio 1: entrega una cookie HttpOnly, SameSite=Lax y de ruta /" do
+    it "criterio 1: entrega una cookie HttpOnly, SameSite=Lax y de ruta /", :aggregate_failures do
       login
 
       cookie = set_cookie
@@ -40,8 +40,9 @@ RSpec.describe "Autenticación: login, sesión actual y cierre" do
       expect(cookie).to match(/expires=/i)
     end
 
-    it "criterio 1: la cookie lleva Secure y el prefijo __Host- cuando está activa la política de producción" do
+    it "criterio 1: la cookie lleva Secure y el prefijo __Host- cuando está activa la política de producción", :aggregate_failures do
       with_secure_cookies do
+        https! # Rails no escribe cookies Secure en una request HTTP plana
         login
 
         cookie = set_cookie
@@ -52,7 +53,7 @@ RSpec.describe "Autenticación: login, sesión actual y cierre" do
       end
     end
 
-    it "criterio 1: la fila de sessions guarda el DIGEST del token y no el token en claro" do
+    it "criterio 1: la fila de sessions guarda el DIGEST del token y no el token en claro", :aggregate_failures do
       login
       token = cookies[cookie_name]
 
@@ -76,7 +77,7 @@ RSpec.describe "Autenticación: login, sesión actual y cierre" do
       expect(response.body).not_to include("password")
     end
 
-    it "criterio 6: correo inexistente y contraseña errónea dan la MISMA respuesta (status y cuerpo)" do
+    it "criterio 6: correo inexistente y contraseña errónea dan la MISMA respuesta (status y cuerpo)", :aggregate_failures do
       user
       same_request = { "X-Request-Id" => "req-fijo-1" }
 
@@ -123,7 +124,7 @@ RSpec.describe "Autenticación: login, sesión actual y cierre" do
       expect(response).to have_http_status(:bad_request)
     end
 
-    it "criterio 7: rota el token, y la sesión anterior del navegador deja de valer" do
+    it "criterio 7: rota el token, y la sesión anterior del navegador deja de valer", :aggregate_failures do
       login
       before_login = cookies[cookie_name]
       get "/api/v1/auth/session"
@@ -153,7 +154,8 @@ RSpec.describe "Autenticación: login, sesión actual y cierre" do
       expect(probe.response).to have_http_status(:unauthorized)
     end
 
-    it "no revela cuentas por el cuerpo de un correo con distinto formato" do
+    it "acepta el correo con otro formato de mayúsculas y espacios" do
+      user
       login(email: "  ANA@ceiba.test ")
 
       expect(response).to have_http_status(:ok)
@@ -218,7 +220,7 @@ RSpec.describe "Autenticación: login, sesión actual y cierre" do
     it "expira a los 7 días aunque el usuario siga activo" do
       sign_in(user)
 
-      13.times do
+      15.times do
         travel 11.hours
         get "/api/v1/auth/session"
         expect(response).to have_http_status(:ok)
@@ -272,7 +274,7 @@ RSpec.describe "Autenticación: login, sesión actual y cierre" do
   end
 
   describe "DELETE /api/v1/auth/sessions" do
-    it "criterio 2: revoca TODAS las sesiones del usuario y la cookie de otro navegador recibe 401" do
+    it "criterio 2: revoca TODAS las sesiones del usuario y la cookie de otro navegador recibe 401", :aggregate_failures do
       other_browser = open_session
       sign_in(user, browser: other_browser)
       signed_in = sign_in(user)

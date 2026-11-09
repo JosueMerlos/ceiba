@@ -1,5 +1,7 @@
-# Estado por request/job (ActiveSupport::CurrentAttributes). Hoy solo guarda el contexto de tenancy; M0.07 añadirá
-# la sesión. SOLO Tenancy.with_context escribe `context`: nada más debe asignarlo.
+# Estado por request/job (ActiveSupport::CurrentAttributes).
+#   context    contexto de tenancy; SOLO Tenancy.with_context lo escribe: nada más debe asignarlo.
+#   session    Identity::CurrentSession de la request autenticada; SOLO Api::Authentication#authenticate! la escribe.
+#   principal  quién actúa (hoy Identity::Principal::User; M0.08 lo amplía con memberships y permisos).
 class Current < ActiveSupport::CurrentAttributes
-  attribute :context
+  attribute :context, :session, :principal
 end

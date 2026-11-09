@@ -74,7 +74,16 @@ RSpec.configure do |config|
       },
       servers: [ { url: "/", description: "Mismo origen (ADR-0013)" } ],
       paths: {},
-      components: { schemas: OpenapiComponents.all }
+      components: {
+        schemas: OpenapiComponents.all,
+        securitySchemes: {
+          cookieAuth: {
+            type: :apiKey, in: :cookie, name: "ceiba_session",
+            description: "Cookie de sesión (HttpOnly) que entrega POST /auth/login. En producción se llama `__Host-ceiba_session`. " \
+                         "Las mutaciones exigen además `X-CSRF-Token` (el de `csrf_token`) y, si el navegador envía `Origin`, que sea el propio."
+          }
+        }
+      }
     }
   }
 end

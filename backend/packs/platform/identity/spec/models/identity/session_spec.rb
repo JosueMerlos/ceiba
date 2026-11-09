@@ -9,7 +9,7 @@ RSpec.describe Identity::Session do
   def issue(**attributes) = described_class.issue!(user:, ip: "203.0.113.7", user_agent: "RSpec", now:, **attributes)
 
   describe ".issue!" do
-    it "genera un token aleatorio de 256 bits y guarda solo su digest SHA-256" do
+    it "genera un token aleatorio de 256 bits y guarda solo su digest SHA-256", :aggregate_failures do
       session = issue
 
       expect(session.token).to match(/\A[A-Za-z0-9_-]{43}\z/)

@@ -6,10 +6,6 @@ RSpec.describe "API v1: autenticación" do
   let(:user) { create(:user, email: "ana@ceiba.test", password: "contraseña-segura-1") }
 
   # La cookie de sesión y el token CSRF viajan por el jar de la sesión de integración: se inicia sesión de verdad.
-  def sign_in_for_doc
-    @signed_in = sign_in(user)
-  end
-
   path "/api/v1/auth/login" do
     post "Inicia sesión" do
       tags "Autenticación"
@@ -56,9 +52,9 @@ RSpec.describe "API v1: autenticación" do
 
       response "200", "la sesión vigente" do
         schema type: :object, properties: { data: { "$ref" => "#/components/schemas/AuthSession" } }, required: %w[data], additionalProperties: false
-        before { sign_in_for_doc }
+        let!(:signed_in) { sign_in(user) }
 
-        run_test! { |response| expect(response.parsed_body.dig("data", "csrf_token")).to eq(@signed_in.csrf_token) }
+        run_test! { |response| expect(response.parsed_body.dig("data", "csrf_token")).to eq(signed_in.csrf_token) }
       end
 
       response "401", "sin sesión válida (ausente, vencida o revocada; código `auth.unauthenticated`)" do
@@ -77,7 +73,7 @@ RSpec.describe "API v1: autenticación" do
       security [ { cookieAuth: [] } ]
 
       response "204", "sesión cerrada" do
-        before { sign_in_for_doc }
+        let!(:signed_in) { sign_in(user) }
 
         run_test!
       end
@@ -98,7 +94,7 @@ RSpec.describe "API v1: autenticación" do
       security [ { cookieAuth: [] } ]
 
       response "204", "todas las sesiones revocadas" do
-        before { sign_in_for_doc }
+        let!(:signed_in) { sign_in(user) }
 
         run_test!
       end

@@ -67,7 +67,7 @@ RSpec.describe Identity::Authenticate do
     end
 
     it "revoca la sesión anterior aunque sea de OTRO usuario (no hay fijación de sesión)" do
-      other = Identity::Authenticate.call(email: create(:user).email, password: "contraseña-segura-1", now:)
+      other = described_class.call(email: create(:user).email, password: "contraseña-segura-1", now:)
 
       call(previous_token: other.token)
 

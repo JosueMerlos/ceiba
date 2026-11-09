@@ -49,7 +49,7 @@ RSpec.describe Identity::CurrentSession do
       expect(csrf).not_to include(session.token_digest)
     end
 
-    it "se valida en tiempo constante: acepta el propio y rechaza nulo, vacío, ajeno o truncado" do
+    it "se valida en tiempo constante: acepta el propio y rechaza nulo, vacío, ajeno o truncado", :aggregate_failures do
       current = described_class.resolve(session.token, now:)
       other = described_class.resolve(Identity::Session.issue!(user:, now:).token, now:)
 

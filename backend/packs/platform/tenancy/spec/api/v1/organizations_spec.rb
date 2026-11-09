@@ -17,7 +17,7 @@ RSpec.describe "API v1: organizaciones" do
 
       # M0.07: la API exige sesión por defecto (deny by default). El login es el real, por HTTP.
       response "200", "la organización" do
-        before { sign_in }
+        let!(:signed_in) { sign_in }
         schema type: :object, properties: { data: { "$ref" => "#/components/schemas/Organization" } }, required: %w[data], additionalProperties: false
         let(:id) { create(:organization, name: "Salón Ceiba", legal_name: nil).id }
 
@@ -34,7 +34,7 @@ RSpec.describe "API v1: organizaciones" do
       end
 
       response "404", "no existe (o el id no es un UUID)" do
-        before { sign_in }
+        let!(:signed_in) { sign_in }
         schema "$ref" => "#/components/schemas/Problem"
         let(:id) { unknown_id }
 

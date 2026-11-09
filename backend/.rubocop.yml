@@ -47,6 +47,7 @@ RSpec/DescribeClass:
     - "packs/platform/tenancy/spec/config/**/*"
     - "packs/platform/tenancy/spec/factories_spec.rb"
     - "packs/platform/tenancy/spec/public_api_spec.rb"
+    - "packs/platform/identity/spec/public_api_spec.rb"
     - "packs/platform/tenancy/spec/public/**/*"
     - "spec/platform/**/*"
 
@@ -56,6 +57,17 @@ RSpec/MultipleExpectations:
 
 RSpec/ExampleLength:
   Max: 15
+
+# rswag declara sus ejemplos con `run_test!` y prepara la sesión con `let!`: rubocop-rspec no los reconoce.
+RSpec/EmptyExampleGroup:
+  Exclude:
+    - "spec/api/**/*"
+    - "packs/*/*/spec/api/**/*"
+
+RSpec/LetSetup:
+  Exclude:
+    - "spec/api/**/*"
+    - "packs/*/*/spec/api/**/*"
 
 RSpec/NestedGroups:
   Max: 4
