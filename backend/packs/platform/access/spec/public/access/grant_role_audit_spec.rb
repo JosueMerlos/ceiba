@@ -3,9 +3,9 @@ require "rails_helper"
 # Auditoría de los cambios de memberships (M0.11): Access::GrantRole es el único camino que escribe memberships hoy
 # (seeds, OwnerHook, y las invitaciones de M4.01). Registra membership.granted en la MISMA transacción.
 RSpec.describe "Auditoría de memberships (Access::GrantRole)" do
-  let(:world) { build_access_world }
+  let!(:world) { build_access_world }
   let(:organization) { world.organization }
-  let(:user) { Identity::ProvisionUser.call(email: "ana@ceiba.test", full_name: "Ana", password: "contraseña-segura-1") }
+  let!(:user) { Identity::ProvisionUser.call(email: "ana@ceiba.test", full_name: "Ana", password: "contraseña-segura-1") }
 
   def events = with_tenant(organization) { Audit::Event.where("action LIKE 'membership.%'").order(:id).to_a }
 

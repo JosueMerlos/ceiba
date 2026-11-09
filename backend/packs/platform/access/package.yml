@@ -12,3 +12,5 @@ dependencies:
   - "packs/platform/tenancy"
   # El dueño de una organización es un Identity::Principal::User (Identity::ProvisionUser).
   - "packs/platform/identity"
+  # Los cambios de memberships se auditan en la misma transacción (Audit.record, M0.11).
+  - "packs/platform/audit"

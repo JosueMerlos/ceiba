@@ -6,6 +6,8 @@ module Access
   #   Access::GrantRole.call(user:, role_key: "company_manager", organization:, company:)
   #   Access::GrantRole.call(user:, role_key: "receptionist", organization:, branch:)   # la empresa se deduce de la sucursal
   #
+  # Cada concesión NUEVA se audita (`membership.granted`, con Audit.record) en la misma transacción; una repetida no.
+  #
   # `user`: cualquier objeto con `id` (Identity::Principal::User). `organization`, `company` y `branch` son los registros que
   # devuelven Tenancy::ProvisionOrganization / AddCompany / AddBranch (opacos aquí). El alcance debe ser el del rol; empresa y
   # sucursal deben ser de la organización dada. Lanza ArgumentError ante un rol desconocido o un alcance incoherente.
@@ -17,12 +19,25 @@ module Access
       company_id, branch_id = scope_ids(role_key, scope_level, organization, company, branch)
 
       Tenancy.with_context(organization:) do
-        Membership.find_or_create_by!(user_id: user.id, role: Role.find_by!(key: role_key.to_s), company_id:, branch_id:)
+        role = Role.find_by!(key: role_key.to_s)
+        attributes = { user_id: user.id, role:, company_id:, branch_id: }
+        # Repetir la concesión no cambia nada y, por tanto, no se audita otra vez.
+        audit_granted(Membership.create!(attributes), role_key) unless Membership.exists?(attributes)
       end
       nil
     rescue ActiveRecord::RecordNotUnique
       nil # dos concesiones simultáneas: gana el índice único y el resultado es el mismo
     end
+
+    # Mismo contexto y misma transacción que la concesión: sin evento no hay membership. `role` (y no `role_key`) porque el
+    # filtro de privacidad de la auditoría enmascara cualquier campo cuyo nombre contenga `_key`.
+    def audit_granted(membership, role_key)
+      Audit.record(
+        action: "membership.granted", subject: membership,
+        after: { user_id: membership.user_id, role: role_key.to_s, scope_level: membership.scope_level, company_id: membership.company_id, branch_id: membership.branch_id }
+      )
+    end
+    private_class_method :audit_granted
 
     def scope_ids(role_key, scope_level, organization, company, branch)
       case scope_level
