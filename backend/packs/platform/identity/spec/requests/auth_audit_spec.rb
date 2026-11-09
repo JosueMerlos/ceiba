@@ -35,10 +35,10 @@ RSpec.describe "Auditoría de la autenticación" do
       expect(serialized).not_to include("nadie@ceiba.test")
     end
 
-    it "guarda solo el digest SHA-256 del correo normalizado" do
-      login(email: "Nadie@Ceiba.test")
+    it "guarda solo un seudónimo HMAC del correo normalizado (mayúsculas y espacios no cambian el seudónimo)" do
+      login(email: " Nadie@Ceiba.test ")
 
-      expect(events.first.metadata).to eq("email_digest" => OpenSSL::Digest::SHA256.hexdigest("nadie@ceiba.test"))
+      expect(events.first.metadata).to eq("email_digest" => Audit.pseudonymize("nadie@ceiba.test"))
     end
 
     it "el evento sobrevive al error 401 (se escribe aunque la petición falle)" do
@@ -57,6 +57,24 @@ RSpec.describe "Auditoría de la autenticación" do
       post "/api/v1/auth/login", params: { email: { "$ne" => "x" }, password: }, as: :json, headers: headers
 
       expect(events).to be_empty
+    end
+  end
+
+  describe "si la auditoría falla" do
+    it "el login fallido NO responde 401 como si nada: falla cerrado (500) y el evento no se pierde en silencio" do
+      allow(Audit).to receive(:record_auth).and_raise(ActiveRecord::StatementInvalid, "boom")
+
+      login(email: "nadie@ceiba.test")
+
+      expect(response).to have_http_status(:internal_server_error)
+    end
+
+    it "el login correcto tampoco abre sesión sin su evento (500 y ninguna sesión)" do
+      allow(Audit).to receive(:record_auth).and_raise(ActiveRecord::StatementInvalid, "boom")
+
+      login(email: user.email)
+
+      expect([ response.status, Identity::Session.where(user_id: user.id).count ]).to eq([ 500, 0 ])
     end
   end
 

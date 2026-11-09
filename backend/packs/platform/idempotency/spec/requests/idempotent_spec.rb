@@ -126,6 +126,18 @@ RSpec.describe "Idempotencia de escrituras (Idempotency-Key)" do
       expect(companies_named("Sucursal Uno").size).to eq(2)
     end
 
+    it "un principal anónimo exige una clave con formato UUID (400 idempotency.key_invalid)" do
+      response = create_company(kind: "public_companies", csrf: {}, idempotency_key: "clave-adivinable-1")
+
+      expect(response).to have_http_status(:bad_request)
+      expect(response.parsed_body["code"]).to eq("idempotency.key_invalid")
+      expect(companies_named("Sucursal Uno")).to be_empty
+    end
+
+    it "un principal autenticado puede usar cualquier clave válida (no solo UUID)" do
+      expect(create_company(idempotency_key: "clave-libre-1")).to have_http_status(:created)
+    end
+
     it "un principal anónimo (reserva pública) también es idempotente, en su propio alcance" do
       first = create_company(kind: "public_companies", csrf: {})
       second = create_company(kind: "public_companies", csrf: {})
@@ -180,6 +192,20 @@ RSpec.describe "Idempotencia de escrituras (Idempotency-Key)" do
     it "el 422 repetido con el mismo cuerpo se vuelve a evaluar (no se guarda)" do
       2.times { expect(create_company(name: "")).to have_http_status(:unprocessable_content) }
       expect(with_tenant(organization) { Idempotency::Key.where(key:).count }).to eq(0)
+    end
+
+    it "una respuesta 4xx RENDERIZADA sin excepción tampoco consume la clave" do
+      create_company(kind: "soft_fails")
+
+      expect(with_tenant(organization) { Idempotency::Key.where(key:).count }).to eq(0)
+    end
+
+    it "tras un 4xx renderizado, la misma clave y el mismo cuerpo se vuelve a ejecutar" do
+      first = create_company(kind: "soft_fails")
+      second = create_company(kind: "soft_fails")
+
+      expect([ first.status, second.status ]).to eq([ 422, 422 ])
+      expect(second.headers["Idempotency-Replayed"]).to be_nil
     end
 
     it "sin contexto de tenancy el concern falla de forma clara (bug de programación, 500)" do

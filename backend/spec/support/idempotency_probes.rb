@@ -12,7 +12,7 @@ module IdempotencyProbes
       skip_authentication! only: %i[public_create slow_create no_context]
       around_action :in_organization, except: :no_context
 
-      idempotent :create, :public_create, :slow_create
+      idempotent :create, :public_create, :slow_create, :soft_fail
       idempotent :required_create, required: true
       idempotent :no_context
 
@@ -20,6 +20,9 @@ module IdempotencyProbes
       def public_create = create_company
       def required_create = create_company
       def no_context = head(:created)
+
+      # Responde 422 SIN lanzar una excepción (el camino "render 4xx").
+      def soft_fail = render(json: { error: "rechazada" }, status: :unprocessable_content)
 
       def slow_create
         sleep params[:delay].to_f
@@ -54,6 +57,7 @@ module IdempotencyProbes
           post "organizations/:organization_id/slow_companies", action: :slow_create
           post "organizations/:organization_id/required_companies", action: :required_create
           post "organizations/:organization_id/public_companies", action: :public_create
+          post "organizations/:organization_id/soft_fails", action: :soft_fail
           post "no_context", action: :no_context
         end
       end

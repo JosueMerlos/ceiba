@@ -105,6 +105,50 @@ RSpec.describe "Tablas de auditoría" do
     end
   end
 
+  # app_user no es dueño: no puede desmontar la garantía (regresión: un cambio de privilegios o de propietario lo detectaría).
+  describe "app_user no puede desmontar el trigger" do
+    {
+      "desactivar el trigger" => "ALTER TABLE audit_events DISABLE TRIGGER USER",
+      "desactivar todos los triggers" => "ALTER TABLE auth_audit_events DISABLE TRIGGER ALL",
+      "eliminar el trigger" => "DROP TRIGGER audit_events_append_only ON audit_events",
+      "reemplazar la función" => "CREATE OR REPLACE FUNCTION reject_audit_mutation() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$",
+      "eliminar la función" => "DROP FUNCTION reject_audit_mutation() CASCADE",
+      "eliminar la tabla" => "DROP TABLE audit_events",
+      "reasignar el dueño" => "ALTER TABLE audit_events OWNER TO app_user",
+      "cambiar session_replication_role" => "SET session_replication_role = replica"
+    }.each do |name, sql|
+      it "no puede #{name}" do
+        expect { ApplicationRecord.connection.execute(sql) }.to raise_error(ActiveRecord::StatementInvalid, /must be owner|permission denied|superuser/i)
+      end
+    end
+
+    it "app_user no es dueño de ninguna tabla de auditoría" do
+      owners = ApplicationRecord.connection.select_values("SELECT tableowner FROM pg_tables WHERE tablename IN ('audit_events', 'auth_audit_events')")
+
+      expect(owners).to eq(%w[app_owner app_owner])
+    end
+  end
+
+  # Guardián: las tablas tenant append-only que conoce la suite de aislamiento son EXACTAMENTE las que tienen el trigger.
+  describe "guardián de TenantIsolation::APPEND_ONLY_TABLES" do
+    let(:trigger_tables) do
+      ApplicationRecord.connection.select_values(<<~SQL.squish)
+        SELECT c.relname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_proc p ON p.oid = t.tgfoid
+        WHERE p.proname = 'reject_audit_mutation' AND NOT t.tgisinternal ORDER BY c.relname
+      SQL
+    end
+
+    it "toda tabla con el trigger append-only y organization_id está en APPEND_ONLY_TABLES, y viceversa" do
+      tenant_with_trigger = trigger_tables & Database::TenantTables.names
+
+      expect(tenant_with_trigger).to match_array(TenantIsolation::APPEND_ONLY_TABLES)
+    end
+
+    it "las dos tablas de auditoría llevan el trigger" do
+      expect(trigger_tables).to eq(%w[audit_events auth_audit_events])
+    end
+  end
+
   # Sin filas sembradas: la conexión de la suite (app_user) no debe tener la tabla bloqueada, o el DDL del dueño, desde
   # otra conexión, esperaría eternamente a que termine la transacción de la suite.
   describe "el dueño de la tabla" do
