@@ -5,13 +5,14 @@ require "rails_helper"
 RSpec.describe "verify_authorized y verify_policy_scoped globales" do
   before(:context) do # rubocop:disable RSpec/BeforeAfterAll -- dibujar rutas es caro y global
     Object.const_set(:AccessProbes, Module.new) unless Object.const_defined?(:AccessProbes)
+    AccessProbes.const_set(:AllowPolicy, Class.new(Access::BasePolicy) { def show? = true }) unless AccessProbes.const_defined?(:AllowPolicy, false)
     AccessProbes.const_set(:ProbesController, Class.new(Api::BaseController) do
       skip_authorization! reason: "probe de test: la acción exempt no devuelve recursos", only: :exempt
 
       def unauthorized = render(json: { data: { ok: true } })
       def exempt = render(json: { data: { ok: true } })
       def authorized
-        authorize Tenancy::Directory.organizations_for([]), :index?, policy_class: Access::OrganizationPolicy
+        authorize Object.new, :show?, policy_class: AccessProbes::AllowPolicy
         render json: { data: { ok: true } }
       end
 
@@ -22,8 +23,7 @@ RSpec.describe "verify_authorized y verify_policy_scoped globales" do
       end
 
       def member
-        authorize Tenancy::Directory.organizations_for([]).first_or_initialize, :create?, policy_class: Access::OrganizationPolicy
-      rescue Pundit::NotAuthorizedError
+        authorize Object.new, :show?, policy_class: AccessProbes::AllowPolicy
         render json: { data: { ok: true } }
       end
 

@@ -3,9 +3,9 @@ require "rails_helper"
 # Access.sync! lleva el registro en memoria (permisos declarados por los packs) a la BASE: permisos, roles de sistema y
 # role_permissions. Se ejecuta en cada despliegue y es idempotente (ADR-0008).
 RSpec.describe "Access.sync!" do
-  let(:registry) do
-    Access::PermissionRegistry.new.tap do |registry|
-      registry.register("demo", {
+  let(:permission_registry) do
+    Access::PermissionRegistry.new.tap do |permission_registry|
+      permission_registry.register("demo", {
         "demo.cosa.read" => { description: "Ver cosas", roles: %w[org_owner receptionist] },
         "demo.cosa.write" => { description: "Editar cosas", roles: %w[org_owner] }
       })
@@ -25,14 +25,14 @@ RSpec.describe "Access.sync!" do
 
   describe "permisos" do
     it "carga en la base los permisos declarados con su módulo y descripción" do
-      Access.sync!(registry)
+      Access.sync!(permission_registry)
 
       expect(Access::Permission.find("demo.cosa.read")).to have_attributes(module_key: "demo", description: "Ver cosas")
       expect(Access::Permission.where(module_key: "demo").pluck(:key)).to contain_exactly("demo.cosa.read", "demo.cosa.write")
     end
 
     it "asigna a cada rol de sistema exactamente los permisos que se le declararon" do
-      Access.sync!(registry)
+      Access.sync!(permission_registry)
 
       expect(keys_of("receptionist")).to eq([ "demo.cosa.read" ])
       expect(keys_of("org_owner")).to eq([ "demo.cosa.read", "demo.cosa.write" ])
@@ -40,13 +40,13 @@ RSpec.describe "Access.sync!" do
     end
 
     it "es idempotente: una segunda ejecución no cambia nada" do
-      Access.sync!(registry)
+      Access.sync!(permission_registry)
 
-      expect { Access.sync!(registry) }.not_to change { [ Access::Permission.count, Access::Role.count, Access::RolePermission.count ] }
+      expect { Access.sync!(permission_registry) }.not_to change { [ Access::Permission.count, Access::Role.count, Access::RolePermission.count ] }
     end
 
     it "reconcilia: un permiso retirado de un rol, o del registro, desaparece de la base" do
-      Access.sync!(registry)
+      Access.sync!(permission_registry)
       slimmer = Access::PermissionRegistry.new
       slimmer.register("demo", { "demo.cosa.read" => { description: "Ver cosas (v2)", roles: %w[org_owner] } })
 
@@ -60,7 +60,7 @@ RSpec.describe "Access.sync!" do
     it "el registro es la fuente de verdad: lo que ya no está registrado se elimina de la base" do
       other = Access::PermissionRegistry.new
       other.register("otro", { "otro.cosa.read" => { description: "x", roles: %w[org_admin] } })
-      Access.sync!(registry)
+      Access.sync!(permission_registry)
       Access.sync!(other)
 
       expect(Access::Permission.pluck(:key)).to contain_exactly("otro.cosa.read")

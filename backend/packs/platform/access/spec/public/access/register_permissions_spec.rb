@@ -3,27 +3,27 @@ require "rails_helper"
 # Access.register_permissions: la API con la que cada pack declara sus permisos (ADR-0008). Aquí se prueba con un registro
 # propio (Access::PermissionRegistry.new) para no tocar el global.
 RSpec.describe "Access.register_permissions" do
-  let(:registry) { Access::PermissionRegistry.new }
+  let(:permission_registry) { Access::PermissionRegistry.new }
 
   def register(module_key = "appointments", permissions = { "appointments.appointment.create" => { description: "Crear citas", roles: %w[receptionist] } })
-    registry.register(module_key, permissions)
+    permission_registry.register(module_key, permissions)
   end
 
   it "registra los permisos con su descripción y los roles de sistema que los reciben" do
     register
 
-    expect(registry.fetch("appointments.appointment.create")).to have_attributes(
+    expect(permission_registry.fetch("appointments.appointment.create")).to have_attributes(
       module_key: "appointments", description: "Crear citas", roles: %w[receptionist]
     )
-    expect(registry.keys).to eq([ "appointments.appointment.create" ])
+    expect(permission_registry.keys).to eq([ "appointments.appointment.create" ])
   end
 
   it "es idempotente: volver a registrar el mismo módulo (recarga de desarrollo) reemplaza, no duplica" do
     register
     register("appointments", { "appointments.appointment.create" => { description: "Crear citas v2", roles: %w[receptionist branch_manager] } })
 
-    expect(registry.keys.size).to eq(1)
-    expect(registry.fetch("appointments.appointment.create").roles).to eq(%w[receptionist branch_manager])
+    expect(permission_registry.keys.size).to eq(1)
+    expect(permission_registry.fetch("appointments.appointment.create").roles).to eq(%w[receptionist branch_manager])
   end
 
   it "rechaza una clave que no sigue <modulo>.<recurso>.<accion>" do

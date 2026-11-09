@@ -7,8 +7,10 @@ module Api
         route_context organization: :id
 
         def index
-          authorize ::Tenancy::Directory.organizations, :index?, policy_class: ::Access::OrganizationPolicy
-          organizations = policy_scope(::Tenancy::Directory.organizations, policy_scope_class: ::Access::OrganizationPolicy::Scope)
+          # El Scope reemplaza la relación vacía por las organizaciones de los memberships del usuario.
+          none = ::Tenancy::Directory.organizations_for([])
+          authorize none, :index?, policy_class: ::Access::OrganizationPolicy
+          organizations = policy_scope(none, policy_scope_class: ::Access::OrganizationPolicy::Scope)
           render_page(organizations, serializer: ::Tenancy::OrganizationSerializer)
         end
 

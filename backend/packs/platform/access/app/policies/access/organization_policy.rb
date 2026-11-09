@@ -18,7 +18,7 @@ module Access
       def resolve
         return scope.none unless principal.kind == :user
 
-        scope.where(id: principal.organization_ids)
+        scope.or(Tenancy::Directory.organizations_for(principal.organization_ids))
       end
     end
   end

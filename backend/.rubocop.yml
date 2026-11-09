@@ -8,6 +8,7 @@ require:
   - ./lib/rubocop/cop/ceiba/pack_namespace
   - ./lib/rubocop/cop/ceiba/tenant_bypass
   - ./lib/rubocop/cop/ceiba/access_policy_roles
+  - ./lib/rubocop/cop/ceiba/authorization_skips
 
 plugins:
   - rubocop-rails
@@ -100,6 +101,13 @@ Ceiba/AccessPolicyRoles:
   Enabled: true
   Include:
     - "packs/*/*/app/policies/**/*.rb"
+
+# La autorización solo se omite con skip_authorization!(reason:, only:) (allowlist revisada en spec/requests/api/authorization_spec.rb).
+Ceiba/AuthorizationSkips:
+  Enabled: true
+  Include:
+    - "app/controllers/**/*.rb"
+    - "packs/*/*/app/controllers/**/*.rb"
 
 # Nadie se salta el aislamiento de tenant (ActsAsTenant.without_tenant, unscoped...) fuera de esta lista. Cada archivo
 # que se añada aquí es un camino privilegiado y exige revisión (CODEOWNERS): reportes consolidados, back-office.

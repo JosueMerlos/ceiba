@@ -20,9 +20,25 @@ RSpec.describe Tenancy::Directory do
     end
   end
 
-  describe ".organizations" do
-    it "es una relación sobre todas las organizaciones (se filtra por id desde fuera)" do
-      expect(described_class.organizations.where(id: [ organization.id, other_organization.id ])).to contain_exactly(organization, other_organization)
+  describe ".organizations_for" do
+    it "devuelve SOLO las organizaciones pedidas (no existe 'todas')" do
+      expect(described_class.organizations_for([ organization.id ])).to contain_exactly(organization)
+      expect(described_class.organizations_for([])).to be_empty
+      expect(described_class).not_to respond_to(:organizations)
+    end
+  end
+
+  describe "solo lectura" do
+    it "los registros y las relaciones son readonly: no se puede guardar, actualizar ni borrar" do
+      loaded = described_class.organization!(organization.id)
+
+      expect(loaded).to be_readonly
+      expect { loaded.update!(name: "Otro") }.to raise_error(ActiveRecord::ReadOnlyRecord)
+      expect { described_class.organizations_for([ organization.id ]).first.destroy }.to raise_error(ActiveRecord::ReadOnlyRecord)
+      with_tenant(organization) do
+        expect { described_class.company!(company.id).update!(name: "x") }.to raise_error(ActiveRecord::ReadOnlyRecord)
+        expect { described_class.branches.first.destroy }.to raise_error(ActiveRecord::ReadOnlyRecord)
+      end
     end
   end
 

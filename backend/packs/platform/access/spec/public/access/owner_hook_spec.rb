@@ -39,7 +39,7 @@ RSpec.describe "Provisión de una organización con dueño", type: :request do
 
   it "un dueño que no es un usuario de identity revierte TODA la provisión" do
     expect { Tenancy::ProvisionOrganization.call(**params, extras: { owner: { email: "x@y.z" } }) }.to raise_error(ArgumentError, /owner/)
-    expect(Tenancy::Directory.organizations.where(name: "Barbería S.A.")).to be_empty
+    expect(Tenancy::Organization.where(name: "Barbería S.A.")).to be_empty
   end
 
   it "el hook está registrado una sola vez, con clave (idempotente en cada recarga)" do

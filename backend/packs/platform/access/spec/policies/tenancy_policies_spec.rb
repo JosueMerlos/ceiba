@@ -37,7 +37,7 @@ RSpec.describe "Policies de organización, empresa y sucursal" do
       user = user_with_role("receptionist", world, branch: world.branch_a1)
       user_with_role("org_admin", other, user:)
 
-      expect(scope_of(described_class, user, Tenancy::Directory.organizations)).to contain_exactly(organization, other)
+      expect(scope_of(described_class, user, Tenancy::Directory.organizations_for([]))).to contain_exactly(organization, other)
     end
 
     it "un principal que no es un usuario no lista organizaciones" do

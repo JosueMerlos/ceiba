@@ -14,7 +14,7 @@ module ApiProbes
       # Las sondas prueban los rescates de la API, no la autenticación: son públicas salvo `guarded`, que representa
       # "una ruta nueva que nadie marcó como pública" y debe responder 401 (spec/requests/api/authentication_spec.rb).
       skip_authentication! except: :guarded
-      skip_authorization! reason: "sondas de test del contrato de errores: no devuelven recursos de ninguna organización"
+      skip_authorization! reason: "sondas de test del contrato de errores: no devuelven recursos de ninguna organización", except: :guarded
 
       def show = render(json: { data: { ok: true } })
       def guarded = render(json: { data: { ok: true } })

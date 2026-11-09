@@ -12,7 +12,7 @@ RSpec.describe Access::BasePolicy do
   end
 
   it "su Scope no devuelve nada por defecto" do
-    relation = Tenancy::Directory.organizations
+    relation = Tenancy::Directory.organizations_for([])
 
     expect(described_class::Scope.new(principal, relation).resolve).to be_empty
   end

@@ -3,7 +3,7 @@ require "ci/policy_permissions"
 require "tmpdir"
 
 # El escáner debe ver lo que el ojo humano no: permisos no literales, literales con #{} y comentarios al final de línea.
-RSpec.describe PolicyPermissions, "literales y llamadas dinámicas" do
+RSpec.describe PolicyPermissions, "#violations" do
   let(:root) { Pathname(Dir.mktmpdir("ceiba-policy-literals")) }
 
   after { FileUtils.remove_entry(root) }
