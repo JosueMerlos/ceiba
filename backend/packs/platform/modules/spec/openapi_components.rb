@@ -1,5 +1,27 @@
 # Esquemas OpenAPI del pack modules (los carga spec/swagger_helper.rb).
 OpenapiComponents.register(
+  ModuleActivation: {
+    type: :object,
+    properties: {
+      data: {
+        type: :object,
+        properties: { key: { type: :string }, enabled: { type: :boolean }, changed: { type: :boolean, description: "false si la llamada fue una repetición" } },
+        required: %i[key enabled changed], additionalProperties: false
+      }
+    },
+    required: %i[data], additionalProperties: false
+  },
+  ModuleSettings: {
+    type: :object,
+    properties: {
+      data: {
+        type: :object,
+        properties: { key: { type: :string }, settings: { type: :object, additionalProperties: true, description: "Settings resueltos del nivel escrito (default -> empresa -> sucursal)" } },
+        required: %i[key settings], additionalProperties: false
+      }
+    },
+    required: %i[data], additionalProperties: false
+  },
   Me: {
     type: :object,
     description: "Respuesta de GET /api/v1/me",
