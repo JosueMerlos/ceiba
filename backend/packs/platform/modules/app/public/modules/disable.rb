@@ -12,7 +12,7 @@ module Modules
         row.update!(disabled_at: Time.current)
         run_hook(:on_disable, manifest.on_disable)
         publish("platform.module_disabled.v1")
-        audit(:disabled)
+        audit("module.disabled", row, before: true, after: false)
         result(true)
       end
     end

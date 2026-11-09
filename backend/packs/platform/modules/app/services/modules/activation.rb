@@ -42,9 +42,11 @@ module Modules
 
     def publish(event_name) = Events.publish(event_name, company_id: company.id, module: key)
 
-    # TODO(M0.11): auditar la activación/desactivación con Audit.record (actor, empresa, módulo) en esta misma transacción. El
-    # punto de conexión es este método: Enable y Disable lo llaman dentro de la transacción, después del hook y del evento.
-    def audit(_action); end
+    # Auditoría (ADR-0022) en la misma transacción que el cambio: si falla, no queda ni el cambio ni el hook ni el evento. El sujeto es
+    # la fila de company_modules; `active` es lo único que cambia.
+    def audit(action, row, before:, after:)
+      Audit.record(action:, subject: row, before: { "active" => before }, after: { "active" => after }, metadata: { "module" => key, "company_id" => company.id })
+    end
 
     def result(changed) = ActivationResult.new(key:, company_id: company.id, changed:)
   end

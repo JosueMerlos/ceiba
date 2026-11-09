@@ -15,11 +15,12 @@ module Modules
         next result(false) if row&.active?
 
         ensure_requirements!
-        next result(false) unless activate(row)
+        row = activate(row)
+        next result(false) unless row
 
         run_hook(:on_enable, manifest.on_enable)
         publish("platform.module_enabled.v1")
-        audit(:enabled)
+        audit("module.enabled", row, before: false, after: true)
         result(true)
       end
     end
@@ -31,11 +32,11 @@ module Modules
       raise RequirementsNotMet.new(key, missing) if missing.any?
     end
 
-    # Reactiva la fila existente o crea la primera. false si otra transacción se adelantó (la llamada es una repetición).
+    # Reactiva la fila existente o crea la primera. nil si otra transacción se adelantó (la llamada es una repetición).
     def activate(row)
-      return row.update!(enabled_at: Time.current, disabled_at: nil) if row
+      return row.tap { row.update!(enabled_at: Time.current, disabled_at: nil) } if row
 
-      create_row.present?
+      create_row
     end
 
     # Si otra transacción creó la fila entre la lectura y el INSERT, el UNIQUE lo impide: se deja que esa transacción la active

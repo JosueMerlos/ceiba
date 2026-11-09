@@ -33,19 +33,21 @@ module Modules
     private
 
     def update_company(row)
-      overrides = merge(row.settings)
+      previous = row.settings
+      overrides = merge(previous)
       resolved = SettingsResolver.call!(@manifest, overrides)
       row.update!(settings: overrides)
-      audit
+      audit(row, previous, overrides, level: "company")
       resolved
     end
 
     def update_branch(company_row)
       row = BranchModuleSetting.lock.find_or_initialize_by(branch_id: @branch.id, module_key: @manifest.key)
-      overrides = merge(row.settings)
+      previous = row.settings
+      overrides = merge(previous)
       resolved = SettingsResolver.call!(@manifest, company_row.settings, overrides)
       row.update!(company_id: @company.id, settings: overrides)
-      audit
+      audit(row, previous, overrides, level: "branch", branch_id: @branch.id)
       resolved
     end
 
@@ -64,7 +66,16 @@ module Modules
 
     def error(field, code) = { field:, code:, message: I18n.t("modules.settings_errors.#{code}") }
 
-    # TODO(M0.11): auditar el cambio de settings con Audit.record (actor, empresa, sucursal, módulo, claves) en esta transacción.
-    def audit; end
+    # Auditoría (ADR-0022): solo las claves tocadas, con su valor anterior y el nuevo, en la misma transacción. Los nombres de las
+    # propiedades no pueden ser sensibles (el manifiesto lo impide), así que el enmascarado de Audit::Diff nunca oculta un valor.
+    def audit(row, previous, current, **scope)
+      return if previous == current
+
+      keys = previous.keys | current.keys
+      Audit.record(
+        action: "module.settings_updated", subject: row, before: previous.slice(*keys), after: current.slice(*keys),
+        metadata: { "module" => @manifest.key, "company_id" => @company.id, **scope.stringify_keys }
+      )
+    end
   end
 end

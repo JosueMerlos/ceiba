@@ -136,10 +136,24 @@ module Modules
           next
         end
         problem("la propiedad #{name.inspect} tiene un default que no cumple su propio esquema") unless JSONSchemer.schema(property).valid?(property["default"])
+        check_auditable_name(name)
         Array(property["x-levels"]).each do |level|
           problem("la propiedad #{name.inspect} usa x-levels #{level.inspect}, que no está en settings_levels (#{levels.join(', ')})") unless levels.include?(level)
         end
       end
+    end
+
+    # La auditoría de settings guarda el diff con el mismo enmascarado que los logs (filter_parameters, más digest/csrf/ciphertext).
+    # Una propiedad con un nombre sensible perdería su valor en la auditoría: los settings no son un lugar para secretos.
+    def check_auditable_name(name)
+      return unless self.class.sensitive_name?(name)
+
+      problem("el nombre de la propiedad #{name.inspect} coincide con filter_parameters: la auditor\u00eda enmascarar\u00eda su valor. Ren\u00f3mbrala (los secretos no van en settings)")
+    end
+
+    def self.sensitive_name?(name)
+      filters = Rails.application.config.filter_parameters + [ /digest/i, /csrf/i, /ciphertext/i ]
+      ActiveSupport::ParameterFilter.new(filters).filter(name.to_s => 1)[name.to_s] != 1
     end
 
     def check_publishes
