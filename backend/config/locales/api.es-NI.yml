@@ -17,6 +17,7 @@ es-NI:
         not_acceptable: "Tipo de contenido no aceptable"
         unknown_format: "Formato no soportado"
         not_implemented: "No implementado"
+        unsupported_media_type: "La API solo acepta cuerpos application/json"
         malformed: "El cuerpo de la solicitud está mal formado"
       pagination:
         invalid_cursor: "El cursor de paginación no es válido"
