@@ -112,15 +112,7 @@ RSpec.describe "Idempotencia: peticiones concurrentes" do
   it "la espera también está acotada al reemplazar una fila VENCIDA con la misma clave que otra transacción tiene bloqueada" do
     stub_const("Idempotency::Processor::LOCK_TIMEOUT", 0.3)
     with_tenant(organization) { create(:idempotency_key, principal_key: "anonymous", key:, expires_at: 1.hour.ago) }
-    holder = Thread.new do
-      ApplicationRecord.connection_pool.with_connection do |connection|
-        connection.transaction do
-          connection.execute("SELECT 1 FROM idempotency_keys WHERE key = #{connection.quote(key)} FOR UPDATE")
-          sleep 1.5
-        end
-      end
-    end
-    sleep 0.3
+    holder = hold_row_lock(key, seconds: 1.5)
 
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     response = public_post("Carrera Vencida")
@@ -130,6 +122,22 @@ RSpec.describe "Idempotencia: peticiones concurrentes" do
     expect(response.status).to eq(409)
     expect(response.parsed_body["code"]).to eq("idempotency.request_in_progress")
     expect(elapsed).to be < 1.0
+  end
+
+  # Otra transacción con la fila bloqueada (FOR UPDATE) durante `seconds`; vuelve cuando el bloqueo ya está tomado.
+  def hold_row_lock(key, seconds:)
+    locked = Queue.new
+    thread = Thread.new do
+      ApplicationRecord.connection_pool.with_connection do |connection|
+        connection.transaction do
+          connection.execute("SELECT 1 FROM idempotency_keys WHERE key = #{connection.quote(key)} FOR UPDATE")
+          locked << true
+          sleep seconds
+        end
+      end
+    end
+    locked.pop
+    thread
   end
 
   def public_post(name)
