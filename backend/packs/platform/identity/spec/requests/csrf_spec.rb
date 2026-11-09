@@ -146,6 +146,48 @@ RSpec.describe "CSRF y validación de Origin" do
       expect(response).to have_http_status(:forbidden)
     end
 
+    it "no se fía de Host ni X-Forwarded-Host: con la cabecera falsificada y un Origin que la coincide responde 403", :aggregate_failures do
+      headers = signed_in.csrf_headers.merge("X-Forwarded-Host" => "evil.test", "Origin" => "http://evil.test")
+
+      delete "/api/v1/auth/logout", headers: headers
+
+      expect(response).to have_http_status(:forbidden)
+      expect(response.parsed_body["code"]).to eq("auth.origin_forbidden")
+      expect(session_revoked?).to be(false)
+    end
+
+    it "tampoco con un Host falsificado y un Referer que lo coincide" do
+      headers = signed_in.csrf_headers.merge("X-Forwarded-Host" => "evil.test", "Referer" => "http://evil.test/x")
+
+      delete "/api/v1/auth/logout", headers: headers
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "acepta los orígenes configurados explícitamente (config.x.auth.allowed_origins), sin importar el Host" do
+      with_allowed_origins([ "https://panel.ceiba.test" ]) do
+        delete "/api/v1/auth/logout", headers: signed_in.csrf_headers.merge("Origin" => "https://panel.ceiba.test")
+      end
+
+      expect(response).to have_http_status(:no_content)
+    end
+
+    it "con los orígenes configurados deja de aceptar el que solo coincide con el Host" do
+      with_allowed_origins([ "https://panel.ceiba.test" ]) do
+        delete "/api/v1/auth/logout", headers: signed_in.csrf_headers.merge("Origin" => own_origin)
+      end
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "sin orígenes configurados (producción mal configurada) falla cerrado: ningún Origin pasa" do
+      with_allowed_origins([]) do
+        delete "/api/v1/auth/logout", headers: signed_in.csrf_headers.merge("Origin" => own_origin)
+      end
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
     it "las lecturas no validan Origin" do
       get "/api/v1/auth/session", headers: { "Origin" => "https://evil.example" }
 
@@ -193,5 +235,13 @@ RSpec.describe "CSRF y validación de Origin" do
 
       expect(response).to have_http_status(:created)
     end
+  end
+
+  def with_allowed_origins(origins)
+    original = Rails.configuration.x.auth.allowed_origins
+    Rails.configuration.x.auth.allowed_origins = origins
+    yield
+  ensure
+    Rails.configuration.x.auth.allowed_origins = original
   end
 end
