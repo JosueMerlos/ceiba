@@ -6,8 +6,7 @@ RSpec.describe "Idempotencia de escrituras (Idempotency-Key)" do
   include ActiveSupport::Testing::TimeHelpers
   include_context "con endpoints de prueba de idempotencia"
 
-  let(:world) { build_access_world }
-  let(:organization) { world.organization }
+  let(:organization) { build_access_world.organization }
   let(:other_organization) { create(:organization) }
   # Un usuario con membership en AMBAS organizaciones: el contexto lo abre Access::Authorization desde la ruta.
   let(:user) { user_with_role("org_admin", organization).tap { |member| user_with_role("org_admin", other_organization, user: member) } }

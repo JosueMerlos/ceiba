@@ -36,7 +36,7 @@ module Idempotency
       key = request.headers[HEADER]
       return validate_missing_key!(&action) if key.nil?
       raise KeyInvalid, "Idempotency-Key inválida" unless VALID_KEY.match?(key)
-      raise KeyInvalid, "Un principal anónimo debe usar una Idempotency-Key con formato UUID" if Current.principal.nil? && !ANONYMOUS_KEY.match?(key)
+      raise KeyInvalid, "Un principal anónimo debe usar una Idempotency-Key con formato UUID" if anonymous? && !ANONYMOUS_KEY.match?(key)
 
       raise MissingContext, "Idempotency::Idempotent requiere un contexto de tenancy" unless Current.context
 
@@ -111,8 +111,11 @@ module Idempotency
       )
     end
 
+    # Sin principal, o con uno sin id propio (ApiKey y PublicToken hasta M4.02/M3.04, System): comparte el alcance anónimo.
+    def anonymous? = Current.principal.nil? || Current.principal.id.nil?
+
     def principal_key
-      @principal_key ||= Current.principal ? "#{Actor.type_of(Current.principal)}:#{Current.principal.id}" : "anonymous"
+      @principal_key ||= anonymous? ? "anonymous" : "#{Actor.type_of(Current.principal)}:#{Current.principal.id}"
     end
 
     def fingerprint
