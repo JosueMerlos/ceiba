@@ -68,6 +68,7 @@ Internet → kamal-proxy (TLS Let's Encrypt) → contenedores
 - **Kamal 2**: imagen multi-etapa (build de las apps de frontend + gems), deploy sin downtime y rollback con un comando.
 - **Estáticos de frontend:** el build de `panel` y `booking` se sirve desde el mismo origen. Opciones a decidir en M4.04: (a) Rails/Thruster sirviendo `public/` con fallback SPA por prefijo, o (b) un contenedor de estáticos con enrutamiento por ruta en el proxy. Criterio: mantener **un solo origen** y cabeceras de caché correctas (assets con hash → inmutables; `index.html` → sin caché).
 - **Secretos:** `kamal secrets` (desde un gestor de contraseñas), Rails credentials por entorno. Nada en el repo.
+- **Variables obligatorias en producción y staging:** `APP_ORIGINS` (orígenes permitidos para la validación de `Origin` en mutaciones, separados por comas; sin ella toda mutación con `Origin` se rechaza — falla cerrado, ver [11 §CSRF](11-security.md)). La lista completa se consolida en M4.04.
 - **Migraciones en deploy:** ejecutadas por Kamal antes de cambiar el tráfico; deben ser compatibles hacia atrás (expand/contract) para permitir rollback.
 
 ### Base de datos: gestionada vs autogestionada (decisión pendiente para M4.04)
