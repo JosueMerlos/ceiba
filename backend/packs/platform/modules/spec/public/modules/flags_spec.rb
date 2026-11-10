@@ -6,11 +6,17 @@ RSpec.describe "Feature flags (Flipper)" do
   let(:organization) { create(:organization) }
   let(:other) { create(:organization) }
 
-  after { Flipper.features.each(&:remove) }
-
-  it "tiene la versión fijada y persiste en la base (flipper-active_record)" do
+  # Flipper trae `flipper/test_help`: en test usa un adaptador de memoria que se vacía en cada ejemplo. En el resto de entornos el
+  # adaptador es flipper-active_record (config/initializers/flipper.rb de modules); aquí se prueba contra la base real.
+  it "tiene la versión fijada" do
     expect(Flipper::VERSION).to eq("1.4.2")
-    expect(Flipper.adapter.adapter).to be_a(Flipper::Adapters::ActiveRecord)
+  end
+
+  it "persiste en la base con flipper-active_record (tablas flipper_features y flipper_gates)" do
+    flipper = Flipper.new(Flipper::Adapters::ActiveRecord.new)
+    flipper.enable_actor(:persistido, Modules::FlagActor.new(organization.id))
+
+    expect([ flipper.enabled?(:persistido, Modules::FlagActor.new(organization.id)), flipper.enabled?(:persistido, Modules::FlagActor.new(other.id)) ]).to eq([ true, false ])
   end
 
   it "no hay flags definidos todavía" do

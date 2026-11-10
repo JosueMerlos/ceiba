@@ -37,6 +37,12 @@ module Modules
     # todos los planes tienen entitlement a todo (sin límites): activar solo exige `requires`.
     def entitled?(_company, _key) = true
 
+    # ¿Está liberada una funcionalidad NUEVA (feature flag de Flipper) para la organización? `organization` es el registro o su id.
+    # Un flag nunca sustituye la activación de un módulo (Modules::Enable) ni un entitlement. Sin flags definidos, siempre false.
+    def flag_enabled?(feature, organization:)
+      Flipper.enabled?(feature, FlagActor.new(organization.respond_to?(:id) ? organization.id : organization))
+    end
+
     # Módulos que se activan al provisionar una organización. Hoy todos los planes incluyen `appointments`.
     # TODO(F6): derivarlos del plan contratado (plans/plan_entitlements, docs/roadmap/README.md, F6).
     def default_keys = %w[appointments]
