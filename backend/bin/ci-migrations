@@ -1,38 +1,52 @@
 #!/usr/bin/env bash
 # Job backend-migrations de CI (y de bin/ci): las migraciones funcionan desde cero, son reversibles y
-# db/structure.sql está al día. Se ejecuta desde backend/. Requiere PostgreSQL con los roles app_owner/app_user
+# db/structure.sql corresponde a ellas. Se ejecuta desde backend/. Requiere PostgreSQL con los roles app_owner/app_user
 # (infra/db/init-roles.sh) y DB_HOST, POSTGRES_*, APP_OWNER_PASSWORD, APP_USER_PASSWORD.
 #
-#   1. migrar desde una base vacía                          -> db/structure.sql debe quedar IGUAL al versionado
-#   2. revertir la última migración y volver a migrarla     -> igual de nuevo (down correcto y volcado determinista)
-#   3. cargar db/structure.sql en una base vacía            -> extensiones, políticas y FKs compuestas incluidas
+#   1. migrar DE VERDAD desde una base vacía        -> el volcado debe ser IGUAL al db/structure.sql versionado
+#   2. revertir la última migración y volver a migrar -> igual al paso 1 (down correcto y volcado determinista)
+#   3. cargar db/structure.sql en una base vacía y volver a volcarlo -> igual al versionado (estabilidad al recargar);
+#      extensiones, políticas y FKs compuestas incluidas
 # strong_migrations bloquea en el paso 1 cualquier migración peligrosa (spec/config/strong_migrations_spec.rb).
+#
+# TRAMPA de Rails 8.1: con db/structure.sql presente, `db:migrate` sobre una base vacía NO ejecuta las migraciones: antes
+# (DatabaseTasks#initialize_database) CARGA el structure.sql y solo vuelca de nuevo, así que "migrar desde cero" pasaría
+# siempre aunque el archivo no corresponda a las migraciones (pg_dump y los CHECK pueden diferir: `OR` frente a `ANY(ARRAY)`).
+# Por eso el volcado va a un SCHEMA que no existe (tmp/): sin archivo que cargar, se migra de verdad.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 export RAILS_ENV=test
-committed="$(mktemp)"
-trap 'rm -f "$committed"' EXIT
-cp db/structure.sql "$committed"
+from_migrations="tmp/structure_from_migrations.sql"
+reloaded="tmp/structure_reloaded.sql"
+trap 'rm -f "$from_migrations" "$reloaded"' EXIT
+rm -f "$from_migrations" "$reloaded"
 
-assert_structure_unchanged() {
-  if ! diff -u "$committed" db/structure.sql; then
-    echo "ci-migrations: db/structure.sql no coincide tras '$1'. Corre bin/rails db:migrate y versiona el cambio." >&2
+# Compara dos volcados sin los comentarios `--` (versión de pg_dump, fechas) ni las líneas en blanco.
+assert_same_structure() { # esperado, obtenido, descripción
+  if ! diff -u <(grep -v '^--' "$1" | grep -v '^$') <(grep -v '^--' "$2" | grep -v '^$'); then
+    echo "ci-migrations: el esquema no coincide tras '$3'. Regenera db/structure.sql migrando de verdad (ver docs/architecture/09-data-conventions.md)" >&2
     exit 1
   fi
 }
 
-echo "== migrar desde cero =="
-bin/rails db:drop db:create db:migrate
-assert_structure_unchanged "migrar desde cero"
+echo "== migrar de verdad desde cero (SCHEMA inexistente: Rails no carga structure.sql) =="
+SCHEMA="$from_migrations" bin/rails db:drop db:create db:migrate
+[ -s "$from_migrations" ] || { echo "ci-migrations: la migración no generó $from_migrations" >&2; exit 1; }
+assert_same_structure db/structure.sql "$from_migrations" "migrar desde cero"
 
 echo "== revertir la última migración y volver a migrar =="
-bin/rails db:rollback
-bin/rails db:migrate
-assert_structure_unchanged "rollback + migrate"
+cp "$from_migrations" "$from_migrations.expected"
+SCHEMA="$from_migrations" bin/rails db:rollback
+SCHEMA="$from_migrations" bin/rails db:migrate
+assert_same_structure "$from_migrations.expected" "$from_migrations" "rollback + migrate"
+rm -f "$from_migrations.expected"
 
-echo "== cargar db/structure.sql en una base vacía =="
+echo "== cargar db/structure.sql en una base vacía y volver a volcarlo =="
 bin/rails db:drop db:create db:schema:load
+SCHEMA="$reloaded" bin/rails db:schema:dump
+assert_same_structure db/structure.sql "$reloaded" "cargar y volcar"
+
 bin/rails runner '
   connection = ActiveRecord::Base.connection
   missing = %w[btree_gist citext] - connection.select_values("SELECT extname FROM pg_extension")
