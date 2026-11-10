@@ -56,7 +56,7 @@
 | Ruta pública | Por qué |
 | --- | --- |
 | `GET /api/health`, `GET /api/ready` | Sondas de Docker/proxy; no heredan de `Api::BaseController` y no devuelven datos |
-| `POST /api/v1/auth/login` | Es la puerta de entrada. Protegida por la validación de Origin; el rate limit llega en M0.13 |
+| `POST /api/v1/auth/login` | Es la puerta de entrada. Protegida por la validación de Origin y por el rate limit de Rack::Attack (reglas 2 y 3, M0.13) |
 | `/api/docs` | Swagger UI y contrato; solo existen en desarrollo, test y staging (`Api::Docs.enabled?`) |
 
 Decisiones tomadas en M0.07:
@@ -72,7 +72,7 @@ Decisiones tomadas en M0.07:
 - **Token ligado a la sesión:** `HMAC-SHA256(clave derivada de secret_key_base, id de la sesión)` en hex. Sin estado en BD, distinto en cada sesión, rota con el login, no contiene el token de la cookie ni su digest. Se compara en tiempo constante.
 - **Cómo lo obtiene la SPA (desvío de lo que decía este documento):** el cuerpo de `POST /auth/login` y de `GET /auth/session` trae `csrf_token`. Se eligió esto y no `/api/v1/me` (todavía no existe: M0.09) ni una cookie legible no-`httpOnly` (una cookie más que gestionar sin ganar nada: con un XSS caen el token y la sesión por igual). La SPA lo guarda **en memoria** (no en `localStorage`), lo recupera con `GET /auth/session` al recargar y lo envía en `X-CSRF-Token` en **toda mutación** (POST, PUT, PATCH, DELETE). Cuando exista `/me` podrá repetirlo, pero la fuente es la sesión.
 - **Sin token (o con uno incorrecto) en una mutación con sesión → `403 auth.csrf_invalid`.** Las lecturas (GET/HEAD/OPTIONS) no lo exigen.
-- **Origin:** en toda mutación, si llega `Origin` (o, sin él, `Referer`) debe ser **exactamente** uno de los orígenes de `config.x.auth.allowed_origins` (esquema + host + puerto). **No se compara con `request.base_url`**: este sale de `Host`/`X-Forwarded-Host`, que un cliente que llegue directo al puerto de la app puede falsificar (con `X-Forwarded-Host: evil.test` y `Origin: evil.test` habría pasado). La lista viene de la variable `APP_ORIGINS` (orígenes separados por comas; **obligatoria en producción y staging**); sin ella, en desarrollo es `http://localhost:<PUBLIC_PORT|8080>` (el proxy de compose) y en test `http://www.example.com`. En producción sin `APP_ORIGINS` la lista queda vacía y toda mutación con `Origin` se rechaza (**falla cerrado**). `Origin: null`, otro esquema o puerto, un host que solo contiene el propio o un `Referer` ilegible → `403 auth.origin_forbidden`. Sin ninguno de los dos (curl, clientes que no son navegadores) no se rechaza por Origin: una mutación autenticada igual necesita el token. Un navegador **siempre** envía `Origin` en un POST/DELETE. **Pendiente:** `config.hosts` (rechazar `Host` desconocidos) llega con M0.13/M4.04, cuando exista el dominio de producción.
+- **Origin:** en toda mutación, si llega `Origin` (o, sin él, `Referer`) debe ser **exactamente** uno de los orígenes de `config.x.auth.allowed_origins` (esquema + host + puerto). **No se compara con `request.base_url`**: este sale de `Host`/`X-Forwarded-Host`, que un cliente que llegue directo al puerto de la app puede falsificar (con `X-Forwarded-Host: evil.test` y `Origin: evil.test` habría pasado). La lista viene de la variable `APP_ORIGINS` (orígenes separados por comas; **obligatoria en producción y staging**); sin ella, en desarrollo es `http://localhost:<PUBLIC_PORT|8080>` (el proxy de compose) y en test `http://www.example.com`. En producción sin `APP_ORIGINS` la lista queda vacía y toda mutación con `Origin` se rechaza (**falla cerrado**). `Origin: null`, otro esquema o puerto, un host que solo contiene el propio o un `Referer` ilegible → `403 auth.origin_forbidden`. Sin ninguno de los dos (curl, clientes que no son navegadores) no se rechaza por Origin: una mutación autenticada igual necesita el token. Un navegador **siempre** envía `Origin` en un POST/DELETE. `config.hosts` (rechazar `Host` desconocidos) se deriva de `APP_ORIGINS` en producción y staging (M0.13, ver [10 §Proxy y red](10-infrastructure.md)).
 - **Formato de las mutaciones (`ApiRequestGuard`, middleware en `config/middleware/`):** antes de que Rails parsee, enrute o registre nada, toda mutación (POST/PUT/PATCH/DELETE) bajo `/api` debe (1) traer el cuerpo, si lo hay, como `application/json` (`415 request.unsupported_media_type`) y (2) **no traer parámetros en la query string** (`400 request.query_not_allowed`): los secretos no deben viajar en la URL (proxies, historial) y el login no puede abrirse con `?email=…&password=…`. Un formulario HTML de otro sitio solo puede enviar tipos "simples", así que (1) cierra, junto con SameSite, Origin y el token, la vía del POST cross-site sin preflight. Una mutación sin cuerpo ni query (logout) pasa. Las lecturas no se tocan. No hay allowlist: si un hito necesita query en una mutación, se añade aquí con su justificación.
 - **Fuga en logs (cerrada):** un cuerpo JSON SIN `Content-Type` lo parsea Rack como formulario y la línea `Parameters:` de Rails lo registraba como *clave* (el filtro de parámetros solo oculta valores), con la contraseña en claro. Al rechazarse en el middleware, el controlador no se ejecuta y esa línea nunca se escribe; `filtered_path` ya filtra la query de la línea `Started`. Cubierto por specs que capturan el log. Un cuerpo JSON correcto sigue filtrando por `filter_parameters`.
 - **Orden de los filtros:** Origin (403) → autenticación (401) → token CSRF (403). Una mutación sin sesión responde 401, no 403.
@@ -164,6 +164,25 @@ api_keys
 
 - Todos los `429` llevan `Retry-After`, `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` y un cuerpo problem+json.
 - Los límites se configuran por ENV (sin redeploy); dev y test holgados.
+
+**Implementación de la capa 1 (M0.13)** — `config/initializers/throttling.rb` y `config/middleware/rate_limiting.rb`; `rack-attack 6.8.0` + `redis 6.0.0` (la gema `redis` la necesita `ActiveSupport::Cache::RedisCacheStore`; Sidekiq usa `redis-client`).
+
+| Regla implementada | Variable de entorno (límite) | `code` del 429 |
+| --- | --- | --- |
+| 1 catch-all por IP, 600 / 5 min (las sondas `/api/health` y `/api/ready` no cuentan) | `RATE_LIMIT_CATCH_ALL` | `rate_limit.exceeded` |
+| 2 login por IP, 5 / 15 min | `RATE_LIMIT_LOGIN_IP` | `rate_limit.exceeded` |
+| 3 login por correo normalizado, 10 / 15 min | `RATE_LIMIT_LOGIN_EMAIL` | `rate_limit.exceeded` |
+| 8 cuenta por IP las respuestas de **ruta inexistente** (404/405): a las 10 en 5 min, bloqueo de 1 h | `RATE_LIMIT_NOT_FOUND` | `rate_limit.blocked` |
+
+Las reglas 4, 5, 6, 7 y 9 y la capa 2 llegan con M4.02 y los módulos que las usan.
+
+- **Store:** Redis, `RedisCacheStore` con namespace `ratelimit` (claves `ratelimit:rack::attack:...`). En test la URL ya fuerza la base 15 (`config/initializers/redis.rb`). **Falla abierto:** si Redis no responde el límite no se aplica (se registra `rate_limit.store_error`); preferimos dejar pasar a cerrar el login.
+- **Posición:** justo después de `ActionDispatch::RemoteIp` (la clave es `request.env["action_dispatch.remote_ip"]`, la IP del cliente tras los proxies de confianza, no `Rack::Request#ip`) y de `RequestId` (el 429 lleva el `request_id`).
+- **El correo nunca se guarda en Redis:** la clave de la regla 3 es el SHA-256 del correo normalizado (`strip.downcase`, igual que `Identity::User`). Solo se lee el cuerpo si es JSON de hasta 4 KB; un cuerpo ilegible no rompe la regla (lo rechaza la API como siempre).
+- **Cierres de bypass (revisión de M0.13):** las rutas de la API no admiten extensión de formato (`format: false`; `/login.json` esquivaba las reglas 2 y 3, y además la regla casa `/login` con o sin extensión); el cuerpo del login se lee tras `lstrip` y uno de más de 4 KB (o con `Transfer-Encoding`) se rechaza con **413** `request.too_large` en vez de saltarse la regla 3 con relleno; la clave por IP agrupa **IPv6 por /64**; si resolver la IP lanza `IpSpoofAttackError` se usa la dirección del par.
+- **Cabeceras del 429:** `Retry-After` y `RateLimit-Reset` = segundos hasta el fin de la ventana (para el bloqueo de la regla 8, hasta el fin del bloqueo); `RateLimit-Limit` = el límite; `RateLimit-Remaining: 0`. Las ventanas son fijas, alineadas con el epoch.
+- **Regla 8:** cuenta SOLO las respuestas de ruta inexistente (`ActionController::RoutingError`, método HTTP desconocido), que `RateLimiting::NotFoundTracker` reconoce por `action_dispatch.exception`. **No** cuenta los 404 de negocio (recurso no visible, contexto inconsistente de `Access::RouteContextResolver`): los provoca un usuario legítimo y una clínica entera comparte IP. Spec: 12 `resource.not_found` seguidos no bloquean.
+- **Desarrollo y test:** en desarrollo los límites por defecto son holgados (`RateLimiting::DEVELOPMENT_LIMITS`; las variables los sustituyen); en test Rack::Attack está **desactivado** (`Rack::Attack.enabled = false`) y `spec/requests/rate_limiting_spec.rb` lo activa con el reloj congelado y el store reiniciado.
 - **Proxies de confianza:** configurar `trusted_proxies` para que `remote_ip` sea la IP real tras kamal-proxy, y **verificarlo en los logs** (criterio de aceptación de M0.13).
 - **Gotcha NAT:** una clínica con 10 recepcionistas comparte una IP. Por eso nada autenticado se limita solo por IP, más allá del catch-all holgado.
 - No se resuelve con rate limiting: cuotas de producto (mensajes por plan), dobles reservas (constraint de BD), límites comerciales por organización.
@@ -172,8 +191,8 @@ api_keys
 
 - Solo HTTPS; HSTS con `preload`.
 - **Sin CORS**: todo es del mismo origen. Si algún día existen integradores desde navegador, se agrega una lista explícita de orígenes, nunca `*`.
-- En todas las respuestas: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` mínima, `X-Frame-Options: DENY` (o `frame-ancestors 'none'`).
-- **CSP:** estricta en booking (`default-src 'self'`, imágenes del bucket propio, sin `unsafe-inline`); en el panel, CSP con nonces o hashes.
+- En todas las respuestas (M0.13, middleware `SecurityHeaders`, el primero de la pila, así que también cubre los 4xx que responden otros middlewares: `ApiRequestGuard`, Rack::Attack, `HostAuthorization`): `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, `Content-Security-Policy: frame-ancestors 'none'` y `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()`. **HSTS** (`max-age=63072000; includeSubDomains; preload`) **solo en producción** (`Rails.env.production?`), pisando el valor que emite `force_ssl`. La CSP de la API es solo `frame-ancestors` porque una CSP más estricta rompería Swagger UI (scripts en línea en desarrollo, test y staging).
+- **CSP:** estricta en booking (`default-src 'self'`, imágenes del bucket propio, sin `unsafe-inline`); en el panel, CSP con nonces o hashes. **Estado (M0.13):** el panel recibe una CSP inicial en modo reporte (`Content-Security-Policy-Report-Only`) desde el proxy; no bloquea y se endurece con el build de producción (M4.04). Booking, sin CSP todavía (se añade con M3.02).
 - Uploads (branding): PNG, JPG y WebP; **sin SVG** en el MVP; validación del tipo real (magic bytes) y límites de tamaño.
 
 ## Webhooks de WhatsApp
@@ -197,7 +216,7 @@ Access token de 15 min con algoritmo asimétrico (EdDSA o RS256) y `kid` para ro
 - [x] Sesiones en BD revocables y cookies con sus flags (M0.07)
 - [x] CSRF funcional en el panel: token + Origin en el backend (M0.07); el envío desde el cliente llega en M0.12
 - [ ] `Idempotency-Key` en la creación de citas y en el envío de recordatorios (M0.11, M1.05, M3.03)
-- [ ] Rack::Attack y `rate_limit` con la IP real verificada (M0.13, M4.02)
+- [ ] Rack::Attack y `rate_limit` con la IP real verificada: Rack::Attack con la IP real tras el proxy de desarrollo (M0.13 ✅); `rate_limit` por usuario y repetir tras el proxy de producción (M4.02, M4.04)
 - [ ] 2FA obligatorio para `org_owner`, `org_admin` y `PlatformStaff` (M4.02)
 - [x] Principal `User` pasando por Pundit (M0.08); `ApiKey` y `PublicToken` existen como interfaz que niega todo hasta M4.02 / M3.04
 - [x] Matriz de autorización en specs (M0.08, `bin/ci backend-test`), con la allowlist de `skip_authorization!` verificada contra las rutas reales y los cops `Ceiba/AccessPolicyRoles` y `Ceiba/AuthorizationSkips`

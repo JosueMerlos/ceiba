@@ -54,6 +54,10 @@ Rails.application.configure do
   config.active_record.migration_error = :page_load
 
   # Highlight code that triggered database queries in logs.
+  # Nivel info por defecto (M0.13): el SQL se registra en debug y lleva los valores como literales (`WHERE email = '...'`):
+  # correos y teléfonos en claro en el log. RAILS_LOG_LEVEL=debug lo activa a conciencia para depurar consultas.
+  config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
+
   config.active_record.verbose_query_logs = true
 
   # Append comments with runtime information tags to SQL queries in logs.

@@ -95,12 +95,57 @@ Se decide en M4.04 con costos reales. El código no cambia en ningún caso.
 
 | Pieza | Detalle |
 | --- | --- |
-| Logs | JSON estructurado (lograge o rails_semantic_logger) con `request_id`, `organization_id`, `company_id`, `branch_id`, `principal_type`, `principal_id`, duración y status. Sin PII |
-| Errores | Sentry (backend y frontend), con tags de tenant y release |
+| Logs | JSON estructurado, **una línea por request y por job**, con `request_id`, `organization_id`, `company_id`, `branch_id`, `principal_type`, `principal_id`, duración y status. Sin PII |
+| Errores | Sentry (backend, worker y panel), con tags de tenant y `release` |
 | Salud | `/api/health` (proceso vivo, sin BD) y `/api/ready` (PG + Redis) |
 | Uptime | Monitor externo sobre `/api/health` y `/c/<slug-demo>` |
-| Métricas | Fase inicial: Sidekiq (colas, latencia, muertos), `pg_stat_statements`, tamaño del outbox pendiente. Alerta si el outbox sin publicar supera 5 min |
+| Métricas | Fase inicial: Sidekiq (colas, latencia, muertos), `pg_stat_statements`, tamaño del outbox pendiente. **Alerta a Sentry si el outbox sin publicar supera 5 min** (`Events::OutboxLagAlert`) |
 | Retención de logs | 90 días |
+
+### Logs: lograge + formateador JSON propio
+
+**Decisión: lograge, no `rails_semantic_logger`.** Aquí solo hacen falta una línea por request y por job con campos fijos; Semantic Logger sustituye todo el logger de Rails y trae su propio hilo de escritura, más superficie de la que se necesita. Lograge (`0.15.1`, fijada) condensa el log de la acción y `Observability::JsonLogFormatter` serializa **todas** las entradas del logger de Rails como una línea JSON (`ts`, `level` y, según el caso, `msg` o los campos aplanados).
+
+Línea de una request (`config/initializers/structured_logging.rb`):
+
+```json
+{"ts":"2026-11-09T20:03:45.462Z","level":"INFO","method":"GET","path":"/api/v1/auth/session","format":"*/*","controller":"Api::V1::Identity::SessionsController","action":"show","status":401,"allocations":12208,"duration":14.72,"view":0.07,"db":0.0,"organization_id":null,"company_id":null,"branch_id":null,"principal_type":null,"principal_id":null,"request_id":"7ffbb6d8-…","remote_ip":"172.22.0.1"}
+```
+
+- `duration` es en **milisegundos**. `path` va **sin query string** y los **parámetros no se registran** (el filtro de `filter_parameters` es una red de seguridad, no una autorización). `/api/health` y `/api/ready` no generan línea.
+- Los campos de tenant y principal salen de `Observability::LogFields`, que lee `Current.context` y `Current.principal` de forma **genérica** (tipo del principal = nombre de su clase en snake_case, o su `principal_type` si lo define): cuando M0.08 traiga `Access::Principal` y el contexto por ruta no hay que tocar nada.
+- **El contexto se «recuerda».** La línea se escribe al terminar la acción, cuando un `around_action` con `Tenancy.with_context` ya salió y `Current.context` volvió a `nil`; y un job que lanza una excepción la propaga fuera del contexto antes de que Sentry la capture. `Observability::TenancyHook` (antepuesto a `Tenancy` en `to_prepare`, sin editar el pack) deja la organización/empresa/sucursal del **último** `with_context` abierto en `Observability::LogContext` (`CurrentAttributes`; Rails lo reinicia por request y por job). Si una acción abre varios contextos seguidos se registra el último.
+- **`request_id` y `remote_ip` salen de `Current`** (`Api::RequestMetadata`, M0.11): son los mismos que anota la auditoría, y `Current.ip` ya sale de `request.remote_ip` saneado por `NetworkTrust` (spec: login con `Forwarded`/`X-Real-IP` falsos → log y `Audit::AuthEvent` con la IP del par). Sentry los etiqueta con `request_id`. Si la request no llegó a ese `before_action`, se usan los de la propia request.
+- **Una sola fuente por línea:** con contexto vivo se usa solo `Current.context`; sin él, solo el recordado (nunca una mezcla). `principal_id` puede ser `nil` (principal del sistema) y `principal_type` sale de `principal_type`, `actor_type` (contrato de M0.11, p. ej. `Access::Principal::User` → `user`), `kind` o el nombre de la clase.
+- **SQL fuera del log de desarrollo:** el SQL se registra en `debug` con los valores como literales (`WHERE email = '…'`, PII en claro), así que desarrollo arranca en `info`; `RAILS_LOG_LEVEL=debug` lo reactiva a conciencia. Sin códigos de color ANSI (romperían el JSON). El log interno del SDK de Sentry también sale por el logger de Rails. Quedan en texto plano solo los banners de Puma y de `bin/setup`.
+- Producción ya **no** usa `config.log_tags = [:request_id]`: el prefijo `[id]` rompe el JSON; el `request_id` es un campo.
+- **Jobs de Sidekiq** (`config/middleware/job_observability.rb`): mismo esquema aplanado — `ts`, `level`, `pid`, `tid`, `msg` (`start`/`done`/`fail`), `job_class`, `jid`, `organization_id` (del payload), `duration` (ms), `company_id`, `branch_id`, `principal_type`, `principal_id` —, **nunca** los argumentos. Toda línea del logger de Rails emitida dentro de un job lleva además `jid`, `job_class` y `organization_id`. `JobLogger` deja `organization_id` y `job_class` en `Observability::LogContext` para Sentry.
+- `filter_parameters` (`config/initializers/filter_parameter_logging.rb`): contraseña (`passw`, `contrase`), `token`, `otp`, correo (`email`, `correo`), teléfono (`phone`, `telefono`, `teléfono`, `celular`, `mobile`, `whatsapp`), `csrf`, `authorization`, `cookie`, más los genéricos de Rails (`secret`, `_key`, `crypt`, `salt`, `certificate`, `ssn`, `cvv`, `cvc`). Coincidencia parcial de la clave.
+- Pendiente de revisar al cerrar el hito (riesgo de la ficha): una muestra de logs reales buscando PII de gemas de terceros; el resultado está en las notas de cierre de M0.13.
+
+### Sentry
+
+Backend y worker: `sentry-ruby`, `sentry-rails` y `sentry-sidekiq` `7.2.0` (fijadas). Panel: `@sentry/react` `11.11.0`. Configuración en `config/middleware/sentry_setup.rb` (backend) y `frontend/apps/panel/src/sentry.ts`.
+
+| Variable | Dónde | Efecto |
+| --- | --- | --- |
+| `SENTRY_DSN` | backend y worker | Sin ella Sentry queda inactivo (desarrollo, CI). **En test siempre inactivo**, aunque haya DSN |
+| `SENTRY_ENVIRONMENT` | backend y worker | Nombre del entorno en Sentry (`production`, `staging`); por defecto `Rails.env` |
+| `APP_RELEASE` | backend y worker | `release` (p. ej. el SHA del commit). El mismo valor va a `VITE_APP_RELEASE` del panel |
+| `VITE_SENTRY_DSN`, `VITE_SENTRY_ENVIRONMENT`, `VITE_APP_RELEASE` | panel (se fijan al construir) | Ídem para el navegador. Inactivo sin DSN y en modo `test` |
+
+- **Sin PII:** backend con `send_default_pii = false` (en Sentry 7 equivale a `data_collection` restrictivo: sin cuerpos, cookies, usuario ni IP) y panel con `dataCollection` explícito en off. `before_send` además quita correos de los mensajes, filtra los datos extra con `config.filter_parameters` y retira los `args` de los jobs. Los mensajes de excepción pueden contener otros datos que no se pueden detectar: no pongas secretos en mensajes de error.
+- **Tags de cada evento** (un procesador global de eventos, `SentrySetup.install_event_processor`, que corre SÍNCRONO al capturar: `before_send` corre en el hilo de fondo del cliente de Sentry, donde `Current` y `LogContext` están vacíos, y solo limpia datos): `organization_id`, `company_id`, `branch_id`, `principal_type`, `principal_id` (solo identificadores) y, en jobs, `job` (la clase). En un job el error se captura FUERA de `JobLogger#prepare` (Sidekiq llama a `handle_exception` después), así que la organización y la clase se leen del contexto `sidekiq` que sentry-sidekiq adjunta con el job. `release` y `environment` van en el propio evento.
+- **500 de la API:** `Api::ErrorHandling` rescata todo y responde problem+json, así que el middleware de Rack de Sentry nunca ve la excepción. Llega por `Rails.error.report` (`Api::ErrorReporter`), al que Sentry se suscribe (`register_error_subscriber = true`; viene en `false` por defecto: sin ello los 500 no se reportarían). Solo `internal.error` se reporta; los 4xx no.
+- **Verificación manual** (necesita un DSN real): `SENTRY_DSN=… bin/rails sentry:test[ORGANIZATION_ID]` envía un error con `organization_id` y encola `Observability::SentryTestJob`, que siempre falla (el **worker** también debe tener el DSN). En Sentry deben aparecer ambos con el tag `organization_id` (y `job` el del job). Para el panel, lanzar un error no capturado con `VITE_SENTRY_DSN` definido.
+- **Alerta del lag del outbox:** `Events::OutboxLagAlert` se suscribe a `outbox_lag.events` (la emite `Events::OutboxLagJob` cada minuto) y, si el evento pendiente más antiguo supera `OUTBOX_LAG_ALERT_SECONDS` (300 por defecto), reporta `Events::OutboxLagExceeded` con `Rails.error` (severidad `error`, contexto `pending`, `oldest_age_seconds`, `threshold_seconds`). El mensaje es fijo para que Sentry agrupe todas las alertas en una incidencia; mientras dure el atasco habrá un reporte por minuto.
+
+### Proxy y red
+
+- **IP real del cliente.** `trusted_proxies` conserva el valor por defecto de Rails (loopback y rangos privados 10/8, 172.16/12, 192.168/16, fc00::/7), que cubre el Caddy de compose y kamal-proxy en el mismo host; `TRUSTED_PROXIES` (CIDR separados por comas) **añade** rangos en desarrollo y test (la IP del Caddy de compose cambia) y **sustituye** los rangos privados en producción, para estrechar la confianza a la IP de kamal-proxy (sin la variable se conservan los de Rails). Un rango inválido falla al arrancar. **Gotcha descubierto en M0.13:** Rails usa `X-Forwarded-For` aunque la conexión NO venga de un proxy de confianza, así que quien llegue directo a la app podía falsear su IP y esquivar el límite por IP; `NetworkTrust::UntrustedForwardingFilter` (antes de `RemoteIp`) borra SIEMPRE `Forwarded` (RFC 7239, que Rails 8.1 también lee), `Client-IP` y `X-Real-IP`, y `X-Forwarded-For` si el par directo no es un proxy de confianza; Caddy también las retira de lo que reenvía a la API (`header_up -Forwarded -Client-Ip -X-Real-Ip`). Sin eso un `Client-IP` contradictorio provocaba un `IpSpoofAttackError` (500) antes de llegar a `ShowExceptions`. El proxy de borde debe **sobrescribir** `X-Forwarded-For` (Caddy lo hace por defecto) y la app solo debe ser alcanzable a través de él: en la red de compose cualquier contenedor es un «proxy de confianza» (red privada). Evidencia en las notas de cierre de M0.13.
+- **`config.hosts`** (pendiente anotado en 11): en **producción y staging** se derivan de `APP_ORIGINS` (los mismos orígenes que valida `Origin`; si la lista está vacía no se restringe, y las mutaciones ya fallan cerradas). `/api/health` y `/api/ready` se excluyen de la comprobación (un healthcheck llama por IP interna). Desarrollo y test no cambian: Rails ya acepta `localhost` y compose llama a `api:3000`. La lista definitiva de variables se consolida en M4.04.
+- **Cabeceras de seguridad:** `SecurityHeaders` (primer middleware: cubre también los 4xx de otros middlewares). Ver [11 §Transporte y cabeceras](11-security.md#transporte-y-cabeceras).
+- **CSP del panel:** el proxy (Caddy) envía `Content-Security-Policy-Report-Only` en la ruta del panel. En desarrollo Vite inyecta scripts en línea y usa websockets, así que la consola del navegador lista violaciones esperables; se endurece y pasa a `Content-Security-Policy` con el build de producción (M4.04).
 
 ## Runbooks (se escriben en M4.04)
 
