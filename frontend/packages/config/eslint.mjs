@@ -1,5 +1,5 @@
-// Configuración compartida de ESLint (flat config) para todas las apps y paquetes del frontend.
-// Uso en cada workspace:  export { default } from "@ceiba/config/eslint";
+// Shared ESLint configuration (flat config) for all front-end apps and packages.
+// Usage in each workspace:  export { default } from "@ceiba/config/eslint";
 import js from "@eslint/js";
 import prettier from "eslint-config-prettier";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -7,21 +7,21 @@ import i18next from "eslint-plugin-i18next";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
-// Atributos JSX cuyo valor ve o escucha el usuario (lectores de pantalla incluidos).
-// Incluye las props de texto de los componentes de packages/ui (description, summary, fallback, skipLinkLabel,
-// navigationLabel, triggerLabel, closeLabel... y cualquier `*Label`).
+// JSX attributes whose value the user sees or hears (screen readers included).
+// Includes the text props of packages/ui components (description, summary, fallback, skipLinkLabel, navigationLabel,
+// triggerLabel, closeLabel... and any `*Label`).
 const TEXT_PROPS = "alt|title|label|placeholder|description|summary|fallback|[a-zA-Z]+Label";
 const TEXT_ATTRIBUTES = [
   `^(${TEXT_PROPS})$`,
   "^aria-(label|description|placeholder|roledescription|valuetext)$",
 ];
 
-// `no-literal-string` no revisa template literals ni los avisos (toast): se cubren con selectores.
+// `no-literal-string` does not check template literals or toasts: selectors cover them.
 const TEXT_ATTRIBUTE_NAMES = `${TEXT_PROPS}|aria-(label|description|placeholder|roledescription|valuetext)`;
 const TEMPLATE_MESSAGE = "Texto de UI fuera de i18n: use t(...) en vez de un template literal.";
 const TOAST_CALL = "CallExpression:matches([callee.name='toast'], [callee.object.name='toast'])";
 const UI_TEXT_SELECTORS = [
-  // Template literal como hijo del JSX, directo o dentro de un ternario / && / ||.
+  // Template literal as a JSX child, direct or inside a ternary / && / ||.
   { selector: "JSXElement > JSXExpressionContainer > TemplateLiteral", message: TEMPLATE_MESSAGE },
   {
     selector: "JSXElement > JSXExpressionContainer > ConditionalExpression > TemplateLiteral",
@@ -31,7 +31,7 @@ const UI_TEXT_SELECTORS = [
     selector: "JSXElement > JSXExpressionContainer > LogicalExpression > TemplateLiteral",
     message: TEMPLATE_MESSAGE,
   },
-  // ... y en los atributos de texto (incluidos los aria-*).
+  // ... and in text attributes (aria-* included).
   {
     selector: `JSXAttribute[name.name=/^(${TEXT_ATTRIBUTE_NAMES})$/] > JSXExpressionContainer > TemplateLiteral`,
     message: TEMPLATE_MESSAGE,
@@ -40,7 +40,7 @@ const UI_TEXT_SELECTORS = [
     selector: `JSXAttribute[name.name=/^(${TEXT_ATTRIBUTE_NAMES})$/] > JSXExpressionContainer > ConditionalExpression > TemplateLiteral`,
     message: TEMPLATE_MESSAGE,
   },
-  // Avisos: ni literales, ni template literals, ni concatenaciones, ni ternarios con literales.
+  // Toasts: no literals, template literals, concatenations or ternaries with literals.
   {
     selector: `${TOAST_CALL} > :matches(Literal, TemplateLiteral).arguments:first-child`,
     message: "Aviso con texto fuera de i18n: use toast(t(...)) o toast.<tipo>(t(...)).",
@@ -83,9 +83,9 @@ export default tseslint.config(
     },
   },
 
-  // Ningún texto de UI fuera de i18n (M0.12): el JSX de las apps y de packages/ui solo muestra `t("...")` o props.
-  // `jsx-only` revisa el texto y los atributos (placeholder, aria-label, title, alt...); className, type, role, etc. no cuentan.
-  // Los tests y los archivos de stories/config quedan fuera: ahí el texto literal es el dato de la prueba.
+  // No UI text outside i18n: app and packages/ui JSX only shows `t("...")` or props.
+  // `jsx-only` checks text and attributes (placeholder, aria-label, title, alt...); className, type, role, etc. do not count.
+  // Tests and stories/config files are excluded: literal text there is the test data.
   {
     files: ["apps/*/src/**/*.tsx", "packages/ui/src/**/*.tsx"],
     ignores: ["**/*.test.tsx", "**/test/**"],
@@ -95,7 +95,7 @@ export default tseslint.config(
         "error",
         {
           mode: "jsx-only",
-          // Solo los atributos que un usuario lee o escucha; data-*, aria-hidden, className, type... no son texto.
+          // Only attributes a user reads or hears; data-*, aria-hidden, className, type... are not text.
           "jsx-attributes": { include: TEXT_ATTRIBUTES },
         },
       ],
@@ -108,6 +108,6 @@ export default tseslint.config(
     rules: { "no-restricted-syntax": ["error", ...UI_TEXT_SELECTORS] },
   },
 
-  // Desactiva las reglas de estilo que chocarían con Prettier. Debe ir al final.
+  // Disables style rules that would clash with Prettier. Must stay last.
   prettier,
 );

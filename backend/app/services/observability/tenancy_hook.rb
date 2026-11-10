@@ -1,9 +1,9 @@
 module Observability
-  # Hace que cada Tenancy.with_context deje su contexto en Observability::LogContext.
+  # Makes every Tenancy.with_context leave its context in Observability::LogContext.
   #
-  # Se antepone (prepend) a Tenancy en lugar de editar tenancy.rb: el pack de tenancy no sabe de logs y el hook sigue
-  # funcionando con cualquier firma de `with_context` (no la enumera: reenvía los argumentos tal cual). Lo instala
-  # config/initializers/structured_logging.rb en `to_prepare` (tras cada recarga de código en desarrollo).
+  # Prepended to Tenancy instead of editing tenancy.rb: the tenancy pack knows nothing about logs, and the hook keeps
+  # working with any `with_context` signature (it forwards arguments as-is). Installed by
+  # config/initializers/structured_logging.rb in `to_prepare` (after each code reload in development).
   module TenancyHook
     def with_context(...)
       return super unless block_given?

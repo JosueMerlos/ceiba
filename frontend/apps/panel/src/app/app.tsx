@@ -5,7 +5,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router";
 import type { PanelApp } from "./create-app";
 
-/** Providers del panel: i18n, caché de consultas, cliente de la API, router y avisos. */
 export function App({ app }: { app: PanelApp }) {
   return (
     <I18nextProvider i18n={app.i18n}>

@@ -1,5 +1,5 @@
-# users es GLOBAL (ADR-0028): no lleva organization_id ni política RLS; la pertenencia a organizaciones la dan los
-# memberships (M0.08). El correo es citext: único sin distinguir mayúsculas (docs/architecture/09-data-conventions.md).
+# users is GLOBAL: no organization_id or RLS policy; organization membership comes from memberships. The email is
+# citext: unique regardless of case.
 class CreateUsers < ActiveRecord::Migration[8.1]
   def change
     create_table :users, id: :uuid do |t|

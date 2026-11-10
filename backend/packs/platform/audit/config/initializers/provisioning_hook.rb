@@ -1,2 +1,2 @@
-# Registro del hook de provisión (idempotente por key en cada recarga de desarrollo).
+# Idempotent by key, so every development reload can register it again.
 Rails.application.config.to_prepare { Audit::ProvisioningHook.register }

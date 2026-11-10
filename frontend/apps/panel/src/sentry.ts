@@ -1,10 +1,10 @@
 import * as Sentry from "@sentry/react";
 import type { ErrorEvent } from "@sentry/react";
 
-// Variables de Vite (se fijan al construir). Sin VITE_SENTRY_DSN Sentry queda inactivo; en modo `test` también.
-//   VITE_SENTRY_DSN          DSN del proyecto del panel
-//   VITE_SENTRY_ENVIRONMENT  entorno en Sentry (por defecto, el modo de Vite)
-//   VITE_APP_RELEASE         identificador del despliegue (el mismo SHA que APP_RELEASE del backend)
+// Vite variables (set at build time). Without VITE_SENTRY_DSN Sentry stays inactive; in `test` mode too.
+//   VITE_SENTRY_DSN          panel project DSN
+//   VITE_SENTRY_ENVIRONMENT  Sentry environment (defaults to the Vite mode)
+//   VITE_APP_RELEASE         deploy identifier (the same SHA as the backend's APP_RELEASE)
 export interface SentryEnv {
   MODE: string;
   VITE_SENTRY_DSN?: string;
@@ -14,7 +14,7 @@ export interface SentryEnv {
 
 const EMAIL = /[\w.+%-]+@[\w-]+(?:\.[\w-]+)+/g;
 
-// Sin PII: ni usuario, ni cookies, ni cabeceras, ni query string (puede llevar tokens); los correos de los mensajes se ocultan.
+// No PII: no user, cookies, headers or query string (it may carry tokens); emails in messages are masked.
 export function scrubEvent(event: ErrorEvent): ErrorEvent {
   const scrub = (text?: string) => text?.replace(EMAIL, "[email]");
 
@@ -35,7 +35,7 @@ export function initSentry(env: SentryEnv = import.meta.env): boolean {
     dsn: env.VITE_SENTRY_DSN,
     environment: env.VITE_SENTRY_ENVIRONMENT || env.MODE,
     release: env.VITE_APP_RELEASE,
-    // Sin PII (Sentry 11 sustituye sendDefaultPii por dataCollection): ni usuario, ni cookies, ni cabeceras, ni cuerpos, ni query.
+    // No PII (Sentry 11 replaces sendDefaultPii with dataCollection): no user, cookies, headers, bodies or query.
     dataCollection: {
       userInfo: false,
       cookies: false,

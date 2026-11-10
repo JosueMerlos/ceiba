@@ -1,7 +1,5 @@
 require "rails_helper"
 
-# Access::GrantRole: el camino público para dar un rol de sistema a un usuario en un alcance (seeds, hook del dueño y, más
-# adelante, invitaciones M4.01).
 RSpec.describe Access::GrantRole do
   let(:world) { build_access_world }
   let(:organization) { world.organization }

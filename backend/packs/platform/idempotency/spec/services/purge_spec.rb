@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Purga de claves vencidas (M0.11): idempotency_keys guarda respuestas, así que no puede crecer indefinidamente ni conservar
-# datos más allá de su utilidad (24 h). Por lotes y de todas las organizaciones (camino privilegiado Idempotency::CrossTenant).
+# Purge of expired keys: idempotency_keys stores responses, so it cannot grow forever or keep data beyond its usefulness
+# (24 h). In batches, across all organizations (Idempotency::CrossTenant).
 RSpec.describe "Purga de idempotency_keys" do
   let(:organization) { create(:organization) }
   let(:other) { create(:organization) }

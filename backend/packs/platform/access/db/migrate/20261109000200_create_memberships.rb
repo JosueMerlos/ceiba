@@ -1,15 +1,15 @@
-# memberships: quién (user_id, global) tiene qué rol (role_id) en qué alcance de QUÉ organización. Tabla tenant
-# (organization_id, UNIQUE (organization_id, id) y política RLS las pone create_tenant_table).
+# memberships: who (user_id, global) has which role (role_id) at which scope of WHICH organization. Tenant table
+# (create_tenant_table adds organization_id, UNIQUE (organization_id, id) and the RLS policy).
 #
-# Alcance con columnas EXPLÍCITAS y FKs reales (ADR-0008), nada de scope_id polimórfico:
+# Scope uses EXPLICIT columns and real FKs, no polymorphic scope_id:
 #   organization  company_id NULL      branch_id NULL
 #   company       company_id NOT NULL  branch_id NULL
 #   branch        company_id NOT NULL  branch_id NOT NULL
-# Lo impone el CHECK chk_memberships_scope (criterio 6). scope_level se denormaliza desde el rol y la FK compuesta
-# (role_id, scope_level) -> roles garantiza que nunca contradiga al rol. La FK compuesta (organization_id, company_id,
-# branch_id) -> branches garantiza que la sucursal es de ESA empresa y de ESA organización.
+# Enforced by the CHECK chk_memberships_scope. scope_level is denormalized from the role and the composite FK
+# (role_id, scope_level) -> roles guarantees it never contradicts the role. The composite FK (organization_id, company_id,
+# branch_id) -> branches guarantees the branch belongs to THAT company and THAT organization.
 #
-# on_delete: restrict en todo (default): borrar un usuario, un rol o una empresa con memberships es una decisión explícita.
+# on_delete: restrict everywhere (default): deleting a user, role or company with memberships must be explicit.
 class CreateMemberships < ActiveRecord::Migration[8.1]
   def change
     create_tenant_table :memberships do |t|
@@ -31,12 +31,12 @@ class CreateMemberships < ActiveRecord::Migration[8.1]
         OR (scope_level = 'branch' AND company_id IS NOT NULL AND branch_id IS NOT NULL)
       SQL
 
-      # Un mismo rol del mismo usuario en el mismo alcance una sola vez. NULLS NOT DISTINCT: los NULL de un alcance
-      # superior cuentan como iguales (si no, el UNIQUE no impediría duplicar un membership de organización).
+      # A user's role at a given scope may appear only once. NULLS NOT DISTINCT: NULLs of a higher scope count as equal
+      # (otherwise the UNIQUE would not prevent duplicating an organization membership).
       t.index %i[organization_id user_id role_id company_id branch_id], unique: true, nulls_not_distinct: true,
         name: "uq_memberships_user_role_scope"
-      # "¿A qué organizaciones pertenece este usuario?" (selector de contexto, ADR-0028). El prefijo organization_id del
-      # índice único ya cubre "los memberships de este usuario en esta organización".
+      # "Which organizations does this user belong to?" (context selector). The unique index's organization_id prefix
+      # already covers "this user's memberships in this organization".
       t.index :user_id
       t.index %i[organization_id branch_id]
     end

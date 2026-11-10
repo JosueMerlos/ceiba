@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Toda mutación de la API con cuerpo debe ser JSON (415 en otro caso, problem+json). Evita que un formulario HTML
-# cross-site (application/x-www-form-urlencoded, multipart/form-data, text/plain) llegue a un controlador de la API.
+# Every API mutation with a body must be JSON (415 otherwise, problem+json). Keeps a cross-site HTML form
+# (application/x-www-form-urlencoded, multipart/form-data, text/plain) from reaching an API controller.
 RSpec.describe "La API solo acepta cuerpos JSON en las mutaciones" do
   include_context "con endpoints de prueba de la API"
 

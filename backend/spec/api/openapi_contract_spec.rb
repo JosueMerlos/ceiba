@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# El contrato versionado (openapi/v1.yaml) existe, está bien formado y documenta TODA la superficie /api/v1
-# (docs/architecture/07-api-contract.md, principio 3: "CI falla si un endpoint no está documentado").
-# Que el archivo esté AL DÍA respecto de los specs lo comprueba infra/scripts/check-api-contract.sh (regenera y compara).
+# The versioned contract (openapi/v1.yaml) exists, is well formed and documents the WHOLE /api/v1 surface: CI fails if an
+# endpoint is undocumented. That the file is UP TO DATE with the specs is checked by infra/scripts/check-api-contract.sh
+# (regenerates and compares).
 RSpec.describe "Contrato OpenAPI (openapi/v1.yaml)" do
   let(:path) { Rails.root.join("openapi/v1.yaml") }
   let(:document) { YAML.safe_load_file(path) }

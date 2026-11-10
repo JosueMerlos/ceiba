@@ -15,7 +15,7 @@ interface LogoutAllDialogProps {
   loading: boolean;
 }
 
-/** Confirmación de «cerrar sesión en todos los dispositivos». Se monta abierto y se cierra desmontándolo. */
+/** Confirmation for "log out on all devices". Mounted open and closed by unmounting it. */
 export default function LogoutAllDialog({
   onOpenChange,
   onConfirm,

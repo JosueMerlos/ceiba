@@ -1,5 +1,5 @@
-# Sentry (M0.13). Debe inicializarse en un initializer: sentry-rails registra su suscriptor de Rails.error al terminar el
-# arranque, leyendo esta configuración. Ver config/middleware/sentry_setup.rb.
+# Must be initialized in an initializer: sentry-rails registers its Rails.error subscriber at the end of boot, reading
+# this configuration.
 require Rails.root.join("config/middleware/sentry_setup").to_s
 
 SentrySetup.init

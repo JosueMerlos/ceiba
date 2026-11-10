@@ -1,10 +1,8 @@
-# Dos endurecimientos tras la revisión de M0.09:
-#
-# 1. settings de company_modules y branch_module_settings con tope de tamaño (pg_column_size < 16 KB): los settings viajan en cada /me y
-#    un jsonb sin tope (sonda P3: 50 000 recordatorios = 4,5 MB) se convierte en una bomba. El esquema del módulo ya exige cotas; esto
-#    es la red de seguridad en la base. Se añade sin validar y se valida aparte (strong_migrations).
-# 2. El índice parcial de módulos activos empieza por organization_id: la consulta del gate (Modules::AccessGate) siempre va acotada
-#    por el tenant.
+# 1. Size cap on settings of company_modules and branch_module_settings (pg_column_size < 16 KB): settings travel in every /me
+#    and an uncapped jsonb (50,000 reminders = 4.5 MB) becomes a bomb. The module schema already requires bounds; this is the
+#    database safety net. Added unvalidated and validated separately (strong_migrations).
+# 2. The partial index of active modules starts with organization_id: the gate query (Modules::AccessGate) is always
+#    tenant-scoped.
 class AddSettingsSizeChecksAndGateIndex < ActiveRecord::Migration[8.1]
   disable_ddl_transaction!
 

@@ -1,39 +1,35 @@
-# API pública del pack platform/audit (junto con los errores de dominio). ADR-0022.
 module Audit
-  # Registra quién hizo qué, con el antes y el después, en `audit_events` (append-only por trigger de PostgreSQL).
+  # Records who did what, with before and after, in `audit_events` (append-only via a PostgreSQL trigger).
   #
   #   Audit.record(action: "organization.updated", subject: organization,
   #                before: { "name" => "A" }, after: { "name" => "B" }, metadata: { "reason" => "rename" })
   #
-  # - Exige un contexto de tenancy (Tenancy.with_context): el evento pertenece a la organización del contexto. Sin él
-  #   lanza Audit::NoContext y no escribe nada.
-  # - Es una escritura más de la transacción del llamador: si hace rollback, el evento desaparece con el cambio.
-  # - El actor sale de `actor:` o, si falta, de Current.principal / el principal del contexto; sin principal es `system`.
-  #   Un principal declara su tipo con `actor_type` (user, api_key, platform_staff...); sin él se deriva del nombre de la clase.
-  # - `before:`/`after:` son hashes de atributos; se guarda el DIFF (solo lo que cambió) con los campos sensibles
-  #   enmascarados como "[FILTERED]" (mismo criterio que filter_parameters, recursivo) y con la PII cifrada del sujeto
-  #   también como "[FILTERED]" (Audit::Diff).
-  #   Una creación pasa solo `after:`; un borrado, solo `before:`.
-  # - request_id, IP y user agent salen de Current (los fija Api::RequestMetadata en cada request de la API).
+  # - Requires a tenancy context (Tenancy.with_context); raises Audit::NoContext and writes nothing without one.
+  # - Part of the caller's transaction: a rollback removes the event along with the change.
+  # - Actor: `actor:`, else Current.principal / the context principal, else `system`. A principal declares its type with
+  #   `actor_type`.
+  # - `before:`/`after:` are attribute hashes; only the DIFF is stored, with sensitive fields and the subject's
+  #   encrypted PII as "[FILTERED]" (Audit::Diff). A create passes only `after:`; a delete only `before:`.
+  # - request_id, IP and user agent come from Current (set by Api::RequestMetadata).
   def self.record(action:, subject:, before: nil, after: nil, metadata: {}, actor: nil)
     Recorder.call(action:, subject:, before:, after:, metadata:, actor:)
   end
 
-  # Registra un evento de identidad (login, logout, revocación) en `auth_audit_events`. Estos eventos NO tienen
-  # organización (users y sessions son globales, ADR-0028; un login fallido con un correo sin cuenta no pertenece a
-  # ninguna), por eso van a una tabla global aparte y no requieren contexto de tenancy.
+  # Records an identity event (login, logout, revocation) in `auth_audit_events`. These events have NO organization
+  # (users and sessions are global; a failed login with an unknown email belongs to none), so they go to a separate
+  # global table and need no tenancy context.
   #
   #   Audit.record_auth(action: "auth.login_failed", user_id: user&.id, ip: request.remote_ip, user_agent: request.user_agent,
   #                     metadata: { "email_digest" => digest })
   #
-  # NUNCA pases contraseñas ni tokens en `metadata:`. ip y user agent, si faltan, salen de Current.
+  # NEVER pass passwords or tokens in `metadata:`. ip and user agent default to Current.
   def self.record_auth(action:, user_id: nil, ip: nil, user_agent: nil, metadata: {})
     AuthRecorder.call(action:, user_id:, ip:, user_agent:, metadata:)
   end
 
-  # Seudónimo estable de un dato personal (p. ej. el correo de un login fallido) para correlacionar eventos SIN guardarlo:
-  # HMAC-SHA256 con una clave derivada de secret_key_base. Sigue siendo un dato personal seudonimizado (quien tenga la clave
-  # puede confirmar un correo), no anónimo: ver docs/architecture/11-security.md.
+  # Stable pseudonym of personal data (e.g. a failed login's email) to correlate events WITHOUT storing it: HMAC-SHA256
+  # keyed from secret_key_base. Still pseudonymized personal data (whoever holds the key can confirm an email), not
+  # anonymous.
   def self.pseudonymize(value)
     OpenSSL::HMAC.hexdigest("SHA256", Rails.application.key_generator.generate_key("ceiba/audit/pseudonym", 32), value.to_s)
   end

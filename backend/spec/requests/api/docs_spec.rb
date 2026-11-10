@@ -1,6 +1,6 @@
 require "rails_helper"
 
-# Swagger UI en /api/docs SOLO en desarrollo y staging (docs/architecture/07-api-contract.md).
+# Swagger UI at /api/docs ONLY in development and staging.
 RSpec.describe "Documentación de la API (/api/docs)" do
   it "sirve Swagger UI en test/desarrollo" do
     get "/api/docs/index.html"
@@ -13,7 +13,7 @@ RSpec.describe "Documentación de la API (/api/docs)" do
     get "/api/docs/v1.yaml"
 
     expect(response).to have_http_status(:ok)
-    # rswag-api vuelve a serializar el YAML (otro ajuste de línea): se compara el documento, no el texto.
+    # rswag-api re-serializes the YAML (another line wrap): the document is compared, not the text.
     expect(YAML.safe_load(response.body)).to eq(YAML.safe_load_file(Rails.root.join("openapi/v1.yaml")))
   end
 

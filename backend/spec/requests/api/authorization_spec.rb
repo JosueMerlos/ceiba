@@ -1,10 +1,10 @@
 require "rails_helper"
 
-# M0.08: la AUTORIZACIÓN también es deny by default. Este spec recorre TODAS las rutas del router (no una lista de
-# controladores): cada acción de un controlador de la API autoriza (verify_authorized) salvo las de esta allowlist, que son
-# decisiones de seguridad escritas y con motivo. Una acción nueva que se salte la verificación rompe aquí.
+# AUTHORIZATION is deny by default too. This spec walks ALL the router's routes (not a controller list): every action of
+# an API controller authorizes (verify_authorized) except those in this allowlist, which are written, reasoned security
+# decisions. A new action that skips the verification breaks here.
 RSpec.describe "Autorización obligatoria por defecto (allowlist de skip_authorization!)" do
-  # "Controlador#acción" => por qué no autoriza un recurso. Añadir una entrada es una decisión de seguridad: se revisa en el PR.
+  # "Controller#action" => why it does not authorize a resource. Adding an entry is a security decision: reviewed in the PR.
   let(:allowlist) do
     {
       "Api::V1::Identity::SessionsController#create" => "login: aún no hay principal ni recurso de una organización",

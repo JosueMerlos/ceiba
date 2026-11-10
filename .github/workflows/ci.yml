@@ -5,24 +5,23 @@ on:
   push:
     branches: [main]
 
-# Mínimo privilegio: los jobs solo leen el código.
+# Least privilege: jobs only read the code.
 permissions:
   contents: read
 
-# Un push nuevo a la misma rama cancela la ejecución anterior.
+# A new push to the same branch cancels the previous run.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Los pasos de cada job viven en backend/bin/ci-* y frontend/bin/ci-*: son EXACTAMENTE los que
-# ejecuta `bin/ci` en local dentro de Docker. Versiones: .tool-versions (verificado por
-# infra/scripts/check-versions.sh).
+# Each job's steps live in backend/bin/ci-* and frontend/bin/ci-*: they are EXACTLY what `bin/ci` runs locally in Docker.
+# Versions come from .tool-versions (checked by infra/scripts/check-versions.sh).
 env:
   DB_HOST: localhost
   POSTGRES_USER: ceiba
-  POSTGRES_PASSWORD: ceiba_ci_password # contraseña del servicio efímero de CI, no es un secreto
-  # Roles de la aplicación (M0.04): los crea infra/db/init-roles.sh en el servicio postgres, que no tiene initdb.d.
-  APP_OWNER_PASSWORD: ceiba_owner_ci_password # igual: servicio efímero, no es un secreto
+  POSTGRES_PASSWORD: ceiba_ci_password # ephemeral CI service password, not a secret
+  # Application roles: created by infra/db/init-roles.sh because the postgres service has no initdb.d.
+  APP_OWNER_PASSWORD: ceiba_owner_ci_password # same: ephemeral service, not a secret
   APP_USER_PASSWORD: ceiba_user_ci_password
   REDIS_URL: redis://localhost:6379/0
 
@@ -56,7 +55,7 @@ jobs:
           # PR: against the target branch. Push to main: against the commit before the push.
           BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
         run: infra/scripts/check-large-files.sh
-      # Ruby sale de backend/.ruby-version; las gems se cachean por Gemfile.lock.
+      # Ruby comes from backend/.ruby-version; gems are cached by Gemfile.lock.
       - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
           bundler-cache: true
@@ -67,7 +66,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      # fetch-depth 0: el check de package_todo.yml necesita el merge-base con la rama destino.
+      # fetch-depth 0: the package_todo.yml check needs the merge-base with the target branch.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -75,7 +74,7 @@ jobs:
         run: infra/scripts/check-package-todo-growth_test.sh
       - name: Ningún package_todo.yml crece
         env:
-          # PR: contra la rama destino. Push a main: contra el commit anterior al push.
+          # PR: against the target branch. Push to main: against the commit before the push.
           BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
         run: infra/scripts/check-package-todo-growth.sh
       - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
@@ -100,9 +99,8 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # pg_dump (structure.sql) exige la MISMA versión mayor que el servidor: el runner trae el cliente 16 y
-      # `db:migrate` abortaría con "server version mismatch". Se instala postgresql-client-18 desde PGDG
-      # (misma versión mayor que el servicio postgres; lo verifica infra/scripts/check-versions.sh).
+      # pg_dump (structure.sql) needs the SAME major version as the server: the runner ships client 16 and `db:migrate`
+      # would abort with "server version mismatch". postgresql-client-18 comes from PGDG (checked by check-versions.sh).
       - name: Cliente PostgreSQL 18 (pg_dump igual que el servidor)
         run: |
           sudo install -d /usr/share/keyrings
@@ -119,7 +117,7 @@ jobs:
         with:
           bundler-cache: true
           working-directory: backend
-      # Migra desde cero, revierte la última y vuelve a migrar, y exige que db/structure.sql no cambie.
+      # Migrates from scratch, rolls back the last migration and migrates again; db/structure.sql must not change.
       - run: backend/bin/ci-migrations
 
   backend-test:
@@ -144,9 +142,8 @@ jobs:
           --health-interval 5s --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # pg_dump (structure.sql) exige la MISMA versión mayor que el servidor: el runner trae el cliente 16 y
-      # `db:migrate` abortaría con "server version mismatch". Se instala postgresql-client-18 desde PGDG
-      # (misma versión mayor que el servicio postgres; lo verifica infra/scripts/check-versions.sh).
+      # pg_dump (structure.sql) needs the SAME major version as the server: the runner ships client 16 and `db:migrate`
+      # would abort with "server version mismatch". postgresql-client-18 comes from PGDG (checked by check-versions.sh).
       - name: Cliente PostgreSQL 18 (pg_dump igual que el servidor)
         run: |
           sudo install -d /usr/share/keyrings
@@ -222,8 +219,8 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: frontend/bin/ci-security
 
-  # Contrato API (M0.06, ADR-0012): regenera backend/openapi/v1.yaml (rswag) y el cliente TS (openapi-typescript) y falla
-  # si difieren de lo versionado. Mismos pasos que `bin/ci api-contract`.
+  # Regenerates backend/openapi/v1.yaml (rswag) and the TS client (openapi-typescript) and fails if they differ from the
+  # committed ones. Same steps as `bin/ci api-contract`.
   api-contract:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -248,7 +245,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Casos de prueba del check de drift
         run: infra/scripts/check-api-contract_test.sh
-      # Mismo motivo que en backend-test: la tarea de esquema usa pg_dump y exige la misma versión mayor que el servidor.
+      # Same reason as in backend-test: the schema task runs pg_dump, which needs the same major version as the server.
       - name: Cliente PostgreSQL 18 (pg_dump igual que el servidor)
         run: |
           sudo install -d /usr/share/keyrings
@@ -278,8 +275,7 @@ jobs:
           CLIENT_GENERATE: frontend/bin/ci-api-client
         run: infra/scripts/check-api-contract.sh
 
-  # Presupuesto de bundle de la reserva pública (M0.12, ADR-0015): JS crítico < 150 KiB gzip. Mismo paso que
-  # `bin/ci frontend-bundle`.
+  # Bundle budget for the public booking app: critical JS < 150 KiB gzip. Same step as `bin/ci frontend-bundle`.
   frontend-bundle:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -296,10 +292,9 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: frontend/bin/ci-bundle
 
-  # E2E con Playwright (M0.12): login, contexto y navegación contra el entorno completo de Compose (API con seeds de
-  # demo, panel, booking y proxy). Solo corre en `main` (push): levantar todo el entorno es lo más lento del pipeline y
-  # los PR ya cubren la lógica con los tests de componentes (Vitest + MSW). Mismo paso que `bin/ci e2e`.
-  # Si un E2E falla en main: el reporte y las capturas quedan como artefacto `e2e-report`.
+  # Playwright E2E against the full Compose environment. Runs only on `main` pushes: bringing everything up is the slowest
+  # part of the pipeline and PRs already cover the logic with component tests (Vitest + MSW). Same step as `bin/ci e2e`.
+  # On failure, the report and screenshots are kept as the `e2e-report` artifact.
   e2e:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -308,7 +303,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: bin/ci e2e
         env:
-          # En main un E2E inestable se reintenta una vez (el reporte guarda el rastro); en local no hay reintentos.
+          # On main a flaky E2E is retried once (the report keeps the trace); locally there are no retries.
           E2E_RETRIES: "1"
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

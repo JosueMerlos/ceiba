@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Criterios 5 y 6 de M0.09: settings con jerarquía default del esquema -> empresa -> sucursal, y escritura validada contra el
-# esquema (422 con detalle por campo en la API; aquí, Modules::InvalidSettings con `errors`).
+# Settings hierarchy schema default -> company -> branch, and writes validated against the schema (422 with per-field detail
+# in the API; here, Modules::InvalidSettings with `errors`).
 RSpec.describe "Settings de módulo" do
   let(:organization) { create(:organization) }
   let(:company) { create_in(organization, :company) }
@@ -17,7 +17,7 @@ RSpec.describe "Settings de módulo" do
     with_tenant(organization) { Modules::UpdateSettings.call(company:, key: "sample", settings:, branch: target_branch) }
   end
 
-  # Los errores por campo de una actualización rechazada.
+  # Per-field errors of a rejected update.
   def rejected
     yield
     raise "se esperaba Modules::InvalidSettings"

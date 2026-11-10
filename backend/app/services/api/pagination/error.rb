@@ -1,6 +1,6 @@
 module Api
   module Pagination
-    # Base de los errores de paginación: todos son 400 (el cliente mandó un parámetro inválido).
+    # Base for pagination errors: all are 400 (the client sent an invalid parameter).
     class Error < StandardError; end
   end
 end

@@ -1,6 +1,6 @@
 module Modules
-  # Valida un objeto de settings YA RESUELTO contra el JSON Schema del módulo y devuelve el detalle por campo
-  # ([{ field:, code:, message: }], vacío si es válido). Los campos anidados se nombran con puntos (`reminders.0.offset_minutes`).
+  # Validates an ALREADY RESOLVED settings object against the module's JSON Schema and returns per-field detail
+  # ([{ field:, code:, message: }], empty if valid). Nested fields use dots (`reminders.0.offset_minutes`).
   module SettingsValidator
     JSON_TYPES = %w[string integer number boolean array object null].freeze
 
@@ -17,7 +17,7 @@ module Modules
       [ build(pointer, code_for(error["type"])) ]
     end
 
-    # Un fallo de `type` llega como el tipo esperado ("boolean"); una propiedad no permitida, como "schema".
+    # A `type` failure arrives as the expected type ("boolean"); a disallowed property, as "schema".
     def code_for(type)
       return "type" if JSON_TYPES.include?(type)
       return "unknown" if type == "schema"

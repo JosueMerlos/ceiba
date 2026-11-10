@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Esquema de control de acceso (M0.08, ADR-0008). Qué es global y qué es tenant, y qué rechaza la BASE aunque el código se
-# salte las validaciones (criterio 6: el CHECK de alcance).
+# Access schema: what is global and what is tenant, and what the DATABASE rejects even if the code skips validations
+# (the scope CHECK).
 RSpec.describe "Esquema de platform/access" do
   let(:connection) { ApplicationRecord.connection }
   let(:organization) { create(:organization) }
@@ -9,12 +9,12 @@ RSpec.describe "Esquema de platform/access" do
   let(:branch) { with_tenant(organization) { create(:branch, company:) } }
   let(:user_id) { create(:user).id }
 
-  # Roles mínimos para este spec (el catálogo de sistema completo lo prueba catalog_sync_spec). Idempotente.
+  # Minimal roles for this spec (the full system catalog is tested by catalog_sync_spec). Idempotent.
   def ensure_role(key)
     Access::Role.find_or_create_by!(key:) { |role| role.scope_level = Access::SYSTEM_ROLES.fetch(key) }
   end
 
-  # Inserta un membership SIN pasar por validaciones ni callbacks: lo que cuenta es lo que decide la base.
+  # Inserts a membership WITHOUT validations or callbacks: what matters is what the database decides.
   def insert_membership(role_key:, scope_level:, company_id: nil, branch_id: nil, org: organization)
     role = ensure_role(role_key)
     sql = <<~SQL.squish

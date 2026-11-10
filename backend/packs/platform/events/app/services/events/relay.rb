@@ -1,15 +1,14 @@
 module Events
-  # Publica los eventos pendientes del outbox a Sidekiq (docs/architecture/06-events-and-jobs.md).
+  # Publishes pending outbox events to Sidekiq.
   #
-  # Por lote, en UNA transacción:
-  #   1. SELECT ... ORDER BY id LIMIT n FOR UPDATE SKIP LOCKED: dos relays concurrentes toman lotes distintos y nunca el
-  #      mismo evento; las filas bloqueadas por otro relay se saltan en lugar de esperar.
-  #   2. encola un DeliverJob por (evento, suscriptor), agrupando por organización y cola (push_bulk);
-  #   3. marca published_at.
-  # Si el paso 2 falla (Redis caído) la transacción se revierte: los eventos siguen pendientes y el siguiente relay los
-  # toma; el intento y el error se anotan (attempts, last_error). Si Redis aceptó parte de los jobs y luego falla el
-  # COMMIT, el reintento los vuelve a encolar: la entrega es al menos una vez y los suscriptores son idempotentes
-  # (processed_events).
+  # Per batch, in ONE transaction:
+  #   1. SELECT ... ORDER BY id LIMIT n FOR UPDATE SKIP LOCKED: concurrent relays take different batches and never the
+  #      same event; rows locked by another relay are skipped, not waited on.
+  #   2. enqueue one DeliverJob per (event, subscriber), grouped by organization and queue (push_bulk);
+  #   3. mark published_at.
+  # If step 2 fails (Redis down) the transaction rolls back: events stay pending and the next relay picks them up; the
+  # attempt and error are recorded (attempts, last_error). If Redis accepted some jobs and the COMMIT then fails, the
+  # retry enqueues them again: delivery is at-least-once and subscribers are idempotent (processed_events).
   class Relay
     DEFAULT_BATCH_SIZE = 100
     MAX_ERROR_LENGTH = 1_000
@@ -20,7 +19,6 @@ module Events
       @batch_size = batch_size
     end
 
-    # Devuelve cuántos eventos publicó.
     def call
       total = 0
       loop do
@@ -66,7 +64,7 @@ module Events
       end
     end
 
-    # El error se anota fuera de la transacción revertida. Si anotarlo también falla se conserva el error original.
+    # The error is recorded outside the rolled-back transaction. If recording it also fails, the original error is kept.
     def record_failure(events, error)
       return if events.empty?
 
@@ -78,7 +76,7 @@ module Events
       Rails.logger.error("events.relay no pudo anotar el fallo: #{nested.class}: #{nested.message}")
     end
 
-    # Las escrituras de estado pasan por el guard de tenant: una organización cada vez, dentro de su contexto.
+    # State writes go through the tenant guard: one organization at a time, inside its context.
     def per_organization(events)
       events.group_by(&:organization_id).each_value do |group|
         Tenancy.with_context(organization: group.first.organization) { yield group.map(&:id) }

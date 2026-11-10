@@ -1,15 +1,15 @@
 require "rails_helper"
 
-# Suite de COBERTURA DE MÓDULOS (docs/architecture/12-testing-strategy.md, playbook de módulos). Un pack de módulos nuevo entra solo:
-#   1. ESTÁTICA: todo controlador de packs/modules/<key>/app/controllers declara `requires_module :<key>` (su propio módulo).
-#   2. DINÁMICA: toda ruta cuyo controlador declara un módulo responde 404 cuando ese módulo está inactivo en la empresa, y deja de
-#      responder 404 cuando se activa (la prueba no es vacía).
-# Hoy los módulos reales no tienen controladores (F1); la suite se ejercita con las rutas del módulo ficticio `sample`.
+# MODULE COVERAGE suite. A new modules pack gets covered automatically:
+#   1. STATIC: every controller in packs/modules/<key>/app/controllers declares `requires_module :<key>` (its own module).
+#   2. DYNAMIC: every route whose controller declares a module answers 404 when that module is inactive in the company,
+#      and stops answering 404 once it is activated (the test is not vacuous).
+# The real modules have no controllers yet; the suite is exercised with the routes of the fictitious `sample` module.
 RSpec.describe "Cobertura de módulos: rutas de un módulo inactivo => 404" do
   include_context "con rutas de sample"
   include_context "con el módulo sample sincronizado"
 
-  # Controladores de packs/modules/*: { clase => key del pack }.
+  # Controllers in packs/modules/*: { class => pack key }.
   def module_controllers
     Rails.root.glob("packs/modules/*/app/controllers/**/*_controller.rb").to_h do |file|
       key = file.relative_path_from(Rails.root.join("packs/modules")).each_filename.first
@@ -18,7 +18,7 @@ RSpec.describe "Cobertura de módulos: rutas de un módulo inactivo => 404" do
     end
   end
 
-  # Rutas reales (y las de sample, dibujadas por el contexto) cuyo controlador exige un módulo.
+  # Real routes (and sample's, drawn by the context) whose controller requires a module.
   def module_routes
     Rails.application.routes.routes.filter_map do |route|
       controller = route.defaults[:controller]
@@ -29,16 +29,16 @@ RSpec.describe "Cobertura de módulos: rutas de un módulo inactivo => 404" do
     end
   end
 
-  # ¿Corre el gate en TODAS las acciones? Un before_action con `only:`/`except:`/`if:` lleva condiciones; uno saltado con
-  # skip_before_action (sin opciones) desaparece, y con `only:` gana una condición `unless`. Exigimos el callback sin condiciones.
+  # Does the gate run on ALL actions? A before_action with `only:`/`except:`/`if:` carries conditions; one skipped with
+  # skip_before_action (no options) disappears, and with `only:` gains an `unless` condition. We require it unconditional.
   def gate_everywhere?(klass)
     callback = klass._process_action_callbacks.find { |candidate| candidate.kind == :before && candidate.filter == :ensure_required_module_enabled! }
     callback.present? && callback.instance_variable_get(:@if).blank? && callback.instance_variable_get(:@unless).blank?
   end
 
-  # URL con ids REALES: un id desconocido (o la sucursal de otra empresa) da 404 en el resolvedor de rutas o en la acción, ANTES o
-  # aparte del gate, y la comprobación no probaría nada. :branch_id es una sucursal real de la empresa; los demás parámetros
-  # (:id, ...) los fabrica el módulo con ModuleCoverageFactories (falla explícito si falta).
+  # URL with REAL ids: an unknown id (or another company's branch) gives 404 in the route resolver or the action, BEFORE
+  # or apart from the gate, and the check would prove nothing. :branch_id is a real branch of the company; the other
+  # params (:id, ...) are built by the module with ModuleCoverageFactories (explicit failure if missing).
   def url_for_route(route, company)
     route[:spec].gsub(/:(\w+)/) do
       case (param = Regexp.last_match(1).to_sym)
@@ -88,8 +88,8 @@ RSpec.describe "Cobertura de módulos: rutas de un módulo inactivo => 404" do
       expect(module_routes.pluck(:module)).to include("sample")
     end
 
-    # Un id desconocido da 404 POR SÍ SOLO en una ruta de miembro (:id): el status no prueba nada. Lo que se comprueba es que el
-    # GATE emitió el 404: Modules::RequiresModule instrumenta "denied.requires_module" cada vez que lo deniega.
+    # An unknown id gives 404 BY ITSELF on a member route (:id): the status proves nothing. What is checked is that the
+    # GATE emitted the 404: Modules::RequiresModule instruments "denied.requires_module" each time it denies.
     def denials_during
       denials = []
       subscriber = ->(*, payload) { denials << payload }

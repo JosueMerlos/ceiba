@@ -1,16 +1,15 @@
 /*
- * Tokens de diseño de Ceiba (ADR-0031). Tres capas:
+ * Ceiba design tokens. Three layers:
  *
- *   1. Primitiva   --palette-*          valores crudos; solo aquí hay colores en hexadecimal.
- *   2. Marca       --brand-*            lo ÚNICO que M2.04 sobrescribe por empresa (en :root, no en un contenedor interior).
- *      Semántica   nombres de shadcn/ui (--primary, --background...) leen de la marca o de la paleta.
- *   3. Componente  --button-*, --input-*, --dialog-*, --nav-*   leen solo de la capa semántica.
+ *   1. Primitive   --palette-*          raw values; the only place with hexadecimal colors.
+ *   2. Brand       --brand-*            the ONLY thing overridden per company (on :root, not on an inner container).
+ *      Semantic    shadcn/ui names (--primary, --background...) read from the brand or the palette.
+ *   3. Component   --button-*, --input-*, --dialog-*, --nav-*   read only from the semantic layer.
  *
- * La paleta sale del árbol: el dosel de la ceiba (verde profundo), la fibra del kapok (blancos verdosos) y la flor de
- * sacuanjoche (el dorado del acento). Los pares texto/fondo cumplen WCAG AA (4.5:1), verificado en test/tokens.test.ts.
+ * The palette comes from the tree: the ceiba canopy (deep green), kapok fiber (greenish whites) and the sacuanjoche
+ * flower (the accent gold). Text/background pairs meet WCAG AA (4.5:1), verified in test/tokens.test.ts.
  */
 :root {
-  /* ---------- 1. Primitiva ---------- */
   --palette-canopy-50: #edf6f1;
   --palette-canopy-100: #d5eadf;
   --palette-canopy-200: #abd4bf;
@@ -38,7 +37,6 @@
   --palette-font-body: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
   --palette-font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
 
-  /* ---------- 2a. Marca (defaults de la plataforma; M2.04 los reemplaza por empresa) ---------- */
   --brand-primary: var(--palette-canopy-600);
   --brand-primary-foreground: var(--palette-kapok-0);
   --brand-secondary: var(--palette-kapok-100);
@@ -49,13 +47,12 @@
 }
 
 /*
- * Capa semántica y de componente. Se declara en :root Y en [data-brand-scope]: las variables que usan var() se
- * resuelven donde se DECLARAN, así que un contenedor con su propio --brand-* (vista previa de M2.04) necesita que la
- * semántica se vuelva a calcular dentro de él. Sin ese atributo, el branding se escribe en :root (ADR-0031).
+ * Semantic and component layer. Declared on :root AND on [data-brand-scope]: variables using var() resolve where they
+ * are DECLARED, so a container with its own --brand-* (e.g. a preview) needs the semantics recomputed inside it.
+ * Without that attribute, branding is written on :root.
  */
 :root,
 [data-brand-scope] {
-  /* ---------- 2b. Semántica: nombres de shadcn/ui ---------- */
   --background: var(--palette-kapok-50);
   --foreground: var(--palette-kapok-900);
   --card: var(--palette-kapok-0);
@@ -68,22 +65,21 @@
   --secondary-foreground: var(--brand-secondary-foreground);
   --muted: var(--palette-kapok-100);
   --muted-foreground: var(--palette-kapok-700);
-  /* En shadcn, --accent es la superficie del elemento resaltado (menús, listas): no es el acento de marca. */
+  /* In shadcn, --accent is the highlighted element's surface (menus, lists): it is not the brand accent. */
   --accent: var(--palette-canopy-50);
   --accent-foreground: var(--palette-canopy-900);
   --destructive: var(--palette-ember-600);
   --destructive-foreground: var(--palette-kapok-0);
   --border: var(--palette-kapok-200);
-  /* Borde de campos: 3:1 contra el fondo (WCAG 1.4.11). */
+  /* Field border: 3:1 against the background (WCAG 1.4.11). */
   --input: var(--palette-kapok-500);
   --ring: var(--brand-primary);
   --radius: 0.625rem;
 
-  /* El acento de marca, con su propio nombre para no teñir cada menú. */
+  /* The brand accent, under its own name so it does not tint every menu. */
   --highlight: var(--brand-accent);
   --highlight-foreground: var(--brand-accent-foreground);
 
-  /* ---------- 3. Componente ---------- */
   --button-radius: var(--radius);
   --button-height: 2.5rem;
   --button-height-sm: 2rem;

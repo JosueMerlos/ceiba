@@ -1,9 +1,9 @@
 module Access
-  # El usuario `user_id` (global, ADR-0028) tiene el rol `role` en un alcance de la organización: toda ella, una empresa o
-  # una sucursal. Tabla TENANT. Las columnas del alcance son explícitas con FKs reales (ADR-0008) y la BASE rechaza las
-  # combinaciones incoherentes (chk_memberships_scope); el modelo las valida antes para dar un error legible.
+  # The (global) user `user_id` has the role `role` at a scope of the organization: all of it, a company or a branch.
+  # TENANT table. Scope columns are explicit with real FKs and the DATABASE rejects inconsistent combinations
+  # (chk_memberships_scope); the model validates them first to give a readable error.
   #
-  # Sin asociaciones a user/company/branch: son modelos PRIVADOS de otros packs; se guardan sus ids.
+  # No associations to user/company/branch: they are PRIVATE models of other packs, so only their ids are stored.
   class Membership < ApplicationRecord
     acts_as_tenant :organization, class_name: "Tenancy::Organization"
 
@@ -11,7 +11,7 @@ module Access
 
     enum :scope_level, Role::SCOPE_LEVELS.index_by(&:itself), validate: true
 
-    # El alcance lo da el rol: se denormaliza para que la base pueda expresar el CHECK y la FK compuesta con roles.
+    # The role determines the scope; it is denormalized so the database can express the CHECK and the composite FK to roles.
     before_validation { self.scope_level = role.scope_level if role }
 
     validates :user_id, presence: true

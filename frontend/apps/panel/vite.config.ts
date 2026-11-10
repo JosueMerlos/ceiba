@@ -2,8 +2,8 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
-// El navegador entra por el proxy (puerto público), no por el de Vite: el websocket
-// de HMR debe apuntar a ese puerto para atravesar el proxy (ADR-0013).
+// The browser connects through the proxy (public port), not Vite's: the HMR websocket must point at that port to go
+// through the proxy.
 const publicPort = Number(process.env.PUBLIC_PORT ?? 8080);
 
 export default defineConfig({
@@ -19,7 +19,7 @@ export default defineConfig({
     manifest: true,
     rollupOptions: {
       output: {
-        // Un chunk por módulo de negocio: modules/<clave>/... -> assets/module-<clave>-<hash>.js
+        // One chunk per business module: modules/<key>/... -> assets/module-<key>-<hash>.js
         chunkFileNames: (chunk) => {
           const key = /\/modules\/([^/]+)\//.exec(chunk.facadeModuleId ?? "")?.[1];
           return key ? `assets/module-${key}-[hash].js` : "assets/[name]-[hash].js";
@@ -32,7 +32,7 @@ export default defineConfig({
     environmentOptions: { jsdom: { url: "http://localhost:8080/" } },
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
-    // El build de producción (app/build.test.ts) tarda unos segundos.
+    // The production build (app/build.test.ts) takes a few seconds.
     testTimeout: 15_000,
   },
 });

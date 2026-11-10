@@ -1,22 +1,23 @@
 module Idempotency
-  # Concern de controlador: hace idempotentes las acciones indicadas (docs/architecture/07-api-contract.md#idempotencia).
+  # Controller concern: makes the given actions idempotent.
   #
   #   class AppointmentsController < Api::BaseController
   #     include Idempotency::Idempotent
   #     idempotent :create, required: true
   #   end
   #
-  # Con el header `Idempotency-Key`:
-  #   - primera vez: ejecuta la acción y, si responde 2xx, guarda la respuesta 24 horas;
-  #   - misma clave y mismo método, ruta y cuerpo: NO ejecuta la acción y repite la respuesta guardada
-  #     (con `Idempotency-Replayed: true`);
-  #   - misma clave y otro método, ruta o cuerpo: 409 `idempotency.key_reused`.
-  # La clave es única por organización y principal. Una respuesta que no es 2xx (o una excepción) no consume la clave.
-  # `required: true` exige el header (400 `idempotency.key_required`); sin él y sin `required`, la acción se ejecuta normal.
+  # With the `Idempotency-Key` header:
+  #   - first time: runs the action and, if it answers 2xx, stores the response for 24 hours;
+  #   - same key and same method, path and body: does NOT run the action and replays the stored response
+  #     (with `Idempotency-Replayed: true`);
+  #   - same key and another method, path or body: 409 `idempotency.key_reused`.
+  # The key is unique per organization and principal. A non-2xx response (or an exception) does not consume the key.
+  # `required: true` demands the header (400 `idempotency.key_required`); without it and without `required`, the action
+  # runs normally.
   #
-  # Requisitos: el contexto de tenancy ya abierto cuando corre el filtro (declara `idempotent` DESPUÉS del filtro que abre
-  # el contexto, p. ej. el around_action de Tenancy.with_context) y, si la acción es autenticada, Current.principal.
-  # La carrera de dos peticiones simultáneas la resuelve el índice único: la segunda espera a que la primera termine.
+  # Requirements: the tenancy context already open when the filter runs (declare `idempotent` AFTER the filter that
+  # opens it, e.g. the Tenancy.with_context around_action) and, if the action is authenticated, Current.principal. Two
+  # simultaneous requests race on the unique index: the second waits for the first to finish.
   module Idempotent
     extend ActiveSupport::Concern
 

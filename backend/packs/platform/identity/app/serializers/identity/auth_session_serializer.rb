@@ -1,5 +1,5 @@
 module Identity
-  # Respuesta de login y de GET /auth/session. EXACTAMENTE components.schemas.AuthSession.
+  # Login and GET /auth/session response. Must match components.schemas.AuthSession EXACTLY.
   class AuthSessionSerializer < Api::Serializer
     one :principal, key: :user, resource: UserSerializer
     attributes :csrf_token, expires_at: :iso8601

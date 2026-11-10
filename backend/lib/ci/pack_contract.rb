@@ -3,12 +3,11 @@
 require "pathname"
 require "yaml"
 
-# Contrato que debe cumplir TODO pack de packs/<capa>/<nombre> (docs/architecture/02-modular-monolith.md).
-# Lo aplica spec/packs/contract_spec.rb sobre los packs reales: así el aislamiento entre módulos no
-# depende de que cada pack conserve su propio spec ni de que el package.yml no se edite a mano.
+# Contract EVERY pack in packs/<layer>/<name> must meet. The pack contract spec applies it to the real packs, so
+# isolation between modules does not depend on each pack keeping its own spec or on package.yml never being hand-edited.
 #
-# `visible_to` es la lista explícita y mínima de packs que pueden usar a un módulo, por pack
-# (hoy ninguno: ver "Cómo se cablea M0.09" en 02). Todo lo que no esté ahí es una violación.
+# `visible_to` is the explicit, minimal list of packs that may use a module, per pack (currently none). Anything not
+# listed there is a violation.
 class PackContract
   LAYERS = %w[platform modules].freeze
   ENFORCEMENTS = %w[enforce_dependencies enforce_privacy enforce_layers].freeze

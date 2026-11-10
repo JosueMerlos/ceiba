@@ -1,8 +1,8 @@
 module Events
-  # Hook de Tenancy::ProvisionOrganization.after_provision: publica platform.organization_provisioned.v1. Corre dentro
-  # de la transacción de la provisión y del contexto de la organización nueva, así que el evento nace atómico con ella
-  # (si otro hook falla, la organización y el evento desaparecen juntos). Tenancy no conoce a Events: el pack se engancha
-  # desde config.to_prepare (config/initializers/provisioning_hook.rb).
+  # Tenancy::ProvisionOrganization.after_provision hook: publishes platform.organization_provisioned.v1. Runs inside the
+  # provisioning transaction and the new organization's context, so the event is atomic with it (if another hook fails,
+  # the organization and the event vanish together).
+  # Tenancy does not know Events; the pack registers this from config.to_prepare.
   module ProvisioningHook
     KEY = :events_organization_provisioned
 
@@ -15,7 +15,7 @@ module Events
       )
     end
 
-    # Idempotente por `key:`: se puede llamar en cada recarga.
+    # Idempotent by `key:`: safe to call on every reload.
     def register = Tenancy::ProvisionOrganization.after_provision(self, key: KEY)
   end
 end

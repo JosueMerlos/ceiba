@@ -1,7 +1,6 @@
 module Modules
-  # Las reglas de docs/architecture/05-module-system.md que se pueden comprobar SOBRE UN manifiesto. Acumula todos los
-  # problemas y, si hay alguno, lanza Modules::InvalidManifest con la lista completa. Las reglas ENTRE manifiestos (requires
-  # existentes y sin ciclos) las comprueba Modules::Registry#validate!.
+  # Checks the rules that apply to ONE manifest. Accumulates all problems and raises Modules::InvalidManifest with the full
+  # list. Cross-manifest rules (existing `requires`, no cycles) are checked by Modules::Registry#validate!.
   class ManifestValidator
     KEY_FORMAT = /\A[a-z][a-z0-9_]*\z/
     PERMISSION_FORMAT = /\A[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*\z/
@@ -11,7 +10,7 @@ module Modules
     VERSION_FORMAT = /\A\d+\.\d+\z/
     RESERVED_KEYS = %w[platform].freeze
 
-    # Resultado de validar: el esquema normalizado y los permisos y concesiones ya expandidos.
+    # Normalized schema plus already expanded permissions and grants.
     Result = Data.define(:settings_schema, :permissions, :role_grants, :schemer)
 
     def self.call(declared) = new(declared).call
@@ -143,9 +142,9 @@ module Modules
       end
     end
 
-    # COTAS: los settings viajan en cada /me y se guardan en jsonb; sin cotas un valor gigante (50 000 recordatorios, 10**30) los
-    # infla o rompe. Todo array lleva maxItems, toda cadena libre (no enum/const) maxLength y todo número minimum y maximum, también
-    # dentro de objetos y elementos de arrays (`a[].n`).
+    # BOUNDS: settings travel in every /me and live in jsonb; unbounded, a giant value (50,000 reminders, 10**30) bloats or breaks
+    # them. Every array needs maxItems, every free string (not enum/const) maxLength and every number minimum and maximum,
+    # also inside objects and array items (`a[].n`).
     def check_bounds(node, path)
       return unless node.is_a?(Hash)
 
@@ -163,8 +162,8 @@ module Modules
 
     def bounded?(node, *keywords) = keywords.any? { |keyword| node.key?(keyword) } || node.key?("enum") || node.key?("const")
 
-    # La auditoría de settings guarda el diff con el mismo enmascarado que los logs (filter_parameters, más digest/csrf/ciphertext).
-    # Una propiedad con un nombre sensible perdería su valor en la auditoría: los settings no son un lugar para secretos.
+    # The settings audit stores the diff with the same masking as logs (filter_parameters plus digest/csrf/ciphertext), so a
+    # sensitive-named property would lose its value in the audit: settings are no place for secrets.
     def check_auditable_name(name)
       return unless self.class.sensitive_name?(name)
 

@@ -1,6 +1,6 @@
-# Proxy de desarrollo: UN solo origen (http://localhost:PROXY_PORT, 8080 por defecto) para API, panel y booking.
-# Misma regla de enrutamiento que producción (ADR-0013). El prefijo NO se quita:
-# Rails monta sus rutas bajo /api y Vite sirve booking bajo la base /c/.
+# Development proxy: a SINGLE origin (http://localhost:PROXY_PORT, 8080 by default) for API, panel and booking.
+# Same routing rule as production. The prefix is NOT stripped: Rails mounts its routes under /api and Vite serves
+# booking under the /c/ base.
 {
 	admin off
 	auto_https off
@@ -11,10 +11,10 @@
 		respond "ok" 200
 	}
 
-	# `path /api /api/*`: también /api sin barra final va a la API, no al panel
+	# `path /api /api/*`: /api without a trailing slash also goes to the API, not the panel
 	@api path /api /api/*
-	# Cabeceras con las que un cliente podría declarar otra IP: no deben llegar a la API (que solo lee X-Forwarded-For, que
-	# Caddy sobrescribe con la IP del cliente). La app también las descarta (NetworkTrust::UntrustedForwardingFilter).
+	# Headers a client could use to claim another IP must not reach the API (it only reads X-Forwarded-For, which Caddy
+	# overwrites with the client IP). The app drops them too (NetworkTrust::UntrustedForwardingFilter).
 	handle @api {
 		reverse_proxy api:3000 {
 			header_up -Forwarded
@@ -23,18 +23,18 @@
 		}
 	}
 
-	# /c sin barra final -> /c/ (la base de Vite)
+	# /c without a trailing slash -> /c/ (Vite's base)
 	redir /c /c/ 308
 
-	# Incluye el websocket de HMR de Vite: Caddy hace el upgrade automáticamente.
+	# Includes Vite's HMR websocket: Caddy upgrades the connection automatically.
 	handle /c/* {
 		reverse_proxy booking:5174
 	}
 
-	# CSP inicial del panel en MODO REPORTE (M0.13): no bloquea nada, la consola del navegador lista las violaciones.
-	# Vite en desarrollo inyecta scripts en línea (preámbulo de react-refresh) y usa websockets: esperables aquí.
-	# Se endurece (sin 'unsafe-inline', con nonces o hashes) y se pasa a Content-Security-Policy cuando exista el
-	# build de producción (M4.04). `connect-src` incluye el ingest de Sentry: ajústalo al host de tu DSN.
+	# Panel CSP in REPORT-ONLY mode: blocks nothing, the browser console lists violations. Vite in development injects
+	# inline scripts (react-refresh preamble) and uses websockets, so those are expected here. Tighten it (no
+	# 'unsafe-inline', use nonces or hashes) and switch to Content-Security-Policy once a production build exists.
+	# `connect-src` includes the Sentry ingest: adjust it to your DSN host.
 	handle {
 		header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws: wss: https://*.ingest.sentry.io; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 		reverse_proxy panel:5173

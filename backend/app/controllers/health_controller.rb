@@ -1,4 +1,4 @@
-# Liveness: el proceso responde. No toca la base de datos ni Redis a propósito.
+# Liveness: the process responds. Deliberately does not touch the database or Redis.
 class HealthController < ApplicationController
   def show
     render json: { status: "ok" }

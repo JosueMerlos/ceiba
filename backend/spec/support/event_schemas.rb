@@ -1,5 +1,5 @@
-# Esquemas de eventos de prueba: se registran en el registro de Events y se retiran al terminar cada ejemplo, para no
-# contaminar a los demás ni al catálogo real de packs/*/*/app/public/*/events/*.json.
+# Test event schemas: registered in the Events registry and removed after each example, so they do not contaminate the
+# others nor the real catalog in packs/*/*/app/public/*/events/*.json.
 module EventSchemaHelpers
   THING_HAPPENED = {
     "type" => "object",

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Job backend-lint de CI (y de bin/ci): estilo con RuboCop. Se ejecuta desde backend/.
+# CI backend-lint job (and bin/ci): style with RuboCop. Run from backend/.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Revisión de M0.06: los errores del CLIENTE que Rails ya sabe clasificar (método HTTP desconocido, tipo de contenido
-# inválido, formato no soportado...) no son bugs: no se responden 500 ni se reportan como tales.
+# CLIENT errors Rails already knows how to classify (unknown HTTP method, invalid content type, unsupported format...)
+# are not bugs: they are not answered 500 nor reported as such.
 RSpec.describe "Errores de cliente de la API y rutas fuera de /api" do
   include_context "con endpoints de prueba de la API"
 

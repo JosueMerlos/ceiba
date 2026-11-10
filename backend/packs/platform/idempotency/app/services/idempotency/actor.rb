@@ -1,6 +1,6 @@
 module Idempotency
-  # Tipo del principal (user, api_key...): lo declara con `actor_type` (contrato de Access::Principal), no se adivina por el
-  # nombre de su clase.
+  # Principal type (user, api_key...): declared with `actor_type` (Access::Principal contract), not guessed from the
+  # class name.
   module Actor
     def self.type_of(principal)
       raise ArgumentError, "#{principal.class} debe declarar actor_type (contrato de los principales)" unless principal.respond_to?(:actor_type)

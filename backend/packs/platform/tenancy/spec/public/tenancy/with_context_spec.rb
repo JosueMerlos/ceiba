@@ -157,8 +157,8 @@ RSpec.describe "Tenancy.with_context" do
     end
   end
 
-  # Rails activa la query cache en requests y jobs: el setting se lee y se escribe SIN caché, o un segundo
-  # with_context idéntico serviría el set_config desde la caché y no lo ejecutaría nunca.
+  # Rails enables the query cache in requests and jobs: the setting is read and written WITHOUT cache, or an identical second
+  # with_context would serve set_config from the cache and never run it.
   describe "con la query cache activa" do
     def real_setting
       ActiveRecord::Base.connection.uncached { db_setting }
@@ -190,7 +190,7 @@ RSpec.describe "Tenancy.with_context" do
     end
   end
 
-  # return y break dejan el bloque sin excepción: el setting también debe restaurarse.
+  # return and break leave the block without an exception: the setting must be restored too.
   describe "salida no local del bloque" do
     def with_return(org)
       Tenancy.with_context(organization: org) { return :salio }

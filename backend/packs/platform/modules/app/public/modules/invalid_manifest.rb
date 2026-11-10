@@ -1,6 +1,5 @@
 module Modules
-  # Un manifiesto no cumple las reglas de docs/architecture/05-module-system.md. Falla el arranque (o el test) con TODOS los
-  # problemas encontrados, no solo el primero, para corregirlos de una vez.
+  # A manifest breaks the rules. Fails boot (or the test) with ALL problems found, not just the first, so they get fixed at once.
   class InvalidManifest < Error
     attr_reader :key, :problems
 

@@ -1,12 +1,12 @@
 module Access
-  # Registro en memoria de los permisos declarados por los packs. Una instancia global vive en `Access.registry` (se
-  # reconstruye en cada recarga de código y los packs vuelven a declarar desde `config.to_prepare`).
+  # In-memory registry of the permissions packs declare. One global instance lives in `Access.registry` (rebuilt on every
+  # code reload, when packs declare again from `config.to_prepare`).
   class PermissionRegistry
     Definition = Data.define(:key, :module_key, :description, :roles, :from_descendants)
 
     MODULE_KEY = /\A[a-z][a-z0-9_]*\z/
     OPTIONS = %i[description roles from_descendants].freeze
-    # Acciones de LECTURA: las únicas a las que se aplica `from_descendants` (la lectura ascendente nunca concede escribir).
+    # READ actions: the only ones `from_descendants` applies to (upward reading never grants writing).
     READ_ACTIONS = %w[read list show view].freeze
 
     def initialize
@@ -14,8 +14,8 @@ module Access
       @lock = Mutex.new
     end
 
-    # Reemplaza TODO lo que `module_key` había declarado (volver a registrar el módulo es idempotente y retira lo que ya no
-    # declara). Valida todo antes de tocar el registro: una declaración inválida no deja nada a medias.
+    # Replaces EVERYTHING `module_key` had declared (re-registering is idempotent and drops what it no longer declares).
+    # Validates everything before touching the registry, so an invalid declaration leaves nothing half-done.
     def register(module_key, permissions)
       module_key = module_key.to_s
       raise ArgumentError, "módulo inválido: #{module_key.inspect}" unless MODULE_KEY.match?(module_key)
@@ -36,7 +36,7 @@ module Access
     def registered?(key) = @definitions.key?(key)
     def definitions = @definitions.values
 
-    # Permisos de LECTURA que un membership de sucursal ejerce también sobre la empresa de esa sucursal (nunca sobre sus hermanas).
+    # READ permissions a branch membership also exercises on that branch's company (never on sibling branches).
     def upward_keys = @definitions.values.select(&:from_descendants).map(&:key)
 
     private

@@ -1,10 +1,10 @@
-# Errores de dominio de tenancy que la API traduce a problem+json (ver Api::ErrorRegistry).
+# Tenancy domain errors the API translates to problem+json (see Api::ErrorRegistry).
 #
-# - ProvisioningFailed: validación de la provisión (422) o conflicto de slug (409); `errors[]` desglosa sección.campo.
-# - InconsistentContext: la ruta mezcla entidades que no encajan (empresa de otra organización...). Es 404 y NO 403,
-#   para no revelar que la otra entidad existe (07-api-contract). El mensaje no sale: nombra entidades.
-# - TenantMismatch / TenantIsImmutable NO se registran a propósito: solo ocurren si el servidor intentó escribir en
-#   otro tenant, es decir, un BUG. Se responden 500 genérico (07: "500: solo bugs") y se investigan por el log.
+# - ProvisioningFailed: provisioning validation (422) or slug conflict (409); `errors[]` breaks down section.field.
+# - InconsistentContext: the route mixes entities that do not fit (company from another organization...). It is 404 and NOT
+#   403, so it does not reveal the other entity exists. The message is not exposed: it names entities.
+# - TenantMismatch / TenantIsImmutable are deliberately NOT registered: they only happen if the server tried to write to
+#   another tenant, i.e. a BUG. They answer a generic 500 (500s mean bugs only) and are investigated through the log.
 Rails.application.config.to_prepare do
   Api::ErrorRegistry.register(
     Tenancy::ProvisioningFailed,

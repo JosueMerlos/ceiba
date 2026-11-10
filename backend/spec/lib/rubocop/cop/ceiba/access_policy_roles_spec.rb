@@ -3,8 +3,7 @@ require "rubocop"
 require "rubocop/rspec/support"
 require "rubocop/cop/ceiba/access_policy_roles"
 
-# Criterio 7 de M0.08: una policy que compara un nombre de rol (o pregunta `admin?`) FALLA el linter (ADR-0008: las policies
-# preguntan por permisos, nunca por roles).
+# A policy that compares a role name (or asks `admin?`) FAILS the linter: policies ask about permissions, never roles.
 RSpec.describe RuboCop::Cop::Ceiba::AccessPolicyRoles, :config do
   let(:ruby_version) { 3.4 }
   let(:cop_config) { { "Include" => [ "packs/*/*/app/policies/**/*.rb" ] } }

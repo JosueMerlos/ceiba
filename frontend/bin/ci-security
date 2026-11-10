@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Job frontend-security de CI (y de bin/ci): dependencias con vulnerabilidades de nivel alto o crítico.
-# Los ignorados, si hicieran falta, van con fecha de revisión y motivo (ver docs/architecture/12-testing-strategy.md).
+# frontend-security CI job (and bin/ci): dependencies with high or critical vulnerabilities.
+# Any ignored advisory, if ever needed, must carry a review date and a reason.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

@@ -1,6 +1,6 @@
 require "rails_helper"
 
-# El contexto sale SOLO de los parámetros de la RUTA (request.path_parameters), nunca de la query ni del cuerpo.
+# The context comes ONLY from ROUTE params (request.path_parameters), never from the query or body.
 RSpec.describe "El contexto solo sale de la ruta" do
   let(:world) { build_access_world }
   let(:foreign) { build_access_world }

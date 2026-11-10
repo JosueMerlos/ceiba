@@ -5,20 +5,19 @@ require "rubocop"
 module RuboCop
   module Cop
     module Ceiba
-      # Prohíbe saltarse el aislamiento de tenant fuera de una lista de archivos revisada (AllowedFiles)
-      # (docs/architecture/03-multi-tenancy.md, "Caminos privilegiados"):
+      # Forbids bypassing tenant isolation outside a reviewed file list (AllowedFiles):
       #
       # - `ActsAsTenant.without_tenant`, `with_mutable_tenant`, `with_tenant`, `current_tenant=`, `unscoped=`:
-      #   el tenant solo lo fija `Tenancy.with_context` (que además hace el SET LOCAL de RLS);
-      # - `unscoped` (en cualquier receptor): quita el default scope que filtra por organización;
-      # - las otras formas de quitar o reemplazar esa condición: `unscope(:where)`/`unscope(where: ...)`, `rewhere(...)`
-      #   sobre organization_id, `except(:where)` y `only(...)`;
-      # - llegar a lo anterior con `send`/`public_send`/`__send__`, o escribir en `ActsAsTenant::Current`.
+      #   only `Tenancy.with_context` sets the tenant (it also does the RLS SET LOCAL);
+      # - `unscoped` (on any receiver): drops the default scope that filters by organization;
+      # - other ways to remove or replace that condition: `unscope(:where)`/`unscope(where: ...)`, `rewhere(...)`
+      #   on organization_id, `except(:where)` and `only(...)`;
+      # - reaching any of the above through `send`/`public_send`/`__send__`, or writing to `ActsAsTenant::Current`.
       #
-      # No cubre SQL crudo (`find_by_sql`, `connection.execute`): eso lo cierra RLS (M4.03).
+      # Raw SQL (`find_by_sql`, `connection.execute`) is not covered: RLS closes that.
       #
-      # Los caminos legítimos (reportes consolidados, back-office) se añaden a AllowedFiles en .rubocop.yml, con revisión
-      # (CODEOWNERS), uno por uno: no se desactiva el cop con comentarios rubocop:disable.
+      # Legitimate paths (consolidated reports, back-office) are added to AllowedFiles in .rubocop.yml, one by one and
+      # with review (CODEOWNERS): the cop is not disabled with rubocop:disable comments.
       #
       # @example
       #   # bad
@@ -35,10 +34,9 @@ module RuboCop
         ].freeze
         CURRENT_METHODS = %i[current_tenant= acts_as_tenant_unscoped= acts_as_tenant_mutable= set].freeze
         SEND_METHODS = %i[send public_send __send__].freeze
-        # Métodos de relación que quitan/reemplazan la condición del tenant (siempre, o según sus argumentos).
-        # Escrituras masivas: se saltan callbacks y validaciones (TenantWriteGuard las acota en ejecución; aquí se revisan).
+        # Bulk writes skip callbacks and validations (TenantWriteGuard bounds them at runtime; here they are reviewed).
         BULK_METHODS = %i[upsert_all upsert insert_all insert_all!].freeze
-        BULK_ON_CONSTANT_METHODS = %i[insert insert!].freeze # `insert` también existe en Array/String: solo con Constante.insert
+        BULK_ON_CONSTANT_METHODS = %i[insert insert!].freeze # `insert` also exists on Array/String: only Constant.insert
         TENANT_COLUMN_WRITERS = %i[update_all update_columns update_column].freeze
         RELATION_METHODS = %i[unscoped unscope rewhere except only].freeze
 
@@ -62,7 +60,6 @@ module RuboCop
 
         private
 
-        # Nombre del bypass que el nodo intenta, o nil si es una llamada inocente.
         def bypass_method(node)
           return send_target(node) if SEND_METHODS.include?(node.method_name) && node.first_argument
           return node.method_name if acts_as_tenant_call?(node) && ACTS_AS_TENANT_METHODS.include?(node.method_name)
@@ -86,7 +83,7 @@ module RuboCop
           (node.sym_type? || node.str_type?) && node.value.to_s.match?(/\borganization_id\b/)
         end
 
-        # `x.send(:unscoped)` / `x.public_send("without_tenant")`: se mira el método destino.
+        # `x.send(:unscoped)` / `x.public_send("without_tenant")`: the target method is inspected.
         def send_target(node)
           name = node.first_argument
           return unless name.sym_type? || name.str_type?

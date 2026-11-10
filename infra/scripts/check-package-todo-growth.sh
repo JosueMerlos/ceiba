@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# Falla si el cambio AGREGA líneas a algún package_todo.yml (docs/architecture/02-modular-monolith.md,
-# regla 4: las violaciones no se "aceptan para después"). Solo se permite que la deuda baje.
+# Fails if the change ADDS lines to any package_todo.yml: violations are not "accepted for later". Debt may only shrink.
 #
 #   infra/scripts/check-package-todo-growth.sh [base]
 #
-# Compara el árbol de trabajo (cambios sin commitear incluidos) con el merge-base entre `base` y HEAD:
-#   - en un PR de CI:  base = origin/<rama destino>  (CI pasa BASE_REF)
-#   - en un push a main: base = el SHA anterior al push (CI pasa BASE_REF); si es 000... (primer push), HEAD~1
-#   - en local: base = main (u origin/main si existe y main no)
-# Requiere historial suficiente para calcular el merge-base (en CI: fetch-depth: 0).
+# Compares the working tree (uncommitted changes included) with the merge-base between `base` and HEAD:
+#   - in a CI PR:      base = origin/<target branch>  (CI passes BASE_REF)
+#   - on a push to main: base = the SHA before the push (CI passes BASE_REF); if it is 000... (first push), HEAD~1
+#   - locally: base = main (or origin/main if it exists and main does not)
+# Needs enough history to compute the merge-base (in CI: fetch-depth: 0).
 set -euo pipefail
 
 repo_root=$(git rev-parse --show-toplevel)
@@ -20,8 +19,8 @@ if [ -z "$base_ref" ]; then
     if git rev-parse --verify --quiet "$candidate^{commit}" >/dev/null; then base_ref=$candidate; break; fi
   done
 fi
-# Primer push de una rama (p. ej. el primero a main): GitHub informa el SHA previo como 40 ceros.
-# Se compara con el padre de HEAD; si no hay (un solo commit), no hay contra qué comparar.
+# First push of a branch (e.g. the first to main): GitHub reports the previous SHA as 40 zeros.
+# Compare with HEAD's parent; with none (a single commit) there is nothing to compare against.
 if [[ "$base_ref" =~ ^0+$ ]]; then
   if git rev-parse --verify --quiet "HEAD~1^{commit}" >/dev/null; then
     base_ref="HEAD~1"
@@ -42,9 +41,9 @@ fi
 
 pathspec=(':(glob)**/package_todo.yml')
 
-# Líneas agregadas en archivos versionados (cuenta también los archivos nuevos)...
+# Lines added in tracked files (new files count too)...
 added=$(git diff --no-ext-diff -U0 "$base" -- "${pathspec[@]}" | grep -E '^\+' | grep -vE '^\+\+\+ ' || true)
-# ...y en archivos nuevos sin versionar todavía.
+# ...and in new files not yet tracked.
 while IFS= read -r untracked; do
   [ -n "$untracked" ] && added+=$'\n'"$(sed 's/^/+/' "$untracked")"
 done < <(git ls-files --others --exclude-standard -- "${pathspec[@]}")

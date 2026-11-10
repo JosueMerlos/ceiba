@@ -1,6 +1,6 @@
 require "rails_helper"
 
-# Criterio 1 de M0.04: `rails g model Foo` + migrar => foos.id es uuid con default uuidv7().
+# `rails g model Foo` + migrate => foos.id is uuid with default uuidv7().
 RSpec.describe "rails g model con las convenciones de BD" do
   let(:app) { TemporaryAppCopy.new(database: "ceiba_generator_probe").create }
 

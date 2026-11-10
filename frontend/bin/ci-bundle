@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Presupuestos de bundle (M0.12): construye booking y panel y exige que el JS CRÍTICO de cada uno (entrada + imports
-# estáticos, sin lo cargado bajo demanda) no supere su límite en gzip. Los límites viven en bundle-budgets.json (UNA sola
-# fuente; los tests no los repiten). Se ejecuta desde frontend/.
-#   booking 150 KiB (ADR-0015: móvil en 3G; subirlo exige cambiar el ADR)
-#   panel   220 KiB (medido 198.5 KiB + ~10 % de margen; el panel no es móvil-first)
-# Mide solo JS (el CSS y las fuentes no cuentan aquí).
+# Bundle budgets: builds booking and panel and requires each one's CRITICAL JS (entry + static imports, excluding
+# on-demand chunks) to stay under its gzip limit. Limits live in bundle-budgets.json (a SINGLE source; tests do not
+# repeat them). Runs from frontend/.
+#   booking 150 KiB (mobile on 3G; raising it is a deliberate decision)
+#   panel   220 KiB (measured 198.5 KiB + ~10 % margin; the panel is not mobile-first)
+# Measures JS only (CSS and fonts do not count here).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

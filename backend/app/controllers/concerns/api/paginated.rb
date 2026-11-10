@@ -1,5 +1,5 @@
 module Api
-  # Respuesta paginada estándar: { data: [...], page: { next_cursor, has_more } } (docs/architecture/07-api-contract.md).
+  # Standard paginated response: { data: [...], page: { next_cursor, has_more } }.
   #
   #   def index = render_page(company_scope, serializer: CompanySerializer)
   module Paginated

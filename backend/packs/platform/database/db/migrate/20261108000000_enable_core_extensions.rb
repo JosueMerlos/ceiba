@@ -1,8 +1,8 @@
-# Extensiones de PostgreSQL que usa todo el producto (docs/architecture/09-data-conventions.md):
-#   btree_gist  exclusion constraints que combinan = y && (integridad de agenda, ADR-0018)
-#   citext      correos y slugs sin distinguir mayúsculas
-# Ambas son "trusted": las puede crear app_owner sin ser superusuario. pg_stat_statements NO va aquí
-# (exige superusuario y precarga): ver infra/db/init-roles.sh.
+# PostgreSQL extensions used across the product:
+#   btree_gist  exclusion constraints that combine = and && (schedule integrity)
+#   citext      case-insensitive emails and slugs
+# Both are "trusted", so app_owner can create them without superuser. pg_stat_statements is NOT enabled here
+# (it needs superuser and preloading); see infra/db/init-roles.sh.
 class EnableCoreExtensions < ActiveRecord::Migration[8.1]
   def change
     enable_extension "btree_gist"

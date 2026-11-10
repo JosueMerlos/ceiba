@@ -1,11 +1,11 @@
 module Observability
-  # Los campos de tenant y principal que acompañan a cada línea de log (requests y jobs). Nunca PII: solo identificadores.
+  # Tenant and principal fields that accompany every log line (requests and jobs). Never PII: identifiers only.
   #
-  # Genérico a propósito: lee Current.context / Current.principal y, si NO hay contexto vivo, el recordado en
-  # Observability::LogContext (la línea se escribe cuando el bloque de `Tenancy.with_context` ya terminó). Es UNA fuente por
-  # llamada: nunca se mezclan campos de un contexto vivo con restos de otro anterior. Cuando M0.08 traiga Access::Principal
-  # no hay que tocar nada aquí: el tipo sale de `actor_type` (contrato de M0.11), `kind` o del nombre de la clase, y el id puede faltar
-  # (el principal del sistema no tiene).
+  # Generic on purpose: reads Current.context / Current.principal and, if there is NO live context, the one remembered
+  # in Observability::LogContext (the line is written after the `Tenancy.with_context` block ended). One source per
+  # call: fields of a live context are never mixed with leftovers of a previous one. A new principal type needs no
+  # change here: the type comes from `actor_type`, `kind` or the class name, and the id may be absent (the system
+  # principal has none).
   module LogFields
     KEYS = %i[organization_id company_id branch_id principal_type principal_id].freeze
 
@@ -17,8 +17,8 @@ module Observability
       tenant.merge(principal_type: principal && principal_type(principal), principal_id: principal.try(:id))
     end
 
-    # request_id y remote_ip: los que Api::RequestMetadata dejó en Current (los mismos que anota la auditoría, ya saneados por
-    # NetworkTrust). Si la request no llegó a ese before_action, los de la propia request.
+    # request_id and remote_ip: those Api::RequestMetadata left in Current (the same the audit trail records, already
+    # sanitized by NetworkTrust). If the request never reached that before_action, the request's own.
     def request(request)
       { request_id: Current.request_id || request.request_id, remote_ip: Current.ip || request.remote_ip }
     end

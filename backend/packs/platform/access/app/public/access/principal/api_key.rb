@@ -1,7 +1,7 @@
 module Access
   module Principal
-    # Integraciones con API key (Bearer). SOLO LA INTERFAZ: la implementación (scopes `read:<modulo>` / `write:<modulo>`
-    # traducidos a permisos) llega con M4.02. Mientras tanto niega todo: nada puede construir uno que autorice por error.
+    # API key (Bearer) integrations. INTERFACE ONLY: scopes `read:<module>` / `write:<module>` are not yet translated to
+    # permissions. It denies everything, so nothing can build one that authorizes by mistake.
     class ApiKey
       include Principal
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Prueba de infra/db/init-roles.sh en una base efímera: como superusuario se crean una tabla con IDENTITY, una
-# con serial, una vista, una vista materializada, una función y una tabla particionada con partición; el script
-# se ejecuta DOS veces (debe ser idempotente) y todo debe terminar siendo de app_owner.
+# Tests infra/db/init-roles.sh on a throwaway database: as superuser it creates a table with IDENTITY, one with serial, a
+# view, a materialized view, a function and a partitioned table with a partition; the script runs TWICE (it must be
+# idempotent) and everything must end up owned by app_owner.
 #
-# Variables: las mismas que init-roles.sh (APP_*_PASSWORD, PG*/POSTGRES_*/DB_HOST) y, opcional, INIT_ROLES
-# (ruta del script; por defecto el contiguo). bin/ci lo corre dentro del contenedor db:
+# Variables: same as init-roles.sh (APP_*_PASSWORD, PG*/POSTGRES_*/DB_HOST) and optionally INIT_ROLES (script path;
+# defaults to the sibling script). bin/ci runs it inside the db container:
 #   docker compose exec -T db env INIT_ROLES=/docker-entrypoint-initdb.d/10-roles.sh bash -s < infra/db/init-roles_test.sh
 set -euo pipefail
 

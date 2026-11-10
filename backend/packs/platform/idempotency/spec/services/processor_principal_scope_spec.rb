@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Alcance de la clave por principal (M0.11 con los principales de M0.08): `actor_type:id`; un principal SIN id (ApiKey y
-# PublicToken hasta M4.02/M3.04, System) comparte el alcance `anonymous` y por eso exige una clave UUID.
+# Key scope per principal: `actor_type:id`; a principal WITHOUT an id (ApiKey and PublicToken for now, System) shares
+# the `anonymous` scope and so requires a UUID key.
 RSpec.describe Idempotency::Processor do # rubocop:disable RSpec/SpecFilePathFormat
   def scope_for(principal) = Current.set(principal:) { described_class.new(request: nil, response: nil, required: false).send(:principal_key) }
 

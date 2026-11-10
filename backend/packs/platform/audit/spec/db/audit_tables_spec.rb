@@ -1,12 +1,12 @@
 require "rails_helper"
 
-# Esquema y garantía append-only de la auditoría (M0.11, ADR-0022).
+# Schema and append-only guarantee of the audit trail.
 #
-#   audit_events       tabla TENANT: lo que ocurre dentro de una organización (negocio).
-#   auth_audit_events  tabla GLOBAL: eventos de identidad (login, logout, revocación), que no tienen organización
-#                      (users es global, ADR-0028). Ver docs/architecture/11-security.md.
+#   audit_events       TENANT table: what happens inside an organization (business).
+#   auth_audit_events  GLOBAL table: identity events (login, logout, revocation), which have no organization
+#                      (users is global).
 #
-# Ambas rechazan UPDATE, DELETE y TRUNCATE con un trigger de PostgreSQL: la garantía vive en la base, no en el código.
+# Both reject UPDATE, DELETE and TRUNCATE with a PostgreSQL trigger: the guarantee lives in the database, not in code.
 RSpec.describe "Tablas de auditoría" do
   let(:connection) { ApplicationRecord.connection }
 
@@ -63,7 +63,7 @@ RSpec.describe "Tablas de auditoría" do
     end
   end
 
-  # Criterio 1: SQL crudo como app_user (el rol con el que corre la aplicación y la suite).
+  # Raw SQL as app_user (the role the application and the suite run as).
   describe "append-only (criterio 1)" do
     let!(:organization) { create(:organization) }
     let(:event_id) { SecureRandom.uuid }
@@ -105,7 +105,8 @@ RSpec.describe "Tablas de auditoría" do
     end
   end
 
-  # app_user no es dueño: no puede desmontar la garantía (regresión: un cambio de privilegios o de propietario lo detectaría).
+  # app_user is not the owner: it cannot dismantle the guarantee (regression guard against a privilege or ownership
+  # change).
   describe "app_user no puede desmontar el trigger" do
     {
       "desactivar el trigger" => "ALTER TABLE audit_events DISABLE TRIGGER USER",
@@ -129,7 +130,7 @@ RSpec.describe "Tablas de auditoría" do
     end
   end
 
-  # Guardián: las tablas tenant append-only que conoce la suite de aislamiento son EXACTAMENTE las que tienen el trigger.
+  # Guard: the append-only tenant tables known to the isolation suite are EXACTLY those with the trigger.
   describe "guardián de TenantIsolation::APPEND_ONLY_TABLES" do
     let(:trigger_tables) do
       ApplicationRecord.connection.select_values(<<~SQL.squish)
@@ -149,8 +150,8 @@ RSpec.describe "Tablas de auditoría" do
     end
   end
 
-  # Sin filas sembradas: la conexión de la suite (app_user) no debe tener la tabla bloqueada, o el DDL del dueño, desde
-  # otra conexión, esperaría eternamente a que termine la transacción de la suite.
+  # No seeded rows: the suite's connection (app_user) must not hold the table locked, or the owner's DDL from another
+  # connection would wait forever for the suite's transaction to end.
   describe "el dueño de la tabla" do
     %w[audit_events auth_audit_events].each do |table|
       it "#{table}: ni siquiera el DUEÑO puede truncarla mientras el trigger exista" do

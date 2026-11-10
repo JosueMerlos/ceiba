@@ -4,7 +4,6 @@ import { useMe } from "../me/me-provider";
 import { ContextMenu, type ContextLevel } from "./context-menu";
 import { useContextSelection } from "./context-provider";
 
-/** Contenedor: pide las opciones de cada nivel a la API y le pasa al menú lo que hay que mostrar. */
 export function ContextSelector() {
   const { t } = useTranslation("shell");
   const { context } = useMe();
@@ -16,7 +15,7 @@ export function ContextSelector() {
   const companies = useCompaniesQuery(organizationId);
   const branches = useBranchesQuery(organizationId, companyId);
 
-  // Mientras cargan las listas el selector reserva su sitio (sin parpadeo: aparecer de golpe movería la cabecera).
+  // While the lists load the selector reserves its space (no flicker: appearing suddenly would shift the header).
   if (organizations.isLoading || companies.isLoading || branches.isLoading) {
     return (
       <div
@@ -27,7 +26,7 @@ export function ContextSelector() {
     );
   }
 
-  // «Todas las sucursales» no cuenta como opción: con una sola sucursal real no hay nada que elegir.
+  // "All branches" does not count as an option: with a single real branch there is nothing to choose.
   const realBranches = (branches.data?.data ?? []).map(({ id, name }) => ({
     value: id,
     label: name,
@@ -47,7 +46,7 @@ export function ContextSelector() {
           organization.status === "suspended"
             ? t("context.suspended", { name: organization.name })
             : organization.name,
-        // Una organización suspendida responde 403 en /me: elegirla dejaría al usuario sin pantalla.
+        // A suspended organization answers 403 on /me: choosing it would leave the user with no screen.
         disabled: organization.status === "suspended",
       })),
     },

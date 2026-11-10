@@ -1,5 +1,5 @@
 module Idempotency
-  # Otra petición con la misma Idempotency-Key sigue en curso y no terminó dentro de la espera acotada. La API responde
-  # 409 idempotency.request_in_progress: el cliente reintenta con la MISMA clave y recibe la respuesta guardada.
+  # Another request with the same key is still running past the bounded wait: the client retries with the SAME key and
+  # gets the stored response.
   class RequestInProgress < Error; end
 end

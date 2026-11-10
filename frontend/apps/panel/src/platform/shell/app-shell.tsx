@@ -7,7 +7,7 @@ import { useMe } from "../me/me-provider";
 import { SilentBoundary } from "./silent-boundary";
 import { UserMenu } from "./user-menu";
 
-/** Layout del panel: la navegación sale SOLO de /me (módulos activos y permisos), nunca de una lista fija. */
+/** Panel layout: navigation comes ONLY from /me (active modules and permissions), never from a fixed list. */
 export function AppShell() {
   const { t } = useTranslation(["shell", "common"]);
   const me = useMe();

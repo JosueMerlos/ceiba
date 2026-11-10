@@ -1,7 +1,6 @@
 require "rails_helper"
 
-# Suite de eventos de plataforma (M0.10, docs/architecture/12-testing-strategy.md, suite 6). Descubre los eventos y los
-# suscriptores de TODOS los packs: uno nuevo entra solo.
+# Platform events suite. Discovers the events and subscribers of ALL packs: a new one gets in on its own.
 RSpec.describe "Suite de eventos de plataforma" do
   let(:published_names) do
     sources = Rails.root.glob("{app,lib,db,config}/**/*.rb") + Rails.root.glob("packs/*/*/{app,lib,db,config}/**/*.rb")

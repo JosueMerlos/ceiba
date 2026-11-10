@@ -1,6 +1,6 @@
 module Tenancy
-  # Traduce los fallos de persistencia (validaciones y la restricción UNIQUE del slug) a Tenancy::ProvisioningFailed,
-  # el error de dominio que ven quienes llaman a la API pública. Privado del pack.
+  # Translates persistence failures (validations and the slug UNIQUE constraint) into Tenancy::ProvisioningFailed, the domain
+  # error public API callers see. Private to the pack.
   module FailureTranslator
     SLUG_CONSTRAINT = "uq_companies_slug".freeze
 
@@ -21,13 +21,13 @@ module Tenancy
       ProvisioningFailed.new(:slug_taken, message, details: { company: { slug: [ message ] } })
     end
 
-    # Nombre de la restricción de BD violada por un ActiveRecord::StatementInvalid (nil si no se puede saber).
+    # Name of the DB constraint a StatementInvalid violated (nil if unknown).
     def violated_constraint(error)
       error.cause&.result&.error_field(PG::Result::PG_DIAG_CONSTRAINT_NAME)
     end
 
-    # Ejecuta el bloque y convierte los fallos previstos en ProvisioningFailed. `slug:` es el slug pedido, para el caso
-    # de la carrera en que gana la restricción UNIQUE de la base.
+    # Runs the block and turns expected failures into ProvisioningFailed. `slug:` is the requested slug, for the race where the
+    # database UNIQUE constraint wins.
     def translating(slug: nil)
       yield
     rescue ActiveRecord::RecordInvalid => error

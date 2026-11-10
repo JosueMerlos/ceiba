@@ -1,6 +1,6 @@
 require "rails_helper"
 
-# Bordes de PUT/PATCH de módulos que el contrato rswag no recorre.
+# PUT/PATCH edge cases the rswag contract does not cover.
 RSpec.describe "Módulos de una empresa: bordes" do
   include_context "con el módulo sample sincronizado"
 

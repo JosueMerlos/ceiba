@@ -1,9 +1,8 @@
-# Comprueba las dependencias críticas con timeouts cortos para que un servicio caído o colgado
-# no deje ocupados los hilos de Puma (y con ellos /api/health). Los errores se registran,
-# pero nunca se exponen en la respuesta.
+# Checks the critical dependencies with short timeouts so a down or hung service does not tie up Puma threads (and
+# /api/health with them). Errors are logged, never exposed in the response.
 #
-# PostgreSQL se consulta con una conexión efímera propia (connect_timeout + statement_timeout +
-# timeout duro): así un servidor congelado no retiene ni contamina el pool de Active Record.
+# PostgreSQL is queried over its own ephemeral connection (connect_timeout + statement_timeout + hard timeout): a
+# frozen server neither holds nor contaminates the Active Record pool.
 class ReadinessCheck
   Result = Data.define(:checks) do
     def ready? = checks.values.all?(true)
@@ -16,7 +15,7 @@ class ReadinessCheck
     end
   end
 
-  TIMEOUT = 1 # segundos, por dependencia
+  TIMEOUT = 1 # seconds, per dependency
 
   def initialize(redis_url: Rails.configuration.x.redis_url,
                  database_config: Rails.configuration.x.readiness_database_config.presence ||

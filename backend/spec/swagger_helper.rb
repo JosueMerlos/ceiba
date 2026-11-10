@@ -1,13 +1,13 @@
 require "rails_helper"
 
-# Configuración de rswag (M0.06, ADR-0012). Los specs de rswag (spec/api y packs/*/*/spec/api) hacen dos cosas:
-#   1. validan cada respuesta REAL contra el esquema declarado. Los esquemas llevan `required` y `additionalProperties: false`
-#      a mano (no `openapi_strict_schema_validation`, que vuelve obligatorios los campos opcionales como `detail`): un campo
-#      de más o de menos en el serializer rompe el spec;
-#   2. generan backend/openapi/v1.yaml (`bin/rails openapi:generate`), que se versiona y del que sale el cliente TS.
+# rswag configuration. The rswag specs (spec/api and packs/*/*/spec/api) do two things:
+#   1. validate every REAL response against the declared schema. Schemas carry `required` and
+#      `additionalProperties: false` by hand (not `openapi_strict_schema_validation`, which makes optional fields such as
+#      `detail` mandatory): an extra or missing serializer field breaks the spec;
+#   2. generate backend/openapi/v1.yaml (`bin/rails openapi:generate`), which is versioned and feeds the TS client.
 #
-# Los componentes compartidos (Problem, ValidationProblem...) se definen aquí; cada pack aporta los suyos en
-# packs/<capa>/<pack>/spec/openapi_components.rb (un Hash nombre => esquema).
+# Shared components (Problem, ValidationProblem...) are defined here; each pack contributes its own in
+# packs/<layer>/<pack>/spec/openapi_components.rb (a name => schema Hash).
 module OpenapiComponents
   PROBLEM_FIELDS = {
     type: { type: :string, description: "URN estable del tipo de problema", example: "urn:ceiba:error:resource.not_found" },
@@ -50,8 +50,8 @@ module OpenapiComponents
     }.merge(pack_components)
   end
 
-  # Header Idempotency-Key (M0.11, docs/architecture/07-api-contract.md#idempotencia) y sus errores, para que cada endpoint de
-  # creación idempotente los referencie con $ref. El patrón y el largo son los de Idempotency::Processor::VALID_KEY.
+  # Idempotency-Key header and its errors, so every idempotent create endpoint references them with $ref. The pattern and
+  # length are those of Idempotency::Processor::VALID_KEY.
   IDEMPOTENCY_KEY_PARAMETER = {
     name: "Idempotency-Key", in: :header, required: false,
     description: "Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta " \
@@ -90,7 +90,7 @@ module OpenapiComponents
     }
   end
 
-  # Cada packs/*/*/spec/openapi_components.rb llama a OpenapiComponents.register(Nombre: {...}).
+  # Each packs/*/*/spec/openapi_components.rb calls OpenapiComponents.register(Name: {...}).
   def self.register(components) = registered.merge!(components)
   def self.registered = (@registered ||= {})
 

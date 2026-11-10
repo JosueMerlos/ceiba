@@ -1,6 +1,5 @@
-# Convenciones de BD de la plataforma (M0.04). Los helpers de migración se instalan en el adaptador de
-# PostgreSQL; viven en lib/ (no se recargan) para que el adaptador no conserve referencias a módulos
-# descargados. La API pública consultable (Database::TenantTables) está en app/public.
+# The migration helpers are installed into the PostgreSQL adapter. They live in lib/ (not reloaded) so the adapter
+# never keeps references to unloaded modules.
 require_relative "../../lib/database/uuid_primary_key"
 require_relative "../../lib/database/table_definition"
 require_relative "../../lib/database/schema_statements"

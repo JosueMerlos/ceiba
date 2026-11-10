@@ -1,19 +1,18 @@
 module Access
-  # Resuelve el contexto de una request desde la RUTA y lo valida contra los memberships del principal, antes de que corra la
-  # acción (docs/architecture/03-multi-tenancy.md, 04-access-control.md):
+  # Resolves a request's context from the ROUTE and validates it against the principal's memberships before the action runs:
   #
   #   organizations/:organization_id/companies/:company_id/branches/:branch_id
   #
-  # Reglas:
-  #   - La organización, la empresa y la sucursal salen de la RUTA, nunca del cuerpo.
-  #   - Organización inexistente o sin membership del principal => 404 (el MISMO que una inexistente: no revela existencia).
-  #   - Empresa o sucursal fuera del alcance de sus memberships, o de otra organización/empresa => 404.
-  #   - Organización suspendida (el principal es miembro) => 403 Access::OrganizationSuspended. Es una decisión de ACCESO, no de
-  #     tenancy: Tenancy.with_context sí acepta una organización suspendida.
-  #   - Todo corre dentro de Tenancy.with_context (una transacción, de SOLO LECTURA en GET/HEAD); lo que lance la acción, o un
-  #     verify_*, revierte lo escrito.
+  # Rules:
+  #   - Organization, company and branch come from the ROUTE, never from the body.
+  #   - Nonexistent organization or no membership => 404 (the SAME as nonexistent: existence is not revealed).
+  #   - Company or branch outside its memberships' scope, or of another organization/company => 404.
+  #   - Suspended organization (principal is a member) => 403 Access::OrganizationSuspended. An ACCESS decision, not a
+  #     tenancy one: Tenancy.with_context does accept a suspended organization.
+  #   - Everything runs inside Tenancy.with_context (one transaction, READ-ONLY on GET/HEAD); anything the action or a
+  #     verify_* raises rolls back what was written.
   #
-  # La única consulta de permisos de la request ocurre aquí (Principal::User#activate!).
+  # The request's only permissions query happens here (Principal::User#activate!).
   class RouteContextResolver
     def self.call(principal:, organization_id:, company_id: nil, branch_id: nil, read_only: false, &)
       new(principal:, organization_id:, company_id:, branch_id:, read_only:).call(&)
@@ -41,7 +40,7 @@ module Access
     private
 
     def within_company_and_branch(organization, &block)
-      # Una sucursal sin empresa no es una ruta válida: se rechaza, no se ignora.
+      # A branch without a company is not a valid route: reject it, do not ignore it.
       not_found! if @company_id.nil? && !@branch_id.nil?
       return block.call(Current.context) if @company_id.nil?
 
@@ -59,7 +58,7 @@ module Access
       branch
     end
 
-    # Un parámetro que no es una cadena (?organization_id[]=…) no es un id: mismo 404.
+    # A non-string param (?organization_id[]=…) is not an id: same 404.
     def identifier(value) = value.is_a?(String) ? value : not_found!
 
     def not_found! = raise(ActiveRecord::RecordNotFound, "No se encontró el recurso")

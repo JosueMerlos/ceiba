@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# La API pública de idempotency es CHICA a propósito: el concern de controlador y los errores de dominio. El modelo y el
-# procesador son internos.
+# The public API of idempotency is SMALL on purpose: the controller concern and the domain errors. The model and the
+# processor are internal.
 RSpec.describe "API pública de idempotency" do
   let(:root) { Rails.root.join("packs/platform/idempotency/app/public") }
   let(:public_files) { root.glob("**/*.rb").map { |file| file.relative_path_from(root).to_s } }

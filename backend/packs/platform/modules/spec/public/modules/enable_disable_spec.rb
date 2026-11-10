@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Criterios 4 y 8 de M0.09: Enable/Disable idempotentes (una fila, on_enable una vez), con `requires`, eventos
-# platform.module_enabled/disabled.v1 en la MISMA transacción, y desactivar no borra nada.
+# Idempotent Enable/Disable (one row, on_enable once) honoring `requires`, platform.module_enabled/disabled.v1 events in the
+# SAME transaction, and disabling deletes nothing.
 RSpec.describe "Modules::Enable y Modules::Disable" do
   let(:organization) { create(:organization) }
   let(:company) { create_in(organization, :company) }

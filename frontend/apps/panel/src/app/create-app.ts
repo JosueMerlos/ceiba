@@ -7,18 +7,18 @@ import { loginPathFor } from "../platform/auth/return-path";
 import { createAppRouter, type History } from "./router";
 
 interface CreateAppOptions {
-  /** Origen de la API. Vacío = mismo origen (producción y desarrollo detrás del proxy, ADR-0013). */
+  /** API origin. Empty = same origin (production, and development behind the proxy). */
   apiBaseUrl?: string;
   history?: History;
-  /** `false` en pruebas: las consultas fallidas no se reintentan. */
+  /** `false` in tests: failed queries are not retried. */
   retry?: false;
-  /** Pruebas: reemplaza las páginas dentro del layout (inicio y módulos). */
+  /** Tests: replaces the pages inside the layout (home and modules). */
   workspaceChildren?: RouteObject[];
 }
 
 /**
- * Compone todo lo que vive durante la sesión del navegador: i18n, cliente de la API, caché de consultas y router.
- * Una función (no módulos con estado global) para que cada test monte su propio panel aislado.
+ * Composes everything that lives for the browser session: i18n, API client, query cache and router.
+ * A function (not global-state modules) so each test mounts its own isolated panel.
  */
 export async function createApp({
   apiBaseUrl = "",
@@ -35,9 +35,9 @@ export async function createApp({
     onUnauthorized: (fromSession) => {
       const { location } = router.state;
       if (location.pathname === "/login") return;
-      // La sesión terminó: nada de lo cacheado debe verlo quien inicie sesión después en este navegador.
+      // The session ended: nothing cached may be seen by whoever logs in next in this browser.
       if (!fromSession) queryClient.clear();
-      // Una 401 de la sesión misma es un enlace en frío; cualquier otra es una sesión que venció en uso.
+      // A 401 from the session itself is a cold deep link; any other 401 is a session that expired during use.
       void router.navigate(loginPathFor(location, { expired: !fromSession }), { replace: true });
     },
     notify: (error) => {

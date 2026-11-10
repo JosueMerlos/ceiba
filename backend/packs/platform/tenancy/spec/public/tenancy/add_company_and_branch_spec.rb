@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Alta de empresas y sucursales ADICIONALES de una organización ya provisionada (seeds, back-office M4.01): el camino
-# público para no tocar los modelos privados del pack.
+# Creating ADDITIONAL companies and branches in an already provisioned organization (seeds, back-office): the public path
+# that avoids touching the pack's private models.
 RSpec.describe "Alta de empresas y sucursales adicionales" do
   let(:result) do
     Tenancy::ProvisionOrganization.call(

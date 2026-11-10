@@ -1,7 +1,5 @@
 require "rails_helper"
 
-# Criterio 2 de M0.04: `create_tenant_table` crea una tabla con organization_id NOT NULL, FK a organizations,
-# UNIQUE(organization_id, id) y la política tenant_isolation registrada, con RLS deshabilitado.
 RSpec.describe "create_tenant_table", :tenant_schema do
   def create_branches(owner)
     owner.create_tenant_table(:branches) do |t|

@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Criterio 10 de M0.05: con una BD vacía, `bin/rails db:seed` dos veces deja exactamente las 2 organizaciones de demo.
-# Corre sobre una copia de la app con su propia base (como app_user, el rol de los seeds) y en procesos nuevos.
+# With an empty DB, `bin/rails db:seed` twice leaves exactly the 2 demo organizations. Runs on a copy of the app with its
+# own database (as app_user, the seeds' role) and in new processes.
 RSpec.describe "db/seeds.rb" do
   let(:app) { TemporaryAppCopy.new(database: "ceiba_seeds_probe").create }
 
@@ -143,7 +143,7 @@ RSpec.describe "db/seeds.rb" do
         puts principal.can?("platform.branch.create", Access::Scope.organization(org.id))
       RUBY
 
-      expect(ok).to eq("false") # company_manager no crea cosas a nivel de organización
+      expect(ok).to eq("false") # company_manager does not create things at organization level
     end
   end
 

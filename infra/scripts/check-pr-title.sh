@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Valida que un título de PR siga conventional commits: tipo(ámbito opcional)!: asunto
-# Es la ÚNICA definición de la regla: la usan el workflow pr-title.yml y bin/ci.
-# Uso: check-pr-title.sh "feat(backend): add readiness check"
+# Validates that a PR title follows conventional commits: type(optional scope)!: subject
+# It is the ONLY definition of the rule: used by the pr-title.yml workflow and bin/ci.
+# Usage: check-pr-title.sh "feat(backend): add readiness check"
 set -euo pipefail
 
 types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
 pattern="^(${types})(\\([a-z0-9._/-]+\\))?!?: [^[:space:]].*\$"
 title="${1-}"
 
-# Un título de una sola línea (un salto de línea haría que el regex solo evaluara la primera).
+# A single-line title (a newline would make the regex evaluate only the first line).
 if [[ "$title" != *$'\n'* && "$title" =~ $pattern ]]; then
   echo "ok: el título sigue conventional commits"
   exit 0

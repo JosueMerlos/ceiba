@@ -1,4 +1,4 @@
 module Tenancy
-  # Se intentó cambiar el organization_id de un registro existente: un registro nunca cambia de tenant.
+  # Tried to change an existing record's organization_id: a record never changes tenant.
   class TenantIsImmutable < Error; end
 end

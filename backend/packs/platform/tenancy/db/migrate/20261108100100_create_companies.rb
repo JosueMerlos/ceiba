@@ -1,9 +1,9 @@
-# companies es tabla tenant: organization_id, FK a organizations, UNIQUE (organization_id, id) para las FKs
-# compuestas de sus hijas y la política RLS (deshabilitada hasta M4.03) las pone create_tenant_table.
+# companies is a tenant table: create_tenant_table adds organization_id, the FK to organizations, UNIQUE (organization_id, id)
+# for its children's composite FKs and the RLS policy (disabled for now).
 #
-# on_delete: restrict (el default). Borrar una organización con empresas es un offboarding explícito (exportar,
-# retener, borrar por organization_id: P3), nunca un efecto lateral de un DELETE; con cascade, un destroy
-# accidental de la organización borraría en silencio todo su negocio.
+# on_delete: restrict (the default). Deleting an organization with companies is an explicit offboarding (export, retain,
+# delete by organization_id), never a side effect of a DELETE; with cascade, an accidental destroy of the organization would
+# silently wipe its whole business.
 class CreateCompanies < ActiveRecord::Migration[8.1]
   def change
     create_tenant_table :companies do |t|
@@ -15,7 +15,7 @@ class CreateCompanies < ActiveRecord::Migration[8.1]
       t.string :status, null: false, default: "active"
       t.timestamps
 
-      # La URL pública es /c/:slug: único en TODA la plataforma, no por organización.
+      # The public URL is /c/:slug: unique across the WHOLE platform, not per organization.
       t.index :slug, unique: true, name: "uq_companies_slug"
       t.check_constraint "slug ~ '^[a-z0-9-]{3,40}$'", name: "chk_companies_slug_format"
       t.check_constraint "currency = 'NIO' OR currency = 'USD'", name: "chk_companies_currency"

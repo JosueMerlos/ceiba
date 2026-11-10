@@ -7,52 +7,52 @@ gem "pg", "~> 1.1"
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"
 
-# Jobs en segundo plano (ADR-0009). Solid Queue no se usa.
+# Background jobs run on Sidekiq; Solid Queue is not used.
 gem "sidekiq", "~> 8.1"
-# Eventos de dominio y outbox (M0.10): cron de segundos para el relay y validación de payloads por JSON Schema.
+# Domain events and outbox: second-level cron for the relay, and JSON Schema payload validation.
 gem "sidekiq-cron", "2.4.0"
 gem "json_schemer", "2.5.0"
-# Feature flags por organización (M0.09, docs/architecture/05-module-system.md): liberan funcionalidad NUEVA, no sustituyen una activación.
+# Per-organization feature flags: they roll out NEW functionality and do not replace module activation.
 gem "flipper", "1.4.2"
-# require: false — al cargarse define modelos de Active Record y adelantaría ActiveRecord::Base a la configuración de cifrado
-# (config/initializers/active_record_encryption.rb); se requiere desde el initializer de platform/modules.
+# require: false because loading it defines Active Record models, which would load ActiveRecord::Base before the
+# encryption config; it is required from the platform/modules initializer.
 gem "flipper-active_record", "1.4.2", require: false
 
-# Monolito modular (ADR-0001, M0.03): límites entre packs verificados por herramienta.
+# Modular monolith: pack boundaries are enforced by tooling.
 gem "packwerk", "3.3.1"
 gem "packwerk-extensions", "0.4.0"
 gem "packs-rails", "0.1.1"
 
-# Convenciones de base de datos (M0.04): migraciones peligrosas bloqueadas y traducciones es-NI.
+# Database conventions: dangerous migrations are blocked, plus es-NI translations.
 gem "strong_migrations", "2.8.0"
 gem "rails-i18n", "8.1.0"
 
-# Multi-tenancy (M0.05): el tenant es la organización (ADR-0003). Versión fijada.
+# Multi-tenancy: the tenant is the organization. Pinned version.
 gem "acts_as_tenant", "2.2.2"
 
-# Contrato API (M0.06, ADR-0012): serializers con Alba y documentación OpenAPI servida por rswag. Versiones fijadas.
+# API contract: Alba serializers and OpenAPI docs served by rswag. Pinned versions.
 gem "alba", "4.0.3"
 gem "rswag-api", "2.17.0"
 gem "rswag-ui", "2.17.0"
-# rswag-ui aún usa ostruct, que deja de ser gema por defecto en Ruby 4.0 (avisa en cada arranque).
+# rswag-ui still uses ostruct, which stops being a default gem in Ruby 4.0 (warns on every boot).
 gem "ostruct", "0.6.3"
 
-# Identidad y sesiones (M0.07, ADR-0017): has_secure_password usa bcrypt. Versión fijada.
+# Identity and sessions: has_secure_password uses bcrypt. Pinned version.
 gem "bcrypt", "3.1.22"
 
-# Control de acceso (M0.08, ADR-0007): Pundit con una policy por modelo dentro de su pack. Versión fijada.
+# Access control: Pundit with one policy per model inside its pack. Pinned version.
 gem "pundit", "2.5.2"
 
-# Observabilidad y seguridad base (M0.13). Versiones fijadas.
-# Logs de request en una línea estructurada (lograge, ver config/initializers/structured_logging.rb).
+# Baseline observability and security. Pinned versions.
+# One-line structured request logs (lograge).
 gem "lograge", "0.15.1"
-# Errores a Sentry: Rails (incluye Rails.error), Sidekiq y el SDK base. Sin DSN no se activa.
+# Errors to Sentry: Rails (including Rails.error), Sidekiq and the base SDK. Inactive without a DSN.
 gem "sentry-ruby", "7.2.0"
 gem "sentry-rails", "7.2.0"
 gem "sentry-sidekiq", "7.2.0"
-# Rate limiting capa 1 (ADR-0027). Se monta a mano en config/initializers/throttling.rb, después de RemoteIp.
+# Layer-1 rate limiting; mounted by hand in the throttling initializer, after RemoteIp.
 gem "rack-attack", "6.8.0", require: false
-# Store de Rack::Attack: ActiveSupport::Cache::RedisCacheStore necesita la gema redis (Sidekiq usa redis-client).
+# Rack::Attack store: ActiveSupport::Cache::RedisCacheStore needs the redis gem (Sidekiq uses redis-client).
 gem "redis", "6.0.0"
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
@@ -63,14 +63,13 @@ group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
 
-  # Tests (M0.02): RSpec reemplaza a minitest; FactoryBot para los datos de prueba.
+  # RSpec replaces minitest; FactoryBot provides test data.
   gem "rspec-rails", "~> 8.1"
   gem "factory_bot_rails", "~> 6.5"
-  # Los specs de rswag generan openapi/v1.yaml y validan cada respuesta contra el contrato (M0.06).
+  # rswag specs generate openapi/v1.yaml and validate every response against the contract.
   gem "rswag-specs", "2.17.0"
 
-  # Calidad y seguridad estáticas (M0.02).
-  # Estilo base de Rails 8 (omakase) + reglas de Rails y RSpec encima. Ver .rubocop.yml.
+  # Static quality and security checks.
   gem "rubocop-rails-omakase", "~> 1.1", require: false
   gem "rubocop-rails", "~> 2.38", require: false
   gem "rubocop-rspec", "~> 3.10", require: false

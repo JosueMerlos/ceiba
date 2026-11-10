@@ -1,8 +1,8 @@
 require "rails_helper"
 require "ci/pack_contract"
 
-# Contrato GLOBAL: recorre todos los packs/*/* reales. No depende de que cada pack traiga su propio
-# spec (que se podría borrar): editar un package.yml para saltarse el aislamiento rompe este spec.
+# GLOBAL contract: walks all the real packs/*/*. Does not depend on each pack shipping its own spec (which could be
+# deleted): editing a package.yml to skip isolation breaks this spec.
 RSpec.describe PackContract do
   it "se cumple en todos los packs del repositorio" do
     expect(described_class.new(Rails.root).violations).to be_empty

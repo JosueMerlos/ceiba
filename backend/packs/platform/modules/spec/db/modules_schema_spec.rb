@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Esquema de platform/modules (M0.09, ADR-0010): company_modules y branch_module_settings son tablas TENANT y la BASE rechaza lo
-# incoherente aunque el código se salte las validaciones.
+# company_modules and branch_module_settings are TENANT tables and the DATABASE rejects inconsistent rows even when code
+# skips validations.
 RSpec.describe "Esquema de platform/modules" do
   let(:connection) { ApplicationRecord.connection }
   let(:organization) { create(:organization) }
@@ -10,7 +10,7 @@ RSpec.describe "Esquema de platform/modules" do
 
   def quoted(*values) = values.map { |value| connection.quote(value) }.join(", ")
 
-  # Inserta SIN validaciones ni callbacks: lo que cuenta es lo que decide la base.
+  # Inserts WITHOUT validations or callbacks: only the database's verdict counts.
   def insert_company_module(org: organization, company_id: company.id, module_key: "sample", settings: "{}")
     savepoint do
       connection.execute("INSERT INTO company_modules (organization_id, company_id, module_key, enabled_at, settings, created_at, updated_at) " \

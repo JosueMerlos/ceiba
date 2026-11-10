@@ -1,5 +1,4 @@
-# Dependabot mensual (M0.02). Los mensajes usan "chore(deps)" / "ci(deps)" para pasar el check
-# de conventional commits del título del PR.
+# Monthly Dependabot. Commit messages use "chore(deps)" / "ci(deps)" so the PR title passes the conventional-commits check.
 version: 2
 updates:
   - package-ecosystem: bundler
@@ -19,10 +18,10 @@ updates:
     commit-message: { prefix: chore, include: scope }
     open-pull-requests-limit: 5
     ignore:
-      # packages/config fija typescript@6.0.3 solo porque typescript-eslint no soporta TS 7
-      # (peer ">=4.8.4 <6.1.0"), y packages/api-client porque openapi-typescript necesita la API de TS 6. Dependabot no permite ignorar por paquete del workspace, así
-      # que se descartan las subidas a 6.1-6.x y los saltos mayores de typescript; las menores
-      # y parches de TS 7.x (apps) siguen llegando. Quitar cuando typescript-eslint soporte TS 7.
+      # packages/config pins typescript@6.0.3 because typescript-eslint does not support TS 7 (peer ">=4.8.4 <6.1.0"), and
+      # packages/api-client because openapi-typescript needs the TS 6 API. Dependabot cannot ignore per workspace package,
+      # so bumps to 6.1-6.x and major jumps are dropped; minor and patch bumps of TS 7.x (apps) still arrive.
+      # Remove once typescript-eslint supports TS 7.
       - dependency-name: typescript
         versions: [">=6.1.0 <7.0.0"]
         update-types: ["version-update:semver-major"]

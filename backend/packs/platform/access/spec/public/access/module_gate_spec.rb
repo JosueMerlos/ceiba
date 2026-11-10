@@ -1,12 +1,12 @@
 require "rails_helper"
 
-# M0.09: el permiso efectivo exige además que el MÓDULO del permiso esté activo en la empresa del recurso (docs/architecture/04 y
-# 05). access no conoce a platform/modules (ciclo): este es el punto de extensión `Access.module_gate`, que modules implementa.
-# Aquí se prueba el contrato con un gate de mentira; la integración real (company_modules) está en el spec de modules.
+# The effective permission also requires the permission's MODULE to be active in the resource's company. access does not
+# know platform/modules (cycle): `Access.module_gate` is the extension point modules implements. The contract is tested
+# here with a fake gate; the real integration is covered in the modules spec.
 RSpec.describe "Access.module_gate (permisos de un módulo inactivo no aplican)" do
   include_context "con el módulo sample sincronizado"
 
-  # Un gate de mentira: qué módulos controla y en qué empresas están activos. Cuenta cuántas veces se le pregunta.
+  # A fake gate: which modules it controls and where they are active. Counts how many times it is asked.
   let(:gate_class) do
     Class.new do
       attr_reader :loads
@@ -130,13 +130,13 @@ RSpec.describe "Access.module_gate (permisos de un módulo inactivo no aplican)"
       grant(role_with(read, "organization"))
       with_tenant(other_org) { create(:membership, user_id: user.id, role: Access::Role.find_by!(key: "org_admin")) }
       subject_principal = principal
-      subject_principal.can?(read, company_scope(company_a)) # memoiza los módulos activos de la organización A
+      subject_principal.can?(read, company_scope(company_a)) # memoizes organization A's active modules
 
       with_tenant(other_org) { subject_principal.activate!(other_org.id) }
 
       with_tenant(other_org) { subject_principal.module_active?("sample", company_a.id) }
 
-      expect(gate.loads).to eq(2) # se volvió a preguntar: el memo no sobrevive a activate!
+      expect(gate.loads).to eq(2) # asked again: the memo does not survive activate!
     end
   end
 

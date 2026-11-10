@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# Carreras reales (COMMIT, hilos, conexiones distintas) entre activaciones de la misma empresa. La verificación de `requires` leía
-# el estado y luego escribía sin serializar (sonda R2): Enable de un complemento y Disable de su base podían COMMIT a la vez y dejar
-# un módulo activo sin lo que requiere. Enable y Disable serializan por empresa (pg_advisory_xact_lock).
+# Real races (COMMIT, threads, separate connections) between activations of the same company. The `requires` check used to
+# read state and then write without serializing: Enable of an add-on and Disable of its base could commit together and leave a
+# module active without what it requires. Enable and Disable now serialize per company (pg_advisory_xact_lock).
 RSpec.describe "Activaciones simultáneas de una empresa" do
   self.use_transactional_tests = false
 
@@ -20,7 +20,7 @@ RSpec.describe "Activaciones simultáneas de una empresa" do
   def disable(key) = with_tenant(organization) { Modules::Disable.call(company:, key:) }
   def state = with_tenant(organization) { %w[sample sample_addon].to_h { |key| [ key, Modules.enabled?(company, key) ] } }
 
-  # Alarga la ventana entre comprobar `requires` y hacer COMMIT: sin serializar, la otra transacción entra en ella.
+  # Widens the window between checking `requires` and COMMIT: without serializing, the other transaction slips into it.
   def slow_audit
     allow(Audit).to receive(:record).and_wrap_original do |original, **args|
       sleep 0.6 if args[:action] == "module.enabled"

@@ -1,4 +1,4 @@
 module Access
-  # Raíz de los errores del pack.
+  # Root of the pack's errors.
   class Error < StandardError; end
 end

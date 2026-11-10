@@ -33,7 +33,7 @@ describe("createI18n", () => {
   it("una clave inexistente falla en pruebas en vez de mostrarse cruda en silencio", async () => {
     const i18n = await createI18n({ onMissingKey: "throw" });
 
-    // @ts-expect-error la clave no existe en el catálogo tipado
+    // @ts-expect-error the key does not exist in the typed catalog
     expect(() => i18n.t("common:noExiste")).toThrow(/noExiste/);
   });
 });

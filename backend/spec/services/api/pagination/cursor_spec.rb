@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Criterio 6 de M0.06 y docs/architecture/07-api-contract.md: paginación por cursor sobre UUIDv7. El orden es el de la
-# clave primaria (que es temporal), no hay OFFSET, y el cursor es opaco y FIRMADO.
+# Cursor pagination over UUIDv7. Order is the primary key's (which is temporal), there is no OFFSET, and the cursor is
+# opaque and SIGNED.
 RSpec.describe Api::Pagination::Cursor do
   def create_organizations(count)
     Array.new(count) { create(:organization) }

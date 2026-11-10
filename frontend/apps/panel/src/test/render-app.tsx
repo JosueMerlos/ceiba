@@ -5,7 +5,7 @@ import { App } from "../app/app";
 import { createApp } from "../app/create-app";
 import { API } from "./fixtures";
 
-/** Monta el panel COMPLETO (providers, router, API simulada con MSW) en la ruta indicada. */
+/** Mounts the FULL panel (providers, router, MSW-mocked API) at the given path. */
 export async function renderApp({
   route = "/",
   workspaceChildren,

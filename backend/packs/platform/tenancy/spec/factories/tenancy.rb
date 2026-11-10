@@ -3,9 +3,9 @@ FactoryBot.define do
     sequence(:name) { |n| "Organización #{n}" }
   end
 
-  # Las factories tenant se usan DENTRO de un tenant (`with_tenant(org) { create(:company) }` o `create_in(org, :company)`):
-  # construir un modelo tenant sin tenant falla por diseño, y una factory no es un bypass. La organización de una
-  # empresa es la del tenant activo.
+  # Tenant factories are used INSIDE a tenant (`with_tenant(org) { create(:company) }` or `create_in(org, :company)`):
+  # building a tenant model without one fails by design, and a factory is not a bypass. A company's organization is the
+  # active tenant.
   factory :company, class: "Tenancy::Company" do
     organization { ActsAsTenant.current_tenant }
     sequence(:name) { |n| "Empresa #{n}" }
@@ -14,7 +14,7 @@ FactoryBot.define do
     currency { "NIO" }
   end
 
-  # organization_id sale de la EMPRESA, nunca se genera aparte: la FK compuesta lo exige.
+  # organization_id comes from the COMPANY, never generated separately: the composite FK demands it.
   factory :branch, class: "Tenancy::Branch" do
     company
     organization { company.organization }

@@ -1,7 +1,7 @@
 module Observability
-  # Verificación manual de Sentry (criterio 4 de M0.13): `bin/rails sentry:test[<organization_id>]` con SENTRY_DSN definido.
-  # Envía un error desde el proceso actual y encola un job que falla (lo ejecuta el worker, que también debe tener el DSN).
-  # Ambos deben aparecer en Sentry con el tag organization_id (y `job`, el del job).
+  # Manual Sentry check: `bin/rails sentry:test[<organization_id>]` with SENTRY_DSN set. Sends an error from the current
+  # process and enqueues a failing job (run by the worker, which must also have the DSN). Both must show up in Sentry
+  # with the organization_id tag (and `job`, the job's).
   module SentryCheck
     module_function
 
@@ -10,7 +10,7 @@ module Observability
 
       LogContext.organization_id = organization_id
       Sentry.capture_exception(RuntimeError.new("Error de prueba de Sentry desde la consola (sentry:test)"))
-      SentryTestJob.set("organization_id" => organization_id).perform_async # explícito: aquí no hay Tenancy.with_context
+      SentryTestJob.set("organization_id" => organization_id).perform_async # explicit: there is no Tenancy.with_context here
       :sent
     ensure
       LogContext.reset

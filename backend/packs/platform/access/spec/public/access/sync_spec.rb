@@ -1,7 +1,5 @@
 require "rails_helper"
 
-# Access.sync! lleva el registro en memoria (permisos declarados por los packs) a la BASE: permisos, roles de sistema y
-# role_permissions. Se ejecuta en cada despliegue y es idempotente (ADR-0008).
 RSpec.describe "Access.sync!" do
   let(:permission_registry) do
     Access::PermissionRegistry.new.tap do |permission_registry|
@@ -12,7 +10,7 @@ RSpec.describe "Access.sync!" do
     end
   end
 
-  # Deja la base EXACTAMENTE como el registro dado (la suite arranca con el catálogo real, que un registro de prueba retiraría).
+  # Leaves the database EXACTLY as the given registry (the suite boots with the real catalog, which a test registry would remove).
   def prime(registry) = Access.sync!(registry, allow_prune: true)
 
   def keys_of(role_key) = Access::Role.find_by!(key: role_key).role_permissions.pluck(:permission_key).sort

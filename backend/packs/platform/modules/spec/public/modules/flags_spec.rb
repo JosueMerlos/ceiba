@@ -1,13 +1,13 @@
 require "rails_helper"
 
-# Flipper (feature flags) con el actor `organization` (docs/architecture/05-module-system.md, "Tres conceptos"): un flag libera una
-# FUNCIONALIDAD NUEVA por organización; nunca sustituye una activación (company_modules) ni un entitlement. Sin flags todavía.
+# Flipper feature flags with the `organization` actor: a flag releases a NEW FEATURE per organization; it never replaces an
+# activation (company_modules) or an entitlement.
 RSpec.describe "Feature flags (Flipper)" do
   let(:organization) { create(:organization) }
   let(:other) { create(:organization) }
 
-  # Flipper trae `flipper/test_help`: en test usa un adaptador de memoria que se vacía en cada ejemplo. En el resto de entornos el
-  # adaptador es flipper-active_record (config/initializers/flipper.rb de modules); aquí se prueba contra la base real.
+  # `flipper/test_help` makes test use an in-memory adapter cleared on every example; other environments use
+  # flipper-active_record, so these examples run against the real database.
   it "tiene la versión fijada" do
     expect(Flipper::VERSION).to eq("1.4.2")
   end

@@ -1,10 +1,10 @@
 require "date"
 require "yaml"
 
-# Herramienta de CI, no código de la app: lib/ci está fuera de autoload_lib (config/application.rb).
-# Valida .bundler-audit.yml: cada entrada de `ignore` debe ir en su propia línea con
+# CI tooling, not app code: lib/ci is outside autoload_lib (config/application.rb).
+# Validates .bundler-audit.yml: each `ignore` entry must sit on its own line with
 #   - ID  # revisar: AAAA-MM-DD | motivo: texto
-# y la fecha no puede haber vencido. Nunca un ignorado permanente.
+# and the date must not have expired. Never a permanent ignore.
 class AuditIgnorePolicy
   COMMENT = /#\s*revisar:\s*(?<date>\S+)\s*\|\s*motivo:\s*(?<reason>\S.*)$/
 

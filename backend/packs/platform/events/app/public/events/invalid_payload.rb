@@ -1,5 +1,4 @@
 module Events
-  # El payload no cumple el esquema del evento.
   class InvalidPayload < Error
     attr_reader :event_name, :violations
 

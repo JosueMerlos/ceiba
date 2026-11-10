@@ -1,9 +1,9 @@
 module Events
-  # Registro de esquemas de eventos (JSON Schema). Cada pack declara los suyos en
-  # packs/<capa>/<pack>/app/public/<pack>/events/<nombre del evento>.json (p. ej.
-  # `platform.organization_provisioned.v1.json`); el nombre del archivo ES el nombre del evento.
+  # Registry of event schemas (JSON Schema). Each pack declares its own in
+  # packs/<layer>/<pack>/app/public/<pack>/events/<event name>.json (e.g. `platform.organization_provisioned.v1.json`);
+  # the file name IS the event name.
   #
-  # `register`/`unregister` añaden y retiran esquemas en memoria (para pruebas). Un evento sin esquema no se publica.
+  # `register`/`unregister` add and remove schemas in memory (for tests). An event without a schema is not published.
   module Schemas
     GLOB = "packs/*/*/app/public/*/events/*.json".freeze
     LOCK = Mutex.new
@@ -17,12 +17,10 @@ module Events
         LOCK.synchronize { registry[name.to_s] = JSONSchemer.schema(schema) }
       end
 
-      # El esquema crudo (Hash) de un evento registrado; UnknownEvent si no existe.
       def definition(name)
         (LOCK.synchronize { registry[name.to_s] } or raise UnknownEvent, name).value
       end
 
-      # Descarta lo registrado y vuelve a cargar el catálogo de archivos.
       def reload!
         LOCK.synchronize { @registry = nil }
         names
@@ -33,7 +31,7 @@ module Events
         LOCK.synchronize { registry.delete(name.to_s) }
       end
 
-      # Valida el payload y lo devuelve normalizado a JSON (claves en cadena). Lanza UnknownEvent o InvalidPayload.
+      # Returns the payload normalized to JSON (string keys); raises UnknownEvent or InvalidPayload.
       def validate!(name, payload)
         schemer = LOCK.synchronize { registry[name.to_s] } or raise UnknownEvent, name
         json = payload.as_json

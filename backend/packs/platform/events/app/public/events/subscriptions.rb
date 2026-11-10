@@ -1,8 +1,7 @@
 module Events
-  # Registro de suscriptores. Vive en la configuración de la aplicación y NO en un ivar de clase: en desarrollo las
-  # clases se recargan y perderían los registros (mismo criterio que los hooks de Tenancy::ProvisionOrganization).
-  # Registrar de nuevo el mismo (evento, suscriptor) lo reemplaza, así `config.to_prepare { Events.subscribe(...) }`
-  # es idempotente aunque corra en cada recarga.
+  # Subscriber registry. Lives in the application config and NOT in a class ivar: in development classes reload and
+  # would lose the registrations (same as the Tenancy::ProvisionOrganization hooks). Registering the same (event,
+  # subscriber) again replaces it, so `config.to_prepare { Events.subscribe(...) }` is idempotent even on every reload.
   module Subscriptions
     QUEUES = %w[critical default notifications low].freeze
     DEFAULT_QUEUE = "critical".freeze
@@ -27,7 +26,7 @@ module Events
         all.find { |subscription| subscription.event_name == event_name.to_s && subscription.subscriber == subscriber.to_s }
       end
 
-      # Sustituye todo el registro (lo usan las pruebas para aislarse).
+      # Replaces the whole registry (tests use it to isolate themselves).
       def replace(subscriptions) = update { subscriptions }
 
       private

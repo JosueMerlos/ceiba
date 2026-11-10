@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# Access::BasePolicy: DENY BY DEFAULT (ADR-0007). Una policy que no dice nada niega todo; un listado sin Scope no devuelve filas.
+# DENY BY DEFAULT: a policy that says nothing denies everything; a listing without a Scope returns no rows.
 RSpec.describe Access::BasePolicy do
-  let(:principal) { Access::Principal::System.new } # el más poderoso: aun así la base niega
+  let(:principal) { Access::Principal::System.new } # the most powerful principal: the base still denies
   let(:policy) { described_class.new(principal, Object.new) }
 
   it "niega todas las acciones estándar" do

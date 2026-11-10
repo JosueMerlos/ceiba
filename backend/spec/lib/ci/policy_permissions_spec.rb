@@ -2,7 +2,7 @@ require "rails_helper"
 require "ci/policy_permissions"
 require "tmpdir"
 
-# Criterio 8 de M0.08: un permiso usado en una policy y no registrado hace FALLAR la suite.
+# A permission used in a policy and not registered makes the suite FAIL.
 RSpec.describe PolicyPermissions do
   let(:root) { Pathname(Dir.mktmpdir("ceiba-policy-permissions")) }
 

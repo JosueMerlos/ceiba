@@ -1,22 +1,16 @@
-# Datos de demo.
-# Idempotente: se puede ejecutar cuantas veces haga falta (db:setup, db:seed, reset-db).
+# Demo data. Idempotent: safe to run as often as needed (db:setup, db:seed, reset-db).
 #
-# Usuario multiorganización (M0.12): ana@multi-org.ceiba.test es org_admin de Barbería El Güegüense y dueña de Café Volcán.
+# Runs as app_user and creates EVERYTHING through the packs' public APIs, never touching models directly, so a demo
+# organization starts in the same state as a real customer's.
 #
-# Corre como app_user (config/initializers/seed_role.rb) y crea TODO solo con las APIs públicas de los packs:
-# Tenancy::ProvisionOrganization (organización + primera empresa + primera sucursal + el dueño, por el hook de access),
-# Tenancy::AddCompany / Tenancy::AddBranch, Identity::ProvisionUser y Access::GrantRole. Nunca toca los modelos directamente:
-# el estado inicial de una organización de demo es el mismo que el de un cliente real.
-#
-# Idempotencia: la identidad de cada grupo es el slug de su primera empresa. Cada grupo se crea en UNA transacción; si el
-# slug ya existe, ProvisionOrganization lo dice con Tenancy::ProvisioningFailed(:slug_taken) y el grupo se omite entero.
-# LIMITACIÓN: un grupo sembrado ANTES de M0.08 (sin memberships) no se completa al volver a sembrar (no hay una API pública
-# para localizar una empresa por slug sin contexto); `make reset-db` recrea la base de desarrollo con todo.
+# Idempotency: a group's identity is the slug of its first company. Each group is created in ONE transaction; if the slug
+# exists, ProvisionOrganization raises Tenancy::ProvisioningFailed(:slug_taken) and the whole group is skipped.
+# LIMITATION: a group seeded before memberships existed is not completed on re-seed (no public API finds a company by
+# slug without a context); `make reset-db` rebuilds the development database.
 
 Access.sync!
 
-# Cada grupo: la organización, su dueño (org_owner), las empresas con sus sucursales y el personal con su rol y alcance.
-# `staff[].company` es el slug de la empresa; `staff[].branch`, el nombre de la sucursal (solo roles de sucursal).
+# `staff[].company` is the company slug; `staff[].branch` is the branch name (branch-level roles only).
 DEMO_GROUPS = [
   {
     organization: { name: "Barbería El Güegüense", legal_name: "Barbería El Güegüense, S.A." },
@@ -31,7 +25,7 @@ DEMO_GROUPS = [
       { user: { email: "gerente@barberia-guegu.ceiba.test", full_name: "Mauricio Téllez" }, role: "branch_manager", company: "barberia-guegu", branch: "Sucursal Centro" },
       { user: { email: "recepcion@barberia-guegu.ceiba.test", full_name: "Julia Reyes" }, role: "receptionist", company: "barberia-guegu", branch: "Sucursal Centro" },
       { user: { email: "profesional@barberia-guegu.ceiba.test", full_name: "Don Efraín Blandón" }, role: "professional", company: "barberia-guegu", branch: "Sucursal Centro" },
-      # Usuario en DOS organizaciones (ADR-0028, M0.12): org_admin aquí y dueña de "Café Volcán". Prueba el selector de contexto.
+      # Same user in TWO organizations (org_admin here, owner of "Café Volcán"): exercises the context selector.
       { user: { email: "ana@multi-org.ceiba.test", full_name: "Ana Lacayo" }, role: "org_admin" }
     ]
   },
@@ -69,16 +63,15 @@ DEMO_GROUPS = [
   }
 ].freeze
 
-# CONTRASEÑA: la de DESARROLLO es pública y está documentada (docs/architecture/11-security.md): `ceiba-demo-2026`. NUNCA
-# se usa en producción ni en staging (RAILS_ENV=production): allí hace falta SEED_DEMO_PASSWORD, y sin ella no se
-# siembran usuarios (ni, por tanto, dueños ni personal). Los correos usan el dominio reservado `.test`.
+# The development password is public by design. It is NEVER used in production or staging (RAILS_ENV=production):
+# there SEED_DEMO_PASSWORD is required, and without it no users (hence no owners or staff) are seeded.
 DEMO_PASSWORD_FOR_DEVELOPMENT = "ceiba-demo-2026".freeze
 
 def demo_password
   ENV["SEED_DEMO_PASSWORD"].presence || (DEMO_PASSWORD_FOR_DEVELOPMENT unless Rails.env.production?)
 end
 
-# Usuario de demo (idempotente por correo) o nil si no hay contraseña permitida.
+# Idempotent by email; nil when no password is allowed.
 def seed_user(attributes)
   password = demo_password
   return unless password
@@ -86,8 +79,8 @@ def seed_user(attributes)
   Identity::ProvisionUser.call(password:, **attributes)
 end
 
-# Provisiona la primera empresa del grupo. Devuelve nil si su slug ya existe (el grupo ya estaba sembrado); cualquier
-# otro fallo, incluido un slug repetido en una empresa POSTERIOR, se propaga y aborta (no se disfraza de "ya existe").
+# Returns nil if the slug exists (group already seeded); any other failure, including a duplicate slug on a LATER
+# company, propagates and aborts instead of being disguised as "already exists".
 def provision_first(group, owner)
   first = group.fetch(:companies).first
   extras = owner ? { owner: } : {}
@@ -100,7 +93,6 @@ rescue Tenancy::ProvisioningFailed => error
   nil
 end
 
-# Empresas y sucursales del grupo por slug / nombre, para asignar al personal.
 def create_structure(group, result)
   first, *others = group.fetch(:companies)
   companies = { first.dig(:company, :slug) => result.company }

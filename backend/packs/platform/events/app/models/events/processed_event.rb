@@ -1,5 +1,4 @@
 module Events
-  # Marca "este suscriptor ya procesó este evento". Modelo PRIVADO del pack.
   class ProcessedEvent < ApplicationRecord
     self.table_name = "processed_events"
 

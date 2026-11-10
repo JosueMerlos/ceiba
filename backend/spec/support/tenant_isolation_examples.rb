@@ -1,5 +1,5 @@
-# Las comprobaciones que TODO modelo tenant debe pasar. La suite de aislamiento (spec/platform/tenancy/isolation_spec.rb)
-# las ejecuta para cada modelo descubierto. Requiere que el modelo tenga factory (si no, FALLAN, no se saltan).
+# The checks EVERY tenant model must pass. The isolation suite (spec/platform/tenancy/isolation_spec.rb) runs them for
+# each discovered model. The model must have a factory (otherwise they FAIL, they are not skipped).
 RSpec.shared_examples "un modelo tenant aislado" do |model|
   let(:factory) { TenantIsolation.factory_for!(model).name }
   let(:organization_a) { create(:organization) }
@@ -40,8 +40,8 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
     end
   end
 
-  # Escrituras: la barrera 1 no puede ser solo de lectura. Se cierra en el modelo (Tenancy::TenantWriteGuard) y, más
-  # adelante, en la base con RLS (M4.03).
+  # Writes: barrier 1 cannot be read-only. It is closed in the model (Tenancy::TenantWriteGuard) and, later, in the
+  # database with RLS.
   it "incluye el guard de escritura de tenant" do
     expect(model).to include(Tenancy::TenantWriteGuard)
   end
@@ -55,7 +55,7 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
     end
   end
 
-  # Tablas append-only (audit_events): el UPDATE/DELETE de cualquier fila lo rechaza el trigger; no hay nada que aislar.
+  # Append-only tables (audit_events): the trigger rejects UPDATE/DELETE of any row; there is nothing to isolate.
   append_only = TenantIsolation.append_only?(model)
 
   it "con el tenant A, mover un registro propio a la organización B lanza TenantIsImmutable", unless: append_only do
@@ -63,7 +63,7 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
 
     with_tenant(organization_a) do
       loaded = model.find(record.id)
-      loaded[:organization_id] = organization_b.id # el writer lo frena acts_as_tenant; write_attribute no pasa por él
+      loaded[:organization_id] = organization_b.id # acts_as_tenant stops the writer; write_attribute bypasses it
 
       expect { loaded.save!(validate: false) }.to raise_error(Tenancy::TenantIsImmutable)
     end
@@ -71,7 +71,7 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
 
   def unique_by_tenant = %i[organization_id id]
 
-  # Escrituras masivas: upsert_all con el id de un registro de B desde A lo sobrescribiría y lo movería a A.
+  # Bulk writes: upsert_all with a B record's id from A would overwrite it and move it to A.
   describe "escrituras masivas" do
     def row_of_b = record_b.attributes
 
@@ -118,8 +118,8 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
     end
   end
 
-  # Un objeto de B que sigue en memoria (cargado en el contexto B) NO se puede escribir ni borrar desde el contexto A:
-  # el UPDATE/DELETE va por clave primaria, sin default scope, así que lo cierra el guard.
+  # An object from B still in memory (loaded in context B) can NOT be written or deleted from context A: UPDATE/DELETE go
+  # by primary key, with no default scope, so the guard closes it.
   describe "objetos de otra organización en memoria" do
     define_method(:target) { model }
 

@@ -1,20 +1,20 @@
-# Pack <%= layer %>/<%= pack_name %> (namespace <%= namespace %>). Reglas: docs/architecture/02-modular-monolith.md
+# Pack <%= layer %>/<%= pack_name %> (namespace <%= namespace %>).
 layer: <%= layer %>
 enforce_dependencies: true
 enforce_privacy: true
 enforce_layers: true
 <% if modules_layer? -%>
-# Ningún otro pack puede usar este módulo (visibilidad): los módulos se hablan solo por eventos.
-# El layer checker permite dependencias dentro de la misma capa, por eso hace falta esto.
+# No other pack may use this module (visibility): modules talk to each other only through events.
+# The layer checker allows dependencies within the same layer, hence this.
 enforce_visibility: true
 visible_to: []
 <% end -%>
 
-# Declara aquí SOLO lo que el pack usa. "." es el pack raíz (ApplicationRecord, ApplicationController...).
+# Declare ONLY what the pack uses here. "." is the root pack (ApplicationRecord, ApplicationController...).
 <% if modules_layer? -%>
-# Un módulo depende de packs de platform/, nunca de otro módulo (los módulos se hablan por eventos).
+# A module depends on platform/ packs, never on another module (modules talk through events).
 <% else -%>
-# Un pack de platform no depende de ningún módulo.
+# A platform pack depends on no module.
 <% end -%>
 dependencies:
   - "."

@@ -1,7 +1,6 @@
 require "rails_helper"
 
-# Tarea 2 de M0.07: sesión en BD con token aleatorio guardado como DIGEST, expiración por inactividad (12 h) y absoluta
-# (7 días), revocación (docs/architecture/11-security.md, "Sesiones del panel").
+# DB-backed session: random token stored as a DIGEST, idle expiry (12 h), absolute expiry (7 days) and revocation.
 RSpec.describe Identity::Session do
   let(:user) { create(:user) }
   let(:now) { Time.zone.parse("2026-11-08 12:00:00") }

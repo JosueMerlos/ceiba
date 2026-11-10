@@ -1,18 +1,18 @@
 module Api
-  # Autenticación y CSRF del panel (M0.07). DENY BY DEFAULT: este concern está incluido en Api::BaseController, así que
-  # TODO controlador de la API exige sesión salvo que lo diga explícitamente con `skip_authentication!`.
+  # Panel authentication and CSRF. Deny by default: included in Api::BaseController, so every API controller requires a
+  # session unless it opts out explicitly with `skip_authentication!`.
   #
   #   class SessionsController < Api::BaseController
-  #     # Es la puerta de entrada: aún no hay sesión. Origin se sigue validando.
+  #     # Entry point: there is no session yet. Origin is still validated.
   #     skip_authentication! only: :create
   #   end
   #
-  # Orden de los filtros (el de declaración):
-  #   1. verify_origin!     mutación con Origin/Referer ajeno -> 403 (con o sin sesión)
-  #   2. authenticate!      sin sesión válida -> 401
-  #   3. verify_csrf_token! mutación con sesión sin X-CSRF-Token válido -> 403
+  # Filters run in declaration order:
+  #   1. verify_origin!     mutation with a foreign Origin/Referer -> 403 (with or without session)
+  #   2. authenticate!      no valid session -> 401
+  #   3. verify_csrf_token! mutation with a session but no valid X-CSRF-Token -> 403
   #
-  # `Current.session` y `Current.principal` quedan fijados al autenticar.
+  # `Current.session` and `Current.principal` are set on authentication.
   module Authentication
     extend ActiveSupport::Concern
 
@@ -20,7 +20,7 @@ module Api
     SAFE_METHODS = %w[GET HEAD OPTIONS].freeze
 
     included do
-      # En modo API ActionController::API no incluye el helper `cookies` (el middleware sí se añade en
+      # ActionController::API does not include the `cookies` helper (the middleware is added in
       # config/initializers/authentication.rb).
       include ActionController::Cookies
 
@@ -30,9 +30,8 @@ module Api
     end
 
     class_methods do
-      # Hace PÚBLICO el controlador (o las acciones). Es una decisión de seguridad: comenta SIEMPRE por qué, y añade la
-      # ruta a la allowlist de spec/requests/api/authentication_spec.rb. Sin sesión no hay token CSRF que exigir; el
-      # Origin se valida igual.
+      # Makes actions PUBLIC: always comment why, and add the route to the allowlist in authentication_spec.
+      # Without a session there is no CSRF token to check; Origin is still validated.
       def skip_authentication!(**options)
         skip_before_action :authenticate!, **options
       end
@@ -55,9 +54,8 @@ module Api
       raise ::Identity::InvalidCsrfToken, "Falta el token CSRF o no es válido"
     end
 
-    # Defensa en profundidad junto con SameSite=Lax y el token: un navegador envía `Origin` en toda mutación; si viene
-    # (o su `Referer`) debe estar en config.x.auth.allowed_origins (NO se compara con Host/X-Forwarded-Host: son falsificables). Sin ninguno de los dos (curl, clientes que no son navegadores) no se
-    # rechaza aquí: sin token CSRF una mutación autenticada igual falla.
+    # Defense in depth with SameSite=Lax and the CSRF token: a present Origin (or Referer) must be in allowed_origins.
+    # Host headers are spoofable, so unused. With neither header (curl), a missing CSRF token rejects the request anyway.
     def verify_origin!
       return if safe_method?
 

@@ -1,9 +1,9 @@
 require "rails_helper"
 require Rails.root.join("config/middleware/job_observability").to_s
 
-# M0.13: cada job deja líneas JSON con el mismo esquema que las requests (organization_id, jid, clase, duración), sin
-# argumentos (pueden llevar datos personales) y deja el tenant en Observability::LogContext para Sentry.
-RSpec.describe JobObservability do # rubocop:disable RSpec/MultipleMemoizedHelpers -- config, logger y job de prueba comparten el mismo montaje
+# Each job leaves JSON lines with the same schema as requests (organization_id, jid, class, duration), without arguments
+# (they may carry personal data), and leaves the tenant in Observability::LogContext for Sentry.
+RSpec.describe JobObservability do # rubocop:disable RSpec/MultipleMemoizedHelpers -- config, logger and test job share the same setup
   let(:output) { StringIO.new }
   let(:organization_id) { "0198f0a0-0000-7000-8000-0000000000aa" }
   let(:job) do

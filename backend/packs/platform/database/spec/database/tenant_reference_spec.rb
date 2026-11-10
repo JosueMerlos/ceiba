@@ -1,7 +1,6 @@
 require "rails_helper"
 
-# Criterio 3 de M0.04: una hija con un organization_id distinto al de su padre es rechazada por PostgreSQL
-# (FK compuesta (organization_id, parent_id) -> parent(organization_id, id)). Barrera 2 de docs/architecture/03.
+# A child with a different organization_id than its parent is rejected by PostgreSQL (composite FK).
 RSpec.describe "t.tenant_reference", :tenant_schema do
   def create_company_and_branch(owner, **reference_options)
     owner.create_tenant_table(:companies) { |t| t.string :name }

@@ -1,9 +1,9 @@
 require "rails_helper"
 
-# Criterio 5: una acción de controlador sin `authorize` falla en test (verify_authorized), un index sin policy_scope falla
-# (verify_policy_scoped), y la excepción de una acción que no autoriza es explícita, con motivo y en una allowlist.
+# An action without `authorize` fails in test (verify_authorized), an index without policy_scope fails, and the exception
+# for an action that does not authorize is explicit, with a reason, and in an allowlist.
 RSpec.describe "verify_authorized y verify_policy_scoped globales" do
-  before(:context) do # rubocop:disable RSpec/BeforeAfterAll -- dibujar rutas es caro y global
+  before(:context) do # rubocop:disable RSpec/BeforeAfterAll -- drawing routes is expensive and global
     Object.const_set(:AccessProbes, Module.new) unless Object.const_defined?(:AccessProbes)
     AccessProbes.const_set(:AllowPolicy, Class.new(Access::BasePolicy) { def show? = true }) unless AccessProbes.const_defined?(:AllowPolicy, false)
     AccessProbes.const_set(:ProbesController, Class.new(Api::BaseController) do
@@ -16,7 +16,7 @@ RSpec.describe "verify_authorized y verify_policy_scoped globales" do
         render json: { data: { ok: true } }
       end
 
-      # Acción de colección que NO se llama index: también debe usar policy_scope.
+      # Collection action not named index: it must also use policy_scope.
       def search
         authorize Tenancy::Directory.organizations_for([]), :index?, policy_class: Access::OrganizationPolicy
         render json: { data: [] }

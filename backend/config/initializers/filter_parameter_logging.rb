@@ -1,19 +1,18 @@
 # Be sure to restart your server when you modify this file.
 
-# Parámetros que nunca llegan a un log ni a Sentry. Coincidencia PARCIAL de la clave (:passw filtra password,
-# password_confirmation, new_password...). Usado por el log de Rails, por lograge y por el scrubber de Sentry.
-# Ver ActiveSupport::ParameterFilter para las notaciones admitidas.
+# Parameters that must never reach a log or Sentry. Keys match PARTIALLY (:passw filters password,
+# password_confirmation, new_password...). Used by the Rails log, lograge and the Sentry scrubber.
 Rails.application.config.filter_parameters += [
-  # Genéricos de Rails
+  # Rails defaults
   :passw, :secret, :token, :_key, :crypt, :salt, :certificate, :ssn, :cvv, :cvc,
-  # Contraseña (español incluido: "contraseña" y "contrasena")
+  # Password (Spanish included: "contraseña" and "contrasena")
   :contrase,
-  # Segundo factor
+  # Second factor
   :otp,
-  # Correo
+  # Email
   :email, :correo,
-  # Teléfono
+  # Phone
   :phone, :telefono, :teléfono, :celular, :mobile, :whatsapp,
-  # Sesión y CSRF
+  # Session and CSRF
   :csrf, :authorization, :cookie
 ]

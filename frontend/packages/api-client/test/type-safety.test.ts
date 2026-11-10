@@ -2,8 +2,8 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 
-// Criterio 5 de M0.06: "dado el cliente generado, cuando el código TS accede a un campo inexistente de la
-// respuesta, entonces tsc falla". Se ejecuta tsc de verdad contra dos fixtures.
+// Given the generated client, when TS code reads a field missing from the response, tsc fails. Runs real tsc against two
+// fixtures.
 const tsc = fileURLToPath(new URL("../node_modules/.bin/tsc", import.meta.url));
 const fixtures = fileURLToPath(new URL("./fixtures/", import.meta.url));
 

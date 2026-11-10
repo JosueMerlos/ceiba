@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# Resolución del contexto desde la RUTA organizations/:organization_id/companies/:company_id/branches/:branch_id, validada
-# contra los memberships del principal (docs/architecture/03 y 04). 404 si el recurso no es visible para el principal; 403
-# solo si es visible pero la acción no está permitida.
+# Context resolution from the ROUTE organizations/:organization_id/companies/:company_id/branches/:branch_id, validated
+# against the principal's memberships. 404 if the resource is not visible to the principal; 403 only if it is visible but
+# the action is not allowed.
 RSpec.describe "Contexto de la ruta y alcance de los memberships" do
   let(:world) { build_access_world }
   let(:organization) { world.organization }
@@ -86,7 +86,7 @@ RSpec.describe "Contexto de la ruta y alcance de los memberships" do
     it "en la ruta de X solo aplican los permisos de X (su rol de admin en Y no se filtra)" do
       get_as(user, base)
 
-      expect(response).to have_http_status(:forbidden) # branch_manager en X no lee la organización; su rol de admin en Y no se filtra
+      expect(response).to have_http_status(:forbidden) # branch_manager in X cannot read the organization; their admin role in Y does not leak
     end
 
     it "en la ruta de Y aplican los de Y" do

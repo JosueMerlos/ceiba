@@ -1,8 +1,7 @@
 require "rails_helper"
 
-# Access::Principal::User#can?(permission, scope): el permiso efectivo es la UNIÓN de los permisos de todos los memberships
-# del usuario en la organización activa cuyo alcance CONTIENE el recurso (org ⊃ empresa ⊃ sucursal). Una consulta por
-# request, memorizada (docs/architecture/04-access-control.md).
+# The effective permission is the UNION of the permissions of all the user's memberships in the active organization whose
+# scope CONTAINS the resource (org > company > branch). One query per request, memoized.
 RSpec.describe Access::Principal::User do
   let(:organization) { create(:organization) }
   let(:company_a) { create_in(organization, :company) }
@@ -13,7 +12,7 @@ RSpec.describe Access::Principal::User do
   let(:user) { create(:user) }
   let(:permission) { "platform.branch.read" }
 
-  # Roles de prueba con UN permiso y el alcance que se pida: la semántica de la cobertura no depende de la matriz sembrada.
+  # Test roles with ONE permission and the requested scope: coverage semantics do not depend on the seeded matrix.
   def role_with(permission_key, scope_level)
     role = create(:role, scope_level:)
     Access::RolePermission.create!(role:, permission_key:)
@@ -27,7 +26,7 @@ RSpec.describe Access::Principal::User do
   end
 
   def principal_for(target = user, org: organization)
-    [ branch_a1, branch_a2, branch_b1 ] # el árbol existe ANTES de activar (así se precargan las sucursales de las empresas)
+    [ branch_a1, branch_a2, branch_b1 ] # the tree exists BEFORE activating (so companies' branches are preloaded)
     described_class.new(Identity::Principal::User.new(id: target.id, email: target.email, full_name: target.full_name)).tap do |principal|
       with_tenant(org) { principal.activate!(org.id) }
     end

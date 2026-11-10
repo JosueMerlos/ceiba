@@ -1,5 +1,5 @@
 module Events
-  # Borra de outbox_events los eventos PUBLICADOS hace más de 30 días (de todas las organizaciones). Job del sistema.
+  # System job: purges outbox_events PUBLISHED more than 30 days ago (all organizations).
   class PurgeOutboxJob
     include Sidekiq::Job
 

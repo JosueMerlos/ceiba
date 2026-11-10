@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# Integración con M0.08: los GET de la API corren en una transacción de SOLO LECTURA (Access::RouteContextResolver). Nada audita
-# ni guarda claves de idempotencia en un GET: si algo lo hiciera, la base lo rechaza y la API responde 500. Sin fixtures
-# transaccionales: el BEGIN real es lo que se observa.
+# GETs of the API run in a READ-ONLY transaction (Access::RouteContextResolver). Nothing audits or stores idempotency
+# keys on a GET: if something did, the database rejects it and the API answers 500. No transactional fixtures: the real
+# BEGIN is what is observed.
 RSpec.describe "Auditoría e idempotencia frente a la transacción de solo lectura de los GET", type: :request do
   self.use_transactional_tests = false
 

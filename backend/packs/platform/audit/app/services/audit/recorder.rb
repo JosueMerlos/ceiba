@@ -1,5 +1,4 @@
 module Audit
-  # Implementación de Audit.record (privada del pack).
   class Recorder
     USER_AGENT_LIMIT = 255
 

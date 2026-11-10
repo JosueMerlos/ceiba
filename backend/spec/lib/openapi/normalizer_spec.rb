@@ -1,8 +1,8 @@
 require "rails_helper"
 require "openapi/normalizer"
 
-# Riesgo de M0.06: "generación no determinista provoca falsos drifts". El YAML sale con las claves ordenadas, sin
-# importar el orden en que rswag fue acumulando los specs.
+# Non-deterministic generation causes false drifts: the YAML comes out with sorted keys, regardless of the order rswag
+# accumulated the specs in.
 RSpec.describe Openapi::Normalizer do
   it "ordena las claves de los hashes en todos los niveles" do
     document = { "paths" => { "/b" => { "get" => 1 }, "/a" => { "post" => 1, "get" => 2 } }, "info" => {} }

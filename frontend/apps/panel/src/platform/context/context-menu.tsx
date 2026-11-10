@@ -20,22 +20,21 @@ export interface ContextOption {
 export interface ContextLevel {
   key: "organization" | "company" | "branch";
   label: string;
-  /** Valor elegido ("" = ninguno, p. ej. «todas las sucursales»). */
+  /** Chosen value ("" = none, e.g. "all branches"). */
   value: string;
   options: ContextOption[];
 }
 
 interface ContextMenuProps {
   triggerLabel: string;
-  /** Resumen visible de dónde se trabaja (empresa y sucursal). */
   summary: string;
   levels: ContextLevel[];
   onSelect(level: ContextLevel["key"], value: string): void;
 }
 
 /**
- * Selector de contexto (organización -> empresa -> sucursal). Solo muestra los niveles con más de una opción y se
- * oculta por completo cuando no hay nada que elegir (criterio 1 de M0.12).
+ * Context selector (organization -> company -> branch). Shows only levels with more than one option and hides entirely
+ * when there is nothing to choose.
  */
 export function ContextMenu({ triggerLabel, summary, levels, onSelect }: ContextMenuProps) {
   const choosable = levels.filter((level) => level.options.length > 1);
@@ -50,7 +49,7 @@ export function ContextMenu({ triggerLabel, summary, levels, onSelect }: Context
         >
           <Building2 className="text-muted-foreground" aria-hidden="true" />
           <span className="sr-only">{triggerLabel}: </span>
-          {/* Bajo sm solo se ve el icono; el nombre accesible conserva la empresa. */}
+          {/* Below sm only the icon shows; the accessible name keeps the company. */}
           <span className="truncate max-sm:sr-only">{summary}</span>
           <ChevronsUpDown className="text-muted-foreground" aria-hidden="true" />
         </Button>

@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Criterio 2 de M0.09: una ruta de un módulo inactivo en la empresa responde 404, igual que un recurso inexistente (no se revela
-# nada); con el módulo activo se aplica la autorización de siempre. Criterio 8 por HTTP: desactivar y reactivar.
+# A route of a module inactive in the company answers 404, like a missing resource (nothing is revealed); with the module
+# active the usual authorization applies. Also covers disable and re-enable over HTTP.
 RSpec.describe "Concern RequiresModule" do
   include_context "con rutas de sample"
   include_context "con el módulo sample sincronizado"

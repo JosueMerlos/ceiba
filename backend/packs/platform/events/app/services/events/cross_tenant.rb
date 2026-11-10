@@ -1,10 +1,10 @@
 module Events
-  # ÚNICO sitio del pack que lee el outbox de TODAS las organizaciones a la vez (el relay, las purgas y la medición del
-  # lag). Es un camino privilegiado: el archivo está en AllowedFiles de Ceiba/TenantBypass (.rubocop.yml) y cada cambio
-  # aquí exige revisión. Con RLS (M4.03) estas lecturas necesitarán el rol de plataforma con BYPASSRLS.
+  # The ONLY place in the pack that reads the outbox of ALL organizations at once (relay, purges, lag measurement). A
+  # privileged path: the file is in AllowedFiles of Ceiba/TenantBypass (.rubocop.yml) and every change here needs
+  # review. With RLS enforced, these reads will need the platform role with BYPASSRLS.
   #
-  # Solo LEE o BORRA datos del propio outbox. Las escrituras de estado (published_at, attempts) las hace el llamador
-  # organización por organización, dentro de Tenancy.with_context, para que pasen por el guard de escritura.
+  # It only READS or DELETES outbox data. State writes (published_at, attempts) are done by the caller organization by
+  # organization, inside Tenancy.with_context, so they go through the write guard.
   module CrossTenant
     def self.read(&) = ActsAsTenant.without_tenant(&)
   end

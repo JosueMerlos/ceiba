@@ -1,5 +1,5 @@
-// Configuración compartida de Prettier.
-// Uso en cada workspace:  export { default } from "@ceiba/config/prettier";
+// Shared Prettier configuration.
+// Usage in each workspace:  export { default } from "@ceiba/config/prettier";
 /** @type {import("prettier").Config} */
 export default {
   printWidth: 100,

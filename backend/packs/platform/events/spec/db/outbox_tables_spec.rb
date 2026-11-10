@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# Esquema del outbox (M0.10). outbox_events y processed_events son tablas TENANT (organization_id, política
-# tenant_isolation, FK a organizations): un evento siempre pertenece a una organización y el suscriptor corre en su
-# contexto. El relay (que sí cruza organizaciones) es un camino privilegiado explícito: ver docs/architecture/06.
+# Outbox schema. outbox_events and processed_events are TENANT tables (organization_id, tenant_isolation policy, FK to
+# organizations): an event always belongs to an organization and the subscriber runs in its context. The relay (which
+# crosses organizations) is an explicit privileged path.
 RSpec.describe "Tablas del outbox" do
   let(:connection) { ApplicationRecord.connection }
 

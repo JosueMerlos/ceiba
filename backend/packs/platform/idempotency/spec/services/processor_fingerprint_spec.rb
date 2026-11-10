@@ -1,8 +1,6 @@
 require "rails_helper"
 
-# Fingerprint de la petición (M0.11): método + ruta COMPLETA (con query) + cuerpo tal cual llegó. Los JSON se comparan por
-# BYTES: dos serializaciones equivalentes con distinto orden de claves son peticiones distintas (un cliente que reintenta
-# reenvía los mismos bytes). Los multipart no llegan: ApiRequestGuard exige application/json en toda mutación.
+# Request fingerprint: method + FULL path (with query) + body as received. JSON is compared by BYTES, not semantically.
 RSpec.describe Idempotency::Processor, ".fingerprint" do # rubocop:disable RSpec/SpecFilePathFormat
   def request(path: "/api/v1/x", method: "POST", body: %({"a":1}))
     ActionDispatch::TestRequest.create("REQUEST_METHOD" => method, "PATH_INFO" => path.split("?").first, "QUERY_STRING" => path.split("?", 2)[1].to_s,

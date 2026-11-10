@@ -5,7 +5,7 @@
 @import "./tokens.css";
 @import "./theme.css";
 
-/* Tailwind solo escanea los archivos de la app; los de este paquete se declaran aquí. */
+/* Tailwind only scans the app's files; this package's are declared here. */
 @source "../";
 
 @layer base {

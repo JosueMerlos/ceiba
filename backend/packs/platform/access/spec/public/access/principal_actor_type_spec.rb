@@ -1,7 +1,6 @@
 require "rails_helper"
 
-# Contrato de los principales con la auditoría y la idempotencia (M0.11): todo principal expone `actor_type` e `id`. Audit e
-# Idempotency lo usan tal cual; NO lo derivan del nombre de la clase.
+# Every principal exposes `actor_type` and `id`; Audit and Idempotency use them as is and do NOT derive them from the class name.
 RSpec.describe "Access::Principal: actor_type e id" do
   let(:identity) { Identity::Principal::User.new(id: SecureRandom.uuid, email: "ana@ceiba.test", full_name: "Ana") }
 

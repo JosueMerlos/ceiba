@@ -1,11 +1,11 @@
-# Cómo fabricar un RECURSO REAL para cada parámetro de ruta de un módulo (:id, :service_id...) en la suite de cobertura de módulos
-# (spec/requests/api/module_coverage_spec.rb). Con un id desconocido la ruta daría 404 por sí sola y la suite no probaría que el 404
-# lo emite el gate; por eso cada módulo con rutas de miembro REGISTRA aquí cómo conseguir un id existente en la empresa dada.
-# :organization_id, :company_id y :branch_id los resuelve la suite sola (sucursal real de la empresa).
+# How to build a REAL RESOURCE for each of a module's route parameters (:id, :service_id...) in the module coverage suite.
+# With an unknown id the route would give 404 by itself and the suite would not prove the gate emits the 404; so every
+# module with member routes REGISTERS here how to get an id that exists in the given company.
+# The suite resolves :organization_id, :company_id and :branch_id itself (a real branch of the company).
 #
 #   ModuleCoverageFactories.register("appointments", :id) { |company:, branch:| create_in(company.organization, :appointment, ...).id }
 #
-# Si un módulo tiene una ruta con un parámetro sin fabricante, la suite FALLA diciendo cuál registrar (nunca lo salta).
+# If a module has a route with a parameter that has no builder, the suite FAILS saying which one to register (never skips it).
 module ModuleCoverageFactories
   class Missing < StandardError; end
 
@@ -22,5 +22,5 @@ module ModuleCoverageFactories
   end
 end
 
-# sample: sus "cosas" son las sucursales de la empresa.
+# sample: its "things" are the company's branches.
 ModuleCoverageFactories.register("sample", :id) { |branch:, **| branch.id }

@@ -1,12 +1,12 @@
 require "rails_helper"
 
-# M0.13, capa 1 del rate limiting (ADR-0027): Rack::Attack antes de autenticar y sin tocar la BD. Reglas 1, 2, 3 y 8 de
-# docs/architecture/11-security.md. Cada regla con el reloj congelado en una ventana conocida y el store reiniciado.
+# Rate limiting layer 1: Rack::Attack before authentication and without touching the DB. Each rule runs with the clock
+# frozen in a known window and the store reset.
 RSpec.describe "Rate limiting (Rack::Attack)" do
   include_context "con endpoints de prueba de la API"
   include ActiveSupport::Testing::TimeHelpers
 
-  # 12:00:01 UTC: 1 s dentro de una ventana de 5 y de 15 min alineada con el epoch.
+  # 12:00:01 UTC: 1 s into a 5 and 15 min window aligned with the epoch.
   let(:now) { Time.utc(2026, 11, 9, 12, 0, 1) }
   let(:ip) { "203.0.113.10" }
 

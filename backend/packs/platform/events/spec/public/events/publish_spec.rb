@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Events.publish solo INSERTA en el outbox, dentro de la transacción del caso de uso (ADR-0009).
-# Sin fixtures transaccionales: el rollback y la ausencia de transacción deben ser reales.
+# Events.publish only INSERTS into the outbox, inside the use case's transaction. No transactional fixtures: the
+# rollback and the absence of a transaction must be real.
 RSpec.describe Events, ".publish" do
   self.use_transactional_tests = false
 

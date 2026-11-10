@@ -1,17 +1,15 @@
 module Modules
-  # El registro de manifiestos (docs/architecture/05-module-system.md). `Modules.registry` es el global de la aplicación;
-  # los specs construyen los suyos con `Modules::Registry.new`.
+  # Registry of manifests. `Modules.registry` is the application's global one; specs build their own with `Modules::Registry.new`.
   #
-  #   registry.define(:loyalty) { name "Lealtad"; version "1.0"; ... }   # valida el manifiesto al definirlo
-  #   registry.validate!                                                   # reglas entre manifiestos (requires)
+  #   registry.define(:loyalty) { name "Lealtad"; version "1.0"; ... }   # validates the manifest on definition
+  #   registry.validate!                                                   # cross-manifest rules (requires)
   class Registry
     def initialize
       @manifests = {}
       @lock = Mutex.new
     end
 
-    # Declara un módulo. `root` es el directorio de su pack (de él cuelga la ruta relativa de `settings_schema`). Valida
-    # el manifiesto entero: si algo está mal lanza Modules::InvalidManifest con todos los problemas.
+    # `root` is the module's pack directory; the relative path of `settings_schema` hangs from it.
     def define(key, root: nil, &block)
       key = key.to_s
       declared = ManifestBuilder.build(key, root:, &block)
@@ -33,10 +31,10 @@ module Modules
     def all = @manifests.values
     def each(&) = all.each(&)
 
-    # Módulos que dicen requerir a `key` (los que dejarían de funcionar si se desactiva).
+    # Modules that require `key` (the ones that would break if it were disabled).
     def requirers_of(key) = all.select { |manifest| manifest.requires.include?(key.to_s) }
 
-    # Reglas ENTRE manifiestos: `requires` apunta a módulos que existen y no forma ciclos. Se llama una vez cargados todos.
+    # Cross-manifest rules: `requires` points to existing modules and has no cycles. Call once all are loaded.
     def validate!
       all.each do |manifest|
         missing = manifest.requires - keys
@@ -70,7 +68,7 @@ module Modules
       nil
     end
 
-    # Primer ciclo de `requires` como lista de keys (la primera repetida al final), o nil.
+    # First `requires` cycle as a key list (first repeated key last), or nil.
     def find_cycle
       done = Set.new
       keys.each do |key|

@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Integración con Redis REAL (Sidekiq::Testing desactivado por la etiqueta :redis) y COMMIT real (sin fixtures
-# transaccionales): criterios 2, 3 (con concurrencia) y 5 de M0.10.
+# Integration with REAL Redis (Sidekiq::Testing disabled by the :redis tag) and a real COMMIT (no transactional
+# fixtures).
 RSpec.describe "Outbox con Redis real", :redis do
   self.use_transactional_tests = false
 
@@ -18,7 +18,7 @@ RSpec.describe "Outbox con Redis real", :redis do
 
   after { purge_organizations(organizations) }
 
-  # Un Redis inalcanzable: la misma falla que ve la aplicación con el contenedor de Redis detenido.
+  # An unreachable Redis: the same failure the app sees with the Redis container stopped.
   def redis_down(&)
     dead_pool = Sidekiq::RedisConnection.create(url: "redis://127.0.0.1:1", size: 1, pool_name: "caido")
     Sidekiq::Client.via(dead_pool, &)
@@ -28,7 +28,7 @@ RSpec.describe "Outbox con Redis real", :redis do
     Tenancy.with_context(organization: org) { Events.publish(event_name, { thing_id: id }) }
   end
 
-  # Barrera real: todos los hilos están creados y esperando antes de que ninguno arranque.
+  # Real barrier: all threads are created and waiting before any starts.
   def run_together(count)
     ready = Queue.new
     go = Queue.new
@@ -48,7 +48,7 @@ RSpec.describe "Outbox con Redis real", :redis do
 
   def state(org = organization) = with_tenant(org) { Events::OutboxEvent.order(:id).pluck(:published_at, :attempts) }
 
-  # Ejecuta el job tal como lo haría un worker: sacado de Redis y pasando por la cadena de middleware de servidor.
+  # Runs the job as a worker would: pulled from Redis and through the server middleware chain.
   def process(item) = Events::DeliverJob.process_job(item)
 
   describe "Redis cae después del commit y vuelve (criterio 2)" do
@@ -57,9 +57,9 @@ RSpec.describe "Outbox con Redis real", :redis do
 
       expect(state).to eq([ [ nil, 0 ] ])
       expect { redis_down { Events::Relay.call } }.to raise_error(RedisClient::CannotConnectError)
-      expect(state).to eq([ [ nil, 1 ] ]) # sigue pendiente, con el intento anotado
+      expect(state).to eq([ [ nil, 1 ] ]) # still pending, with the attempt recorded
 
-      expect(Events::Relay.call).to eq(1) # Redis vuelve
+      expect(Events::Relay.call).to eq(1) # Redis comes back
 
       expect(queued_jobs.map { |job| job["args"] }).to eq([ [ event.id, "test.audit" ] ])
       process(queued_jobs.first)
@@ -117,7 +117,7 @@ RSpec.describe "Outbox con Redis real", :redis do
       expect(Events::OutboxLag.measure[:pending]).to eq(0)
       expect(event_ids.size).to eq(total)
       expect(event_ids.uniq.size).to eq(total)
-      expect(published.count(&:positive?)).to be >= 2 # concurrencia real: el trabajo se repartió
+      expect(published.count(&:positive?)).to be >= 2 # real concurrency: the work was shared out
     end
 
     it "cada DeliverJob lleva el organization_id de su evento" do

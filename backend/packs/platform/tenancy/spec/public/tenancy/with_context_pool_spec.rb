@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Sin fixtures transaccionales: aquí el COMMIT es real y hay varias conexiones del pool en juego. Demuestra que el
-# `SET LOCAL app.organization_id` ni sobrevive al bloque ni es visible desde otra conexión (docs/architecture/03).
+# No transactional fixtures: the COMMIT is real and several pool connections are in play. Shows that
+# `SET LOCAL app.organization_id` neither survives the block nor is visible from another connection.
 RSpec.describe "Tenancy.with_context y el pool de conexiones" do
   self.use_transactional_tests = false
 
@@ -53,7 +53,7 @@ RSpec.describe "Tenancy.with_context y el pool de conexiones" do
     other = Tenancy::Organization.create!(name: "Otra pool")
     seen = Queue.new
     gate = Queue.new
-    # El primero espera a que el segundo termine dentro de su bloque: la ejecución se solapa.
+    # The first waits for the second to finish inside its block, so execution overlaps.
     run = lambda do |org|
       Tenancy.with_context(organization: org) do
         gate.pop(timeout: 5) if org == organization

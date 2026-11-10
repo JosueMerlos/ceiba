@@ -1,7 +1,7 @@
 import type { components } from "@ceiba/api-client";
 import { createContext, useContext, type ReactNode } from "react";
 
-/** Lo que devuelve GET /api/v1/me: contexto, módulos activos, permisos y navegación. Es la ÚNICA fuente de la UI. */
+/** What GET /api/v1/me returns: context, active modules, permissions and navigation. The ONLY source for the UI. */
 export type Me = components["schemas"]["Me"]["data"];
 
 const MeContext = createContext<Me | null>(null);

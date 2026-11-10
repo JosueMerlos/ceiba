@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Criterio 3 de M0.09 con el gate REAL (company_modules): un company_manager con permisos de `sample` deja de tenerlos cuando el
-# módulo se desactiva en su empresa. La semántica del gate está probada en packs/platform/access/spec/public/access/module_gate_spec.rb.
+# With the REAL gate (company_modules): a company_manager with `sample` permissions loses them when the module is disabled in
+# their company. The gate's semantics are covered in the access pack's specs.
 RSpec.describe "Permisos de un módulo y su activación en la empresa" do
   include_context "con el módulo sample sincronizado"
 

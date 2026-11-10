@@ -1,15 +1,15 @@
 module Identity
-  # Inicio de sesión con correo y contraseña (ADR-0017).
+  # Email and password sign-in.
   #
   #   result = Identity::Authenticate.call(email:, password:, ip:, user_agent:, previous_token: cookie)
-  #   result.token            # token en claro: va a la cookie y no se guarda en ningún otro sitio
+  #   result.token            # plain-text token: goes in the cookie and is stored nowhere else
   #   result.current_session  # Identity::CurrentSession
   #
-  # - Lanza Identity::InvalidCredentials con correo inexistente o contraseña errónea (misma clase, mismo mensaje).
-  # - Tiempo constante: `authenticate_by` calcula bcrypt también cuando la cuenta no existe, así el tiempo de respuesta
-  #   no revela si el correo tiene cuenta.
-  # - Rotación: el login SIEMPRE emite un token nuevo y revoca la sesión que el navegador traía (aunque fuera de otro
-  #   usuario), así un token fijado antes del login no sirve después (fijación de sesión).
+  # - Raises Identity::InvalidCredentials for an unknown email or a wrong password (same class, same message).
+  # - Constant time: `authenticate_by` computes bcrypt even when the account does not exist, so the response time does
+  #   not reveal whether the email has an account.
+  # - Rotation: login ALWAYS issues a new token and revokes the session the browser carried (even another user's), so a
+  #   token fixed before login is useless afterwards (session fixation).
   class Authenticate
     Result = Data.define(:token, :current_session)
 
@@ -41,9 +41,10 @@ module Identity
       Audit.record_auth(action: "auth.login_succeeded", user_id: user.id, ip: @ip, user_agent: @user_agent, metadata: { session_id: session.id })
     end
 
-    # Audita el intento y lo rechaza. Se busca la cuenta SIEMPRE (exista o no) para que ambos fallos hagan el mismo trabajo.
-    # Se guarda un seudónimo HMAC del correo (Audit.pseudonymize; nunca el correo ni la contraseña): permite correlacionar
-    # intentos sin retener el correo ni un secreto escrito por error en ese campo. Se escribe fuera de cualquier transacción, así sobrevive al 401.
+    # Audits the attempt and rejects it. The account is ALWAYS looked up (whether it exists or not) so both failures do
+    # the same work. An HMAC pseudonym of the email is stored (Audit.pseudonymize; never the email or password): it
+    # correlates attempts without retaining the email or a secret typed by mistake in that field. Written outside any
+    # transaction, so it survives the 401.
     def reject_credentials!
       normalized = User.normalize_value_for(:email, @email)
       Audit.record_auth(

@@ -1,14 +1,14 @@
 module Modules
-  # Los controladores de un módulo responden 404 si el módulo no está activo en la empresa del contexto (docs/architecture/05,
-  # "Cumplimiento"): el mismo 404 que un recurso inexistente, sin revelar que el módulo existe. Se verifica ANTES de la autorización.
+  # A module's controllers answer 404 when the module is not active in the context's company: the same 404 as a missing
+  # resource, so it does not reveal the module exists. Checked BEFORE authorization.
   #
   #   class Api::V1::Appointments::AppointmentsController < Api::BaseController
   #     include Modules::RequiresModule
   #     requires_module :appointments
   #   end
   #
-  # Usa la misma consulta (memoizada por request) que `can?` para los permisos del módulo, así una request no consulta
-  # company_modules dos veces. Una ruta sin empresa en el contexto también responde 404: no hay dónde estar activo.
+  # Uses the same per-request memoized query as `can?`, so a request does not hit company_modules twice. A route without a
+  # company in the context also gets 404: there is nowhere to be active.
   module RequiresModule
     extend ActiveSupport::Concern
 
@@ -27,15 +27,14 @@ module Modules
 
     private
 
-    # Fallar CERRADO: incluir el concern sin declarar el módulo es un bug del código, no un acceso libre.
+    # Fail CLOSED: including the concern without declaring the module is a code bug, not open access.
     def ensure_required_module_enabled!
       raise Error, "#{self.class.name} incluye Modules::RequiresModule pero no declara `requires_module :clave`" if required_module.nil?
 
       company = Current.context&.company
       return if company && module_enabled_in?(company)
 
-      # Marca interna (no sale en la respuesta): la suite de cobertura de módulos comprueba que el 404 lo emitió ESTE gate y no un
-      # id desconocido de la ruta.
+      # Internal marker (not in the response): lets the coverage suite tell this gate's 404 from an unknown route id.
       ActiveSupport::Notifications.instrument("denied.requires_module", module: required_module, controller: self.class.name, action: action_name)
       raise ActiveRecord::RecordNotFound, "No se encontró el recurso"
     end

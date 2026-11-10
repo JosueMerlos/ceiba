@@ -1,8 +1,8 @@
-# Módulos FICTICIOS para los specs del sistema de módulos (M0.09): `sample` y `sample_addon` (que lo requiere). Existen SOLO en la
-# suite, para no adelantar `appointments`: se declaran con la misma `Modules.define` que usa un manifiesto real y quedan en el
-# registro global, con sus permisos registrados en access (spec/support/access_catalog.rb los sincroniza al arrancar).
+# FICTITIOUS modules for the module system specs: `sample` and `sample_addon` (which requires it). They exist ONLY in the
+# suite, so as not to anticipate `appointments`: declared with the same `Modules.define` a real manifest uses and left in
+# the global registry, with their permissions registered in access (spec/support/access_catalog.rb syncs them at boot).
 #
-# Sus hooks son espías: `SampleModule.calls` cuenta lo que ejecutaron Enable y Disable.
+# Their hooks are spies: `SampleModule.calls` counts what Enable and Disable ran.
 module SampleModule
   SCHEMA = {
     type: "object",

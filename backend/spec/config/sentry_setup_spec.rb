@@ -2,8 +2,7 @@ require "rails_helper"
 require Rails.root.join("config/middleware/sentry_setup").to_s
 require Rails.root.join("config/middleware/job_observability").to_s
 
-# M0.13 (criterio 4, parte automática): los errores llegan a Sentry con el tenant y el job, sin PII, y con el release.
-# El envío real necesita un DSN: ver las notas de cierre (verificación manual).
+# Errors reach Sentry with the tenant and the job, no PII, and with the release (the automatic part of the manual check).
 RSpec.describe SentrySetup, type: :request do
   include_context "con endpoints de prueba de la API"
 
@@ -12,7 +11,7 @@ RSpec.describe SentrySetup, type: :request do
   let(:events) { Sentry.get_current_client.transport.events }
   let(:captured) { wait_for_events.map(&:to_h) }
 
-  # El envío es asíncrono: espera a que el hilo de fondo entregue al menos un evento.
+  # Delivery is asynchronous: wait for the background thread to deliver at least one event.
   def wait_for_events(count = 1)
     Timeout.timeout(5) { sleep 0.01 until Sentry.get_current_client.transport.events.size >= count }
     Sentry.get_current_client.transport.events
@@ -22,8 +21,8 @@ RSpec.describe SentrySetup, type: :request do
     Sentry.init do |config|
       described_class.configure(config, env: { "SENTRY_DSN" => dsn }.merge(env), rails_env: "production")
       config.transport.transport_class = Sentry::DummyTransport
-      # Hilos de fondo POR DEFECTO, como en producción: before_send corre en el hilo del worker de Sentry, donde Current y
-      # LogContext (por hilo) están vacíos. Los tags tienen que ponerse al capturar, en el hilo de la request o del job.
+      # Background threads BY DEFAULT, as in production: before_send runs in the Sentry worker thread, where Current and
+      # LogContext (per thread) are empty. Tags must be set at capture time, in the request or job thread.
     end
   end
 
@@ -83,8 +82,8 @@ RSpec.describe SentrySetup, type: :request do
     job_logger = JobObservability::JobLogger.new(config)
     error = nil
 
-    # processor.rb: el middleware de Sentry y el job corren DENTRO de prepare; el error handler (handle_exception) corre FUERA,
-    # cuando prepare ya terminó y LogContext se reinició.
+    # processor.rb: Sentry's middleware and the job run INSIDE prepare; the error handler (handle_exception) runs OUTSIDE,
+    # once prepare finished and LogContext was reset.
     job_logger.prepare(job) do
       Sentry::Sidekiq::SentryContextServerMiddleware.new.call(Object.new, job, "critical") { raise "falló" }
     rescue RuntimeError => e

@@ -1,8 +1,9 @@
 require "rails_helper"
 
-# Los specs con COMMIT real que auditan deben poder limpiar: purge_organizations (spec/support/tenancy_helpers.rb) borra, con
-# el DUEÑO y el trigger desactivado solo dentro de su transacción, las filas de audit_events de las organizaciones y las de
-# auth_audit_events de los usuarios indicados. Sin esto una organización auditada no se podría borrar (FK RESTRICT).
+# Specs with a real COMMIT that audit must be able to clean up: purge_organizations (spec/support/tenancy_helpers.rb)
+# deletes, as the OWNER and with the trigger disabled only inside its transaction, the audit_events rows of the
+# organizations and the auth_audit_events rows of the given users. Without this an audited organization could not be
+# deleted (FK RESTRICT).
 RSpec.describe "Limpieza de specs con tablas append-only" do
   self.use_transactional_tests = false
 

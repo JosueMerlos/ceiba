@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Job backend-security de CI (y de bin/ci): análisis estático de seguridad y gemas vulnerables.
+# CI backend-security job (and bin/ci): static security analysis and vulnerable gems.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Middleware de Sidekiq (M0.10): el organization_id viaja en el payload del job y el servidor lo envuelve en
-# Tenancy.with_context. Un job sin organization_id no corre (docs/architecture/06-events-and-jobs.md).
+# Sidekiq middleware: organization_id travels in the job payload and the server wraps the job in Tenancy.with_context. A job
+# without organization_id does not run.
 RSpec.describe TenantJobMiddleware do
   let(:organization) { create(:organization) }
   let(:worker) { Object.new }
@@ -67,8 +67,8 @@ RSpec.describe TenantJobMiddleware do
       expect(ApplicationRecord.connection.select_value("SELECT current_setting('app.organization_id', true)")).to be_blank
     end
 
-    # Un reintento no arregla un job sin organización ni uno de una organización inexistente: va directo a la cola muerta
-    # (no se reintenta ~21 días) y el worker lo da por tratado (Sidekiq::JobRetry::Skip).
+    # A retry fixes neither a job without an organization nor one for a nonexistent organization: straight to the dead set
+    # (not retried for ~21 days), and the worker treats it as handled (Sidekiq::JobRetry::Skip).
     describe "errores irrecuperables", :redis do
       def dead_jobs = Sidekiq::DeadSet.new.map(&:item)
 

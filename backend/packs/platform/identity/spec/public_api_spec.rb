@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# La API pública de identity es CHICA a propósito (docs/architecture/02-modular-monolith.md): modelos y servicios
-# internos son privados y packwerk (privacy) lo impide desde fuera.
+# The public API of identity is SMALL on purpose: internal models and services are private and packwerk (privacy)
+# enforces it from outside.
 RSpec.describe "API pública de identity" do
   let(:root) { Rails.root.join("packs/platform/identity/app/public") }
   let(:public_files) { root.glob("**/*.rb").map { |file| file.relative_path_from(root).to_s } }

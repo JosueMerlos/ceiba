@@ -1,5 +1,5 @@
 module Identity
-  # Correo o contraseña incorrectos. Es UNA sola clase para "no existe la cuenta" y "contraseña errónea": quien llama no
-  # puede distinguirlas, así la API no revela qué correos tienen cuenta (docs/architecture/11-security.md).
+  # Wrong email or password. ONE class for both "no such account" and "wrong password": callers cannot tell them apart,
+  # so the API never reveals which emails have an account.
   class InvalidCredentials < Error; end
 end

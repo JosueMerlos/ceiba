@@ -1,5 +1,5 @@
 FactoryBot.define do
-  # Las factories tenant se usan DENTRO de un tenant (ver packs/platform/tenancy/spec/factories/tenancy.rb).
+  # Tenant factories: use them INSIDE a tenant.
   factory :outbox_event, class: "Events::OutboxEvent" do
     organization { ActsAsTenant.current_tenant }
     name { "platform.organization_provisioned.v1" }

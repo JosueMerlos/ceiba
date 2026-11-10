@@ -1,11 +1,11 @@
 module Api
   module V1
     module Modules
-      # GET /api/v1/me: el contexto del usuario autenticado, sus módulos activos con settings resueltos, sus permisos y la navegación
-      # (docs/architecture/05-module-system.md). Es lo que la SPA REFLEJA: ocultar algo no es control de acceso.
+      # GET /api/v1/me: the authenticated user's context, active modules with resolved settings, permissions and navigation.
+      # The SPA only reflects it: hiding something is not access control.
       #
-      # El contexto no va en la ruta: llega por parámetros (`organization_id`, `company_id`, `branch_id`) o es el último usado
-      # (cookie firmada). En ambos casos se valida contra los memberships con Access.with_context, igual que una ruta anidada.
+      # The context is not in the route: it comes from params or the last-used signed cookie, and either way is validated
+      # against memberships with Access.with_context, like a nested route.
       class MeController < ::Api::BaseController
         skip_authorization! reason: "devuelve el contexto y los permisos del propio principal; el contexto se valida con Access.with_context", only: :show
 
@@ -18,7 +18,7 @@ module Api
 
         private
 
-        # Los parámetros pedidos expresamente. `company_id` exige `organization_id` y `branch_id` exige `company_id`.
+        # `company_id` requires `organization_id` and `branch_id` requires `company_id`.
         def requested_selection
           organization_id = params[:organization_id].presence
           company_id = params[:company_id].presence
@@ -30,7 +30,7 @@ module Api
           ::Modules::ContextCookie::Selection.new(organization_id: scalar(organization_id), company_id: scalar(company_id), branch_id: scalar(branch_id))
         end
 
-        # Un parámetro que no es una cadena (?company_id[]=…) no es un id: se trata como un id inexistente (404).
+        # A non-string param (?company_id[]=...) is not an id: treat it as a nonexistent id (404).
         def scalar(value) = value.nil? || value.is_a?(String) ? value : "0"
       end
     end

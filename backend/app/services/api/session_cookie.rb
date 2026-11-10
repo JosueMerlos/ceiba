@@ -1,11 +1,11 @@
 module Api
-  # La cookie de sesión del panel: nombre y atributos en UN solo lugar (docs/architecture/11-security.md).
+  # The panel session cookie: name and attributes in ONE place.
   #
-  # - HttpOnly: el JavaScript de la página no la lee, así un XSS no roba la sesión.
-  # - SameSite=Lax: el navegador no la manda en POST/DELETE entre sitios (primera defensa contra CSRF).
-  # - Secure y prefijo `__Host-` en producción (config.x.auth.secure_cookies).
-  # - Path=/ y sin Domain: es la cookie del origen exacto.
-  # - `expires` = caducidad absoluta de la sesión; la inactividad la decide el servidor.
+  # - HttpOnly: page JavaScript cannot read it, so an XSS cannot steal the session.
+  # - SameSite=Lax: the browser does not send it on cross-site POST/DELETE (first CSRF defense).
+  # - Secure and `__Host-` prefix in production (config.x.auth.secure_cookies).
+  # - Path=/ and no Domain: it is the exact origin's cookie.
+  # - `expires` = absolute session expiry; inactivity is decided by the server.
   module SessionCookie
     BASE_NAME = "ceiba_session".freeze
     HOST_PREFIX = "__Host-".freeze
@@ -24,7 +24,7 @@ module Api
       cookies[name] = attributes.merge(value: token, expires: expires_at)
     end
 
-    # Para borrar hay que repetir path/secure/same_site: si no, el navegador no la considera "la misma" cookie.
+    # To delete, path/secure/same_site must be repeated: otherwise the browser does not treat it as the "same" cookie.
     def clear(cookies) = cookies.delete(name, **attributes)
   end
 end

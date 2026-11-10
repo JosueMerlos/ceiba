@@ -3,8 +3,8 @@ require "rubocop"
 require "rubocop/rspec/support"
 require "rubocop/cop/ceiba/authorization_skips"
 
-# La ÚNICA forma de no autorizar una acción es skip_authorization!(reason:, only:) (queda en la allowlist del spec de rutas).
-# Saltarse las verificaciones por otro camino abre un agujero sin rastro.
+# The ONLY way not to authorize an action is skip_authorization!(reason:, only:) (it lands in the route spec's
+# allowlist). Skipping the verifications any other way opens an untraceable hole.
 RSpec.describe RuboCop::Cop::Ceiba::AuthorizationSkips, :config do
   let(:ruby_version) { 3.4 }
   let(:cop_config) { { "Include" => [ "packs/*/*/app/controllers/**/*.rb" ] } }

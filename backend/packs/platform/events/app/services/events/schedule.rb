@@ -1,12 +1,13 @@
 module Events
-  # Tareas programadas del pack (sidekiq-cron). Se cargan al arrancar el proceso de Sidekiq
-  # (config/initializers/sidekiq_cron.rb). `load_from_hash` (sin !) añade o actualiza sin borrar las de otros packs.
+  # Scheduled tasks of the pack (sidekiq-cron), loaded when the Sidekiq process boots. `load_from_hash` (without !) adds
+  # or updates without deleting other packs' tasks.
   module Schedule
     JOBS = {
-      # Cada 5 s: cron de 6 campos (segundos). El poll de sidekiq-cron es de 1 s (con el jitter propio de Sidekiq, 0,5-1,5 s) para cumplirlo.
+      # Every 5 s: 6-field cron (seconds). The sidekiq-cron poll is 1 s (plus Sidekiq's own 0.5-1.5 s jitter) to honor
+      # it.
       "events_relay" => { "class" => "Events::RelayJob", "cron" => "*/5 * * * * *", "description" => "Publica el outbox a Sidekiq" },
       "events_outbox_lag" => { "class" => "Events::OutboxLagJob", "cron" => "* * * * *", "description" => "Mide el lag del outbox" },
-      # De madrugada (UTC), escalonadas.
+      # Overnight (UTC), staggered.
       "events_purge_outbox" => { "class" => "Events::PurgeOutboxJob", "cron" => "17 3 * * *", "description" => "Purga outbox_events publicados > 30 días" },
       "events_purge_processed" => { "class" => "Events::PurgeProcessedJob", "cron" => "27 3 * * *", "description" => "Purga processed_events > 30 días" }
     }.freeze

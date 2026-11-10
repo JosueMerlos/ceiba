@@ -1,10 +1,10 @@
-# Errores de dominio de modules que la API traduce a problem+json (ver Api::ErrorRegistry; títulos en api.errors.modules.* del locale).
+# Modules domain errors the API translates to problem+json (titles under api.errors.modules.* in the locale).
 #
-# - UnknownModule: la key no existe en ningún manifiesto (404; las keys de módulos no son secretas).
-# - NotEntitled: el plan no incluye el módulo (403; hoy nunca ocurre, F6).
-# - RequirementsNotMet / RequiredByOthers / NotEnabled: el estado de las activaciones lo impide (409); `detail` dice cuáles módulos.
-# - InvalidSettings: 422 con `errors[]` por campo ({ field, code, message }).
-# Un módulo inactivo en las rutas del propio módulo NO usa estos códigos: RequiresModule responde el 404 genérico (resource.not_found).
+# - UnknownModule: the key is in no manifest (404; module keys are not secret).
+# - NotEntitled: the plan does not include the module (403; never happens yet).
+# - RequirementsNotMet / RequiredByOthers / NotEnabled: activation state forbids it (409); `detail` names the modules.
+# - InvalidSettings: 422 with per-field `errors[]` ({ field, code, message }).
+# An inactive module on its own routes does NOT use these codes: RequiresModule answers the generic 404 (resource.not_found).
 Rails.application.config.to_prepare do
   registry = Api::ErrorRegistry
 

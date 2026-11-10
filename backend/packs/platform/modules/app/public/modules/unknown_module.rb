@@ -1,5 +1,5 @@
 module Modules
-  # Se pidió un módulo que ningún manifiesto declara.
+  # A module no manifest declares was requested.
   class UnknownModule < Error
     attr_reader :key
 

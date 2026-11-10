@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# Carrera real: dos provisiones concurrentes con el MISMO slug. Ambas pasan la validación de unicidad (ninguna ve aún
-# la fila de la otra); gana la restricción UNIQUE de la base y el perdedor recibe un error de dominio, no un
-# ActiveRecord::RecordNotUnique. Sin fixtures transaccionales: hacen falta COMMITs y conexiones distintas.
+# Real race: two concurrent provisions with the SAME slug. Both pass the uniqueness validation (neither sees the other's row
+# yet); the database UNIQUE constraint wins and the loser gets a domain error, not ActiveRecord::RecordNotUnique. No
+# transactional fixtures: real COMMITs and separate connections are needed.
 RSpec.describe Tenancy::ProvisionOrganization, ".call" do
   self.use_transactional_tests = false
 
@@ -16,16 +16,16 @@ RSpec.describe Tenancy::ProvisionOrganization, ".call" do
 
   def provision(name) = described_class.call(organization: { name: "Carrera #{name}" }, company: { name: name, slug:, business_type: "salon", currency: "NIO" }, branch: { name: "Centro" })
 
-  # Espera DETERMINISTA: B está de verdad bloqueada esperando a la transacción de A (un lock de tipo transactionid sin
-  # conceder), no "un rato". Sin esto el test podría ejercitar otra ruta (validación) y no RecordNotUnique.
+  # DETERMINISTIC wait: B is truly blocked on A's transaction (an ungranted transactionid lock), not "for a while". Without
+  # it the test could exercise another path (validation) instead of RecordNotUnique.
   def wait_until_blocked_on_unique_index
     Timeout.timeout(10) do
       sleep 0.05 until ApplicationRecord.connection.select_value("SELECT count(*) FROM pg_locks WHERE locktype = 'transactionid' AND NOT granted").to_i.positive?
     end
   end
 
-  # Corre A hasta tener su empresa insertada SIN commit; entonces arranca B (que no la ve y se bloquea en el INSERT por
-  # el índice único); al soltar A, B pierde. Devuelve [resultado de A, hilo de B].
+  # Runs A until its company is inserted WITHOUT commit; then starts B (which cannot see it and blocks on the INSERT because
+  # of the unique index); once A is released, B loses. Returns [A's result, B's thread].
   def race
     inserted = Queue.new
     release = Queue.new

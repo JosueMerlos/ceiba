@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# Active Record Encryption (M0.11): las claves NO están en el repositorio. En desarrollo y test se derivan de secret_key_base
-# (key_generator, igual que el token CSRF); en producción y staging vienen del entorno y, si faltan, el cifrado FALLA
-# (cerrado) en vez de usar una clave por defecto.
+# Active Record Encryption: the keys are NOT in the repository. In development and test they are derived from
+# secret_key_base (key_generator, like the CSRF token); in production and staging they come from the environment and, if
+# missing, encryption FAILS (closed) instead of using a default key.
 RSpec.describe "Active Record Encryption: claves" do
   describe EncryptionKeys do
     let(:generator) { Rails.application.key_generator }

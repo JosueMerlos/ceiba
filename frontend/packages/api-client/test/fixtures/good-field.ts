@@ -1,4 +1,4 @@
-// Fixture de type-safety.test.ts: accede SOLO a campos que existen en el contrato; tsc debe aceptarlo.
+// Fixture for type-safety.test.ts: reads ONLY fields that exist in the contract; tsc must accept it.
 import type { components } from "../../src/schema";
 
 type Organization = components["schemas"]["Organization"];

@@ -1,4 +1,4 @@
-# Esquemas OpenAPI del pack modules (los carga spec/swagger_helper.rb).
+# OpenAPI schemas of the modules pack.
 OpenapiComponents.register(
   ModuleActivation: {
     type: :object,

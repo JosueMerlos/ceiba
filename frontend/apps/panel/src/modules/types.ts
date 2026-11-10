@@ -2,24 +2,24 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 export interface ModuleRoute {
-  /** Relativa a la raíz del panel, sin barra inicial ("agenda", "agenda/summary"). */
+  /** Relative to the panel root, no leading slash ("agenda", "agenda/summary"). */
   path: string;
-  /** Permiso que el usuario debe tener (en /me) para que la ruta exista. */
+  /** Permission the user must have (in /me) for the route to exist. */
   permission: string;
   element: ReactNode;
 }
 
 export interface ModuleNavigation {
-  /** Coincide con `navigation[].key` de /me. */
+  /** Matches `navigation[].key` from /me. */
   key: string;
   path: string;
-  /** Clave del namespace `shell` de i18n. */
+  /** Key in the i18n `shell` namespace. */
   labelKey: "nav.agenda" | "nav.summary";
   permission: string;
   icon: LucideIcon;
 }
 
-/** Manifiesto del front de un módulo: el equivalente al `Modules.define` del backend. */
+/** Front-end manifest of a module: the counterpart of the backend's `Modules.define`. */
 export interface ModuleManifest {
   key: string;
   routes: ModuleRoute[];

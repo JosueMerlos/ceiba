@@ -1,13 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// E2E contra el entorno de Compose (proxy en el puerto público). Los datos son los seeds de demo (backend/db/seeds.rb).
-// Los tests son de solo lectura sobre los datos (no crean ni borran nada) y no comparten sesión: cada uno inicia la suya.
+// E2E against the Compose environment (proxy on the public port). Data comes from the demo seeds (backend/db/seeds.rb).
+// Tests are read-only on the data (they create and delete nothing) and share no session: each one logs in on its own.
 export default defineConfig({
   testDir: "./tests",
   outputDir: "./test-results",
   fullyParallel: false,
   workers: 1,
-  // Sin reintentos por defecto (la imagen fija CI=true y eso no debe esconder tests inestables en local).
+  // No retries by default (the image sets CI=true and that must not hide flaky tests locally).
   retries: Number(process.env.E2E_RETRIES ?? 0),
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {

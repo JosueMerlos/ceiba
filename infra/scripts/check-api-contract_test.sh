@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Pruebas de check-api-contract.sh con generadores simulados sobre un árbol temporal.
+# Tests for check-api-contract.sh with fake generators on a temporary tree.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-api-contract.sh"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 failures=0
-new_tree() { # contrato y cliente versionados, ambos "al día"
+new_tree() { # committed contract and client, both "up to date"
   rm -rf "$work/tree" && mkdir -p "$work/tree/backend/openapi" "$work/tree/frontend/packages/api-client/src"
   printf 'openapi: 3.0.3\npaths: {}\n' > "$work/tree/backend/openapi/v1.yaml"
   printf 'export interface paths {}\n' > "$work/tree/frontend/packages/api-client/src/schema.d.ts"
 }
-expect() { # expect <ok|fail> <descripción> <comando OpenAPI> <comando cliente> [patrón esperado en la salida]
+expect() { # expect <ok|fail> <description> <OpenAPI command> <client command> [expected output pattern]
   local expected=$1 description=$2 openapi_cmd=$3 client_cmd=$4 pattern=${5:-} output actual=ok
   output=$(ROOT="$work/tree" OPENAPI_GENERATE="$openapi_cmd" CLIENT_GENERATE="$client_cmd" "$script" 2>&1) || actual=fail
   if [ "$actual" != "$expected" ]; then echo "FALLA [$expected esperado, fue $actual] $description"; failures=$((failures + 1)); return; fi

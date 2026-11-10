@@ -1,6 +1,6 @@
 require "rails_helper"
 
-# M0.13: el log de desarrollo no debe llevar valores de consultas SQL (correos, teléfonos...) ni códigos de color.
+# The development log must carry no SQL query values (emails, phones...) nor color codes.
 RSpec.describe "Configuración del log" do
   it "sin códigos de color ANSI: rompen el JSON de cada línea" do
     expect(ActiveSupport::LogSubscriber.colorize_logging).to be(false)

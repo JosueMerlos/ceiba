@@ -1,22 +1,22 @@
 module Api
   module Pagination
-    # Paginación por cursor sobre la clave primaria (UUIDv7, docs/architecture/09-data-conventions.md). Nada de OFFSET.
+    # Cursor pagination over the primary key (UUIDv7). No OFFSET.
     #
     #   page = Api::Pagination::Cursor.paginate(Tenancy::Company.all, limit: params[:limit], after: params[:after])
-    #   page.records   # como mucho `limit` filas, en orden ascendente de id
+    #   page.records   # at most `limit` rows, ascending id order
     #   page.meta      # { next_cursor:, has_more: }
     #
-    # Por qué es estable: el UUIDv7 lleva el instante de creación en sus primeros bits, así que ordenar por id es
-    # ordenar por creación. Una fila ya confirmada ANTES de empezar el recorrido no se duplica ni se omite aunque se
-    # inserten otras entre páginas (con OFFSET, una inserción desplazaría filas). Límite conocido: el id se genera en el
-    # INSERT, no en el COMMIT, y el uuidv7() de PostgreSQL solo es monótono dentro de una sesión; una fila INSERTADA
-    # CONCURRENTEMENTE (o con un id explícito) puede quedar con un id menor que el cursor y no aparecer en ese recorrido.
-    # Aparecerá en el siguiente. Es la garantía de un listado, no la de un log de eventos.
+    # Why it is stable: a UUIDv7 carries the creation instant in its first bits, so ordering by id is ordering by
+    # creation. A row committed BEFORE the traversal starts is neither duplicated nor skipped when others are inserted
+    # between pages (with OFFSET an insert would shift rows). Known limit: the id is generated at INSERT, not COMMIT,
+    # and PostgreSQL's uuidv7() is only monotonic within a session; a CONCURRENTLY INSERTED row (or one with an explicit
+    # id) may get an id below the cursor and miss this traversal. It shows up in the next one. This is a listing's
+    # guarantee, not an event log's.
     #
-    # El cursor es `{ id }` FIRMADO (MessageVerifier, propósito propio, URL-safe): el cliente no puede fabricar uno ni
-    # alterarlo, y no debe interpretarlo. Se piden `limit + 1` filas para saber si hay más sin contar.
+    # The cursor is a SIGNED `{ id }` (MessageVerifier, own purpose, URL-safe): the client cannot forge or alter it, and
+    # must not interpret it. `limit + 1` rows are requested to know whether there are more without counting.
     #
-    # El orden del scope recibido se DESCARTA (reorder por id); sus filtros se conservan.
+    # The incoming scope's order is DISCARDED (reorder by id); its filters are kept.
     class Cursor
       DEFAULT_LIMIT = 50
       MAX_LIMIT = 100

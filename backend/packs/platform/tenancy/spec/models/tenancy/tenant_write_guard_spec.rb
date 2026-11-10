@@ -4,7 +4,7 @@ RSpec.describe Tenancy::TenantWriteGuard do
   let(:organization) { create(:organization) }
   let(:other) { create(:organization) }
 
-  # Modelo sonda sobre la tabla real companies: un before_save DECLARADO DESPUÉS de acts_as_tenant que cambia el tenant.
+  # Probe model over the real companies table: a before_save DECLARED AFTER acts_as_tenant that changes the tenant.
   let(:sneaky_model) do
     target = other
     Class.new(ApplicationRecord) do
@@ -92,8 +92,8 @@ RSpec.describe Tenancy::TenantWriteGuard do
     end
   end
 
-  # Canario: el guard depende de métodos privados de Active Record (_insert_record, _update_record...). Si una actualización
-  # de Rails los renombra, el guard dejaría de ejecutarse EN SILENCIO: este spec falla antes.
+  # Canary: the guard relies on Active Record private methods (_insert_record, _update_record...). If a Rails upgrade renames
+  # them the guard would stop running SILENTLY; this spec fails first.
   describe "canario de internos de Rails" do
     it "el guard es dueño de los métodos de clase que sobrescribe y estos tienen super" do
       %i[_insert_record _update_record _delete_record].each do |name|

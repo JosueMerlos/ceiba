@@ -1,17 +1,16 @@
-# Packwerk 3.3.1 + packwerk-extensions 0.4.0 (ADR-0001, docs/architecture/02-modular-monolith.md).
-# Se cargan solo los checkers que usamos: privacidad (app/public), capas y visibilidad
-# (la visibilidad impide que un módulo use a otro: el layer checker permite la misma capa).
+# Only the checkers we use are loaded: privacy (app/public), layers and visibility
+# (visibility stops one module from using another; the layer checker alone allows same-layer dependencies).
 require:
   - packwerk/privacy/checker
   - packwerk/layer/checker
   - packwerk/visibility/checker
 
-# Packs en packs/<capa>/<nombre> y el pack raíz (package.yml en backend/).
+# Packs live in packs/<layer>/<name>, plus the root pack.
 package_paths:
   - "."
   - "packs/*/*"
 
-# De la capa MÁS ALTA a la más baja: una capa solo puede depender de las que están debajo.
+# Highest layer first: a layer may only depend on those below it.
 layers:
   - modules
   - platform

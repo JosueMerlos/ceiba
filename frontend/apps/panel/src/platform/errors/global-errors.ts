@@ -3,27 +3,27 @@ import { translator, type AnyTranslate } from "@ceiba/i18n";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 
 interface GlobalErrorHandlers {
-  /** Sesión vencida: el router lleva al login conservando la ruta. */
-  /** `fromSession`: el 401 vino de GET /auth/session (no hay nada que descartar y el login no debe volver a pedirla). */
+  /** Expired session: the router goes to login keeping the path. */
+  /** `fromSession`: the 401 came from GET /auth/session (nothing to discard and login must not request it again). */
   onUnauthorized(fromSession: boolean): void;
-  /** Avisa al usuario (toast) de un fallo que ninguna pantalla va a mostrar. */
+  /** Notifies the user (toast) of a failure no screen will show. */
   notify(error: unknown): void;
-  /** `false` en pruebas: sin reintentos. */
+  /** `false` in tests: no retries. */
   retry?: false;
 }
 
 const isSessionExpired = (error: unknown) =>
   isApiError(error) && error.status === 401 && error.code !== "auth.invalid_credentials";
 
-// Una mutación fallida se avisa al usuario salvo los casos que su formulario ya muestra: 400/422 (validación), 404 y
-// el 401 (que lleva al login). 403, 409, 429, 5xx y los fallos de red sí.
+// A failed mutation notifies the user except for cases the form already shows: 400/422 (validation), 404 and 401
+// (which goes to login). 403, 409, 429, 5xx and network failures do notify.
 const shouldNotify = (error: unknown) =>
   !isApiError(error) || [403, 409, 429].includes(error.status) || error.status >= 500;
 
 /**
- * QueryClient del panel con la política GLOBAL de errores de la API (08-frontend, "Errores"):
- *  - 401 -> login (con ruta de retorno); 403 y 404 de una consulta -> pantalla de permiso / no encontrado;
- *  - 409, 403, 429, 5xx y red en una mutación -> aviso; 422 -> lo muestra el formulario.
+ * Panel QueryClient with the GLOBAL API error policy:
+ *  - 401 -> login (with return path); 403 and 404 on a query -> permission / not-found screen;
+ *  - 409, 403, 429, 5xx and network on a mutation -> toast; 422 -> shown by the form.
  */
 export function createQueryClient({ onUnauthorized, notify, retry }: GlobalErrorHandlers) {
   return new QueryClient({
@@ -51,12 +51,12 @@ export function createQueryClient({ onUnauthorized, notify, retry }: GlobalError
   });
 }
 
-/** Mensaje para el usuario. Se decide por `code` (estable y traducible), nunca por el `message` del servidor. */
+/** User-facing message. Decided by `code` (stable and translatable), never by the server's `message`. */
 export function describeError(error: unknown, translate: AnyTranslate): string {
   const t = translator(translate);
   if (!isApiError(error)) return t("errors:network");
 
-  // Clave dinámica (code de la API); `defaultValue` evita el aviso de clave inexistente: aquí la ausencia es normal.
+  // Dynamic key (API code); `defaultValue` avoids the missing-key warning: absence is normal here.
   const byCode = t(`errors:code.${error.code}`, { defaultValue: "" });
   if (byCode) return byCode;
   if (error.status === 403) return t("errors:forbidden.description");

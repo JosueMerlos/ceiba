@@ -1,6 +1,6 @@
-# Tablas de flipper-active_record (feature flags por organización, M0.09). GLOBALES, no tenant: un flag es una decisión de
-# desarrollo ("¿ya liberamos esto para esta organización?"), y el actor `organization` va dentro de `gates.value`
-# ("Organization;<id>"), no en una columna organization_id. Mismo esquema que `flipper:setup`, con PK uuid (uuidv7) como el resto.
+# flipper-active_record tables (per-organization feature flags). GLOBAL, not tenant: a flag is a development decision ("have we
+# released this to this organization yet?"), and the `organization` actor lives inside `gates.value` ("Organization;<id>"),
+# not in an organization_id column. Same schema as `flipper:setup`, with uuid (uuidv7) PKs like the rest.
 class CreateFlipperTables < ActiveRecord::Migration[8.1]
   def change
     create_table :flipper_features, id: :uuid do |t|

@@ -1,13 +1,12 @@
-# Sentry en el backend (M0.13, docs/architecture/10-infrastructure.md §Observabilidad). La configuración vive aquí (no en el
-# initializer) para probarla con un transporte falso; config/initializers/sentry.rb solo llama a SentrySetup.init.
+# Backend Sentry configuration. It lives here (not in the initializer) so it can be tested with a fake transport; the
+# initializer only calls SentrySetup.init.
 #
-#   SENTRY_DSN          sin él Sentry queda inactivo (desarrollo local, test, CI)
-#   SENTRY_ENVIRONMENT  nombre del entorno en Sentry (production, staging...); por defecto Rails.env
-#   APP_RELEASE         identificador del despliegue (p. ej. el SHA del commit); aparece como release
+#   SENTRY_DSN          without it Sentry is inactive (local development, test, CI)
+#   SENTRY_ENVIRONMENT  environment name in Sentry (production, staging...); defaults to Rails.env
+#   APP_RELEASE         deploy identifier (e.g. the commit SHA); shown as the release
 #
-# Reglas de privacidad: sin PII por defecto (send_default_pii false: ni cuerpos, ni cookies, ni IP, ni usuario); `before_send`
-# quita los correos de los mensajes, filtra los datos extra con config.filter_parameters y retira los argumentos de los jobs.
-# En test queda desactivado aunque llegue un DSN.
+# Privacy: no PII by default (send_default_pii false: no bodies, cookies, IP or user); `before_send` strips emails from
+# messages, filters extra data with config.filter_parameters and removes job arguments. Disabled in test even with a DSN.
 require "sentry-ruby"
 require "sentry-rails"
 require "sentry-sidekiq"
@@ -28,16 +27,16 @@ module SentrySetup
     config.release = env["APP_RELEASE"].presence
     config.send_default_pii = false
     config.breadcrumbs_logger = []
-    config.sdk_logger = Rails.logger # el log interno del SDK, en JSON como el resto (por defecto escribe texto plano en STDOUT)
-    config.auto_session_tracking = false # release health no se usa; sin esto avisa en cada arranque si falta APP_RELEASE
-    config.rails.register_error_subscriber = true # los 500 los rescata Api::ErrorHandling y los reporta con Rails.error
+    config.sdk_logger = Rails.logger # the SDK's internal log, in JSON like the rest (it defaults to plain text on STDOUT)
+    config.auto_session_tracking = false # release health is unused; without this it warns on every boot if APP_RELEASE is missing
+    config.rails.register_error_subscriber = true # 500s are rescued by Api::ErrorHandling and reported through Rails.error
     config.before_send = method(:before_send)
     install_event_processor
   end
 
-  # `before_send` corre en el hilo de fondo del cliente de Sentry, donde Current y LogContext (por hilo) están vacíos: solo
-  # sirve para limpiar datos. Los tags se ponen con un procesador global, que corre SÍNCRONO al capturar, en el hilo de la
-  # request o del job. Se registra una sola vez (los procesadores globales se acumulan entre `Sentry.init`).
+  # `before_send` runs on the Sentry client's background thread, where the per-thread Current and LogContext are empty:
+  # it can only scrub data. Tags are set by a global processor, which runs SYNCHRONOUSLY on capture, on the request or job
+  # thread. Registered once (global processors accumulate across `Sentry.init`).
   def install_event_processor
     return if @processor_installed
 
@@ -55,9 +54,9 @@ module SentrySetup
     event
   end
 
-  # Solo identificadores, nunca el correo ni el nombre (misma fuente que el log: Observability::LogFields). En un job el error
-  # se captura FUERA de JobLogger#prepare (LogContext ya está vacío): organización y clase se leen del contexto `sidekiq`
-  # que sentry-sidekiq adjunta con el job entero.
+  # Identifiers only, never the email or name (same source as the log). In a job the error is captured OUTSIDE
+  # JobLogger#prepare (LogContext is already empty): organization and class are read from the `sidekiq` context that
+  # sentry-sidekiq attaches with the whole job.
   def tenant_tags(event)
     fields = Observability::LogFields.current
     job = event.contexts.to_h.with_indifferent_access[:sidekiq] || {}
@@ -84,7 +83,7 @@ module SentrySetup
     @filter.filter(hash.deep_stringify_keys).deep_symbolize_keys.transform_values { |value| value.is_a?(String) ? scrub_text(value) : value }
   end
 
-  # sentry-sidekiq adjunta el job entero al contexto; sus args pueden llevar datos personales.
+  # sentry-sidekiq attaches the whole job to the context; its args may carry personal data.
   def redact_job_args(context)
     return context unless context.is_a?(Hash) && (context.key?(:args) || context.key?("args"))
 

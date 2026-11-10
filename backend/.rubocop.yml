@@ -1,9 +1,8 @@
-# Estilo base: rubocop-rails-omakase (el de Rails 8). Encima se añaden las reglas de Rails,
-# RSpec y FactoryBot. Decisión documentada en docs/architecture/12-testing-strategy.md.
+# Base style is rubocop-rails-omakase (Rails 8's); Rails, RSpec and FactoryBot rules are layered on top.
 inherit_gem:
   rubocop-rails-omakase: rubocop.yml
 
-# Cops propios (lib/rubocop/cop). Ceiba/PackNamespace: el namespace de un archivo es el de su pack.
+# Project-specific cops (lib/rubocop/cop).
 require:
   - ./lib/rubocop/cop/ceiba/pack_namespace
   - ./lib/rubocop/cop/ceiba/tenant_bypass
@@ -26,7 +25,7 @@ AllCops:
     - "vendor/**/*"
     - "node_modules/**/*"
 
-# Los specs se escriben en español: los contextos empiezan por estas palabras.
+# Specs are written in Spanish: contexts start with these words.
 RSpec/ContextWording:
   Prefixes:
     - con
@@ -35,7 +34,7 @@ RSpec/ContextWording:
     - al
     - si
 
-# Los specs describen comportamiento en español; el nombre del archivo sigue a la clase/ruta.
+# Specs describe behavior rather than a single class; the file name follows the class or route.
 RSpec/DescribeClass:
   Exclude:
     - "spec/requests/**/*"
@@ -61,15 +60,15 @@ RSpec/DescribeClass:
     - "packs/platform/access/spec/**/*"
     - "spec/platform/**/*"
 
-# Los ejemplos de resiliencia (timeouts, conexiones colgadas) necesitan varias expectativas. Los de la matriz de acceso
-# (platform/access) comprueban el mismo alcance contra varios recursos (empresa propia/ajena, sucursal propia/hermana...).
+# Resilience examples (timeouts, hung connections) need several expectations; access-matrix examples check the same
+# scope against several resources (own/foreign company, own/sibling branch...).
 RSpec/MultipleExpectations:
   Max: 3
   Exclude:
     - "packs/platform/access/spec/**/*"
 
-# Los specs de acceso montan un árbol organización > empresas > sucursales (A1, A2, B1...) y varias organizaciones:
-# muchos `let` con nombres de dominio (branch_a1) son la forma legible de hacerlo.
+# Access specs build an organization > companies > branches tree across several organizations: many `let`s with
+# domain names (branch_a1) is the readable way to do it.
 RSpec/MultipleMemoizedHelpers:
   Exclude:
     - "packs/platform/access/spec/**/*"
@@ -83,7 +82,7 @@ RSpec/SpecFilePathFormat:
 RSpec/ExampleLength:
   Max: 15
 
-# rswag declara sus ejemplos con `run_test!` y prepara la sesión con `let!`: rubocop-rspec no los reconoce.
+# rswag declares examples with `run_test!` and sets up the session with `let!`, which rubocop-rspec does not recognize.
 RSpec/EmptyExampleGroup:
   Exclude:
     - "spec/api/**/*"
@@ -97,33 +96,33 @@ RSpec/LetSetup:
 RSpec/NestedGroups:
   Max: 4
 
-# El namespace de cada archivo de un pack debe empezar por el nombre del pack (02-modular-monolith).
+# A file's namespace must start with its pack's name.
 Ceiba/PackNamespace:
   Enabled: true
   Include:
     - "packs/*/*/app/**/*.rb"
 
-# Las policies preguntan por permisos, nunca por roles ni por admin? (ADR-0008).
+# Policies ask about permissions, never about roles or admin?.
 Ceiba/AccessPolicyRoles:
   Enabled: true
   Include:
     - "packs/*/*/app/policies/**/*.rb"
 
-# La autorización solo se omite con skip_authorization!(reason:, only:) (allowlist revisada en spec/requests/api/authorization_spec.rb).
+# Authorization is only skipped with skip_authorization!(reason:, only:); the allowlist is reviewed in an authorization spec.
 Ceiba/AuthorizationSkips:
   Enabled: true
   Include:
     - "app/controllers/**/*.rb"
     - "packs/*/*/app/controllers/**/*.rb"
 
-# Un controlador con `requires_module` no puede saltarse su gate (ensure_required_module_enabled!): sus rutas quedarían abiertas.
+# A controller with `requires_module` cannot skip its gate (ensure_required_module_enabled!): its routes would be open.
 Ceiba/ModuleGateSkips:
   Enabled: true
   Include:
     - "app/controllers/**/*.rb"
     - "packs/*/*/app/controllers/**/*.rb"
 
-# Tenancy::Directory es de solo lectura: nada de update_all/delete_all/readonly(false) a través de él.
+# Tenancy::Directory is read-only: no update_all/delete_all/readonly(false) through it.
 Ceiba/DirectoryWrites:
   Enabled: true
   Include:
@@ -134,9 +133,8 @@ Ceiba/DirectoryWrites:
   Exclude:
     - "lib/rubocop/**/*"
 
-# Nadie se salta el aislamiento de tenant (ActsAsTenant.without_tenant, unscoped...) fuera de esta lista. Cada archivo
-# que se añada aquí es un camino privilegiado y exige revisión (CODEOWNERS): reportes consolidados, back-office.
-# Tenancy.with_context es el único que fija el tenant. Los specs no se revisan (los tests de bypass lo necesitan).
+# Nobody bypasses tenant isolation (ActsAsTenant.without_tenant, unscoped...) outside this list. Every file added here is
+# a privileged path and needs review (CODEOWNERS). Tenancy.with_context is the only thing that sets the tenant.
 Ceiba/TenantBypass:
   Enabled: true
   Include:
@@ -153,15 +151,14 @@ Ceiba/TenantBypass:
     - "lib/rubocop/**/*"
   AllowedFiles:
     - "packs/platform/tenancy/app/public/tenancy.rb"
-    # Lecturas del outbox de todas las organizaciones (relay, purgas, lag): ver el comentario del archivo.
+    # Outbox reads across all organizations (relay, purges, lag).
     - "packs/platform/events/app/services/events/cross_tenant.rb"
-    # "¿A qué organizaciones pertenece este usuario?" (selector de contexto, GET /organizations): lee memberships de todas.
+    # Context selector: reads a user's memberships across all organizations.
     - "packs/platform/access/app/services/access/membership_directory.rb"
-    # Purga de idempotency_keys vencidas de todas las organizaciones: ver el comentario del archivo.
+    # Purges expired idempotency_keys across all organizations.
     - "packs/platform/idempotency/app/services/idempotency/cross_tenant.rb"
 
-# rubocop-rails limita estos cops a app/models, app/controllers... de la raíz; sin esto no
-# revisarían los packs (packs-rails, "Ecosystem and Integrations").
+# rubocop-rails limits these cops to the root app/models, app/controllers...; without this they would skip the packs.
 Rails/EnumHash:
   Include:
     - "**/app/models/**/*.rb"

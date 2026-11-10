@@ -1,7 +1,6 @@
 module Access
-  # Dónde se ejerce un permiso: la organización, una empresa o una sucursal (siempre dentro de UNA organización). Value
-  # object: las policies lo construyen desde el registro que autorizan (los modelos de otros packs son privados, así que
-  # se pasan sus ids).
+  # Where a permission is exercised: the organization, a company or a branch (always within ONE organization). Value
+  # object: policies build it from the record they authorize (other packs' models are private, so their ids are passed).
   #
   #   Access::Scope.organization(org.id)
   #   Access::Scope.company(organization_id: org.id, company_id: company.id)

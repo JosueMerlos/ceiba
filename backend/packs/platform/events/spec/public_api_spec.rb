@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# La API pública de events es CHICA a propósito: publicar, suscribirse, el evento, los esquemas y los errores. El
-# outbox, el relay, las entregas y las purgas son internos. Añadir algo a app/public es una decisión de diseño.
+# The public API of events is SMALL on purpose: publish, subscribe, the event, the schemas and the errors. The outbox,
+# relay, deliveries and purges are internal. Adding something to app/public is a design decision.
 RSpec.describe "API pública de events" do
   let(:root) { Rails.root.join("packs/platform/events/app/public") }
   let(:public_files) { root.glob("**/*.rb").map { |file| file.relative_path_from(root).to_s } }

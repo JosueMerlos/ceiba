@@ -1,5 +1,5 @@
 module Events
-  # Mide y reporta el lag del outbox (Events::OutboxLag). Job del sistema.
+  # System job: measures and reports the outbox lag (Events::OutboxLag).
   class OutboxLagJob
     include Sidekiq::Job
 

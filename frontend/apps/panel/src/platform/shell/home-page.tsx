@@ -44,7 +44,7 @@ export function HomePage() {
   );
 }
 
-/** Usuario autenticado pero sin memberships: /me responde 200 con el contexto vacío. */
+/** Authenticated user without memberships: /me answers 200 with an empty context. */
 export function NoAccessPage() {
   const { t } = useTranslation("shell");
   return <StatusPage title={t("noContext.title")} description={t("noContext.description")} />;

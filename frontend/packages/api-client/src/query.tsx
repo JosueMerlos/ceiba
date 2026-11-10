@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, type ReactNode } from "react";
 import { createApiClient, unwrap, type ApiClient } from "./client";
 
-// Hooks base de TanStack Query sobre el cliente generado. Los `queryFn` usan `unwrap`: devuelven el cuerpo tipado del
-// contrato o rechazan con ApiError, que es lo que TanStack Query espera. El estado del servidor vive SOLO en la caché.
+// Base TanStack Query hooks over the generated client. The `queryFn`s use `unwrap`: they return the contract's typed
+// body or reject with ApiError, which is what TanStack Query expects. Server state lives ONLY in the cache.
 
 const ApiClientContext = createContext<ApiClient | null>(null);
 
@@ -30,7 +30,7 @@ export function useApiClient(): ApiClient {
   return client;
 }
 
-/** Contexto elegido: ver GET /api/v1/me. Vacío = el último usado (cookie `ceiba_context`) o el primero disponible. */
+/** Chosen context (see GET /api/v1/me). Empty = the last used (`ceiba_context` cookie) or the first available. */
 export interface MeContext {
   organization_id?: string;
   company_id?: string;
@@ -46,8 +46,8 @@ export const queryKeys = {
     ["organizations", organizationId, "companies", companyId, "branches"] as const,
 };
 
-/** Páginas del selector de contexto: el máximo que admite la API (100). Más de eso no es un selector, es un buscador. */
-// El contrato declara X-CSRF-Token como parámetro obligatorio; el middleware del cliente lo reemplaza por el token real.
+/** Context selector page size: the API maximum (100). Beyond that it is a search box, not a selector. */
+// The contract declares X-CSRF-Token as a required parameter; the client middleware replaces it with the real token.
 const CSRF_PLACEHOLDER = "";
 
 const SELECTOR_PAGE = { limit: 100 };
@@ -57,7 +57,7 @@ export function useSessionQuery() {
   return useQuery({
     queryKey: queryKeys.session,
     queryFn: () => unwrap(client.GET("/api/v1/auth/session")),
-    // Una sesión que ya respondió 401 no se vuelve a pedir al montar el login (una sola GET al arrancar).
+    // A session that already answered 401 is not requested again when login mounts (a single GET on startup).
     retryOnMount: false,
   });
 }
@@ -120,14 +120,14 @@ export function useLoginMutation() {
   return useMutation({
     mutationFn: (credentials: { email: string; password: string }) =>
       unwrap(client.POST("/api/v1/auth/login", { body: credentials })),
-    // El error (credenciales inválidas, límite de intentos) lo muestra el propio formulario: sin aviso global.
+    // The form itself shows the error (invalid credentials, rate limit): no global notice.
     meta: { silent: true },
-    // El middleware ya guardó el token CSRF; aquí la sesión entra a la caché para que el panel no la pida de nuevo.
+    // The middleware already stored the CSRF token; the session goes into the cache so the panel does not request it again.
     onSuccess: (session) => queryClient.setQueryData(queryKeys.session, session),
   });
 }
 
-/** Cierra la sesión de este navegador y olvida TODO lo cacheado (otra persona puede usar el equipo después). */
+/** Logs out of this browser and forgets EVERYTHING cached (someone else may use the machine afterwards). */
 export function useLogoutMutation() {
   const client = useApiClient();
   const queryClient = useQueryClient();

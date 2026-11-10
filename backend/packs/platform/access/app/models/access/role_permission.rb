@@ -1,5 +1,5 @@
 module Access
-  # Pertenencia de un permiso a un rol. Tabla GLOBAL con clave compuesta (role_id, permission_key).
+  # Membership of a permission in a role. GLOBAL table with composite key (role_id, permission_key).
   class RolePermission < ApplicationRecord
     self.primary_key = %i[role_id permission_key]
 

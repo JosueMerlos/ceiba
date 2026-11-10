@@ -1,8 +1,7 @@
-# Manifiesto MÍNIMO del módulo de citas (M0.09): permisos, concesiones, scopes y settings de docs/domain/appointments.md. Sin
-# modelos ni endpoints todavía (el dominio llega en F1): la provisión lo activa por defecto y /api/v1/me lo reporta.
+# Minimal appointments module manifest: permissions, role grants, API scopes and settings only. No models or endpoints yet.
 #
-# El registro (platform/modules) carga este archivo por ARCHIVO y lo valida al arrancar; aquí solo hay cadenas y datos, ninguna
-# constante de otro pack (este archivo está excluido de packwerk, docs/architecture/02-modular-monolith.md).
+# The module registry loads this file by PATH and validates it at boot, so it holds only strings and data and references no
+# constant from another pack (the file is excluded from Packwerk).
 Modules.define :appointments do
   name        "Citas"
   version     "1.0"
@@ -19,7 +18,7 @@ Modules.define :appointments do
     permission "appointments.service.manage",         description: "Gestionar servicios y precios"
   end
 
-  # La matriz de docs/architecture/04-access-control.md: org_owner y org_admin solo ven CONTEOS de citas, nunca el detalle.
+  # org_owner and org_admin only see appointment COUNTS, never the detail.
   role_grants do
     grant :org_owner,       %w[appointments.appointment.count]
     grant :org_admin,       %w[appointments.appointment.count]
@@ -38,7 +37,7 @@ Modules.define :appointments do
   settings_schema "config/settings.schema.json"
   settings_levels %i[company branch]
 
-  # Los eventos appointments.*.v1 y sus esquemas llegan con el dominio (F1); `publishes` exige un esquema registrado por cada uno.
+  # No events yet; `publishes` requires a registered schema for each event once the domain adds them.
   publishes   []
   subscribes  { }
 

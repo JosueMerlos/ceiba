@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Criterio 5 de M0.11 con un modelo REAL con Active Record Encryption: aún no hay PII cifrada en el producto (llega con
-# customers), así que la sonda declara `encrypts` sobre una columna de organizations dentro del spec.
+# Encrypted PII with a REAL Active Record Encryption model: there is no encrypted PII in the product yet, so the probe
+# declares `encrypts` on an organizations column inside the spec.
 RSpec.describe "Audit.record con atributos cifrados (criterio 5)" do
   let(:organization) { create(:organization) }
   let(:probe_class) do

@@ -1,11 +1,10 @@
-# Pack platform/audit (namespace Audit). Reglas: docs/architecture/02-modular-monolith.md
 layer: platform
 enforce_dependencies: true
 enforce_privacy: true
 enforce_layers: true
 
-# Declara aquí SOLO lo que el pack usa. "." es el pack raíz (ApplicationRecord, ApplicationController...).
-# Un pack de platform no depende de ningún módulo.
+# Declare ONLY what the pack uses. "." is the root pack (ApplicationRecord, ApplicationController...).
+# A platform pack depends on no module.
 dependencies:
   - "."
   - "packs/platform/tenancy"

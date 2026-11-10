@@ -1,12 +1,11 @@
 module Idempotency
-  # Retención de idempotency_keys: una clave vencida (24 h) ya no sirve y guarda una respuesta de negocio. Se borra por lotes
-  # (sin una transacción gigante ni bloqueos largos), de todas las organizaciones.
+  # Retention of idempotency_keys: an expired key (24 h) is useless and holds a business response. Deleted in batches
+  # (no giant transaction or long locks), across all organizations.
   module Purge
     BATCH_SIZE = 1_000
 
     module_function
 
-    # Devuelve cuántas filas borró.
     def expired(now: Time.current)
       total = 0
       CrossTenant.run do

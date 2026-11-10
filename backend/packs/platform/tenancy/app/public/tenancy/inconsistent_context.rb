@@ -1,5 +1,5 @@
 module Tenancy
-  # El contexto pedido mezcla entidades que no encajan (una empresa de otra organización, una sucursal que no es de
-  # la empresa indicada...). Se lanza ANTES de tocar el tenant ni la base de datos.
+  # The requested context mixes entities that do not fit (a company from another organization, a branch not in the given
+  # company...). Raised BEFORE touching the tenant or the database.
   class InconsistentContext < Error; end
 end

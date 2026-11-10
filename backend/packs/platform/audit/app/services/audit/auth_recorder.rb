@@ -1,5 +1,4 @@
 module Audit
-  # Implementación de Audit.record_auth (privada del pack).
   class AuthRecorder
     def self.call(action:, user_id:, ip:, user_agent:, metadata:)
       raise ArgumentError, "action es obligatoria" if action.blank?

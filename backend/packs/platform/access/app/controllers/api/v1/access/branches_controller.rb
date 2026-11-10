@@ -1,8 +1,8 @@
 module Api
   module V1
     module Access
-      # Sucursales de UNA empresa de la ruta, solo las que el principal puede leer (un company_manager ve todas las de su
-      # empresa; un branch_manager, la suya).
+      # Branches of ONE company from the route, only those the principal can read (a company_manager sees all of the
+      # company's; a branch_manager, their own).
       class BranchesController < ::Api::BaseController
         route_context branch: :id
 

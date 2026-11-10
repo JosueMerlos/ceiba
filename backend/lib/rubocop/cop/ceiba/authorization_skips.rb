@@ -5,10 +5,10 @@ require "rubocop"
 module RuboCop
   module Cop
     module Ceiba
-      # La ÚNICA forma de no autorizar una acción es `skip_authorization!(reason:, only:)` (Access::Authorization): deja el motivo
-      # escrito y aparece en la allowlist que vigila spec/requests/api/authorization_spec.rb. Este cop prohíbe en los controladores
-      # cualquier otro camino: `skip_after_action :verify_authorized` (o `verify_policy_scoped` / `verify_collection_scoped`),
-      # `skip_callback` sobre ellos, redefinirlos, y los `skip_authorization` / `skip_policy_scope` de Pundit.
+      # The ONLY way not to authorize an action is `skip_authorization!(reason:, only:)` (Access::Authorization): it
+      # records the reason and shows up in the allowlist that authorization_spec watches. This cop forbids any other path
+      # in controllers: `skip_after_action :verify_authorized` (or `verify_policy_scoped` / `verify_collection_scoped`),
+      # `skip_callback` on them, redefining them, and Pundit's `skip_authorization` / `skip_policy_scope`.
       class AuthorizationSkips < Base
         MSG = "No te saltes la autorización por tu cuenta: usa `skip_authorization!(reason:, only:)` (queda en la allowlist revisada)."
 
@@ -31,7 +31,7 @@ module RuboCop
           end
         end
 
-        # @_pundit_policy_authorized = true (marca de Pundit escrita a mano)
+        # @_pundit_policy_authorized = true (Pundit's mark, written by hand)
         def on_ivasgn(node)
           add_offense(node) if PUNDIT_MARKS.match?(node.name.to_s)
         end

@@ -8,7 +8,6 @@ import { API, company, ids, meFixture, organization } from "../../test/fixtures"
 import { server, signedInBackend } from "../../test/server";
 import { ContextProvider, useContextSelection } from "./context-provider";
 
-// Criterio 2: al cambiar de organización la caché de queries se invalida y no se ve nada de la anterior.
 describe("ContextProvider", () => {
   it("criterio 2: cambiar de organización descarta los datos cacheados de la anterior", async () => {
     let activeOrganization = "Org A";
@@ -22,7 +21,7 @@ describe("ContextProvider", () => {
         });
       },
     });
-    // Un recurso de negocio cuya respuesta depende de la organización activa en el servidor.
+    // A business resource whose response depends on the organization active on the server.
     server.use(
       http.get(`${API}/api/v1/probe`, () =>
         HttpResponse.json({ text: `datos de ${activeOrganization}` }),
@@ -64,7 +63,7 @@ describe("ContextProvider", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Cambiar a B" }));
 
-    // Nunca se vuelve a ver el dato de A (ni siquiera obsoleto mientras llega el nuevo).
+    // A's data is never seen again (not even stale while the new data loads).
     expect(screen.queryByText("datos de Org A")).toBeNull();
     await waitFor(() => expect(screen.getByText("datos de Org B")).toBeTruthy());
   });

@@ -1,15 +1,15 @@
-# Rutas y controlador del módulo FICTICIO `sample` (M0.09), para los specs de RequiresModule y de la suite de cobertura de módulos.
-# Se dibujan en el router solo para el grupo que las pide y se descartan al terminar (como spec/support/api_probes.rb): ningún
-# endpoint de prueba existe en la aplicación real.
+# Routes and controller of the FICTITIOUS `sample` module, for the RequiresModule specs and the module coverage suite.
+# They are drawn on the router only for the group that asks for them and dropped afterwards (like
+# spec/support/api_probes.rb): no test endpoint exists in the real application.
 #
 #   GET /api/v1/organizations/:organization_id/companies/:company_id/sample/things
 #
-# Es un controlador de verdad: hereda de Api::BaseController (autenticación y autorización obligatorias) y declara
-# `requires_module :sample`, igual que un controlador de un pack de módulos.
+# It is a real controller: inherits Api::BaseController (mandatory authentication and authorization) and declares
+# `requires_module :sample`, just like a controller in a modules pack.
 module SampleModule
   UNKNOWN_ID = "0198f0a0-0000-7000-8000-000000000000".freeze
 
-  # Se define bajo demanda para no cargar Api::BaseController en cada spec de la suite.
+  # Defined on demand so Api::BaseController is not loaded in every spec of the suite.
   def self.define_api!
     return if const_defined?(:ThingsController, false)
 
@@ -33,14 +33,14 @@ module SampleModule
       include Modules::RequiresModule
       requires_module :sample
 
-      # Las "cosas" de muestra son las sucursales de la empresa del contexto: lo justo para tener un listado con policy_scope.
+      # The sample "things" are the context company's branches: just enough for a listing with policy_scope.
       def index
         things = Tenancy::Directory.branches.where(company_id: Current.context.company.id)
         authorize things, :index?, policy_class: SampleModule::ThingPolicy
         render json: { data: policy_scope(things, policy_scope_class: SampleModule::ThingPolicy::Scope).pluck(:id) }
       end
 
-      # Ruta de MIEMBRO (:id): un id desconocido da 404 por sí solo, por eso la suite de cobertura usa ids reales.
+      # MEMBER route (:id): an unknown id gives 404 by itself, so the coverage suite uses real ids.
       def show
         thing = Tenancy::Directory.branches.where(company_id: Current.context.company.id).find(params[:id])
         authorize thing, :show?, policy_class: SampleModule::ThingPolicy
@@ -48,7 +48,7 @@ module SampleModule
       end
     end)
 
-    # Ruta bajo branches/:branch_id: el resolvedor de rutas valida la sucursal ANTES del gate (404 si no existe).
+    # Route under branches/:branch_id: the route resolver validates the branch BEFORE the gate (404 if it does not exist).
     const_set(:BranchThingsController, Class.new(Api::BaseController) do
       include Modules::RequiresModule
       requires_module :sample
@@ -88,6 +88,6 @@ end
 RSpec.shared_context "con rutas de sample" do
   include SampleModule::Helpers
 
-  before(:context) { sample_routes } # rubocop:disable RSpec/BeforeAfterAll -- dibujar rutas es caro y global
+  before(:context) { sample_routes } # rubocop:disable RSpec/BeforeAfterAll -- drawing routes is expensive and global
   after(:context) { Rails.application.reload_routes! } # rubocop:disable RSpec/BeforeAfterAll
 end

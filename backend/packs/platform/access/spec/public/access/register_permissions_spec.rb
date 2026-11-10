@@ -1,7 +1,6 @@
 require "rails_helper"
 
-# Access.register_permissions: la API con la que cada pack declara sus permisos (ADR-0008). Aquí se prueba con un registro
-# propio (Access::PermissionRegistry.new) para no tocar el global.
+# Tested with its own registry (Access::PermissionRegistry.new) so the global one is untouched.
 RSpec.describe "Access.register_permissions" do
   let(:permission_registry) { Access::PermissionRegistry.new }
 

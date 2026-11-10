@@ -1,7 +1,7 @@
 module Access
-  # Base de TODA policy de la aplicación (ADR-0007): niega por defecto. Cada policy vive en su pack, hereda de aquí y concede
-  # preguntando al PRINCIPAL por un permiso en un alcance, nunca por un nombre de rol ni por `admin?` (el cop
-  # Ceiba/AccessPolicyRoles lo vigila):
+  # Base of EVERY policy in the app: deny by default. Each policy lives in its pack, inherits from here and grants by
+  # asking the PRINCIPAL for a permission in a scope, never by role name or `admin?` (enforced by the
+  # Ceiba/AccessPolicyRoles cop):
   #
   #   class Appointments::AppointmentPolicy < Access::BasePolicy
   #     def create? = can?("appointments.appointment.create", branch_scope)
@@ -27,7 +27,7 @@ module Access
 
     private
 
-    # Un permiso sin registrar lanza Access::UnknownPermission (bug del código, nunca una denegación silenciosa).
+    # An unregistered permission raises Access::UnknownPermission (a code bug, never a silent denial).
     def can?(permission_key, scope) = principal.can?(permission_key, scope)
 
     class Scope
@@ -38,12 +38,11 @@ module Access
         @scope = scope
       end
 
-      # Por defecto no devuelve nada.
       def resolve = scope.none
 
       private
 
-      # A qué llega un permiso (Access::Reach), para filtrar el listado con una condición.
+      # What a permission reaches (Access::Reach), to filter the listing with a condition.
       def reach(permission_key) = principal.reach(permission_key)
     end
   end

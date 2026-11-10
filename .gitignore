@@ -1,15 +1,15 @@
-# macOS / editores
+# macOS / editors
 .DS_Store
 .idea/
 .vscode/
 *.swp
 
-# Entorno local (los secretos reales nunca se versionan)
+# Local environment (real secrets are never committed)
 .env
 .env.*
 !.env.example
 
-# Logs y temporales
+# Logs and temp files
 *.log
 tmp/
 
@@ -30,8 +30,8 @@ dist/
 coverage/
 *.tsbuildinfo
 
-# Rails: clave maestra de credentials
+# Rails credentials master key
 /backend/config/*.key
 
-# ticket-harness: planes, estado de PRs y evidencia locales
+# ticket-harness: local plans, PR state and evidence
 .harness/

@@ -1,7 +1,6 @@
 require "rails_helper"
 
-# Auditoría de Tenancy::ProvisionOrganization por el hook after_provision (M0.11). Tenancy no conoce a Audit: el pack se
-# engancha desde config.to_prepare, igual que Events::ProvisioningHook.
+# Audit of Tenancy::ProvisionOrganization through the after_provision hook.
 RSpec.describe "Integración de Audit con Tenancy::ProvisionOrganization" do
   let(:attributes) do
     {

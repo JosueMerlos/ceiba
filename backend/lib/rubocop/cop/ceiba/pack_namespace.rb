@@ -5,13 +5,11 @@ require "rubocop"
 module RuboCop
   module Cop
     module Ceiba
-      # El namespace Ruby de un pack es el nombre del pack, sin excepción
-      # (docs/architecture/02-modular-monolith.md): `packs/modules/appointments` define `Appointments::*`.
-      # Zeitwerk ya exige que la ruta del archivo coincida con la constante; este cop exige que esa
-      # constante empiece por el pack al que pertenece el archivo, así un archivo no puede "colarse"
-      # en el namespace de otro pack ni quedar sin namespace.
+      # A pack's Ruby namespace is the pack name, no exceptions: `packs/modules/appointments` defines `Appointments::*`.
+      # Zeitwerk already requires the file path to match the constant; this cop requires the constant to start with the
+      # pack the file belongs to, so a file cannot "sneak" into another pack's namespace or sit without one.
       #
-      # Los controladores pueden colgar de `Api::V1::<Pack>` (rutas bajo /api/v1).
+      # Controllers may hang from `Api::V1::<Pack>` (routes under /api/v1).
       #
       # @example
       #   # bad (packs/modules/appointments/app/models/appointments/booking.rb)
@@ -49,9 +47,9 @@ module RuboCop
           root.begin_type? ? root.children : [ root ]
         end
 
-        # Recorre TODAS las definiciones. Cada una se resuelve contra el namespace que la envuelve
-        # (`::X` es absoluto) y debe quedar dentro del pack; solo se admiten, sin estar dentro, los
-        # módulos que son camino hacia él (`Api`, `Api::V1` para `Api::V1::Pack` en controladores).
+        # Walks ALL definitions. Each is resolved against its enclosing namespace (`::X` is absolute) and must end up
+        # inside the pack; the only outsiders admitted are modules on the way to it (`Api`, `Api::V1` for
+        # `Api::V1::Pack` in controllers).
         def check_definitions(nodes, parent)
           nodes.each do |node|
             next unless node.is_a?(RuboCop::AST::Node)

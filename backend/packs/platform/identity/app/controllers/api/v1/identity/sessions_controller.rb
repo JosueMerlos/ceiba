@@ -1,13 +1,13 @@
 module Api
   module V1
     module Identity
-      # Inicio, consulta y cierre de la sesión del panel (docs/architecture/11-security.md).
+      # Sign-in, lookup and sign-out of the panel session.
       class SessionsController < ::Api::BaseController
-        # PÚBLICO a propósito: es la puerta de entrada, todavía no hay sesión que exigir. Sigue protegido por la
-        # validación de Origin; el rate limit por IP y correo llega con M0.13. Las demás acciones exigen sesión.
+        # PUBLIC on purpose: it is the entry point, there is no session to require yet. It is still protected by Origin
+        # validation. The other actions require a session.
         skip_authentication! only: :create
-        # Estas acciones operan sobre la PROPIA sesión del principal (no sobre un recurso de una organización): no hay nada que
-        # autorizar más allá de estar autenticado.
+        # These actions operate on the principal's OWN session (not on an organization's resource): there is nothing to
+        # authorize beyond being authenticated.
         skip_authorization! reason: "login, sesión y logout operan sobre la propia sesión, no sobre recursos de una organización",
           only: %i[create show destroy destroy_all]
 

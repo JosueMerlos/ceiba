@@ -1,22 +1,22 @@
-# Contexto de tenant para los jobs de Sidekiq (M0.10, docs/architecture/06-events-and-jobs.md, "Jobs: reglas").
+# Tenant context for Sidekiq jobs.
 #
-# - Cliente: al encolar, copia el organization_id del tenant activo al PAYLOAD del job. Un job sin tenant activo y sin
-#   organization_id explícito no se encola (falla en quien lo encola, que es quien sabe de qué organización es).
-# - Servidor: antes de ejecutar, abre Tenancy.with_context con esa organización (tenant de acts_as_tenant + SET LOCAL
-#   app.organization_id para RLS) y lo cierra al terminar. Un payload sin organization_id lanza MissingOrganization.
+# - Client: on enqueue, copies the active tenant's organization_id into the job PAYLOAD. A job with no active tenant and no
+#   explicit organization_id is not enqueued (it fails at the enqueuer, who knows which organization it belongs to).
+# - Server: before running, opens Tenancy.with_context with that organization (acts_as_tenant tenant + SET LOCAL
+#   app.organization_id for RLS) and closes it afterwards. A payload without organization_id raises MissingOrganization.
 #
-# Los jobs del SISTEMA, que por naturaleza cruzan organizaciones (el relay, las purgas), se declaran explícitamente con
-# `sidekiq_options tenant: false`. No hay una "cola tenant" implícita: las colas (critical, default, notifications, low)
-# mezclan ambos tipos, así que la excepción es del job y se ve en su clase.
+# SYSTEM jobs, which by nature cross organizations (the relay, purges), are declared explicitly with
+# `sidekiq_options tenant: false`. There is no implicit "tenant queue": the queues (critical, default, notifications, low)
+# mix both kinds, so the exception belongs to the job and shows in its class.
 #
-# Vive en lib/ (no se recarga): Sidekiq guarda estas clases en su cadena de middleware y una clase recargada dejaría
-# referencias obsoletas. Tenancy::Organization se resuelve en el momento de la llamada.
+# Lives in lib/ (not reloaded): Sidekiq keeps these classes in its middleware chain and a reloaded class would leave stale
+# references. Tenancy::Organization is resolved at call time.
 require "sidekiq/api"
 require "sidekiq/job_retry"
 
 module TenantJobMiddleware
   KEY = "organization_id".freeze
-  # Reintentos (con el backoff por defecto de Sidekiq, ~15-30 s) antes de dar por perdida una organización que no existe.
+  # Retries (with Sidekiq's default backoff, ~15-30 s) before giving up on an organization that does not exist.
   MAX_ORGANIZATION_RETRIES = 3
 
   class MissingOrganization < StandardError; end
@@ -38,11 +38,10 @@ module TenantJobMiddleware
   class Server
     include Sidekiq::ServerMiddleware
 
-    # - Sin organization_id: no se arregla reintentando; a la cola muerta de inmediato y Skip le dice al worker que ya
-    #   está tratado.
-    # - Organización inexistente: unos pocos reintentos (MAX_ORGANIZATION_RETRIES) por si el job se encoló dentro de la
-    #   transacción que la crea y aún no es visible; agotados, a la cola muerta (no ~21 días).
-    # Un error del propio job SÍ se propaga y Sidekiq lo reintenta.
+    # - No organization_id: retrying will not fix it; straight to the dead set, and Skip tells the worker it is handled.
+    # - Nonexistent organization: a few retries (MAX_ORGANIZATION_RETRIES) in case the job was enqueued inside the
+    #   transaction that creates it and is not visible yet; once exhausted, to the dead set (not ~21 days).
+    # An error from the job itself DOES propagate and Sidekiq retries it.
     def call(worker, job, _queue, &)
       return yield if TenantJobMiddleware.tenant_free?(job)
 
@@ -63,7 +62,7 @@ module TenantJobMiddleware
       dead_letter!(job, error)
     end
 
-    # La organización, o el RecordNotFound (no lanzado) si no existe.
+    # The organization, or the RecordNotFound (returned, not raised) if it does not exist.
     def find_organization(id)
       Tenancy::Organization.find(id)
     rescue ActiveRecord::RecordNotFound => error

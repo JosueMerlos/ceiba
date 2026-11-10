@@ -1,4 +1,4 @@
-# Mide cuántos segundos tarda el bloque (reloj monótono).
+# Measures how many seconds the block takes (monotonic clock).
 module Timing
   def elapsed_seconds
     started = Process.clock_gettime(Process::CLOCK_MONOTONIC)

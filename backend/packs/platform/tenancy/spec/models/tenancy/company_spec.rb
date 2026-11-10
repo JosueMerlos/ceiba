@@ -4,7 +4,7 @@ RSpec.describe Tenancy::Company do
   let(:organization) { new_organization }
   let(:attributes) { { name: "Barbería El Güegüense", slug: "el-guegu", business_type: "barbershop", currency: "NIO" } }
 
-  # Todo ocurre dentro del tenant, salvo los ejemplos marcados :no_tenant.
+  # Everything runs inside the tenant, except examples tagged :no_tenant.
   around { |example| example.metadata[:no_tenant] ? example.run : with_tenant(organization) { example.run } }
 
   def build_company(**overrides)
@@ -43,7 +43,7 @@ RSpec.describe Tenancy::Company do
     end
 
     it "la base rechaza una organización inexistente aunque se salte la validación" do
-      # SQL crudo: insert! aplicaría el scope del tenant y los callbacks del modelo (guard) lo frenarían antes.
+      # Raw SQL: insert! would apply the tenant scope and the model's callbacks (guard) would stop it first.
       sql = "INSERT INTO companies (organization_id, name, slug, business_type, currency, created_at, updated_at) " \
             "VALUES ('#{SecureRandom.uuid}', 'x', 'sin-organizacion', 'salon', 'NIO', now(), now())"
 

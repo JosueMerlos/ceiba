@@ -1,8 +1,8 @@
-# Conexión como `app_owner` (el rol de las migraciones) para specs que necesitan DDL.
+# Connection as `app_owner` (the migrations role) for specs that need DDL.
 #
-# La aplicación y la suite conectan como `app_user`, que no puede crear tablas (docs/architecture/03).
-# Los specs de convenciones de BD crean tablas de prueba; lo hacen con esta conexión aparte, que usa
-# los mismos parámetros que `config/database.yml` pero con las credenciales del dueño.
+# The application and the suite connect as `app_user`, which cannot create tables. The DB convention specs create test
+# tables; they do it over this separate connection, which uses the same parameters as `config/database.yml` but the
+# owner's credentials.
 module OwnerConnection
   OWNER = "app_owner".freeze
 
@@ -17,7 +17,7 @@ module OwnerConnection
     )
   end
 
-  # Abre una conexión de dueño, la cede al bloque y la cierra siempre.
+  # Opens an owner connection, yields it to the block and always closes it.
   def with(database: nil)
     connection = ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.new(config(database:))
     connection.connect!
@@ -26,8 +26,8 @@ module OwnerConnection
     connection&.disconnect!
   end
 
-  # Ejecuta el bloque dentro de una transacción de dueño que SIEMPRE se revierte: el DDL de PostgreSQL
-  # es transaccional, así las tablas de prueba nunca llegan a existir de verdad.
+  # Runs the block inside an owner transaction that is ALWAYS rolled back: PostgreSQL DDL is transactional, so the test
+  # tables never really exist.
   def rolled_back
     with do |connection|
       connection.transaction(requires_new: true) do

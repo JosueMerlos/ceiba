@@ -1,10 +1,10 @@
 module Access
-  # Hook after_provision: convierte a `extras[:owner]` en el org_owner de la organización recién creada. Corre en la MISMA
-  # transacción que la provisión: si falla, no queda ni organización ni empresa. Tenancy no conoce a Access ni a Identity; el
-  # pack se engancha desde config.to_prepare (config/initializers/owner_hook.rb).
+  # after_provision hook: makes `extras[:owner]` the org_owner of the newly created organization. Runs in the SAME
+  # transaction as the provisioning: on failure neither organization nor company remains. Tenancy knows neither Access nor
+  # Identity; the pack hooks in from config.to_prepare.
   #
-  # `owner` es un Identity::Principal::User (lo que devuelve Identity::ProvisionUser). Sin `owner` la organización nace sin
-  # dueño (el alta con invitación llega con M4.01); un `owner` de otro tipo es un error del llamador y revierte todo.
+  # `owner` is an Identity::Principal::User (what Identity::ProvisionUser returns). Without `owner` the organization is
+  # born ownerless; an `owner` of another type is a caller error and rolls everything back.
   module OwnerHook
     KEY = :access_owner
 
@@ -18,7 +18,7 @@ module Access
       GrantRole.call(user: owner, role_key: "org_owner", organization: result.organization)
     end
 
-    # Idempotente por `key:`: se puede llamar en cada recarga.
+    # Idempotent by `key:`: safe to call on every reload.
     def register = Tenancy::ProvisionOrganization.after_provision(self, key: KEY)
   end
 end

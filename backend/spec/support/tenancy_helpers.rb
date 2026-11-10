@@ -1,5 +1,5 @@
-# Helpers de specs para trabajar dentro de un tenant. Un spec que toca modelos tenant sin contexto falla por
-# diseño (acts_as_tenant require_tenant): este helper es la forma corta de abrir uno.
+# Spec helpers for working inside a tenant. A spec that touches tenant models without a context fails by design
+# (acts_as_tenant require_tenant): this helper is the short way to open one.
 module TenancyHelpers
   def with_tenant(organization, &)
     Tenancy.with_context(organization:, &)
@@ -10,15 +10,15 @@ module TenancyHelpers
     with_tenant(organization) { create(*, **, &) }
   end
 
-  # Una sentencia que falla en PostgreSQL aborta la transacción que la contiene; dentro de with_tenant (que ya es una
-  # transacción) hay que aislar el intento en un savepoint para poder afirmar el error y seguir.
+  # A statement that fails in PostgreSQL aborts the transaction containing it; inside with_tenant (already a
+  # transaction) the attempt must be isolated in a savepoint to assert the error and carry on.
   def savepoint(&)
     ApplicationRecord.transaction(requires_new: true, &)
   end
 
-  # Para specs SIN fixtures transaccionales (COMMIT real): borra todo lo que las organizaciones dejaron en CUALQUIER tabla
-  # tenant (empresas, sucursales, eventos del outbox...) y luego las organizaciones. Tolera el orden de las FKs repitiendo
-  # pasadas: una tabla que aún tiene hijos (RESTRICT) se reintenta en la pasada siguiente.
+  # For specs WITHOUT transactional fixtures (real COMMIT): deletes everything the organizations left in ANY tenant
+  # table (companies, branches, outbox events...) and then the organizations. Tolerates FK order by repeating passes: a
+  # table that still has children (RESTRICT) is retried on the next pass.
   def purge_organizations(organizations, user_ids: [])
     ids = Array(organizations).map { |organization| organization.respond_to?(:id) ? organization.id : organization }
     return if ids.empty?
@@ -37,9 +37,9 @@ module TenancyHelpers
     Tenancy::Organization.where(id: ids).delete_all
   end
 
-  # Las tablas append-only (audit_events) rechazan el DELETE del rol de la aplicación por diseño. Un spec con COMMIT real
-  # que audita deja filas que bloquearían el borrado de la organización (FK RESTRICT): las limpia el DUEÑO, desactivando
-  # el trigger solo dentro de su transacción (control contra la aplicación, no contra el dueño; docs/architecture/11).
+  # Append-only tables (audit_events) reject the application role's DELETE by design. A real-COMMIT spec that audits
+  # leaves rows that would block deleting the organization (FK RESTRICT): the OWNER cleans them, disabling the trigger
+  # only inside its transaction (a control against the application, not against the owner).
   def purge_append_only_rows(ids, user_ids = [])
     OwnerConnection.with do |owner|
       owner.transaction do
@@ -53,7 +53,7 @@ module TenancyHelpers
     end
   end
 
-  # auth_audit_events (global, sin organización): se limpian las filas de los usuarios que el spec creó.
+  # auth_audit_events (global, no organization): the rows of the users the spec created are cleaned.
   def purge_auth_audit_events(owner, user_ids)
     return if user_ids.empty?
 

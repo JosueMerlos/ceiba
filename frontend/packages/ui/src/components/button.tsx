@@ -30,7 +30,7 @@ const buttonVariants = cva(
 
 interface ButtonProps extends ComponentProps<"button">, VariantProps<typeof buttonVariants> {
   asChild?: boolean;
-  /** Muestra un indicador, anuncia "ocupado" y no admite otro clic mientras tanto. */
+  /** Shows an indicator, announces "busy" and ignores further clicks meanwhile. */
   loading?: boolean;
 }
 

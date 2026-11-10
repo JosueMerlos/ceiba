@@ -1,7 +1,6 @@
 require "rails_helper"
 
-# Auditoría de los cambios de memberships (M0.11): Access::GrantRole es el único camino que escribe memberships hoy
-# (seeds, OwnerHook, y las invitaciones de M4.01). Registra membership.granted en la MISMA transacción.
+# Access::GrantRole is the only path that writes memberships; it records membership.granted in the SAME transaction.
 RSpec.describe "Auditoría de memberships (Access::GrantRole)" do
   let!(:world) { build_access_world }
   let(:organization) { world.organization }

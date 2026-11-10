@@ -1,23 +1,21 @@
 require "rails_helper"
 
-# HARNESS DE LA MATRIZ DE AUTORIZACIÓN (M0.08, docs/architecture/12-testing-strategy.md §3): rol × alcance × recurso × acción
-# -> permitido/denegado, con la parte de PLATAFORMA de la matriz de docs/architecture/04-access-control.md copiada aquí A MANO,
-# como tabla de casos independiente del seed. Si el seed (role_permissions) o el motor divergen de la tabla, FALLA.
-#
-# Corre dentro de `rspec` (bin/ci backend-test). Tres capas:
-#   1. DATOS: los permisos de plataforma de cada rol de sistema en la BD == la matriz.
-#   2. MOTOR: can?(permiso, alcance) para 6 roles × permisos × {organización, empresa propia/ajena, sucursal propia/hermana/ajena}.
-#   3. HTTP: 6 roles × {empresa propia/ajena} × {sucursal propia/hermana/ajena} contra la API real (404 vs 403 vs 200).
+# AUTHORIZATION MATRIX HARNESS: role x scope x resource x action -> allowed/denied, with the PLATFORM part of the role
+# matrix copied here BY HAND as a case table independent of the seed. It FAILS if the seed (role_permissions) or the
+# engine diverge from the table. Three layers:
+#   1. DATA: each system role's platform permissions in the DB == the matrix.
+#   2. ENGINE: can?(permission, scope) for 6 roles x permissions x {organization, own/foreign company, own/sibling/foreign branch}.
+#   3. HTTP: 6 roles x {own/foreign company} x {own/sibling/foreign branch} against the real API (404 vs 403 vs 200).
 module AuthorizationMatrix
   ROLES = %w[org_owner org_admin company_manager branch_manager receptionist professional].freeze
-  # Permiso => roles que lo reciben (04-access-control, "Matriz de permisos", filas de plataforma).
+  # Permission => roles that receive it (platform rows of the role matrix).
   MATRIX = {
     "platform.organization.read" => %w[org_owner org_admin],
     "platform.organization.update" => %w[org_owner org_admin],
     "platform.organization.manage_billing" => %w[org_owner],
     "platform.organization.delete" => %w[org_owner],
     "platform.organization.transfer_ownership" => %w[org_owner],
-    # Decisión de producto (M0.08): todo rol con membership LEE la empresa y la sucursal a las que pertenece (datos básicos).
+    # Product decision: every role with a membership READS the company and branch it belongs to (basic data).
     "platform.company.read" => %w[org_owner org_admin company_manager branch_manager receptionist professional],
     "platform.company.create" => %w[org_owner org_admin],
     "platform.company.update" => %w[org_owner org_admin],
@@ -30,17 +28,17 @@ module AuthorizationMatrix
     "platform.api_key.manage" => %w[org_owner org_admin],
     "platform.reports.consolidated" => %w[org_owner org_admin]
   }.freeze
-  # Alcances que CUBRE cada rol, dado el mundo: org_*, toda la organización; company_manager de A, A y sus sucursales; los
-  # roles de sucursal, solo A1 (org ⊃ empresa ⊃ sucursal).
+  # Scopes each role COVERS in the test world: org_* the whole organization; company_manager of A, A and its branches;
+  # branch roles only A1 (org > company > branch).
   TARGETS = %i[organization company_a company_b branch_a1 branch_a2 branch_b1].freeze
-  # Permisos de LECTURA que un membership de sucursal ejerce también sobre la empresa de esa sucursal (nunca sobre sus hermanas).
+  # READ permissions a branch membership also exercises on that branch's company (never on sibling branches).
   UPWARD = %w[platform.company.read].freeze
   REACH = {
     "org_owner" => TARGETS, "org_admin" => TARGETS,
     "company_manager" => %i[company_a branch_a1 branch_a2],
     "branch_manager" => %i[branch_a1], "receptionist" => %i[branch_a1], "professional" => %i[branch_a1]
   }.freeze
-  # Status HTTP esperado por objetivo: [empresa A (propia), empresa B (ajena), sucursal A1 (propia), A2 (hermana), B1 (ajena)]
+  # Expected HTTP status per target: [company A (own), company B (foreign), branch A1 (own), A2 (sibling), B1 (foreign)]
   EXPECTED = {
     "org_owner" => [ 200, 200, 200, 200, 200 ],
     "org_admin" => [ 200, 200, 200, 200, 200 ],
@@ -50,13 +48,13 @@ module AuthorizationMatrix
     "professional" => [ 200, 404, 200, 404, 404 ]
   }.freeze
 
-  # GET /organizations/:id (platform.organization.read: solo owner y admin)
+  # GET /organizations/:id (platform.organization.read: only owner and admin)
   ORGANIZATION_SHOW = {
     "org_owner" => 200, "org_admin" => 200, "company_manager" => 403, "branch_manager" => 403, "receptionist" => 403, "professional" => 403
   }.freeze
 
-  # Contenido de los listados: [empresas de GET .../companies, sucursales de .../companies/A/branches, sucursales de .../companies/B/branches]
-  # (un número = esa respuesta, p. ej. 404 si la ruta no es visible para el rol).
+  # Listing contents: [companies of GET .../companies, branches of .../companies/A/branches, branches of .../companies/B/branches]
+  # (a number = that response, e.g. 404 if the route is not visible to the role).
   INDEXES = {
     "org_owner" => [ %i[company_a company_b], %i[branch_a1 branch_a2], %i[branch_b1] ],
     "org_admin" => [ %i[company_a company_b], %i[branch_a1 branch_a2], %i[branch_b1] ],
@@ -79,7 +77,6 @@ RSpec.describe "Matriz de autorización", type: :request do
     end
   end
 
-  # org ⊃ empresa ⊃ sucursal, más la lectura ascendente (UPWARD) de la empresa propia para los roles de sucursal.
   def world_id(target) = world.public_send(target).id
 
   def reaches?(role_key, permission, target)
@@ -211,7 +208,7 @@ RSpec.describe "Matriz de autorización", type: :request do
 
     it "ningún 404 distingue 'no existe' de 'existe pero no es tuyo'" do
       sign_in(member_of("branch_manager"))
-      get paths[3] # A2: existe, hermana
+      get paths[3] # A2: exists, sibling
       sibling = response.parsed_body.except("request_id", "instance")
       get "#{paths[2].sub(world.branch_a1.id, '0198f0a0-0000-7000-8000-000000000000')}" # inexistente
       missing = response.parsed_body.except("request_id", "instance")

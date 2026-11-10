@@ -1,26 +1,23 @@
 module Tenancy
-  # Barrera de ESCRITURA de la barrera 1 (docs/architecture/03-multi-tenancy.md). acts_as_tenant filtra lecturas y valida
-  # (pero las validaciones se pueden saltar con `save(validate: false)`); este guard actúa en la capa de persistencia,
-  # DESPUÉS de todos los callbacks del modelo, y no se salta con ningún save:
-  #   - INSERT con organization_id distinto del tenant activo        => TenantMismatch
-  #   - UPDATE que escribe organization_id (save, update_columns...) => TenantIsImmutable
-  #   - UPDATE/touch/update_columns/DELETE/destroy de un objeto de OTRA organización que sigue en memoria (el UPDATE va
-  #     por clave primaria, sin default scope)                       => TenantMismatch, y además toda sentencia lleva
-  #     `organization_id = <tenant>` en sus condiciones (defensa en profundidad: afecta 0 filas aunque algo se escape)
-  #   - escribir sin tenant activo                                   => ActsAsTenant::Errors::NoTenantSet
-  #   - Model.insert_all/insert_all!/upsert_all con filas de otro tenant => TenantMismatch; upsert_all exige `unique_by`
-  #     sobre un índice que incluya organization_id (si no, un id ajeno se sobrescribiría y se movería de tenant);
-  #   - Relation#update_all que escribe organization_id => TenantIsImmutable.
+  # WRITE barrier of the first tenancy barrier. acts_as_tenant filters reads and validates (but validations can be skipped
+  # with `save(validate: false)`); this guard acts in the persistence layer, AFTER all model callbacks, and no save skips it:
+  #   - INSERT with an organization_id other than the active tenant's    => TenantMismatch
+  #   - UPDATE that writes organization_id (save, update_columns...)     => TenantIsImmutable
+  #   - UPDATE/touch/update_columns/DELETE/destroy of an in-memory object from ANOTHER organization (the UPDATE goes by
+  #     primary key, without default scope)                              => TenantMismatch, and every statement also carries
+  #     `organization_id = <tenant>` in its conditions (defense in depth: it affects 0 rows even if something slips)
+  #   - writing without an active tenant                                 => ActsAsTenant::Errors::NoTenantSet
+  #   - Model.insert_all/insert_all!/upsert_all with another tenant's rows => TenantMismatch; upsert_all requires `unique_by`
+  #     on an index that includes organization_id (otherwise a foreign id would be overwritten and moved tenant);
+  #   - Relation#update_all that writes organization_id                  => TenantIsImmutable.
   #
-  # POR QUÉ en persistencia y no en `before_save`: los callbacks corren en el orden en que se declaran y acts_as_tenant se
-  # declara arriba del modelo; un `before_save` posterior que cambiara organization_id llegaría DESPUÉS del guard y
-  # escaparía. `_insert_record`/`_update_record`/`_delete_record` (clase) y `_update_row`/`_delete_row` (instancia) se
-  # ejecutan cuando ya no queda ningún callback. spec/…/tenant_write_guard_spec.rb ("canario") falla si una versión de Rails
-  # los renombra, para que el guard no deje de ejecutarse en silencio.
+  # WHY in persistence and not `before_save`: callbacks run in declaration order and acts_as_tenant is declared at the top of
+  # the model; a later `before_save` changing organization_id would run AFTER the guard and escape. `_insert_record`/
+  # `_update_record`/`_delete_record` (class) and `_update_row`/`_delete_row` (instance) run when no callback is left. The
+  # tenant_write_guard spec ("canary") fails if a Rails version renames them, so the guard cannot silently stop running.
   #
-  # Lo engancha el pack (config/initializers/tenant_write_guard.rb) en todo modelo que declara acts_as_tenant.
-  # No cubre `update_counters`/`increment!`-estilo SQL directo ni SQL crudo (`find_by_sql`, `connection.execute`): la
-  # última barrera para eso es RLS (M4.03).
+  # The pack hooks it into every model that declares acts_as_tenant. It does not cover direct-SQL style `update_counters`/
+  # `increment!` or raw SQL (`find_by_sql`, `connection.execute`): the last barrier for those is RLS.
   module TenantWriteGuard
     extend ActiveSupport::Concern
 
@@ -42,7 +39,7 @@ module Tenancy
       end
     end
 
-    # Las comprobaciones viven aquí (y no en el initializer, que no se recarga) para que se actualicen con el pack.
+    # The checks live here (not in the initializer, which does not reload) so they update with the pack.
     class << self
       def tenant_model?(klass) = klass.include?(TenantWriteGuard)
 
@@ -55,18 +52,18 @@ module Tenancy
         row = row.to_h.transform_keys(&:to_s)
         return unless row.key?(TENANT_COLUMN)
         value = row[TENANT_COLUMN]
-        value = value.value_for_database if value.respond_to?(:value_for_database) # _insert_record recibe Attributes
+        value = value.value_for_database if value.respond_to?(:value_for_database) # _insert_record receives Attributes
         return if value == tenant.id
 
         raise TenantMismatch, "#{klass.name}: organization_id #{value.inspect} no es el del tenant activo (#{tenant.id})"
       end
 
-      # Añade organization_id = tenant a las condiciones de un UPDATE/DELETE por clave primaria.
+      # Adds organization_id = tenant to the conditions of a primary-key UPDATE/DELETE.
       def scoped_constraints(constraints)
         constraints.to_h.merge(TENANT_COLUMN => current_tenant!.id)
       end
 
-      # El registro persistido pertenece al tenant activo (se mira el valor en la base, no el que alguien haya asignado).
+      # Checks the database value, not whatever someone assigned.
       def ensure_record_in_tenant!(record, action)
         return if record.organization_id_in_database == current_tenant!.id
 
@@ -86,7 +83,7 @@ module Tenancy
         Array(rows).each { |row| ensure_row_in_tenant!(klass, row) }
       end
 
-      # upsert_all con on_duplicate propio (SQL) que mencione organization_id movería filas propias de organización.
+      # A custom (SQL) on_duplicate mentioning organization_id could move rows between organizations.
       def ensure_on_duplicate_safe!(klass, on_duplicate)
         return if on_duplicate.is_a?(Symbol)
         return unless on_duplicate.to_s.match?(/\borganization_id\b/)
@@ -125,7 +122,7 @@ module Tenancy
       before_destroy :ensure_destroy_in_tenant
     end
 
-    # update_columns/update_column no pasan por _update_row: se comprueba aquí, con un mensaje claro.
+    # update_columns/update_column bypass _update_row, so check here with a clear message.
     def update_columns(attributes)
       TenantWriteGuard.ensure_not_changing_tenant!(self.class, attributes)
       TenantWriteGuard.ensure_record_in_tenant!(self, "actualizar")
@@ -134,7 +131,7 @@ module Tenancy
 
     private
 
-    # Los usan update/update!/update_attribute/touch (_update_row) y delete (_delete_row).
+    # Used by update/update!/update_attribute/touch (_update_row) and delete (_delete_row).
     def _update_row(attribute_names, attempted_action = "update")
       TenantWriteGuard.ensure_record_in_tenant!(self, attempted_action == "touch" ? "tocar" : "actualizar")
       super

@@ -1,9 +1,9 @@
 module Access
-  # ÚNICO camino que lee memberships de TODAS las organizaciones: "¿a qué organizaciones pertenece este usuario?" (selector
-  # de contexto, ADR-0028; GET /organizations). Es un camino privilegiado explícito: está en AllowedFiles del cop
-  # Ceiba/TenantBypass (revisión de CODEOWNERS). Solo LEE y solo devuelve ids de organización del propio usuario.
+  # The ONLY path that reads memberships across ALL organizations: "which organizations does this user belong to?"
+  # (context selector; GET /organizations). It is an explicit privileged path, listed in AllowedFiles of the
+  # Ceiba/TenantBypass cop (CODEOWNERS review). It only READS and only returns the user's own organization ids.
   #
-  # Con RLS activado (M4.03) esta lectura necesitará una política por usuario o el rol de plataforma con BYPASSRLS (tarea de M4.03).
+  # Once RLS is enabled this read will need a per-user policy or a platform role with BYPASSRLS.
   module MembershipDirectory
     module_function
 

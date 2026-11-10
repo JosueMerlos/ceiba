@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { meFixture } from "../test/fixtures";
 import { activeModules, navigationFor } from "./registry";
 
-// El registro del front solo monta lo que /api/v1/me dice que está activo y filtra la navegación por permiso.
 describe("registro de módulos del front", () => {
   it("monta solo los módulos activos según /me", () => {
     const withAppointments = meFixture({ modules: ["appointments"] }).data;

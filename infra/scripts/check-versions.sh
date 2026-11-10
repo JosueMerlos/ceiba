@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Verifica que las versiones de .tool-versions coincidan con los Dockerfiles, compose.yaml,
-# .ruby-version, package.json y el workflow de CI (M0.02: "mismas versiones que .tool-versions").
-# Uso: check-versions.sh [raíz-del-repo]
+# Checks that the versions in .tool-versions match the Dockerfiles, compose.yaml, .ruby-version, package.json and the CI
+# workflow.
+# Usage: check-versions.sh [repo-root]
 set -euo pipefail
 root="${1:-$(cd "$(dirname "$0")/../.." && pwd)}"
 cd "$root"
 
 failures=0
 version_of() { awk -v tool="$1" '$1 == tool { print $2 }' .tool-versions; }
-expect_in() { # expect_in <archivo> <patrón fijo esperado> <descripción>
+expect_in() { # expect_in <file> <expected fixed pattern> <description>
   if grep -qF -- "$2" "$1"; then echo "ok    $3"
   else echo "FALLA $3: se esperaba '$2' en $1" >&2; failures=$((failures + 1)); fi
 }
@@ -34,14 +34,14 @@ expect_in .github/workflows/ci.yml          "node-version-file: .tool-versions" 
 expect_in .github/workflows/ci.yml          "rhysd/actionlint:1.7.12"      "Imagen de actionlint en ci.yml"
 expect_in bin/ci                            "rhysd/actionlint:1.7.12"      "Imagen de actionlint en bin/ci"
 
-# Playwright (M0.12): la imagen de los E2E debe ser la versión de @playwright/test (los navegadores van en la imagen).
+# The E2E image must match the @playwright/test version (the browsers ship in the image).
 playwright=$(sed -n 's/.*"@playwright\/test": "\([0-9.]*\)".*/\1/p' frontend/e2e/package.json)
 [ -n "$playwright" ] || { echo "FALLA no se encontró @playwright/test en frontend/e2e/package.json" >&2; exit 1; }
 expect_in infra/docker/e2e.Dockerfile "FROM mcr.microsoft.com/playwright:v${playwright}-" "Playwright ${playwright} en e2e.Dockerfile"
 expect_in infra/docker/e2e.Dockerfile "ARG PNPM_VERSION=${pnpm}" "pnpm ${pnpm} en e2e.Dockerfile"
 
-# pg_dump (structure.sql) exige cliente y servidor de la MISMA versión mayor: el cliente instalado en la imagen
-# del api y en los jobs de CI con base de datos debe ser el de la versión mayor del servicio postgres.
+# pg_dump (structure.sql) needs client and server on the SAME major version: the client installed in the api image and
+# in the CI jobs with a database must match the postgres service's major version.
 pg_major="${postgres%%.*}"
 expect_in infra/docker/api.Dockerfile "postgresql-client-${pg_major}" "Cliente PostgreSQL ${pg_major} en api.Dockerfile"
 [ "$(grep -cF -- "postgresql-client-${pg_major}" .github/workflows/ci.yml)" -ge 2 ] \

@@ -18,8 +18,8 @@ Rails.application.configure do
   # Configure public file server for tests with cache-control for performance.
   config.public_file_server.headers = { "cache-control" => "public, max-age=3600" }
 
-  # M0.06: sin páginas de error con stacktrace. Todo error de la API sale como problem+json, sin detalles internos, también
-  # en test (el detalle va al log con el request_id; docs/architecture/07-api-contract.md).
+  # No stacktrace error pages: every API error renders as problem+json without internals, even in test
+  # (details go to the log with the request_id).
   config.consider_all_requests_local = false
 
   config.cache_store = :null_store

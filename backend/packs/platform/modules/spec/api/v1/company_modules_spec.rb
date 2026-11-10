@@ -1,8 +1,8 @@
 require "swagger_helper"
 
-# Activar/desactivar un módulo de una empresa y escribir sus settings (M0.09). Exige `platform.company_module.manage` (org_owner y
-# org_admin, matriz de 04). Criterio 6: settings inválidos => 422 con el detalle por campo. La UI llega con M4.01.
-# rswag exige que el `let` se llame igual que el parámetro de cabecera (`X-CSRF-Token`).
+# Enable/disable a module and write its settings; requires `platform.company_module.manage`. Invalid settings give 422
+# with per-field detail.
+# rswag requires the `let` to be named like the header parameter (`X-CSRF-Token`).
 # rubocop:disable RSpec/VariableName, RSpec/VariableDefinition, RSpec/MultipleMemoizedHelpers
 RSpec.describe "API v1: módulos de una empresa" do
   include_context "con el módulo sample sincronizado"
@@ -12,7 +12,6 @@ RSpec.describe "API v1: módulos de una empresa" do
   let(:company_id) { world.company_a.id }
   let(:key) { "sample" }
   let(:admin) { user_with_role("org_admin", world) }
-  # rswag exige que el `let` se llame igual que el parámetro de cabecera.
   let("X-CSRF-Token") { signed_in.csrf_token }
 
   def enable_sample = with_tenant(world.organization) { Modules::Enable.call(company: world.company_a, key: "sample") }

@@ -1,11 +1,11 @@
 module Tenancy
-  # Dónde está trabajando el código ahora mismo: organización (el tenant), y opcionalmente empresa, sucursal y el
-  # principal que actúa. Inmutable: cambiar de empresa crea un contexto nuevo (`context.with(company: otra)`).
+  # Where the code is working right now: organization (the tenant) and optionally company, branch and the acting principal.
+  # Immutable: switching company creates a new context (`context.with(company: other)`).
   #
-  # Valida la coherencia al construirse y en cada `with`, así un contexto incoherente no llega a existir:
-  #   - la organización existe (está guardada);
+  # Validates coherence on construction and on every `with`, so an inconsistent context never exists:
+  #   - the organization is persisted;
   #   - company.organization_id == organization.id;
-  #   - branch.company_id == company.id (y una sucursal exige empresa).
+  #   - branch.company_id == company.id (and a branch requires a company).
   Context = Data.define(:organization, :company, :branch, :principal) do
     def initialize(organization:, company: nil, branch: nil, principal: nil)
       super

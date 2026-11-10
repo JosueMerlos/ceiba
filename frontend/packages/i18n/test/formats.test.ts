@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { formatCurrency, formatDate, formatDateTime, formatNumber, formatTime } from "../src";
 
-// Intl con es-NI: los formatos salen del runtime, no de cadenas escritas a mano.
+// Intl with es-NI: formats come from the runtime, not from hand-written strings.
 describe("formatos es-NI", () => {
   it("formatea córdobas y dólares con su símbolo", () => {
     expect(formatCurrency(1250.5, "NIO")).toMatch(/C\$\s?1,250\.50|NIO\s?1,250\.50/);
@@ -13,7 +13,7 @@ describe("formatos es-NI", () => {
   });
 
   it("formatea la fecha SIEMPRE en la zona indicada, nunca en la del navegador", () => {
-    // 2026-11-09 03:30 UTC es el 8 de noviembre a las 21:30 en Managua (UTC-6).
+    // 2026-11-09 03:30 UTC is November 8 at 21:30 in Managua (UTC-6).
     const instant = "2026-11-09T03:30:00Z";
 
     expect(formatDate(instant, "America/Managua")).toContain("8");

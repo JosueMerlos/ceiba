@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Alta de un usuario por código (seeds, consola): idempotente por correo. NO es el registro público ni la invitación
-# (M4.01): no hay endpoint que lo exponga.
+# Creating a user from code (seeds, console): idempotent by email. NOT the public sign-up nor an invitation: no endpoint
+# exposes it.
 RSpec.describe Identity::ProvisionUser do
   def call(**overrides)
     described_class.call(email: "ana@ceiba.test", full_name: "Ana Pérez", password: "contraseña-segura-1", **overrides)

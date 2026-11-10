@@ -1,4 +1,4 @@
-# Esquemas OpenAPI del pack identity (los carga spec/swagger_helper.rb).
+# OpenAPI schemas of the identity pack (loaded by spec/swagger_helper.rb).
 OpenapiComponents.register(
   User: {
     type: :object,

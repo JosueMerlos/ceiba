@@ -1,6 +1,6 @@
-# Sidekiq en modo "fake" por defecto: los jobs encolados se acumulan en memoria (Sidekiq::Queues) y no tocan Redis.
-# Los specs de integración con Redis real (relay concurrente, Redis caído) etiquetan el grupo con `:redis` y corren
-# con Sidekiq::Testing desactivado (API nueva de Sidekiq 8: Sidekiq.testing!, sin `require "sidekiq/testing"`).
+# Sidekiq in "fake" mode by default: enqueued jobs accumulate in memory (Sidekiq::Queues) and do not touch Redis.
+# Integration specs with real Redis (concurrent relay, Redis down) tag the group `:redis` and run with Sidekiq::Testing
+# disabled (Sidekiq 8's new API: Sidekiq.testing!, no `require "sidekiq/testing"`).
 require "sidekiq/api"
 
 Sidekiq.testing!(:fake)
@@ -10,7 +10,7 @@ RSpec.configure do |config|
 
   config.around(:each, :redis) do |example|
     Sidekiq.testing!(:disable)
-    # Jamás se limpia una base que no sea la exclusiva de test (/15): la 0 es la de desarrollo.
+    # Never clean a database other than the test-only one (/15): 0 is the development one.
     raise "Redis de test mal configurado: #{Sidekiq.redis { |c| c.call('CLIENT', 'INFO') }}" unless Sidekiq.redis { |c| c.call("CLIENT", "INFO") }.include?("db=15")
 
     Sidekiq.redis(&:flushdb)
@@ -20,6 +20,6 @@ RSpec.configure do |config|
   end
 end
 
-# `drain`/`perform_one` ejecutan los jobs de prueba por la cadena de middleware de servidor de Sidekiq::Testing: se añade
-# el mismo middleware de tenant que en producción (packs/platform/tenancy/config/initializers/sidekiq_tenant.rb).
+# `drain`/`perform_one` run test jobs through Sidekiq::Testing's server middleware chain: the same tenant middleware as
+# in production is added (packs/platform/tenancy/config/initializers/sidekiq_tenant.rb).
 Sidekiq::Testing.server_middleware { |chain| chain.add TenantJobMiddleware::Server }

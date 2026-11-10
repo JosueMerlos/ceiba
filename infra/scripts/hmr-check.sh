@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Verifica el HMR de panel y booking a través del proxy. El cliente websocket corre dentro de
-# la red de Compose (contenedor panel, que ya tiene Node) y entra por proxy:8080, como un navegador.
+# Checks HMR for panel and booking through the proxy. The websocket client runs inside the Compose network (panel
+# container, which already has Node) and connects via proxy:8080, like a browser.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 script=infra/scripts/hmr-check.mjs

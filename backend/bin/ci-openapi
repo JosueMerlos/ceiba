@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Paso "contrato" del job api-contract de CI (y de bin/ci): regenera openapi/v1.yaml desde los specs de rswag.
-# Se ejecuta desde backend/. Requiere PostgreSQL con los roles (igual que ci-test): rails_helper comprueba el esquema.
+# "contract" step of the CI api-contract job (and bin/ci): regenerates openapi/v1.yaml from the rswag specs. Run from
+# backend/. Needs PostgreSQL with the roles (like ci-test): rails_helper checks the schema.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

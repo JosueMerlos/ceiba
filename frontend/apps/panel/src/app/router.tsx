@@ -7,7 +7,6 @@ import { ModuleRoutes, Workspace } from "../platform/shell/workspace";
 
 export type History = { type: "browser" } | { type: "memory"; initialEntries: string[] };
 
-// Páginas dentro del layout. Las rutas de los módulos activos se resuelven en ModuleRoutes con lo que dice /me.
 const pages: RouteObject[] = [
   { index: true, element: <HomePage /> },
   { path: "*", element: <ModuleRoutes /> },
@@ -19,13 +18,13 @@ function buildRoutes(children: RouteObject[]): RouteObject[] {
     {
       path: "/",
       element: <RequireSession />,
-      // Un fallo de /me o de la sesión no deja layout: aquí solo cabe salir (cerrar sesión).
+      // A /me or session failure leaves no layout: the only option here is to log out.
       errorElement: <RouteError withLogout />,
       children: [
         {
           element: <Workspace />,
           children: [
-            // Un fallo de una PÁGINA (403, 404, error) se muestra en su lugar y deja la navegación y el selector.
+            // A PAGE failure (403, 404, error) renders in place and keeps the navigation and selector.
             { errorElement: <RouteError />, children },
           ],
         },

@@ -1,8 +1,8 @@
 module Access
-  # Lleva el registro de permisos a la base (Access.sync!). El registro es la FUENTE DE VERDAD: lo que ya no está declarado
-  # se retira (permisos y concesiones); los roles de sistema se crean si faltan. Una transacción, idempotente.
+  # Writes the permission registry to the database (Access.sync!). The registry is the SOURCE OF TRUTH: whatever is no
+  # longer declared is removed (permissions and grants); system roles are created if missing. One transaction, idempotent.
   #
-  # Sin escrituras masivas (insert_all/upsert_all): el catálogo es pequeño y el cop Ceiba/TenantBypass las prohíbe.
+  # No bulk writes (insert_all/upsert_all): the catalog is small and the Ceiba/TenantBypass cop forbids them.
   class CatalogSync
     LOCK_NAME = "ceiba.access.sync".freeze
 
@@ -17,7 +17,7 @@ module Access
       raise SyncRefused, "El registro de permisos está vacío (¿se cargaron los packs?): no se sincroniza para no borrar el catálogo." if @definitions.empty?
 
       ApplicationRecord.transaction(requires_new: true) do
-        # Serializa despliegues simultáneos; se libera solo al terminar la transacción.
+        # Serializes concurrent deploys; released automatically when the transaction ends.
         ApplicationRecord.connection.execute("SELECT pg_advisory_xact_lock(hashtext(#{ApplicationRecord.connection.quote(LOCK_NAME)}))")
         refuse_unauthorized_prune!
         sync_permissions
@@ -28,7 +28,7 @@ module Access
 
     private
 
-    # Lo que esta sincronización RETIRARÍA: permisos que ya nadie declara y concesiones que un rol ya no recibe.
+    # What this sync would REMOVE: permissions nobody declares anymore and grants a role no longer receives.
     def refuse_unauthorized_prune!
       return if @allow_prune
 

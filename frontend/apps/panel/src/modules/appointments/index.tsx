@@ -2,8 +2,8 @@ import { CalendarDays, ChartNoAxesColumn } from "lucide-react";
 import { lazyPage } from "../lazy-page";
 import type { ModuleManifest } from "../types";
 
-// Los permisos y las rutas de navegación son los de backend/packs/modules/appointments/manifest.rb.
-// Las páginas viven en ./routes (un solo chunk por módulo, ver vite.config.ts).
+// Permissions and navigation routes mirror backend/packs/modules/appointments/manifest.rb.
+// Pages live in ./routes (a single chunk per module, see vite.config.ts).
 const load = () => import("./routes");
 
 export const appointments: ModuleManifest = {

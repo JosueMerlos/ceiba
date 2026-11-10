@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { shot, signIn } from "./helpers";
 
-// Criterio 7 de M0.12: login -> contexto -> navegación, contra el entorno real (API + panel + proxy).
+// login -> context -> navigation, against the real environment (API + panel + proxy).
 test.describe("panel: login, contexto y navegación", () => {
   test("una sola organización/empresa/sucursal: entra directo, sin selector (criterio 1)", async ({
     page,
@@ -16,7 +16,7 @@ test.describe("panel: login, contexto y navegación", () => {
     );
     await shot(page, testInfo, "01-inicio-rosa");
 
-    // El dueño ve el resumen (conteos), no la agenda con el detalle de las citas.
+    // The owner sees the summary (counts), not the agenda with appointment details.
     await expect(nav.getByRole("link", { name: "Resumen de citas" })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Agenda" })).toHaveCount(0);
     await nav.getByRole("link", { name: "Resumen de citas" }).click();
@@ -37,7 +37,7 @@ test.describe("panel: login, contexto y navegación", () => {
     await expect(page.getByRole("heading", { name: "Agenda" })).toBeVisible();
     await shot(page, testInfo, "03-agenda-recepcion");
 
-    // Lo que /me no ofrece no existe: el resumen por URL es «no encontrado».
+    // What /me does not offer does not exist: the summary by URL is "not found".
     await page.goto("/agenda/summary");
     await expect(page.getByRole("heading", { name: "No encontramos esta página" })).toBeVisible();
     await shot(page, testInfo, "04-no-encontrado");
@@ -56,11 +56,11 @@ test.describe("panel: login, contexto y navegación", () => {
 
     await selector.click();
     await expect(page.getByRole("menuitemradio", { name: "Salón Estilo" })).toBeVisible();
-    await page.waitForTimeout(300); // termina la animación de apertura antes de la captura
+    await page.waitForTimeout(300); // let the opening animation finish before the screenshot
     await shot(page, testInfo, "06-selector-abierto");
     await page.getByRole("menuitemradio", { name: "Salón Estilo" }).click();
 
-    // Salón Estilo no tiene appointments activo: sin ítem de menú y la URL es «no encontrado».
+    // Salón Estilo has no appointments module active: no menu item and the URL is "not found".
     await expect(selector).toContainText("Salón Estilo");
     await expect(page.getByText("Su empresa todavía no tiene módulos activos.")).toBeVisible();
     await expect(nav).toHaveCount(0);
@@ -68,7 +68,7 @@ test.describe("panel: login, contexto y navegación", () => {
     await expect(page.getByRole("heading", { name: "No encontramos esta página" })).toBeVisible();
     await shot(page, testInfo, "07-empresa-sin-modulo");
 
-    // El contexto elegido lo recuerda el servidor (cookie ceiba_context): al recargar sigue en Salón Estilo.
+    // The server remembers the chosen context (ceiba_context cookie): after reload it is still Salón Estilo.
     await page.reload();
     await expect(
       page.getByRole("button", { name: /Cambiar el contexto de trabajo/ }),
@@ -82,7 +82,7 @@ test.describe("panel: login, contexto y navegación", () => {
     await signIn(page, "recepcion@barberia-guegu.ceiba.test");
     await expect(page.getByRole("navigation", { name: "Navegación principal" })).toBeVisible();
 
-    // La sesión se pierde (cookie borrada = vencida o revocada en otro dispositivo) y se pide una ruta interna.
+    // The session is lost (cookie deleted = expired or revoked on another device) and an internal path is requested.
     await context.clearCookies();
     await page.goto("/agenda");
 
@@ -148,7 +148,7 @@ test.describe("panel: login, contexto y navegación", () => {
     expect(overflow).toBeLessThanOrEqual(0);
     const box = await account.boundingBox();
     expect(box!.x + box!.width).toBeLessThanOrEqual(360);
-    // El selector sigue teniendo nombre accesible con la empresa aunque solo se vea el icono.
+    // The selector keeps an accessible name with the company even when only the icon shows.
     await expect(selector).toHaveAccessibleName(/Clínica Dental Sonrisa/);
   });
 

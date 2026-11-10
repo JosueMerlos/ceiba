@@ -3,8 +3,8 @@ require "rubocop"
 require "rubocop/rspec/support"
 require "rubocop/cop/ceiba/directory_writes"
 
-# Tenancy::Directory devuelve registros y relaciones readonly, pero una relación admite update_all/delete_all (no pasan por los
-# registros) y readonly(false). Fuera de tenancy se detectan estáticamente.
+# Tenancy::Directory returns readonly records and relations, but a relation allows update_all/delete_all (which bypass
+# the records) and readonly(false). Outside tenancy they are detected statically.
 RSpec.describe RuboCop::Cop::Ceiba::DirectoryWrites, :config do
   let(:ruby_version) { 3.4 }
   let(:cop_config) { { "Include" => [ "packs/*/*/app/**/*.rb", "app/**/*.rb" ] } }

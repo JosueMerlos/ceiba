@@ -1,6 +1,6 @@
 module Api
   module Pagination
-    # `limit` no es un entero entre 1 y Cursor::MAX_LIMIT.
+    # `limit` is not an integer between 1 and Cursor::MAX_LIMIT.
     class InvalidLimit < Error; end
   end
 end

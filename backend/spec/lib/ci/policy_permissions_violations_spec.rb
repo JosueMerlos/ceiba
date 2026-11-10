@@ -2,7 +2,7 @@ require "rails_helper"
 require "ci/policy_permissions"
 require "tmpdir"
 
-# El escáner debe ver lo que el ojo humano no: permisos no literales, literales con #{} y comentarios al final de línea.
+# The scanner must see what the human eye misses: non-literal permissions, literals with #{} and end-of-line comments.
 RSpec.describe PolicyPermissions, "#violations" do
   let(:root) { Pathname(Dir.mktmpdir("ceiba-policy-literals")) }
 

@@ -1,24 +1,22 @@
 module Access
-  # Quién actúa. La autorización pregunta al PRINCIPAL, no al usuario (docs/architecture/04-access-control.md): todos
-  # responden `can?(permission_key, scope)` y se distinguen por `kind`.
+  # Who is acting. Authorization asks the PRINCIPAL, not the user: all of them answer `can?(permission_key, scope)` and
+  # differ by `kind`.
   #
-  #   User         panel (cookie de sesión): permisos por memberships
-  #   System       jobs internos
-  #   ApiKey       integraciones (Bearer): M4.02, hoy solo la interfaz
-  #   PublicToken  cliente final con enlace firmado: M3.04, hoy solo la interfaz
-  #
-  # (PlatformStaff, el operador de plataforma, llega con el back-office, M4.01.)
+  #   User         panel (session cookie): permissions from memberships
+  #   System       internal jobs
+  #   ApiKey       integrations (Bearer): interface only for now
+  #   PublicToken  end customer with a signed link: interface only for now
   module Principal
     def can?(_permission_key, _scope) = raise(NotImplementedError, "#{self.class} debe implementar can?(permission_key, scope)")
     def kind = raise(NotImplementedError, "#{self.class} debe implementar kind")
 
-    # Contrato con la auditoría y la idempotencia (M0.11): `actor_type` ("user", "system", "api_key", "public_token") e `id`
-    # (el uuid de quien actúa; nil si el principal no tiene identidad propia, como los jobs del sistema). Audit e Idempotency
-    # los usan tal cual: no derivan el tipo del nombre de la clase.
+    # Contract with audit and idempotency: `actor_type` ("user", "system", "api_key", "public_token") and `id` (the actor's
+    # uuid; nil if the principal has no identity of its own, like system jobs). Audit and Idempotency use them as is and
+    # do not derive the type from the class name.
     def actor_type = kind.to_s
     def id = nil
 
-    # Un permiso sin registrar es un bug del código que pregunta, no una denegación (criterio 8).
+    # An unregistered permission is a bug in the asking code, not a denial.
     def self.ensure_registered!(permission_key)
       raise UnknownPermission, permission_key unless Access.registered?(permission_key)
     end

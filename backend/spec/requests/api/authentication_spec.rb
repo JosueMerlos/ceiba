@@ -1,18 +1,18 @@
 require "rails_helper"
 
-# Criterio 4 de M0.07: DENY BY DEFAULT. Toda ruta exige sesión salvo una allowlist explícita, comentada y MÍNIMA. Este spec
-# recorre TODAS las rutas del router (no una lista a mano de controladores): una ruta nueva sin `skip_authentication!`
-# responde 401 y pasa; una que quede abierta por descuido rompe aquí.
+# DENY BY DEFAULT: every route requires a session except an explicit, commented and MINIMAL allowlist. This spec walks
+# ALL the router's routes (not a hand-kept controller list): a new route without `skip_authentication!` answers 401 and
+# passes; one left open by mistake breaks here.
 RSpec.describe "Autenticación obligatoria por defecto (deny by default)" do
-  # Rutas que NO exigen sesión, con el porqué. Añadir una aquí es una decisión de seguridad: se revisa en el PR.
+  # Routes that do NOT require a session, with the reason. Adding one here is a security decision: reviewed in the PR.
   let(:public_routes) do
     {
       "GET /api/health" => "sonda de vida del proxy/Docker: infraestructura, no devuelve datos",
       "GET /api/ready" => "sonda de disponibilidad (BD, Redis): infraestructura",
       "POST /api/v1/auth/login" => "es la puerta de entrada: aún no hay sesión; protegido por Origin y, en M0.13, por rate limit",
-      # Rswag monta DOS engines en /api/docs (UI y contrato) y sus subrutas (/api/docs/v1.yaml, assets) no aparecen en la
-      # tabla de rutas de la app, así que este spec no las recorre: son públicas por diseño y solo existen donde
-      # Api::Docs.enabled? (desarrollo, test, staging); en producción la ruta no existe.
+      # Rswag mounts TWO engines at /api/docs (UI and contract) and their subroutes (/api/docs/v1.yaml, assets) do not
+      # appear in the app's route table, so this spec does not walk them: public by design and only present where
+      # Api::Docs.enabled? (development, test, staging); in production the route does not exist.
       "GET /api/docs" => "Swagger UI y contrato: solo existen en desarrollo, test y staging (Api::Docs.enabled?)"
     }
   end
@@ -52,7 +52,7 @@ RSpec.describe "Autenticación obligatoria por defecto (deny by default)" do
   it "cada ruta pública responde sin sesión (no 401)" do
     public_routes.each_key do |entry|
       verb, path = entry.split(" ", 2)
-      next if path == "/api/docs" # ruta montada de un engine: la cubre spec/requests/api/docs_spec.rb
+      next if path == "/api/docs" # engine-mounted route: docs_spec covers it
 
       process(verb.downcase, path, params: (verb == "POST" ? {} : nil), as: :json)
       expect(response.status).not_to eq(401), "#{entry} respondió 401"

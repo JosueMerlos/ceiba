@@ -1,6 +1,6 @@
 require "rails_helper"
 
-# Audit.record (M0.11): registra quién hizo qué, con el antes y el después, dentro del contexto de una organización.
+# Audit.record: records who did what, with before and after, inside an organization's context.
 RSpec.describe "Audit.record" do
   let(:organization) { create(:organization) }
   let(:principal) { Identity::Principal::User.new(id: SecureRandom.uuid, email: "ana@ceiba.test", full_name: "Ana") }

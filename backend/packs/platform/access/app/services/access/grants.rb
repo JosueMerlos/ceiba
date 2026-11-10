@@ -1,12 +1,12 @@
 module Access
-  # Los memberships de un usuario en la organización activa, con los permisos de sus roles, ya organizados para responder
-  # sin tocar la base. UNA consulta (JOIN a role_permissions, LEFT para no perder memberships de roles sin permisos; y a las
-  # sucursales de las empresas donde tiene un membership de empresa, para verificar la empresa REAL de cada sucursal).
-  # Debe construirse dentro de Tenancy.with_context: el tenant acota la consulta a la organización activa.
+  # A user's memberships in the active organization, with their roles' permissions, organized to answer without hitting
+  # the database. ONE query (LEFT JOIN to role_permissions so memberships of roles without permissions are not lost; and
+  # to the branches of companies where the user has a company membership, to verify each branch's REAL company).
+  # Must be built inside Tenancy.with_context: the tenant bounds the query to the active organization.
   #
-  # El Scope que llega a `allows?` lo construye una policy; un alcance de sucursal con la empresa equivocada
-  # (`Scope.branch(company_id: A, branch_id: B1)`) NO obtiene los permisos de la empresa A: se comprueba contra las sucursales
-  # precargadas y, si no está (creada después de activar), contra la base una sola vez (memorizado).
+  # The Scope passed to `allows?` is built by a policy; a branch scope with the wrong company
+  # (`Scope.branch(company_id: A, branch_id: B1)`) does NOT get company A's permissions: it is checked against the
+  # preloaded branches and, if absent (created after activation), against the database once (memoized).
   class Grants
     NO_KEYS = Set.new.freeze
 
@@ -57,12 +57,11 @@ module Access
       @organization_member || @company_keys.key?(company_id) || @branch_keys.key?(branch_id)
     end
 
-    # Empresa de una sucursal con membership de sucursal (o nil).
     def branch_company_id(branch_id) = @branch_company_ids[branch_id]
 
-    # Las claves que el usuario ejerce DENTRO de un contexto (lo que /me le dice al frontend): las de organización, las de la
-    # empresa (y la lectura ascendente), las de cualquier membership de sucursal de esa empresa y, con una sucursal elegida, solo las de
-    # ESA sucursal. No filtra por módulo (eso lo hace el principal).
+    # The keys the user holds WITHIN a context (what /me tells the frontend): organization ones, the company's (and upward
+    # read), those of any branch membership in that company and, with a branch chosen, only ESA branch's. It does not
+    # filter by module (the principal does).
     def keys_within(company_id: nil, branch_id: nil)
       keys = @organization_keys.dup
       return keys unless company_id
@@ -99,7 +98,7 @@ module Access
       branch_by_company || branch_by_membership
     end
 
-    # ¿La sucursal es REALMENTE de esa empresa? Precargado para las empresas del usuario; si no, una consulta memorizada.
+    # Does the branch REALLY belong to that company? Preloaded for the user's companies; otherwise one memoized query.
     def branch_in_company?(branch_id, company_id)
       return true if @company_branches.fetch(company_id, NO_KEYS).include?(branch_id)
 
@@ -109,11 +108,11 @@ module Access
     def safe_lookup(branch_id)
       @branch_company.call(branch_id)
     rescue ActsAsTenant::Errors::NoTenantSet
-      nil # sin contexto no se puede verificar: se niega
+      nil # without context it cannot be verified: deny
     end
 
-    # `Hash.new { }` crea entradas al LEER: se fija la forma final y se corta el default para que una consulta por un id
-    # desconocido no cambie el estado ni la visibilidad (sees_company? usa key?).
+    # `Hash.new { }` creates entries on READ: the final shape is fixed and the default is cut so a lookup of an unknown id
+    # cannot change state or visibility (sees_company? uses key?).
     def add(scope_level, company_id, branch_id, key, covered_branch)
       case scope_level
       when "organization" then @organization_member = true

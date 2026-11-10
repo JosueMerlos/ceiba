@@ -1,4 +1,5 @@
 module Access
-  # Access.sync! se negó a tocar la base: el registro está vacío o retiraría permisos/concesiones sin autorización. No cambió nada.
+  # Access.sync! refused to touch the database: the registry is empty or it would remove permissions/grants without
+  # authorization. Nothing was changed.
   class SyncRefused < Error; end
 end

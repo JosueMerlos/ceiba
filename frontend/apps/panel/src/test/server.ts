@@ -24,7 +24,7 @@ interface Backend {
   session?: ReturnType<typeof authSession>;
 }
 
-/** Un backend de pruebas con sesión iniciada: sesión, /me y las listas del selector de contexto. */
+/** A test backend with a logged-in session: session, /me and the context selector lists. */
 export function signedInBackend({
   me = meFixture(),
   organizations = [organization(ids.orgA, "Barbería El Güegüense")],
@@ -47,7 +47,7 @@ export function signedInBackend({
   );
 }
 
-/** Sin sesión: GET /auth/session responde 401 como la API real. */
+/** No session: GET /auth/session answers 401 like the real API. */
 export function signedOutBackend() {
   server.use(
     http.get(`${API}/api/v1/auth/session`, () =>

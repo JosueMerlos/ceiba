@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Criterio 1 de M0.09: un manifiesto inválido FALLA con un mensaje claro (al arrancar la app o en el test). El DSL implementa
-# SOLO los campos de docs/architecture/05-module-system.md; todo lo demás es un error, no se ignora.
+# An invalid manifest FAILS with a clear message (at app boot or in the test). The DSL implements ONLY the documented fields;
+# anything else is an error, not ignored.
 RSpec.describe Modules::Registry do
   subject(:manifests) { described_class.new }
 

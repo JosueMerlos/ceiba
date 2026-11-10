@@ -1,7 +1,7 @@
-# Utilidades para los specs de las convenciones de BD. Todo ocurre en una conexión de dueño dentro de una
-# transacción que se revierte, y en un ESQUEMA de prueba aparte (`tenant_probe`, con una `organizations` mínima):
-# desde M0.05 existen las tablas reales organizations/companies/branches en `public` y las de prueba no deben
-# chocar con ellas. Todo el catálogo que consultan los helpers usa current_schema(), así que sigue funcionando.
+# Utilities for the DB convention specs. Everything happens on an owner connection inside a rolled-back transaction, and
+# in a separate test SCHEMA (`tenant_probe`, with a minimal `organizations`): the real organizations/companies/branches
+# tables exist in `public` and the test ones must not clash with them. Every catalog the helpers query uses
+# current_schema(), so it keeps working.
 module TenantSchemaHelpers
   def with_tenant_schema(&block)
     ActiveRecord::Migration.suppress_messages do
@@ -25,7 +25,7 @@ module TenantSchemaHelpers
     SQL
   end
 
-  # Columnas (en orden) de las restricciones de un tipo ('u' única, 'f' foránea) de la tabla.
+  # Columns (in order) of a table's constraints of one type ('u' unique, 'f' foreign).
   def constraint_columns(connection, table, type)
     connection.select_rows(<<~SQL).map { |name, columns| [ name, columns.delete("{}").split(",") ] }
       SELECT c.conname, (SELECT array_agg(a.attname ORDER BY k.ord)

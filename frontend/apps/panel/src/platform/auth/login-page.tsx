@@ -19,8 +19,8 @@ import { Navigate, useSearchParams } from "react-router";
 import { describeError } from "../errors/global-errors";
 import { safeReturnPath } from "./return-path";
 
-// Validación nativa de react-hook-form (sin zod ni resolver: pesan en el arranque del panel y para dos campos no hacen falta).
-// Algo con forma de nombre@dominio.tld; la API valida el correo de verdad.
+// Native react-hook-form validation (no zod or resolver: they weigh on panel startup and two fields do not need them).
+// Only checks the name@domain.tld shape; the API validates the email for real.
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginPage() {
@@ -30,7 +30,7 @@ export function LoginPage() {
   const sessionExpired = params.get("expired") === "1";
   const session = useSessionQuery();
 
-  // Con sesión vigente (o recién iniciada: el login la deja en la caché) no hay nada que hacer aquí.
+  // With a live session (or one just started: login leaves it in the cache) there is nothing to do here.
   if (session.isSuccess) return <Navigate to={next} replace />;
   if (session.isPending) return <LoadingState label={t("common:loading")} className="min-h-svh" />;
 
@@ -40,7 +40,7 @@ export function LoginPage() {
         aria-hidden="true"
         className="relative hidden overflow-hidden bg-primary p-12 text-primary-foreground md:flex md:flex-col md:justify-between"
       >
-        {/* Los anillos de crecimiento del tronco: el único gesto decorativo de la pantalla. */}
+        {/* Trunk growth rings: the screen's only decorative gesture. */}
         <div
           className="pointer-events-none absolute -right-40 -bottom-40 size-[44rem] rounded-full opacity-[0.16]"
           style={{
@@ -90,7 +90,7 @@ function LoginForm() {
     defaultValues: { email: "", password: "" },
   });
 
-  // Al terminar bien, el login deja la sesión en la caché y LoginPage navega sola a la ruta de retorno.
+  // On success, login puts the session in the cache and LoginPage navigates to the return path on its own.
   const onSubmit = form.handleSubmit((values) =>
     login
       .mutateAsync(

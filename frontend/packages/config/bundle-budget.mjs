@@ -1,6 +1,6 @@
-// Presupuesto de tamaño del bundle (ADR-0015): lo que la página de reserva descarga ANTES de poder pintar.
-// Lee el manifest de Vite (build.manifest: true): la entrada y sus imports estáticos, recursivamente. Los imports
-// dinámicos son bajo demanda y no cuentan. Mide gzip, que es lo que viaja por la red.
+// Bundle size budget: what the booking page downloads BEFORE it can paint.
+// Reads the Vite manifest (build.manifest: true): the entry and its static imports, recursively. Dynamic imports are
+// on demand and do not count. Measures gzip, which is what travels over the network.
 //
 //   node packages/config/bundle-budget.mjs apps/booking/dist 150
 import { readFileSync } from "node:fs";
@@ -39,7 +39,7 @@ export function checkBudget({ bytes, files }, limitKiB) {
 }
 
 /**
- * Evalúa varios presupuestos: `{ app: { dist, limitKiB } }` (las rutas de `dist` son relativas a `root`).
+ * Evaluates several budgets: `{ app: { dist, limitKiB } }` (`dist` paths are relative to `root`).
  * @returns {{ name: string, ok: boolean, message: string }[]}
  */
 export function checkBudgets(config, root) {
@@ -50,7 +50,7 @@ export function checkBudgets(config, root) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  // Uso: bundle-budget.mjs <bundle-budgets.json>   (las rutas son relativas al archivo)
+  // Usage: bundle-budget.mjs <bundle-budgets.json>   (paths are relative to the file)
   const [file] = process.argv.slice(2);
   if (!file) {
     console.error("uso: bundle-budget.mjs <bundle-budgets.json>");

@@ -1,8 +1,8 @@
 module Tenancy
-  # Empresa: giro, moneda, catálogo y marca de un negocio dentro de una organización. Tabla tenant (acts_as_tenant)
-  # pero NO es el tenant: es un alcance de autorización (ADR-0003, ADR-0004).
+  # A business within an organization: business type, currency, catalog and branding. Tenant table (acts_as_tenant) but NOT
+  # the tenant itself: it is an authorization scope.
   class Company < ApplicationRecord
-    # Segmentos de la URL pública /c/:slug que no pueden ser el slug de un negocio.
+    # Segments of the public /c/:slug URL that cannot be a business slug.
     RESERVED_SLUGS = %w[
       api admin app c www help docs blog status support soporte login logout signup register registro auth
       assets static public cdn mail smtp ftp health ready billing panel booking reservar reservas

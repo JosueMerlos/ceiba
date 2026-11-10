@@ -1,6 +1,6 @@
 import { defaultLocale } from "./config";
 
-// Formatos con Intl, siempre en es-NI. Las fechas llevan SIEMPRE la zona de la sucursal (IANA), nunca la del navegador.
+// Intl formats, always es-NI. Dates ALWAYS use the branch's (IANA) time zone, never the browser's.
 type Instant = Date | string | number;
 
 const toDate = (value: Instant) => (value instanceof Date ? value : new Date(value));
@@ -9,7 +9,7 @@ export function formatNumber(value: number, options?: Intl.NumberFormatOptions):
   return new Intl.NumberFormat(defaultLocale, options).format(value);
 }
 
-// CLDR escribe el dólar como "USD" en es-NI; en Nicaragua se lee y se escribe "US$" (el córdoba sí sale como "C$").
+// CLDR writes the dollar as "USD" in es-NI; in Nicaragua it is read and written "US$" (the córdoba does come out as "C$").
 const CURRENCY_SYMBOLS: Partial<Record<"NIO" | "USD", string>> = { USD: "US$" };
 
 export function formatCurrency(amount: number, currency: "NIO" | "USD"): string {

@@ -13,7 +13,7 @@ x-backend: &backend
     DB_HOST: db
     POSTGRES_USER: ${POSTGRES_USER:-ceiba}
     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ceiba_dev_password}
-    # Roles de la aplicación (M0.04): la API conecta como app_user; las migraciones como app_owner.
+    # The API connects as app_user; migrations run as app_owner.
     APP_OWNER_PASSWORD: ${APP_OWNER_PASSWORD:-ceiba_owner_dev_password}
     APP_USER_PASSWORD: ${APP_USER_PASSWORD:-ceiba_user_dev_password}
     REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
@@ -36,7 +36,7 @@ x-frontend: &frontend
     PUBLIC_PORT: ${PROXY_PORT:-8080}
   volumes:
     - ./frontend:/app/frontend
-    # node_modules nunca se monta desde el host: viven en volúmenes con nombre
+    # node_modules is never mounted from the host: it lives in named volumes
     - frontend_node_modules:/app/frontend/node_modules
     - panel_node_modules:/app/frontend/apps/panel/node_modules
     - booking_node_modules:/app/frontend/apps/booking/node_modules
@@ -45,7 +45,7 @@ x-frontend: &frontend
     - ui_node_modules:/app/frontend/packages/ui/node_modules
     - i18n_node_modules:/app/frontend/packages/i18n/node_modules
     - e2e_node_modules:/app/frontend/e2e/node_modules
-    # El contrato OpenAPI (M0.06) lo genera el backend; el cliente TS lo lee de aquí, en solo lectura.
+    # The backend generates the OpenAPI contract; the TS client reads it from here, read-only.
     - ./backend/openapi:/app/backend/openapi:ro
 
 services:
@@ -57,13 +57,12 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-ceiba_development}
       APP_OWNER_PASSWORD: ${APP_OWNER_PASSWORD:-ceiba_owner_dev_password}
       APP_USER_PASSWORD: ${APP_USER_PASSWORD:-ceiba_user_dev_password}
-    # pg_stat_statements exige precarga (diagnóstico de rendimiento, M0.04)
+    # pg_stat_statements must be preloaded
     command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements"]
     volumes:
-      # PostgreSQL 18 guarda los datos en /var/lib/postgresql/18/docker: se monta el directorio padre
+      # PostgreSQL 18 stores data in /var/lib/postgresql/18/docker, so the parent directory is mounted
       - pg_data:/var/lib/postgresql
-      # Roles app_owner/app_user (M0.04). initdb.d SOLO corre con el volumen vacío: con un volumen existente
-      # se aplica con `make db-roles` (el script es idempotente).
+      # initdb.d ONLY runs on an empty volume; with an existing volume apply the roles with `make db-roles` (idempotent).
       - ./infra/db/init-roles.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -103,7 +102,7 @@ services:
     <<: *backend
     command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
     depends_on:
-      # api instala las gems y prepara la base: el worker espera a que termine
+      # api installs gems and prepares the database; the worker waits for it
       api: { condition: service_healthy }
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -124,7 +123,7 @@ services:
     working_dir: /app/frontend/apps/booking
     command: ["pnpm", "dev"]
     depends_on:
-      # panel instala las dependencias del workspace: booking espera a que termine
+      # panel installs the workspace dependencies; booking waits for it
       panel: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:5174/c/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
@@ -133,9 +132,9 @@ services:
       retries: 30
       start_period: 60s
 
-  # E2E con Playwright (M0.12). Perfil "e2e": no arranca con `make up`; lo ejecuta `bin/ci e2e` o `make e2e`.
-  # Comparte la red del proxy (network_mode) para entrar por http://localhost:8080 como un navegador real: así el
-  # Host y el Origin son los del entorno de desarrollo y no hace falta tocar `config.hosts` de Rails.
+  # Playwright E2E. Profile "e2e": not started by `make up`; run it with `bin/ci e2e` or `make e2e`.
+  # Shares the proxy network (network_mode) to reach http://localhost:8080 like a real browser, so Host and Origin match
+  # the dev environment and Rails `config.hosts` needs no change.
   e2e:
     profiles: ["e2e"]
     build:
@@ -144,7 +143,7 @@ services:
       args:
         HOST_UID: ${HOST_UID:-1000}
         HOST_GID: ${HOST_GID:-1000}
-    # Sin etiqueta fija de imagen: Compose la nombra por proyecto y varios entornos en paralelo no se pisan.
+    # No fixed image tag: Compose names it per project so parallel environments do not clash.
     network_mode: "service:proxy"
     depends_on:
       proxy: { condition: service_healthy }
@@ -171,8 +170,8 @@ services:
   proxy:
     image: caddy:2.11.9-alpine
     ports:
-      # Caddy escucha en el MISMO puerto que se publica (PROXY_PORT): el Host y el Origin del navegador, y los E2E que
-      # comparten esta red, ven siempre el puerto público (hace falta para varios entornos en paralelo).
+      # Caddy listens on the SAME port that is published (PROXY_PORT), so the browser's Host and Origin, and the E2E
+      # sharing this network, always see the public port (needed for parallel environments).
       - "127.0.0.1:${PROXY_PORT:-8080}:${PROXY_PORT:-8080}"
     environment:
       PROXY_PORT: ${PROXY_PORT:-8080}

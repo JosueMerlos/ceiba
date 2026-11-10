@@ -1,7 +1,6 @@
 require "rails_helper"
 
-# enable_tenant_rls(table) lo usa M4.03. Aquí se verifica el helper y que la política creada por
-# create_tenant_table aísla de verdad cuando se activa (con FORCE, para que también aplique al dueño del spec).
+# FORCE is used so the policy also applies to the table owner, which is the spec's own connection.
 RSpec.describe "enable_tenant_rls", :tenant_schema do
   def create_branches(owner) = owner.create_tenant_table(:branches) { |t| t.string :name }
 

@@ -1,8 +1,8 @@
 import { Component, type ReactNode } from "react";
 
 /**
- * Límite de error que oculta su contenido en vez de tirar la pantalla: para piezas opcionales de la cabecera (el selector
- * de contexto) cuyo fallo no debe quitar la navegación ni el menú de cuenta.
+ * Error boundary that hides its content instead of breaking the screen: for optional header pieces (the context
+ * selector) whose failure must not remove the navigation or the account menu.
  */
 export class SilentBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   override state = { failed: false };

@@ -1,17 +1,17 @@
 module Api
   module V1
     module Access
-      # Las organizaciones del usuario y el detalle de una. Organization es la RAÍZ del tenant: se lista y se lee sin
-      # contexto de tenancy (el contexto de `show` lo abre Access::Authorization desde la ruta, tras validar el membership).
+      # The user's organizations and the detail of one. Organization is the tenant ROOT: it is listed and read without a
+      # tenancy context (`show`'s context is opened by Access::Authorization from the route, after validating membership).
       class OrganizationsController < ::Api::BaseController
         route_context organization: :id
 
         def index
-          # El Scope reemplaza la relación vacía por las organizaciones de los memberships del usuario.
+          # The Scope replaces the empty relation with the organizations of the user's memberships.
           none = ::Tenancy::Directory.organizations_for([])
           authorize none, :index?, policy_class: ::Access::OrganizationPolicy
           organizations = policy_scope(none, policy_scope_class: ::Access::OrganizationPolicy::Scope)
-          # Resumen (id, name, status): el selector de contexto no necesita el detalle, que exige platform.organization.read.
+          # Summary (id, name, status): the context selector does not need the detail, which requires platform.organization.read.
           render_page(organizations, serializer: ::Tenancy::OrganizationSummarySerializer)
         end
 

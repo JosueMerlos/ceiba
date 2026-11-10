@@ -3,7 +3,7 @@ import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, test } from "vitest";
 import { ApiError, createApiClient, unwrap } from "../src";
 
-// Los cuerpos de los handlers son los que produce la API real (ver specs de rswag del backend).
+// Handler bodies mirror what the real API produces (see the backend rswag specs).
 const BASE = "http://api.test";
 const ID = "0198f0a0-0000-7000-8000-000000000001";
 
@@ -43,7 +43,7 @@ describe("GET /api/v1/organizations/{id}", () => {
   });
 
   test("envía las cookies de sesión (credentials: include)", async () => {
-    // MSW normaliza `credentials` al reconstruir la petición: se inspecciona la Request que sale del cliente.
+    // MSW normalizes `credentials` when rebuilding the request, so the Request leaving the client is inspected.
     let sent: Request | undefined;
     const spy = async (...args: Parameters<typeof fetch>) => {
       sent = new Request(...args);

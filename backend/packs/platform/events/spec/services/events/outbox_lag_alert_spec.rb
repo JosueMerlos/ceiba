@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Criterio 6 de M0.13: con eventos sin publicar desde hace más de 5 min, el chequeo (Events::OutboxLagJob, cada minuto) emite
-# una alerta. La alerta es un error reportado por Rails.error, que Sentry recoge (config/middleware/sentry_setup.rb).
+# With events unpublished for over 5 min, the check (Events::OutboxLagJob, every minute) emits an alert: an error
+# reported via Rails.error, which Sentry picks up.
 RSpec.describe Events::OutboxLagAlert do
   let(:organization) { create(:organization) }
   let(:reports) { [] }

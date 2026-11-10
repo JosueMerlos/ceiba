@@ -5,14 +5,13 @@ require "rubocop"
 module RuboCop
   module Cop
     module Ceiba
-      # Las policies preguntan por PERMISOS (`can?("modulo.recurso.accion", alcance)`), nunca por roles (ADR-0008): un módulo
-      # nuevo no debe obligar a tocar policies, y los roles personalizados (P3) no deben romperlas. Prohíbe en
-      # `packs/*/*/app/policies`:
-      #   - `admin?` y las consultas de rol (`role`, `roles`, `role_key`, `has_role?`, `in_role?`, `memberships`), también por
-      #     `send` / `public_send` / `__send__` con símbolo o cadena;
-      #   - `instance_variable_get`: es la puerta para leer el rol sin nombrarlo;
-      #   - cualquier literal (cadena, símbolo, %w, %i) que sea el nombre de un rol de sistema, y las formas partidas: cadenas
-      #     adyacentes (`"org_" "owner"`), interpolación (`"org_#{x}"`) y concatenación literal (`"recep" + "tionist"`).
+      # Policies ask about PERMISSIONS (`can?("module.resource.action", scope)`), never roles: a new module must not force
+      # policy changes, and custom roles must not break them. Forbids in `packs/*/*/app/policies`:
+      #   - `admin?` and role queries (`role`, `roles`, `role_key`, `has_role?`, `in_role?`, `memberships`), also via
+      #     `send` / `public_send` / `__send__` with a symbol or string;
+      #   - `instance_variable_get`: it is the door to read the role without naming it;
+      #   - any literal (string, symbol, %w, %i) that is a system role name, and split forms: adjacent strings
+      #     (`"org_" "owner"`), interpolation (`"org_#{x}"`) and literal concatenation (`"recep" + "tionist"`).
       #
       # @example
       #   # bad
@@ -81,7 +80,7 @@ module RuboCop
           add_offense(target, message: format(MSG, found: target.value))
         end
 
-        # %w[org_ owner].join: un arreglo literal de cadenas cuyas piezas, unidas, forman una clave de rol.
+        # %w[org_ owner].join: a literal string array whose pieces, joined, form a role key.
         def check_join(node)
           array = node.receiver
           return unless array&.array_type? && array.values.all?(&:str_type?)

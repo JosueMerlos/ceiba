@@ -5,7 +5,7 @@ import { Navigate, Outlet, useLocation } from "react-router";
 import { UnexpectedPage } from "../errors/status-pages";
 import { loginPathFor } from "./return-path";
 
-/** Puerta de las rutas privadas: sin sesión (401) va al login con la ruta de retorno; otro fallo ofrece reintentar. */
+/** Gate for private routes: no session (401) goes to login with the return path; any other failure offers a retry. */
 export function RequireSession() {
   const { t } = useTranslation("common");
   const location = useLocation();

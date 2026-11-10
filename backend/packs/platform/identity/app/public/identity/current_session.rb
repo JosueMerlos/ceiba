@@ -1,13 +1,13 @@
 module Identity
-  # La sesión que presenta una request: resuelve el token de la cookie y expone lo que el resto de la aplicación puede
-  # saber de ella (el principal, el token CSRF, su caducidad) sin filtrar el modelo `Session`.
+  # The session a request presents: resolves the cookie's token and exposes what the rest of the app may know about it
+  # (principal, CSRF token, expiry) without leaking the `Session` model.
   class CurrentSession
     CSRF_KEY_PURPOSE = "ceiba/identity/csrf".freeze
 
     attr_reader :principal
 
-    # Devuelve la sesión activa de ese token o nil (ausente, desconocida, revocada, vencida por inactividad o por
-    # vigencia absoluta). Registra la actividad con throttle de 1 minuto.
+    # Returns the token's active session or nil (absent, unknown, revoked, idle-expired or past its absolute lifetime).
+    # Records activity throttled to 1 minute.
     def self.resolve(token, now: Time.current)
       session = Session.includes(:user).find_active_by_token(token, now:)
       return unless session
@@ -24,8 +24,8 @@ module Identity
 
     def expires_at = @session.expires_at
 
-    # Token CSRF ligado a ESTA sesión: HMAC-SHA256(clave derivada de secret_key_base, id de la sesión). Sin estado en BD;
-    # cambia cuando la sesión rota (login) y no sirve con otra sesión. No contiene el token de la cookie.
+    # CSRF token bound to THIS session: HMAC-SHA256(key derived from secret_key_base, session id). Stateless; it changes
+    # when the session rotates (login) and is useless with another session. It does not contain the cookie token.
     def csrf_token
       OpenSSL::HMAC.hexdigest("SHA256", self.class.csrf_key, @session.id)
     end
@@ -41,7 +41,6 @@ module Identity
       end
     end
 
-    # "Cerrar sesión en todos los dispositivos".
     def revoke_all!(now: Time.current)
       Session.transaction do
         count = Session.revoke_all_for(@session.user, now:)

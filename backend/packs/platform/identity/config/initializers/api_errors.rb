@@ -1,7 +1,7 @@
-# Errores de dominio de identity que la API traduce a problem+json (ver Api::ErrorRegistry).
+# Identity domain errors that the API translates to problem+json (see Api::ErrorRegistry).
 #
-# - InvalidCredentials y Unauthenticated son 401; InvalidCsrfToken y ForbiddenOrigin son 403. Ninguno expone el mensaje
-#   de la excepción, y InvalidCredentials es UN solo code para "no existe la cuenta" y "contraseña errónea".
+# - InvalidCredentials and Unauthenticated are 401; InvalidCsrfToken and ForbiddenOrigin are 403. None exposes the
+#   exception message, and InvalidCredentials is ONE code for "no such account" and "wrong password".
 Rails.application.config.to_prepare do
   Api::ErrorRegistry.register(Identity::InvalidCredentials, status: :unauthorized, code: "auth.invalid_credentials")
   Api::ErrorRegistry.register(Identity::Unauthenticated, status: :unauthorized, code: "auth.unauthenticated")

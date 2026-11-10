@@ -1,6 +1,5 @@
-# Atajos de desarrollo. Todo corre en Docker: el host solo necesita Docker y Git.
-# HOST_UID/HOST_GID se pasan a los Dockerfiles para que los archivos creados desde un
-# contenedor pertenezcan al usuario del host y no a root.
+# Development shortcuts. Everything runs in Docker: the host only needs Docker and Git.
+# HOST_UID/HOST_GID are passed to the Dockerfiles so files created from a container belong to the host user, not root.
 export HOST_UID ?= $(shell id -u)
 export HOST_GID ?= $(shell id -g)
 
@@ -36,7 +35,7 @@ db-roles: ## Aplica (idempotente) los roles app_owner/app_user a un volumen de B
 	$(COMPOSE) up -d --wait db
 	$(COMPOSE) exec -T db /docker-entrypoint-initdb.d/10-roles.sh
 
-# Las tareas de esquema (allowlist en backend/config/db_roles.rb) corren solas como app_owner; la aplicación y db:seed como app_user.
+# Schema tasks (allowlist in backend/config/db_roles.rb) run as app_owner on their own; the app and db:seed run as app_user.
 migrate: ## Migra la base de desarrollo (como app_owner)
 	$(COMPOSE) exec api bin/rails db:migrate
 

@@ -1,4 +1,4 @@
 module Modules
-  # Raíz de los errores del pack: se captura todo el dominio de módulos con `rescue Modules::Error`.
+  # Root of the pack's errors: `rescue Modules::Error` catches the whole modules domain.
   class Error < StandardError; end
 end

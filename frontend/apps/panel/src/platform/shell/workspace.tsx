@@ -10,7 +10,7 @@ import { MeProvider, useMe } from "../me/me-provider";
 import { AppShell } from "./app-shell";
 import { NoAccessPage } from "./home-page";
 
-/** Ruta privada: carga /me para el contexto elegido y monta el layout con lo que /me permite. */
+/** Private route: loads /me for the chosen context and mounts the layout with what /me allows. */
 export function Workspace() {
   return (
     <ContextProvider>
@@ -26,7 +26,7 @@ function MeGate() {
 
   if (me.isPending) return <LoadingState label={t("loading")} className="min-h-svh" />;
   if (me.isError) return <UnexpectedPage onRetry={() => void me.refetch()} />;
-  // Sin organización no hay nada que mostrar salvo cómo pedir acceso.
+  // Without an organization there is nothing to show except how to request access.
   if (!me.data.data.context.organization) return <NoAccessPage />;
 
   return (
@@ -37,8 +37,8 @@ function MeGate() {
 }
 
 /**
- * Rutas de los módulos activos (registro del front). Lo que /me no ofrece no existe: una URL de un módulo inactivo o
- * sin permiso cae en «no encontrado», igual que respondería el backend (404, no 403).
+ * Routes of active modules (front-end registry). What /me does not offer does not exist: a URL of an inactive module or
+ * without permission lands on "not found", as the backend would answer (404, not 403).
  */
 export function ModuleRoutes() {
   const me = useMe();

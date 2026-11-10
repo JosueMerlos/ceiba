@@ -1,14 +1,14 @@
 require "pathname"
 require "prism"
 
-# Escáner de permisos usados en policies (M0.08, criterio 8): recorre packs/*/*/app/policies con el parser de Ruby (Prism, no
-# expresiones regulares) y devuelve:
-#   - cada clave de permiso (<modulo>.<recurso>.<accion>) escrita como literal que NO esté registrada con
+# Scanner for permissions used in policies: walks packs/*/*/app/policies with Ruby's parser (Prism, not regular
+# expressions) and returns:
+#   - each permission key (<module>.<resource>.<action>) written as a literal that is NOT registered with
 #     Access.register_permissions;
-#   - cada llamada a `can?` / `reach` cuyo primer argumento NO sea un literal de cadena: un permiso calculado (variable,
-#     constante, interpolación, método) no se puede verificar y se rechaza. Los permisos de una policy se escriben a la vista.
-# Lo ejecuta la suite, así un permiso olvidado (o con typo) rompe el build aunque la ruta que lo usa no se ejercite. En tiempo de
-# ejecución `can?` además lanza Access::UnknownPermission.
+#   - each `can?` / `reach` call whose first argument is NOT a string literal: a computed permission (variable,
+#     constant, interpolation, method) cannot be verified and is rejected. A policy's permissions are written in plain sight.
+# The suite runs it, so a forgotten (or mistyped) permission breaks the build even if the route using it is never
+# exercised. At runtime `can?` also raises Access::UnknownPermission.
 class PolicyPermissions
   POLICIES = "packs/*/*/app/policies/**/*.rb".freeze
   KEY = /\A[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*\z/
@@ -17,7 +17,7 @@ class PolicyPermissions
 
   Finding = Data.define(:file, :line, :kind, :detail)
 
-  # Recorre un archivo y junta literales con forma de permiso y llamadas con argumento dinámico.
+  # Walks a file and collects permission-shaped literals and calls with a dynamic argument.
   class Visitor < Prism::Visitor
     attr_reader :keys, :dynamic
 
@@ -43,7 +43,7 @@ class PolicyPermissions
 
   def initialize(root) = @root = Pathname(root)
 
-  # "ruta:línea: detalle" por cada incumplimiento.
+  # "path:line: detail" for each violation.
   def violations(registered:)
     findings.filter_map do |finding|
       case finding.kind

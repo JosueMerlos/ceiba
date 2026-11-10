@@ -1,8 +1,8 @@
-# branch_module_settings: overrides de settings de UNA sucursal para un módulo (solo las claves que el esquema permite a nivel
-# sucursal). Tabla tenant.
+# branch_module_settings: ONE branch's settings overrides for a module (only keys the schema allows at branch level).
+# Tenant table.
 #
-# Dos FKs compuestas dejan la integridad en la base: la sucursal debe ser de ESA empresa y el módulo debe haber sido activado alguna
-# vez en la empresa (company_modules conserva la fila al desactivar, así los overrides sobreviven a desactivar y reactivar).
+# Two composite FKs keep integrity in the database: the branch must belong to THAT company and the module must have been enabled
+# in the company at some point (company_modules keeps the row on disable, so overrides survive disabling and re-enabling).
 class CreateBranchModuleSettings < ActiveRecord::Migration[8.1]
   def change
     create_tenant_table :branch_module_settings do |t|

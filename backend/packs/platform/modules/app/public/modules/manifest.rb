@@ -1,9 +1,9 @@
 module Modules
-  # Un módulo declarado (docs/architecture/05-module-system.md). Inmutable y ya validado: lo construye Modules::Registry#define
-  # a partir del DSL de `Modules.define`; nadie más debería instanciarlo.
+  # A declared module, immutable and already validated. Built by Modules::Registry#define from the `Modules.define` DSL;
+  # nothing else should instantiate it.
   #
-  # Las referencias a código del módulo (`on_enable`, `on_disable`) son CADENAS, no constantes: la plataforma no conoce
-  # ningún módulo estáticamente (packwerk, visible_to: []) y las resuelve con `constantize` al ejecutarlas.
+  # Code references (`on_enable`, `on_disable`) are STRINGS, not constants: the platform knows no module statically
+  # (packwerk, visible_to: []) and resolves them with `constantize` when run.
   class Manifest < Data.define(
     :key, :name, :version, :requires, :platform, :permissions, :role_grants, :api_scopes, :settings_schema, :settings_levels,
     :publishes, :subscribes, :navigation, :on_enable, :on_disable, :schemer
@@ -13,13 +13,12 @@ module Modules
 
     def permission_keys = permissions.map(&:key)
 
-    # Valores por defecto del esquema: el piso de la resolución de settings.
+    # Schema defaults: the floor of settings resolution.
     def defaults = settings_schema.fetch("properties").transform_values { |property| property.fetch("default") }
 
     def setting_keys = settings_schema.fetch("properties").keys
 
-    # Niveles en los que se puede sobrescribir una clave: `x-levels` de la propiedad o, si no lo declara, todos los de
-    # `settings_levels` del módulo.
+    # Levels where a key can be overridden: the property's `x-levels`, else all of the module's `settings_levels`.
     def levels_for(setting_key)
       settings_schema.dig("properties", setting_key, "x-levels") || settings_levels
     end

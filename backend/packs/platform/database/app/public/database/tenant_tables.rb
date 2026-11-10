@@ -1,17 +1,12 @@
 module Database
-  # Registro de las tablas tenant (docs/architecture/09-data-conventions.md, "Tablas tenant").
-  #
-  # Una tabla es tenant si `create_tenant_table` le creó la política `tenant_isolation`: el registro se
-  # DERIVA del catálogo de PostgreSQL (pg_policies) en vez de duplicarse en una tabla propia, así no
-  # puede desincronizarse, viaja dentro de db/structure.sql y no necesita migraciones extra.
-  #
-  # Lo usan la suite de aislamiento (M0.05) y la migración que activa RLS en todas las tablas (M4.03).
+  # Registry of tenant tables. A table is tenant if `create_tenant_table` gave it the `tenant_isolation` policy.
+  # The registry is DERIVED from the PostgreSQL catalog (pg_policies) instead of duplicated in its own table,
+  # so it cannot drift, ships inside structure.sql and needs no extra migrations.
   module TenantTables
     POLICY_NAME = "tenant_isolation".freeze
 
     module_function
 
-    # Nombres de todas las tablas tenant del esquema actual, ordenados.
     def names(connection = ActiveRecord::Base.connection)
       connection.select_values(<<~SQL)
         SELECT tablename FROM pg_policies
@@ -20,7 +15,7 @@ module Database
       SQL
     end
 
-    # Tablas tenant que ya tienen RLS activado (M4.03 las activa todas).
+    # Tenant tables that already have RLS enabled.
     def rls_enabled(connection = ActiveRecord::Base.connection)
       connection.select_values(<<~SQL)
         SELECT c.relname FROM pg_class c
@@ -30,13 +25,12 @@ module Database
       SQL
     end
 
-    # Guardián de consistencia entre "tiene columna organization_id" y "está registrada como tenant" (tiene la
-    # política tenant_isolation). Devuelve las tablas que rompen cada sentido; `exempt:` son tablas exentas por
-    # una razón documentada. Lo ejecuta el spec del pack contra el esquema real.
+    # Consistency guard between "has an organization_id column" and "is registered as tenant" (has the
+    # tenant_isolation policy). Returns the tables that break each direction; `exempt:` lists tables excluded on purpose.
     def inconsistencies(connection = ActiveRecord::Base.connection, exempt: [])
       exempt = exempt.map(&:to_s)
-      # pg_attribute y no information_schema.columns: este solo muestra las columnas de tablas con algún privilegio
-      # para el rol actual y una tabla sin GRANT a app_user pasaría desapercibida.
+      # pg_attribute, not information_schema.columns: the latter only lists tables the current role has a privilege on,
+      # so a table without a GRANT to app_user would go unnoticed.
       with_column = connection.select_values(<<~SQL)
         SELECT c.relname FROM pg_attribute a
         JOIN pg_class c ON c.oid = a.attrelid

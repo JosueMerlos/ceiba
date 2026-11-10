@@ -1,6 +1,5 @@
 require "rails_helper"
 
-# FKs de las tablas tenant: on_delete explícito (restrict por defecto) y nombres de restricciones válidos.
 RSpec.describe "on_delete y nombres de restricciones", :tenant_schema do
   def delete_rule(owner, table, referenced)
     owner.select_value(<<~SQL)

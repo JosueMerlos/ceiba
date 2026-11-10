@@ -2,15 +2,14 @@
 
 require "rails/generators"
 
-# bin/rails g pack <capa>/<nombre>
+# bin/rails g pack <layer>/<name>
 #
-# Crea un pack con la estructura de docs/architecture/02-modular-monolith.md: package.yml con
-# la capa y los checkers activos, directorios de app/, locales y un spec base (más un manifest.rb
-# placeholder en modules/). Nace cumpliendo las reglas que verifica packwerk en CI.
+# Creates a pack with the standard structure: package.yml with the layer and the checkers on, app/ directories, locales
+# and a base spec (plus a placeholder manifest.rb in modules/). It is born compliant with the rules packwerk checks in CI.
 class PackGenerator < Rails::Generators::Base
   LAYERS = %w[platform modules].freeze
   NAME_FORMAT = /\A[a-z][a-z0-9]*(_[a-z0-9]+)*\z/
-  # Nombres que chocarían con constantes o palabras reservadas como namespace.
+  # Names that would clash with constants or reserved words as a namespace.
   RESERVED_NAMES = %w[
     class module object kernel rails ruby active_record active_support action_controller
     application api concerns app lib spec test config db

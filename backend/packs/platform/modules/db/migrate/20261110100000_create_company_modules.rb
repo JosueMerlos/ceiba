@@ -1,13 +1,13 @@
-# company_modules: qué módulos tiene ENCENDIDOS cada empresa (ADR-0010, docs/architecture/05-module-system.md). Tabla tenant.
+# company_modules: which modules each company has ENABLED. Tenant table.
 #
-# - `module_key` es un identificador estable (nunca un booleano por módulo en companies). Una fila por (empresa, módulo): activar
-#   crea la fila, desactivar pone `disabled_at` (los datos y settings se CONSERVAN) y reactivar la limpia.
-# - `enabled_at` es el de la última activación.
-# - `settings` son los overrides de la EMPRESA sobre los defaults del esquema del módulo (solo las claves que cambió).
+# - `module_key` is a stable identifier (never a boolean per module on companies). One row per (company, module): enabling
+#   creates it, disabling sets `disabled_at` (data and settings are KEPT) and re-enabling clears it.
+# - `enabled_at` is the last activation's.
+# - `settings` are the COMPANY's overrides over the module schema's defaults (only the keys it changed).
 #
-# El UNIQUE (organization_id, company_id, module_key) hace de UNIQUE (company_id, module_key) (la empresa es de una sola organización)
-# y es el destino de la FK compuesta de branch_module_settings. El índice parcial sirve a "las empresas con el módulo activo"
-# (escáneres, docs/architecture/06).
+# UNIQUE (organization_id, company_id, module_key) stands in for UNIQUE (company_id, module_key) (a company belongs to a single
+# organization) and is the target of branch_module_settings' composite FK. The partial index serves "companies with the module
+# active" (scanners).
 class CreateCompanyModules < ActiveRecord::Migration[8.1]
   def change
     create_tenant_table :company_modules do |t|

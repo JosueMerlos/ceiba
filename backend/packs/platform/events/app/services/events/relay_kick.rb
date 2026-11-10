@@ -1,10 +1,10 @@
 module Events
-  # Disparo del relay tras el commit (optimización de latencia; el cron de 5 s es la red de seguridad).
+  # Triggers the relay after commit (a latency optimization; the 5 s cron is the safety net).
   #
-  # - UN solo disparo por transacción, aunque se publiquen varios eventos: el primero registra un callback after_commit y
-  #   los demás ven la marca y no hacen nada. after_rollback la limpia.
-  # - Con Redis caído, cada COMMIT esperaría el timeout de conexión. Tras el primer fallo se hace una pausa (BACKOFF) sin
-  #   intentar: el fallo es silencioso (se registra un aviso) y el cron cubre el hueco.
+  # - ONE trigger per transaction even if several events are published: the first registers an after_commit callback and
+  #   the rest see the mark and do nothing. after_rollback clears it.
+  # - With Redis down, every COMMIT would wait for the connection timeout. After the first failure it pauses (BACKOFF)
+  #   without trying: the failure is silent (a warning is logged) and the cron covers the gap.
   module RelayKick
     BACKOFF = 5.seconds
     PENDING = :events_relay_kick_pending
@@ -12,7 +12,7 @@ module Events
 
     module_function
 
-    # Llamar dentro de la transacción que insertó el evento.
+    # Call inside the transaction that inserted the event.
     def schedule(connection = ApplicationRecord.connection)
       return if state[PENDING] || backing_off?
 
@@ -40,7 +40,7 @@ module Events
       failed_at.present? && Time.current < failed_at + BACKOFF
     end
 
-    # Por hilo/fibra: cada worker o request tiene su propia marca.
+    # Per thread/fiber: each worker or request has its own mark.
     def state = ActiveSupport::IsolatedExecutionState
   end
 end

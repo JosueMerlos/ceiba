@@ -9,9 +9,9 @@ afterEach(() => {
 });
 afterAll(() => server.close());
 
-// Los tests de build (entorno node) no tienen DOM.
+// Build tests (node environment) have no DOM.
 if (typeof window !== "undefined") {
-  // jsdom no implementa estas APIs, que Radix usa para el foco y el puntero.
+  // jsdom does not implement these APIs, which Radix uses for focus and pointer handling.
   Element.prototype.hasPointerCapture ??= () => false;
   Element.prototype.setPointerCapture ??= () => {};
   Element.prototype.releasePointerCapture ??= () => {};

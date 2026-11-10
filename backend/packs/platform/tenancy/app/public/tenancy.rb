@@ -1,22 +1,21 @@
-# API pública del pack platform/tenancy (junto con Tenancy::Context, Tenancy::ProvisionOrganization y los errores).
+# Public API of the platform/tenancy pack (together with Tenancy::Context, Tenancy::ProvisionOrganization and the errors).
 module Tenancy
   SETTING = "app.organization_id".freeze
 
-  # Ejecuta el bloque dentro de un contexto de tenancy. Es el ÚNICO sitio que fija el tenant de acts_as_tenant y el
-  # `app.organization_id` que leen las políticas RLS (docs/architecture/03-multi-tenancy.md): requests (M0.07), jobs
-  # (M0.10), seeds y consola pasan por aquí.
+  # Runs the block inside a tenancy context. It is the ONLY place that sets acts_as_tenant's tenant and the
+  # `app.organization_id` the RLS policies read: requests, jobs, seeds and the console all go through here.
   #
   #   Tenancy.with_context(organization: org, company: co) { |context| Company.count }
   #
-  # - Abre una transacción (con savepoint si ya hay una): `SET LOCAL` solo vive dentro de una. Si el bloque lanza, se
-  #   revierte lo escrito en él y el setting desaparece con la transacción.
-  # - El id se envía como parámetro enlazado (`set_config($1, $2, true)`), nunca interpolado en el SQL.
-  # - Al terminar bien, el setting vuelve al valor que tenía (el del contexto externo si estaba anidado), de modo que
-  #   no se filtra a lo que siga corriendo en la misma transacción ni en la misma conexión del pool.
-  # - `read_only: true` (las lecturas de la API, GET) hace la transacción de SOLO LECTURA (`SET TRANSACTION READ ONLY`): una
-  #   escritura accidental falla en la base y la transacción larga de una lectura es más barata. Solo lo fija el contexto MÁS
-  #   EXTERNO (una transacción ajena —fixtures de test, un job— no cambia de modo); un contexto anidado lo hereda.
-  # - Lanza Tenancy::InconsistentContext, sin tocar nada, si las entidades no encajan.
+  # - Opens a transaction (a savepoint if one exists): `SET LOCAL` only lives inside one. If the block raises, what it wrote
+  #   rolls back and the setting vanishes with the transaction.
+  # - The id is sent as a bound parameter (`set_config($1, $2, true)`), never interpolated into SQL.
+  # - On success the setting returns to its previous value (the outer context's when nested), so it does not leak to what
+  #   runs next in the same transaction or pooled connection.
+  # - `read_only: true` (API reads, GET) makes the transaction READ ONLY (`SET TRANSACTION READ ONLY`): an accidental write
+  #   fails in the database and a read's long transaction is cheaper. Only the OUTERMOST context sets it (a foreign
+  #   transaction, e.g. test fixtures or a job, does not change mode); a nested context inherits it.
+  # - Raises Tenancy::InconsistentContext, touching nothing, if the entities do not fit.
   def self.with_context(organization:, company: nil, branch: nil, principal: nil, read_only: false, &block)
     raise ArgumentError, "with_context requiere un bloque" unless block
 
@@ -32,13 +31,13 @@ module Tenancy
     end
   end
 
-  # Restaura el setting también en una salida no local (return, break, throw): el savepoint se libera y el setting NO
-  # se revierte solo. Con una excepción NO se restaura: el rollback del savepoint ya lo revierte, y sobre una
-  # transacción abortada cualquier sentencia fallaría y taparía el error original.
+  # Restores the setting on non-local exits too (return, break, throw): the savepoint is released and the setting does NOT
+  # revert on its own. On an exception it is NOT restored: the savepoint rollback already reverts it, and on an aborted
+  # transaction any statement would fail and mask the original error.
   def self.run_in_context(connection, organization, context, previous, &block)
     failed = false
     ActsAsTenant.with_tenant(organization) { Current.set(context:) { block.call(context) } }
-  rescue Exception # rubocop:disable Lint/RescueException -- se re-lanza siempre; solo marca que no hay que restaurar
+  rescue Exception # rubocop:disable Lint/RescueException -- always re-raised; only flags that no restore is needed
     failed = true
     raise
   ensure
@@ -46,7 +45,7 @@ module Tenancy
   end
   private_class_method :run_in_context
 
-  # SIN query cache: Rails la activa en requests y jobs, y un set_config servido desde la caché no se ejecutaría.
+  # No query cache: Rails enables it in requests and jobs, and a set_config served from the cache would not run.
   def self.read_setting(connection)
     connection.uncached { connection.select_value("SELECT current_setting('#{SETTING}', true)") }
   end

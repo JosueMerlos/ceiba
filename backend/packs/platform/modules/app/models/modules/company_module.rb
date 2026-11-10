@@ -1,8 +1,8 @@
 module Modules
-  # Un módulo ENCENDIDO (o apagado, conservando sus datos) en una empresa. Tabla tenant. Modelo PRIVADO del pack: se usa a
-  # través de Modules.enabled?, Modules::Enable/Disable y Modules.settings_for.
+  # A module enabled (or disabled, keeping its data) for a company. Tenant table; private model, used through
+  # Modules.enabled?, Modules::Enable/Disable and Modules.settings_for.
   #
-  # Sin asociación a la empresa (modelo privado de tenancy): se guarda su id; la FK compuesta la hace cumplir la base.
+  # No association to the company (tenancy's model is private): only its id is stored; the composite FK enforces it.
   class CompanyModule < ApplicationRecord
     KEY_FORMAT = /\A[a-z][a-z0-9_]*\z/
 

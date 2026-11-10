@@ -1,5 +1,5 @@
 module Modules
-  # Se intentó desactivar un módulo que otros módulos ACTIVOS en la empresa requieren.
+  # Tried to disable a module that other ACTIVE modules in the company require.
   class RequiredByOthers < Error
     attr_reader :key, :dependents
 

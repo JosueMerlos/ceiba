@@ -1,4 +1,4 @@
-# Pack raíz: el "pegamento" mínimo de Rails (ApplicationRecord, ApplicationController, config).
-# Sin capa: cualquier pack puede depender de él (declarándolo con "."), y él no impone reglas.
+# Root pack: the minimal Rails glue (ApplicationRecord, ApplicationController, config).
+# Layerless: any pack can depend on it (declared as "."), and it imposes no rules.
 enforce_dependencies: false
 enforce_privacy: false

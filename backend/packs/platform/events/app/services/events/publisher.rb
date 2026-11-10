@@ -1,5 +1,4 @@
 module Events
-  # Implementación de Events.publish (privada del pack).
   class Publisher
     def self.call(...) = new(...).call
 
@@ -9,7 +8,7 @@ module Events
       @metadata = metadata
     end
 
-    # Orden: esquema (error de programación del publicador, igual en cualquier contexto) -> transacción -> inserción.
+    # Order: schema (publisher programming error, the same in any context) -> transaction -> insert.
     def call
       normalized = Schemas.validate!(@name, @payload)
       raise NotInTransaction, @name unless ApplicationRecord.connection.transaction_open?
@@ -21,7 +20,7 @@ module Events
 
     private
 
-    # Empresa y sucursal del contexto de tenancy. El actor y el request_id llegan con la sesión (M0.07) vía `metadata:`.
+    # Company and branch from the tenancy context. The actor and request_id arrive with the session via `metadata:`.
     def context_metadata
       context = Current.context
       return {} unless context

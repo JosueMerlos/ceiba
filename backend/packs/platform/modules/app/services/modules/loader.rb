@@ -1,7 +1,7 @@
 module Modules
-  # Descubre y carga los manifiestos de packs/modules/<key>/manifest.rb. Lee ARCHIVOS: no referencia constantes de ningún
-  # módulo (visible_to: [], docs/architecture/02-modular-monolith.md). Cada manifiesto llama a `Modules.define`; mientras se
-  # carga, esa llamada va al registro que se está construyendo y su `root` es el pack del manifiesto.
+  # Discovers and loads packs/modules/<key>/manifest.rb. Reads FILES: it references no module constants (visible_to: []).
+  # Each manifest calls `Modules.define`; while loading, that call goes to the registry being built and its `root` is the
+  # manifest's pack.
   class Loader
     KEY = :modules_loader_context
 
@@ -12,7 +12,7 @@ module Modules
         registry.validate!
       end
 
-      # Contexto de la carga en curso (registro y directorio del pack) o nil fuera de ella. Lo lee Modules.define.
+      # Registry and pack directory of the load in progress, or nil outside it. Read by Modules.define.
       def current = Thread.current[KEY]
 
       private

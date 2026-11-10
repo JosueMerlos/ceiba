@@ -1,7 +1,7 @@
-# organizations es la RAÍZ del tenant (docs/architecture/03-multi-tenancy.md): no lleva organization_id, por eso se
-# crea con create_table y no con create_tenant_table. Todas las demás tablas tenant cuelgan de ella.
-# Los CHECK se escriben con OR y no con IN (...): PostgreSQL vuelca `IN` sobre varchar en dos formas distintas según el
-# camino (migrar desde cero o revertir y migrar) y structure.sql dejaría de ser determinista.
+# organizations is the tenant ROOT: it has no organization_id, hence create_table instead of create_tenant_table. Every other
+# tenant table hangs from it.
+# CHECKs use OR instead of IN (...): PostgreSQL dumps `IN` on varchar in two different forms depending on the path (migrating
+# from scratch vs. rolling back and migrating) and structure.sql would stop being deterministic.
 class CreateOrganizations < ActiveRecord::Migration[8.1]
   def change
     create_table :organizations, id: :uuid do |t|

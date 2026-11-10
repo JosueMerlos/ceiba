@@ -1,8 +1,8 @@
-# branches: tabla tenant colgada de companies por FK COMPUESTA (organization_id, company_id) -> companies
-# (organization_id, id) (t.tenant_reference): la base impide que una sucursal de la organización A cuelgue de una
-# empresa de B, aunque el código se salte las validaciones (barrera 2, docs/architecture/03-multi-tenancy.md).
+# branches: tenant table hanging from companies by a COMPOSITE FK (organization_id, company_id) -> companies
+# (organization_id, id) (t.tenant_reference): the database prevents a branch of organization A from hanging off a company of
+# B even if code skips validations.
 #
-# on_delete: restrict (el default) en ambas FKs, igual que companies: una empresa con sucursales no se borra de rebote.
+# on_delete: restrict (the default) on both FKs, like companies: a company with branches is not deleted by accident.
 class CreateBranches < ActiveRecord::Migration[8.1]
   def change
     create_tenant_table :branches do |t|
