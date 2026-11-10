@@ -44,12 +44,14 @@ export function ContextMenu({ triggerLabel, summary, levels, onSelect }: Context
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="max-w-[16rem] justify-between gap-2 md:max-w-xs">
+        <Button
+          variant="outline"
+          className="min-w-0 shrink justify-between gap-2 max-sm:px-2.5 md:max-w-xs"
+        >
           <Building2 className="text-muted-foreground" aria-hidden="true" />
-          <span className="truncate">
-            <span className="sr-only">{triggerLabel}: </span>
-            {summary}
-          </span>
+          <span className="sr-only">{triggerLabel}: </span>
+          {/* Bajo sm solo se ve el icono; el nombre accesible conserva la empresa. */}
+          <span className="truncate max-sm:sr-only">{summary}</span>
           <ChevronsUpDown className="text-muted-foreground" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>

@@ -7,26 +7,35 @@ import { ModuleRoutes, Workspace } from "../platform/shell/workspace";
 
 export type History = { type: "browser" } | { type: "memory"; initialEntries: string[] };
 
-const routes: RouteObject[] = [
-  { path: "/login", element: <LoginPage />, errorElement: <RouteError /> },
-  {
-    path: "/",
-    element: <RequireSession />,
-    errorElement: <RouteError />,
-    children: [
-      {
-        element: <Workspace />,
-        children: [
-          { index: true, element: <HomePage /> },
-          // Las rutas de los módulos activos se resuelven en ModuleRoutes con lo que dice /me.
-          { path: "*", element: <ModuleRoutes /> },
-        ],
-      },
-    ],
-  },
+// Páginas dentro del layout. Las rutas de los módulos activos se resuelven en ModuleRoutes con lo que dice /me.
+const pages: RouteObject[] = [
+  { index: true, element: <HomePage /> },
+  { path: "*", element: <ModuleRoutes /> },
 ];
 
-export function createAppRouter(history: History) {
+function buildRoutes(children: RouteObject[]): RouteObject[] {
+  return [
+    { path: "/login", element: <LoginPage />, errorElement: <RouteError /> },
+    {
+      path: "/",
+      element: <RequireSession />,
+      // Un fallo de /me o de la sesión no deja layout: aquí solo cabe salir (cerrar sesión).
+      errorElement: <RouteError withLogout />,
+      children: [
+        {
+          element: <Workspace />,
+          children: [
+            // Un fallo de una PÁGINA (403, 404, error) se muestra en su lugar y deja la navegación y el selector.
+            { errorElement: <RouteError />, children },
+          ],
+        },
+      ],
+    },
+  ];
+}
+
+export function createAppRouter(history: History, children: RouteObject[] = pages) {
+  const routes = buildRoutes(children);
   return history.type === "memory"
     ? createMemoryRouter(routes, { initialEntries: history.initialEntries })
     : createBrowserRouter(routes);

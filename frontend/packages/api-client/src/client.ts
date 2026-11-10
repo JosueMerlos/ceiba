@@ -27,7 +27,7 @@ function csrfMiddleware(csrf: CsrfStore): Middleware {
       if (token && !SAFE_METHODS.has(request.method)) request.headers.set("X-CSRF-Token", token);
       return request;
     },
-    async onResponse({ request, response, schemaPath }) {
+    async onResponse({ response, schemaPath }) {
       const isSessionEnd = SESSION_END_PATHS.has(schemaPath);
       if (response.ok && SESSION_PATHS.has(schemaPath)) {
         const body: unknown = await response
@@ -38,7 +38,7 @@ function csrfMiddleware(csrf: CsrfStore): Middleware {
         if (typeof token === "string") csrf.set(token);
       } else if (
         (response.ok && isSessionEnd) ||
-        (response.status === 401 && request.method !== "POST")
+        (response.status === 401 && schemaPath !== "/api/v1/auth/login")
       ) {
         csrf.clear();
       }

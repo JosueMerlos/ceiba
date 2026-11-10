@@ -1,5 +1,6 @@
 export const shell = {
   skipLink: "Saltar al contenido",
+  goHome: "Ir al inicio de Ceiba",
   navigation: "Navegación principal",
   userMenu: "Cuenta de {{name}}",
   context: {

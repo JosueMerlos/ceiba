@@ -16,6 +16,17 @@ export function ContextSelector() {
   const companies = useCompaniesQuery(organizationId);
   const branches = useBranchesQuery(organizationId, companyId);
 
+  // Mientras cargan las listas el selector reserva su sitio (sin parpadeo: aparecer de golpe movería la cabecera).
+  if (organizations.isLoading || companies.isLoading || branches.isLoading) {
+    return (
+      <div
+        data-slot="context-skeleton"
+        aria-hidden="true"
+        className="h-10 w-10 animate-pulse rounded-lg bg-muted sm:w-44"
+      />
+    );
+  }
+
   // «Todas las sucursales» no cuenta como opción: con una sola sucursal real no hay nada que elegir.
   const realBranches = (branches.data?.data ?? []).map(({ id, name }) => ({
     value: id,

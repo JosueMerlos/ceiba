@@ -57,6 +57,8 @@ export function useSessionQuery() {
   return useQuery({
     queryKey: queryKeys.session,
     queryFn: () => unwrap(client.GET("/api/v1/auth/session")),
+    // Una sesión que ya respondió 401 no se vuelve a pedir al montar el login (una sola GET al arrancar).
+    retryOnMount: false,
   });
 }
 

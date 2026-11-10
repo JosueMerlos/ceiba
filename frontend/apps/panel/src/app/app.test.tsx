@@ -394,7 +394,8 @@ describe("revisión de M0.12", () => {
     signedOutBackend();
     await renderApp({ route: "/login?next=%2Fagenda" });
 
-    expect((await screen.findByRole("status")).textContent).toMatch(/sesión venció/);
+    await screen.findByRole("heading", { name: "Iniciar sesión" });
+    expect(screen.getByRole("status").textContent).toMatch(/sesión venció/);
   });
 
   it("el login sin ?next no muestra ese aviso", async () => {

@@ -65,10 +65,10 @@ export function UnexpectedPage({ onRetry }: { onRetry?: () => void }) {
 }
 
 /** `errorElement` del router: traduce el error que llegó al límite a la pantalla que corresponde. */
-export function RouteError() {
+export function RouteError({ withLogout = false }: { withLogout?: boolean }) {
   const error = useRouteError();
   const status = isApiError(error) ? error.status : isRouteErrorResponse(error) ? error.status : 0;
-  if (status === 403) return <ForbiddenPage withLogout />;
+  if (status === 403) return <ForbiddenPage withLogout={withLogout} />;
   if (status === 404) return <NotFoundPage />;
   return <UnexpectedPage />;
 }

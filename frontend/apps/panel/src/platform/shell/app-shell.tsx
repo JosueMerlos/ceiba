@@ -1,9 +1,10 @@
 import { useTranslation } from "@ceiba/i18n";
 import { AppLayout, CeibaMark, NavItem } from "@ceiba/ui";
-import { NavLink, Outlet } from "react-router";
+import { Link, NavLink, Outlet } from "react-router";
 import { navigationFor } from "../../modules/registry";
 import { ContextSelector } from "../context/context-selector";
 import { useMe } from "../me/me-provider";
+import { SilentBoundary } from "./silent-boundary";
 import { UserMenu } from "./user-menu";
 
 /** Layout del panel: la navegación sale SOLO de /me (módulos activos y permisos), nunca de una lista fija. */
@@ -17,12 +18,16 @@ export function AppShell() {
       skipLinkLabel={t("shell:skipLink")}
       navigationLabel={t("shell:navigation")}
       brand={
-        <>
+        <Link
+          to="/"
+          aria-label={t("shell:goHome")}
+          className="flex items-center gap-2.5 rounded-md focus-visible:outline-offset-4"
+        >
           <CeibaMark className="size-8" />
           <span className="font-display text-xl font-semibold tracking-tight">
             {t("common:appName")}
           </span>
-        </>
+        </Link>
       }
       navigation={
         items.length > 0
@@ -38,7 +43,9 @@ export function AppShell() {
       }
       actions={
         <>
-          <ContextSelector />
+          <SilentBoundary>
+            <ContextSelector />
+          </SilentBoundary>
           <UserMenu />
         </>
       }

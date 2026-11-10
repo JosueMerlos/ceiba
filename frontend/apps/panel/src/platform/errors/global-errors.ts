@@ -4,7 +4,8 @@ import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 
 interface GlobalErrorHandlers {
   /** Sesión vencida: el router lleva al login conservando la ruta. */
-  onUnauthorized(): void;
+  /** `fromSession`: el 401 vino de GET /auth/session (no hay nada que descartar y el login no debe volver a pedirla). */
+  onUnauthorized(fromSession: boolean): void;
   /** Avisa al usuario (toast) de un fallo que ninguna pantalla va a mostrar. */
   notify(error: unknown): void;
   /** `false` en pruebas: sin reintentos. */
@@ -27,13 +28,13 @@ const shouldNotify = (error: unknown) =>
 export function createQueryClient({ onUnauthorized, notify, retry }: GlobalErrorHandlers) {
   return new QueryClient({
     queryCache: new QueryCache({
-      onError: (error) => {
-        if (isSessionExpired(error)) onUnauthorized();
+      onError: (error, query) => {
+        if (isSessionExpired(error)) onUnauthorized(query.queryKey[0] === "session");
       },
     }),
     mutationCache: new MutationCache({
       onError: (error, _variables, _context, mutation) => {
-        if (isSessionExpired(error)) return onUnauthorized();
+        if (isSessionExpired(error)) return onUnauthorized(false);
         if (mutation.meta?.silent) return;
         if (shouldNotify(error)) notify(error);
       },

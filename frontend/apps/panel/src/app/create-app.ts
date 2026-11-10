@@ -1,5 +1,6 @@
 import { createApiClient, createCsrfStore } from "@ceiba/api-client";
 import { createI18n } from "@ceiba/i18n";
+import type { RouteObject } from "react-router";
 import { toast } from "@ceiba/ui";
 import { describeError, createQueryClient } from "../platform/errors/global-errors";
 import { loginPathFor } from "../platform/auth/return-path";
@@ -11,6 +12,8 @@ interface CreateAppOptions {
   history?: History;
   /** `false` en pruebas: las consultas fallidas no se reintentan. */
   retry?: false;
+  /** Pruebas: reemplaza las páginas dentro del layout (inicio y módulos). */
+  workspaceChildren?: RouteObject[];
 }
 
 /**
@@ -21,18 +24,19 @@ export async function createApp({
   apiBaseUrl = "",
   history = { type: "browser" },
   retry,
+  workspaceChildren,
 }: CreateAppOptions = {}) {
   const i18n = await createI18n();
   const apiClient = createApiClient({ baseUrl: apiBaseUrl, csrf: createCsrfStore() });
-  const router = createAppRouter(history);
+  const router = createAppRouter(history, workspaceChildren);
 
   const queryClient = createQueryClient({
     retry,
-    onUnauthorized: () => {
+    onUnauthorized: (fromSession) => {
       const { location } = router.state;
       if (location.pathname === "/login") return;
       // La sesión terminó: nada de lo cacheado debe verlo quien inicie sesión después en este navegador.
-      queryClient.clear();
+      if (!fromSession) queryClient.clear();
       void router.navigate(loginPathFor(location), { replace: true });
     },
     notify: (error) => {

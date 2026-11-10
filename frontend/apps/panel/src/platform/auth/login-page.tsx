@@ -38,6 +38,7 @@ export function LoginPage() {
   const { t } = useTranslation(["auth", "common", "errors"]);
   const [params] = useSearchParams();
   const next = safeReturnPath(params.get("next"));
+  const cameFromRedirect = params.has("next");
   const session = useSessionQuery();
 
   // Con sesión vigente (o recién iniciada: el login la deja en la caché) no hay nada que hacer aquí.
@@ -76,7 +77,15 @@ export function LoginPage() {
             <span className="font-display text-xl font-semibold">{t("common:appName")}</span>
           </div>
           <h1 className="font-display text-3xl font-semibold">{t("auth:login.title")}</h1>
-          <p className="mt-2 mb-8 text-muted-foreground">{t("auth:login.intro")}</p>
+          <p className="mt-2 mb-6 text-muted-foreground">{t("auth:login.intro")}</p>
+          {cameFromRedirect ? (
+            <p
+              role="status"
+              className="mb-6 rounded-lg border bg-secondary px-3.5 py-2.5 text-sm text-secondary-foreground"
+            >
+              {t("errors:sessionExpired")}
+            </p>
+          ) : null}
           <LoginForm />
         </div>
       </main>
@@ -141,7 +150,6 @@ function LoginForm() {
                   variant="ghost"
                   size="icon"
                   className="absolute top-0 right-0 text-muted-foreground"
-                  aria-pressed={reveal}
                   aria-label={reveal ? t("auth:login.hidePassword") : t("auth:login.showPassword")}
                   onClick={() => setReveal((current) => !current)}
                 >
