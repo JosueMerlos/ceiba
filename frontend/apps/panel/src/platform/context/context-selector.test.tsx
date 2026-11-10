@@ -44,7 +44,7 @@ describe("ContextMenu (selector de contexto)", () => {
   it("criterio 1: se oculta por completo si solo hay una opción en cada nivel", () => {
     render_([single("organization"), single("company"), single("branch")]);
 
-    expect(screen.queryByRole("button", { name: "Cambiar el contexto de trabajo" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Cambiar el contexto de trabajo/ })).toBeNull();
   });
 
   it("se oculta si no hay niveles", () => {
@@ -56,7 +56,7 @@ describe("ContextMenu (selector de contexto)", () => {
   it("solo muestra los niveles con más de una opción", async () => {
     render_([single("organization"), company]);
 
-    await userEvent.click(screen.getByRole("button", { name: "Cambiar el contexto de trabajo" }));
+    await userEvent.click(screen.getByRole("button", { name: /Cambiar el contexto de trabajo/ }));
 
     expect(await screen.findByText("Empresa")).toBeTruthy();
     expect(screen.queryByText("Organización")).toBeNull();
@@ -66,7 +66,7 @@ describe("ContextMenu (selector de contexto)", () => {
   it("marca la opción actual y avisa del nivel y del valor elegidos", async () => {
     const onSelect = render_([organization, company]);
 
-    await userEvent.click(screen.getByRole("button", { name: "Cambiar el contexto de trabajo" }));
+    await userEvent.click(screen.getByRole("button", { name: /Cambiar el contexto de trabajo/ }));
     const current = await screen.findByRole("menuitemradio", { name: "Clínica Dental Sonrisa" });
     expect(current.getAttribute("aria-checked")).toBe("true");
     await userEvent.click(screen.getByRole("menuitemradio", { name: "Salón Estilo" }));
@@ -78,7 +78,7 @@ describe("ContextMenu (selector de contexto)", () => {
     render_([company]);
 
     expect(
-      screen.getByRole("button", { name: "Cambiar el contexto de trabajo" }).textContent,
+      screen.getByRole("button", { name: /Cambiar el contexto de trabajo/ }).textContent,
     ).toContain("Clínica Dental Sonrisa");
   });
 });
