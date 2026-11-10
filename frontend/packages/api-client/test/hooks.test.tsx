@@ -17,7 +17,11 @@ import {
 } from "../src";
 
 const BASE = "http://api.test";
-const user = { id: "0198f0a0-0000-7000-8000-000000000001", email: "rosa@x.test", full_name: "Rosa" };
+const user = {
+  id: "0198f0a0-0000-7000-8000-000000000001",
+  email: "rosa@x.test",
+  full_name: "Rosa",
+};
 const authSession = {
   data: { user, csrf_token: "tok", expires_at: "2026-11-10T00:00:00Z" },
 };

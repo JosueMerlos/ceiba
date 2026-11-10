@@ -23,12 +23,19 @@ beforeEach(() => {
 });
 
 /** Registra un handler que anota las cabeceras que llegaron. */
-function record(method: "get" | "post" | "delete", path: string, body: unknown = {}, status = 200) {
+function record(
+  method: "get" | "post" | "delete",
+  path: string,
+  body: Record<string, unknown> | null = {},
+  status = 200,
+) {
   const seen: Headers[] = [];
   server.use(
     http[method](`${BASE}${path}`, ({ request }) => {
       seen.push(request.headers);
-      return status === 204 ? new HttpResponse(null, { status }) : HttpResponse.json(body, { status });
+      return status === 204
+        ? new HttpResponse(null, { status })
+        : HttpResponse.json(body, { status });
     }),
   );
   return seen;
