@@ -7,6 +7,9 @@
 #   bin/ci                       # todas las etapas
 #   bin/ci backend-test          # solo las indicadas (nombres de los jobs de CI)
 #
+# La etapa e2e (M0.12) levanta el entorno completo de Compose con los seeds de demo y corre Playwright en su
+# contenedor; en GitHub corre solo en `main` (job e2e de ci.yml).
+#
 # Etapas locales adicionales: repo-checks (consistencia de versiones, SHAs de las acciones y validador de títulos de PR,
 # que en CI corren dentro de backend-lint) y workflows (actionlint, imagen Docker fijada).
 set -uo pipefail
@@ -33,6 +36,17 @@ stage_backend_security() { backend bin/ci-security; }
 stage_frontend_lint()    { frontend bin/ci-lint; }
 stage_frontend_test()    { frontend bin/ci-test; }
 stage_frontend_security() { frontend bin/ci-security; }
+# Presupuestos de bundle (M0.12, ADR-0015): JS crítico de booking < 150 KiB y de panel < 220 KiB gzip (bundle-budgets.json).
+stage_frontend_bundle()  { frontend bin/ci-bundle; }
+# E2E (M0.12): roles de BD, entorno completo (API con seeds, panel, booking, proxy), humo (infra/scripts/smoke.sh: títulos,
+# CSP, HMR) y Playwright. Capturas y reporte
+# en frontend/e2e (screenshots, playwright-report, test-results).
+stage_e2e() {
+  docker compose up -d --wait db redis && db_roles \
+    && docker compose up -d --build --wait \
+    && infra/scripts/smoke.sh \
+    && docker compose run --rm -T -e E2E_SCREENSHOT_DIR=/app/frontend/e2e/screenshots e2e
+}
 # Contrato API (M0.06): regenera openapi/v1.yaml y el cliente TS y falla si difieren de lo versionado.
 stage_api_contract() {
   infra/scripts/check-api-contract_test.sh && docker compose up -d --wait db redis && db_roles \
@@ -41,7 +55,7 @@ stage_api_contract() {
        infra/scripts/check-api-contract.sh
 }
 
-ALL_STAGES=(repo-checks workflows backend-lint backend-packs backend-migrations backend-test backend-security frontend-lint frontend-test frontend-security api-contract)
+ALL_STAGES=(repo-checks workflows backend-lint backend-packs backend-migrations backend-test backend-security frontend-lint frontend-test frontend-security frontend-bundle api-contract e2e)
 if [ "$#" -gt 0 ]; then stages=("$@"); else stages=("${ALL_STAGES[@]}"); fi
 
 # Construye las imágenes (usa la caché de capas) para que los contenedores existan.

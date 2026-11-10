@@ -1,4 +1,4 @@
-# Proxy de desarrollo: UN solo origen (http://localhost:8080) para API, panel y booking.
+# Proxy de desarrollo: UN solo origen (http://localhost:PROXY_PORT, 8080 por defecto) para API, panel y booking.
 # Misma regla de enrutamiento que producción (ADR-0013). El prefijo NO se quita:
 # Rails monta sus rutas bajo /api y Vite sirve booking bajo la base /c/.
 {
@@ -6,7 +6,7 @@
 	auto_https off
 }
 
-:8080 {
+:{$PROXY_PORT:8080} {
 	handle /__proxy/health {
 		respond "ok" 200
 	}

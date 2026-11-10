@@ -1,0 +1,4 @@
+{
+  "booking": { "dist": "apps/booking/dist", "limitKiB": 150 },
+  "panel": { "dist": "apps/panel/dist", "limitKiB": 220 }
+}

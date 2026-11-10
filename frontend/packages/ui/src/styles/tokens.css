@@ -1,0 +1,99 @@
+/*
+ * Tokens de diseño de Ceiba (ADR-0031). Tres capas:
+ *
+ *   1. Primitiva   --palette-*          valores crudos; solo aquí hay colores en hexadecimal.
+ *   2. Marca       --brand-*            lo ÚNICO que M2.04 sobrescribe por empresa (en :root, no en un contenedor interior).
+ *      Semántica   nombres de shadcn/ui (--primary, --background...) leen de la marca o de la paleta.
+ *   3. Componente  --button-*, --input-*, --dialog-*, --nav-*   leen solo de la capa semántica.
+ *
+ * La paleta sale del árbol: el dosel de la ceiba (verde profundo), la fibra del kapok (blancos verdosos) y la flor de
+ * sacuanjoche (el dorado del acento). Los pares texto/fondo cumplen WCAG AA (4.5:1), verificado en test/tokens.test.ts.
+ */
+:root {
+  /* ---------- 1. Primitiva ---------- */
+  --palette-canopy-50: #edf6f1;
+  --palette-canopy-100: #d5eadf;
+  --palette-canopy-200: #abd4bf;
+  --palette-canopy-500: #2f8a66;
+  --palette-canopy-600: #1d6c4e;
+  --palette-canopy-700: #165840;
+  --palette-canopy-900: #0d3426;
+
+  --palette-kapok-0: #ffffff;
+  --palette-kapok-50: #f7f8f4;
+  --palette-kapok-100: #eceee6;
+  --palette-kapok-200: #dde1d6;
+  --palette-kapok-300: #c3c9bb;
+  --palette-kapok-500: #6f7b70;
+  --palette-kapok-700: #46514a;
+  --palette-kapok-900: #17211c;
+
+  --palette-sacuanjoche-100: #fbeec8;
+  --palette-sacuanjoche-400: #f2b93f;
+  --palette-sacuanjoche-700: #7a5200;
+
+  --palette-ember-50: #fdecea;
+  --palette-ember-600: #b42318;
+
+  --palette-font-body: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
+  --palette-font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
+
+  /* ---------- 2a. Marca (defaults de la plataforma; M2.04 los reemplaza por empresa) ---------- */
+  --brand-primary: var(--palette-canopy-600);
+  --brand-primary-foreground: var(--palette-kapok-0);
+  --brand-secondary: var(--palette-kapok-100);
+  --brand-secondary-foreground: var(--palette-kapok-900);
+  --brand-accent: var(--palette-sacuanjoche-400);
+  --brand-accent-foreground: var(--palette-kapok-900);
+  --brand-font: var(--palette-font-body);
+}
+
+/*
+ * Capa semántica y de componente. Se declara en :root Y en [data-brand-scope]: las variables que usan var() se
+ * resuelven donde se DECLARAN, así que un contenedor con su propio --brand-* (vista previa de M2.04) necesita que la
+ * semántica se vuelva a calcular dentro de él. Sin ese atributo, el branding se escribe en :root (ADR-0031).
+ */
+:root,
+[data-brand-scope] {
+  /* ---------- 2b. Semántica: nombres de shadcn/ui ---------- */
+  --background: var(--palette-kapok-50);
+  --foreground: var(--palette-kapok-900);
+  --card: var(--palette-kapok-0);
+  --card-foreground: var(--palette-kapok-900);
+  --popover: var(--palette-kapok-0);
+  --popover-foreground: var(--palette-kapok-900);
+  --primary: var(--brand-primary);
+  --primary-foreground: var(--brand-primary-foreground);
+  --secondary: var(--brand-secondary);
+  --secondary-foreground: var(--brand-secondary-foreground);
+  --muted: var(--palette-kapok-100);
+  --muted-foreground: var(--palette-kapok-700);
+  /* En shadcn, --accent es la superficie del elemento resaltado (menús, listas): no es el acento de marca. */
+  --accent: var(--palette-canopy-50);
+  --accent-foreground: var(--palette-canopy-900);
+  --destructive: var(--palette-ember-600);
+  --destructive-foreground: var(--palette-kapok-0);
+  --border: var(--palette-kapok-200);
+  /* Borde de campos: 3:1 contra el fondo (WCAG 1.4.11). */
+  --input: var(--palette-kapok-500);
+  --ring: var(--brand-primary);
+  --radius: 0.625rem;
+
+  /* El acento de marca, con su propio nombre para no teñir cada menú. */
+  --highlight: var(--brand-accent);
+  --highlight-foreground: var(--brand-accent-foreground);
+
+  /* ---------- 3. Componente ---------- */
+  --button-radius: var(--radius);
+  --button-height: 2.5rem;
+  --button-height-sm: 2rem;
+  --button-height-lg: 2.75rem;
+  --input-radius: var(--radius);
+  --input-height: 2.75rem;
+  --input-border: var(--input);
+  --dialog-radius: calc(var(--radius) + 0.25rem);
+  --nav-item-radius: calc(var(--radius) - 0.125rem);
+  --nav-item-active-bg: var(--accent);
+  --nav-item-active-indicator: var(--primary);
+  --sidebar-width: 15rem;
+}

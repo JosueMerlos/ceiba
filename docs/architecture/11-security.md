@@ -78,7 +78,7 @@ Decisiones tomadas en M0.07:
 - **Orden de los filtros:** Origin (403) → autenticación (401) → token CSRF (403). Una mutación sin sesión responde 401, no 403.
 - **Login:** no lleva token (todavía no hay sesión) pero sí la validación de Origin, que frena el "login CSRF" (iniciar la sesión de la víctima en la cuenta del atacante); `SameSite=Lax` tampoco envía cookies en POST entre sitios.
 - Las requests con API key (`Authorization: Bearer`) **no** usan cookie, así que no aplica CSRF (M4.02).
-- **Pendiente (M0.12):** `packages/api-client` aún no envía `X-CSRF-Token`; el envío automático y la recuperación del token al arrancar llegan con el shell del panel.
+- **Cliente (M0.12):** `packages/api-client` envía `X-CSRF-Token` en toda mutación, captura el token de `POST /auth/login` y de `GET /auth/session` (que el panel llama al arrancar), lo guarda en memoria y lo olvida al cerrar sesión o ante un 401. Probado con MSW (`test/csrf.test.ts`) y de punta a punta en el E2E (logout con `DELETE` + token).
 
 ## Contraseñas y 2FA
 
@@ -214,7 +214,7 @@ Access token de 15 min con algoritmo asimétrico (EdDSA o RS256) y `kid` para ro
 
 - [x] Deny by default con allowlist explícita: autenticación (M0.07, spec que recorre todas las rutas) y autorización (M0.08: `verify_authorized`/`verify_policy_scoped` globales; `skip_authorization!` con motivo y allowlist)
 - [x] Sesiones en BD revocables y cookies con sus flags (M0.07)
-- [x] CSRF funcional en el panel: token + Origin en el backend (M0.07); el envío desde el cliente llega en M0.12
+- [x] CSRF funcional en el panel: token + Origin en el backend (M0.07) y envío automático desde el cliente (M0.12)
 - [ ] `Idempotency-Key` en la creación de citas y en el envío de recordatorios (M0.11, M1.05, M3.03)
 - [ ] Rack::Attack y `rate_limit` con la IP real verificada: Rack::Attack con la IP real tras el proxy de desarrollo (M0.13 ✅); `rate_limit` por usuario y repetir tras el proxy de producción (M4.02, M4.04)
 - [ ] 2FA obligatorio para `org_owner`, `org_admin` y `PlatformStaff` (M4.02)

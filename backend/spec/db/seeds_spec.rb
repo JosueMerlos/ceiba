@@ -20,7 +20,7 @@ RSpec.describe "db/seeds.rb" do
     RUBY
   end
 
-  it "crea las dos organizaciones de demo y es idempotente (correrlo dos veces no duplica nada)" do
+  it "crea las organizaciones de demo y es idempotente (correrlo dos veces no duplica nada)" do
     app.run!("bin/rails", "db:seed")
     first = census
     app.run!("bin/rails", "db:seed")
@@ -29,6 +29,7 @@ RSpec.describe "db/seeds.rb" do
     expect(JSON.parse(first)).to eq(
       [
         [ "Barbería El Güegüense", [ [ "NIO", "barbershop", 1 ] ] ],
+        [ "Café Volcán", [ [ "NIO", "cafe", 1 ] ] ],
         [ "Grupo Salud & Estilo", [ [ "USD", "dental", 1 ], [ "NIO", "salon", 2 ] ] ]
       ]
     )
@@ -47,7 +48,20 @@ RSpec.describe "db/seeds.rb" do
       app.run!("bin/rails", "db:seed")
 
       expect(users_report.call).to eq(first)
-      expect(JSON.parse(first).map(&:first)).to include("luis@salud-estilo.ceiba.test", "rosa@barberia-guegu.ceiba.test")
+      expect(JSON.parse(first).map(&:first)).to include("luis@salud-estilo.ceiba.test", "rosa@barberia-guegu.ceiba.test", "ana@multi-org.ceiba.test")
+    end
+
+    it "ana (M0.12) tiene acceso a DOS organizaciones: dueña de Café Volcán y org_admin de Barbería El Güegüense (criterio 2 del E2E)" do
+      app.run!("bin/rails", "db:seed")
+      app.run!("bin/rails", "db:seed")
+
+      names = app.rails_runner(<<~RUBY)
+        user = Identity::User.find_by!(email: "ana@multi-org.ceiba.test")
+        principal = Access::Principal::User.new(user)
+        puts Tenancy::Directory.organizations_for(principal.organization_ids).map(&:name).sort.to_json
+      RUBY
+
+      expect(JSON.parse(names)).to eq([ "Barbería El Güegüense", "Café Volcán" ])
     end
 
     it "la contraseña de desarrollo documentada permite iniciar sesión" do

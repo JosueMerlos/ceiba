@@ -1,3 +1,6 @@
 packages:
   - apps/*
   - packages/*
+  - e2e
+minimumReleaseAgeExclude:
+  - i18next@27.1.0

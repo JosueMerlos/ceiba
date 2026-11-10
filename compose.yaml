@@ -42,6 +42,9 @@ x-frontend: &frontend
     - booking_node_modules:/app/frontend/apps/booking/node_modules
     - config_node_modules:/app/frontend/packages/config/node_modules
     - api_client_node_modules:/app/frontend/packages/api-client/node_modules
+    - ui_node_modules:/app/frontend/packages/ui/node_modules
+    - i18n_node_modules:/app/frontend/packages/i18n/node_modules
+    - e2e_node_modules:/app/frontend/e2e/node_modules
     # El contrato OpenAPI (M0.06) lo genera el backend; el cliente TS lo lee de aquí, en solo lectura.
     - ./backend/openapi:/app/backend/openapi:ro
 
@@ -130,6 +133,31 @@ services:
       retries: 30
       start_period: 60s
 
+  # E2E con Playwright (M0.12). Perfil "e2e": no arranca con `make up`; lo ejecuta `bin/ci e2e` o `make e2e`.
+  # Comparte la red del proxy (network_mode) para entrar por http://localhost:8080 como un navegador real: así el
+  # Host y el Origin son los del entorno de desarrollo y no hace falta tocar `config.hosts` de Rails.
+  e2e:
+    profiles: ["e2e"]
+    build:
+      context: .
+      dockerfile: infra/docker/e2e.Dockerfile
+      args:
+        HOST_UID: ${HOST_UID:-1000}
+        HOST_GID: ${HOST_GID:-1000}
+    # Sin etiqueta fija de imagen: Compose la nombra por proyecto y varios entornos en paralelo no se pisan.
+    network_mode: "service:proxy"
+    depends_on:
+      proxy: { condition: service_healthy }
+    environment:
+      PLAYWRIGHT_BASE_URL: http://localhost:${PROXY_PORT:-8080}
+      E2E_PASSWORD: ${E2E_PASSWORD:-ceiba-demo-2026}
+      E2E_RETRIES: ${E2E_RETRIES:-0}
+    volumes:
+      - ./frontend:/app/frontend
+      - frontend_node_modules:/app/frontend/node_modules
+      - e2e_node_modules:/app/frontend/e2e/node_modules
+    command: ["pnpm", "e2e"]
+
   mailpit:
     image: axllent/mailpit:v1.33.1
     ports:
@@ -143,7 +171,11 @@ services:
   proxy:
     image: caddy:2.11.9-alpine
     ports:
-      - "127.0.0.1:${PROXY_PORT:-8080}:8080"
+      # Caddy escucha en el MISMO puerto que se publica (PROXY_PORT): el Host y el Origin del navegador, y los E2E que
+      # comparten esta red, ven siempre el puerto público (hace falta para varios entornos en paralelo).
+      - "127.0.0.1:${PROXY_PORT:-8080}:${PROXY_PORT:-8080}"
+    environment:
+      PROXY_PORT: ${PROXY_PORT:-8080}
     volumes:
       - ./infra/proxy/Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
@@ -151,7 +183,7 @@ services:
       panel: { condition: service_healthy }
       booking: { condition: service_healthy }
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/__proxy/health"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:$${PROXY_PORT}/__proxy/health"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -165,3 +197,6 @@ volumes:
   booking_node_modules:
   config_node_modules:
   api_client_node_modules:
+  ui_node_modules:
+  i18n_node_modules:
+  e2e_node_modules:

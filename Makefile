@@ -7,7 +7,7 @@ export HOST_GID ?= $(shell id -g)
 COMPOSE ?= docker compose
 
 .DEFAULT_GOAL := help
-.PHONY: help up down logs ps sh-api console db-roles migrate rollback db-prepare reset-db test smoke hmr-check ci
+.PHONY: help up down logs ps sh-api console db-roles migrate rollback db-prepare reset-db test e2e smoke hmr-check ci
 
 help: ## Lista los atajos
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -54,6 +54,9 @@ reset-db: ## Recrea la base de datos de desarrollo desde cero y la siembra (DEST
 test: ## Corre toda la suite (backend + frontend)
 	$(COMPOSE) exec -e RAILS_ENV=test api bundle exec rspec
 	$(COMPOSE) exec -w /app/frontend panel pnpm -r test
+
+e2e: ## E2E con Playwright (login, contexto, navegacion) sobre el entorno de Compose; capturas en frontend/e2e/screenshots
+	$(COMPOSE) run --rm -e E2E_SCREENSHOT_DIR=/app/frontend/e2e/screenshots e2e
 
 smoke: ## Verifica el entorno de punta a punta a través del proxy
 	./infra/scripts/smoke.sh

@@ -14,8 +14,12 @@ import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import http from "node:http";
 
 const [app, path] = process.argv.slice(-2).length === 2 ? process.argv.slice(-2) : [];
-const file = `/app/frontend/apps/${app}/src/App.tsx`;
-const modulePath = `${path}src/App.tsx`;
+// Componente raíz de cada app (en el panel vive en src/app/app.tsx desde M0.12).
+const rootComponent = app === "panel" ? "src/app/app.tsx" : "src/App.tsx";
+const file = `/app/frontend/apps/${app}/${rootComponent}`;
+const modulePath = `${path}${rootComponent}`;
+// Puerto público del proxy (PROXY_PORT; los contenedores de Vite lo reciben como PUBLIC_PORT).
+const publicPort = Number(process.env.PUBLIC_PORT ?? 8080);
 const UPDATE_TIMEOUT_MS = 10_000;
 const MAX_ATTEMPTS = 2;
 
@@ -26,7 +30,7 @@ process.on("exit", restore);
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => process.exit(130));
 
 const proxyOptions = (requestPath, headers = {}) => ({
-  host: "proxy", port: 8080, path: requestPath, headers: { Host: "localhost:8080", ...headers },
+  host: "proxy", port: publicPort, path: requestPath, headers: { Host: `localhost:${publicPort}`, ...headers },
 });
 
 // Pide el módulo a Vite a través del proxy para que entre en su grafo de módulos.

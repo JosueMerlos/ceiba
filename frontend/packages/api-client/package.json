@@ -13,14 +13,24 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "openapi-fetch": "0.17.0"
+    "openapi-fetch": "0.17.0",
+    "@tanstack/react-query": "5.107.1"
   },
   "devDependencies": {
     "@ceiba/config": "workspace:*",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
     "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "jsdom": "31.0.0",
     "msw": "3.0.4",
     "openapi-typescript": "7.13.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "typescript": "6.0.3",
     "vitest": "5.1.0"
+  },
+  "peerDependencies": {
+    "react": "19.3.1"
   }
 }

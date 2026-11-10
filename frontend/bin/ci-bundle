@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Presupuestos de bundle (M0.12): construye booking y panel y exige que el JS CRÍTICO de cada uno (entrada + imports
+# estáticos, sin lo cargado bajo demanda) no supere su límite en gzip. Los límites viven en bundle-budgets.json (UNA sola
+# fuente; los tests no los repiten). Se ejecuta desde frontend/.
+#   booking 150 KiB (ADR-0015: móvil en 3G; subirlo exige cambiar el ADR)
+#   panel   220 KiB (medido 198.5 KiB + ~10 % de margen; el panel no es móvil-first)
+# Mide solo JS (el CSS y las fuentes no cuentan aquí).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+pnpm install --frozen-lockfile --prefer-offline
+pnpm --filter @ceiba/booking build
+pnpm --filter @ceiba/panel build
+node packages/config/bundle-budget.mjs bundle-budgets.json
