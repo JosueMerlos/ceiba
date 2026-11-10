@@ -34,3 +34,4 @@ Cada decisión relevante tiene su ADR ([plantilla](../templates/adr.md)). Un ADR
 | [0028](0028-usuario-multi-organizacion.md) | Usuario en varias organizaciones | aceptada |
 | [0029](0029-citas-multi-servicio.md) | Citas con varios servicios y precios congelados | aceptada |
 | [0030](0030-nombre-del-producto-ceiba.md) | El producto se llama Ceiba | aceptada |
+| [0031](0031-tokens-de-diseno-en-tres-capas.md) | Tokens de diseño en tres capas con los nombres semánticos de shadcn/ui | aceptada |

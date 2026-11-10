@@ -7,6 +7,15 @@ import i18next from "eslint-plugin-i18next";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+// Atributos JSX cuyo valor ve o escucha el usuario (lectores de pantalla incluidos).
+const TEXT_ATTRIBUTES = [
+  "^alt$",
+  "^title$",
+  "^label$",
+  "^placeholder$",
+  "^aria-(label|description|placeholder|roledescription|valuetext)$",
+];
+
 export default tseslint.config(
   { ignores: ["**/dist/**", "**/coverage/**", "**/node_modules/**", "**/*.tsbuildinfo"] },
 
@@ -33,7 +42,16 @@ export default tseslint.config(
     files: ["apps/*/src/**/*.tsx", "packages/ui/src/**/*.tsx"],
     ignores: ["**/*.test.tsx", "**/test/**"],
     plugins: { i18next },
-    rules: { "i18next/no-literal-string": ["error", { mode: "jsx-only" }] },
+    rules: {
+      "i18next/no-literal-string": [
+        "error",
+        {
+          mode: "jsx-only",
+          // Solo los atributos que un usuario lee o escucha; data-*, aria-hidden, className, type... no son texto.
+          "jsx-attributes": { include: TEXT_ATTRIBUTES },
+        },
+      ],
+    },
   },
 
   // Desactiva las reglas de estilo que chocarían con Prettier. Debe ir al final.

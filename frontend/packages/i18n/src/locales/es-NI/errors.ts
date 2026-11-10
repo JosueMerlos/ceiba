@@ -19,9 +19,10 @@ export const errors = {
   // Mensajes por `code` de la API (problem+json). El frontend decide por `code`, nunca por el `message` del servidor.
   code: {
     "auth.invalid_credentials": "El correo o la contraseña no son correctos.",
-    "auth.csrf_invalid": "La verificación de seguridad venció. Recargue la página e intente de nuevo.",
+    "auth.csrf_invalid":
+      "La verificación de seguridad venció. Recargue la página e intente de nuevo.",
     "auth.origin_forbidden": "La solicitud no vino de la aplicación. Recargue la página.",
-    "rate_limited": "Demasiados intentos seguidos. Espere un momento e intente de nuevo.",
+    rate_limited: "Demasiados intentos seguidos. Espere un momento e intente de nuevo.",
     "access.organization_suspended": "Esta organización está suspendida. Contacte a soporte.",
     "slot.unavailable": "El horario ya no está disponible. Elija otro.",
   },
