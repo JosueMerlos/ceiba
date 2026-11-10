@@ -66,11 +66,15 @@ Reglas de git y PR que no se copiaron (las skills `commit` y `watch-pr` las trae
   git.
 - **Commits y títulos de PR:** conventional commits, `tipo(ámbito): asunto` (tipos: feat, fix, docs, style, refactor, perf,
   test, build, ci, chore, revert). Lo valida `infra/scripts/check-pr-title.sh`. Sin `Co-Authored-By` ni atribución a IA.
-  Patrón TDD del historial: un commit `test(...)` con el rojo (`(rojo: ...)`) y luego el `feat`/`fix` que lo pone en verde.
+  Patrón TDD en la rama: un commit `test(...)` con el rojo (`(rojo: ...)`) y luego el `feat`/`fix` que lo pone en verde.
+  El PR se integra con *squash*: en `main` queda un commit con el título del PR y el rojo queda como evidencia en el PR.
 - **"Ticket" = hito.** Las claves son `M<fase>.<nn>` (p. ej. `M0.14`) y el ticket es el archivo
   `docs/milestones/<fase>/M<fase>.<nn>-*.md`: léelo directamente (no hay Jira/Linear). Los bugs sueltos van sin clave.
 - **Ramas:** `feat/m<fase>.<nn>-<slug>` en minúsculas (p. ej. `feat/m0.12-frontend-shell`), `fix/<slug>` para arreglos sin
-  hito. Base: `main`, que solo cambia por merge revisado.
+  hito. Base: `main`, protegida (ver `infra/github/branch-protection.sh`): solo cambia por PR con los checks de CI en verde.
+- **Un PR por hito, directo a `main`.** Sin ramas de release ni merges locales a `main` (la protección exige historial
+  lineal). Cada PR se asigna al Milestone de GitHub de su fase (p. ej. "F1"), y el cierre de una fase se marca con un tag
+  anotado en `main` (`f1`). Mergear (`gh pr merge --squash`, también con `--auto`) sigue requiriendo aprobación explícita.
 - **Todo corre en Docker.** El host no tiene Ruby ni Node: los comandos van por `docker compose exec` o `make` (ver
   [`README.md`](README.md#comandos)). Rutas de RSpec relativas a `backend/`.
 - **Test de un archivo:** `docker compose exec -e RAILS_ENV=test api bundle exec rspec <ruta>`;
