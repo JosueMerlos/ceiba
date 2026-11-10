@@ -127,6 +127,37 @@ describe("configuración compartida de ESLint", () => {
       expect(await lint(code, "apps/panel/src/example.ts")).toEqual([]);
     });
 
+    it("prohíbe template literals en aria-label y demás aria-* de texto", async () => {
+      const code = "export const View = () => <Widget aria-label={`Texto visible`} />;\n";
+
+      expect(await lint(code)).toContain("no-restricted-syntax");
+    });
+
+    it("prohíbe template literals dentro de un ternario del JSX", async () => {
+      const code = "export const View = ({ ok }: { ok: boolean }) => <p>{ok ? `Sí` : `No`}</p>;\n";
+
+      expect(await lint(code)).toContain("no-restricted-syntax");
+    });
+
+    it("prohíbe template literals dentro de un ternario en un atributo de texto", async () => {
+      const code =
+        "export const View = ({ ok }: { ok: boolean }) => <Widget description={ok ? `Sí` : `No`} />;\n";
+
+      expect(await lint(code)).toContain("no-restricted-syntax");
+    });
+
+    it("prohíbe concatenar texto en un toast", async () => {
+      const code = `import { toast } from "x";\nexport const run = (name: string) => toast.error("Fallo: " + name);\n`;
+
+      expect(await lint(code, "apps/panel/src/example.ts")).toContain("no-restricted-syntax");
+    });
+
+    it("prohíbe un ternario con textos literales en un toast", async () => {
+      const code = `import { toast } from "x";\nexport const run = (ok: boolean) => toast(ok ? "Listo" : "Falló");\n`;
+
+      expect(await lint(code, "apps/panel/src/example.ts")).toContain("no-restricted-syntax");
+    });
+
     it("no se aplica a los tests", async () => {
       const code = `export const View = () => <p>Hola mundo</p>;\n`;
 

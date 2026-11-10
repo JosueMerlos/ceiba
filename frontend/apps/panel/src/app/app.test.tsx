@@ -390,12 +390,40 @@ describe("revisión de M0.12", () => {
     expect(calls).toBe(1);
   });
 
-  it("el login con ?next explica que la sesión venció", async () => {
+  it("el login con ?expired=1 explica que la sesión venció", async () => {
     signedOutBackend();
-    await renderApp({ route: "/login?next=%2Fagenda" });
+    await renderApp({ route: "/login?next=%2Fagenda&expired=1" });
 
     await screen.findByRole("heading", { name: "Iniciar sesión" });
     expect(screen.getByRole("status").textContent).toMatch(/sesión venció/);
+  });
+
+  it("un enlace profundo en frío (sin sesión) NO dice que la sesión venció", async () => {
+    signedOutBackend();
+    await renderApp({ route: "/agenda" });
+
+    await screen.findByRole("heading", { name: "Iniciar sesión" });
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("un 401 a mitad de uso lleva al login con expired=1", async () => {
+    signedInBackend();
+    let expired = false;
+    server.use(
+      http.get(`${API}/api/v1/auth/session`, () =>
+        expired
+          ? HttpResponse.json(problem(401, "auth.unauthenticated"), { status: 401 })
+          : HttpResponse.json(authSession()),
+      ),
+      http.get(`${API}/api/v1/me`, () => {
+        expired = true;
+        return HttpResponse.json(problem(401, "auth.unauthenticated"), { status: 401 });
+      }),
+    );
+    const { app } = await renderApp({ route: "/agenda" });
+
+    expect((await screen.findByRole("status")).textContent).toMatch(/sesión venció/);
+    expect(new URLSearchParams(app.router.state.location.search).get("expired")).toBe("1");
   });
 
   it("el login sin ?next no muestra ese aviso", async () => {

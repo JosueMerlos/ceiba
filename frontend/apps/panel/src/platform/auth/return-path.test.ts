@@ -18,6 +18,15 @@ describe("ruta de retorno tras el login", () => {
     );
   });
 
+  it("marca la sesión vencida con expired=1 (distinto de un enlace profundo en frío)", () => {
+    expect(loginPathFor({ pathname: "/agenda", search: "", hash: "" }, { expired: true })).toBe(
+      "/login?next=%2Fagenda&expired=1",
+    );
+    expect(loginPathFor({ pathname: "/", search: "", hash: "" }, { expired: true })).toBe(
+      "/login?expired=1",
+    );
+  });
+
   it("acepta rutas internas", () => {
     expect(safeReturnPath("/agenda?dia=1")).toBe("/agenda?dia=1");
   });
