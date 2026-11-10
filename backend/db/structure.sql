@@ -140,9 +140,9 @@ CREATE TABLE public.companies (
     status character varying DEFAULT 'active'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT chk_companies_currency CHECK (((currency)::text = ANY (ARRAY[('NIO'::character varying)::text, ('USD'::character varying)::text]))),
+    CONSTRAINT chk_companies_currency CHECK ((((currency)::text = 'NIO'::text) OR ((currency)::text = 'USD'::text))),
     CONSTRAINT chk_companies_slug_format CHECK (((slug)::text ~ '^[a-z0-9-]{3,40}$'::text)),
-    CONSTRAINT chk_companies_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('inactive'::character varying)::text])))
+    CONSTRAINT chk_companies_status CHECK ((((status)::text = 'active'::text) OR ((status)::text = 'inactive'::text)))
 );
 
 
@@ -197,7 +197,7 @@ CREATE TABLE public.organizations (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_organizations_country_code CHECK (((country_code)::text ~ '^[A-Z]{2}$'::text)),
-    CONSTRAINT chk_organizations_status CHECK (((status)::text = ANY (ARRAY[('active'::character varying)::text, ('suspended'::character varying)::text])))
+    CONSTRAINT chk_organizations_status CHECK ((((status)::text = 'active'::text) OR ((status)::text = 'suspended'::text)))
 );
 
 
@@ -274,7 +274,7 @@ CREATE TABLE public.roles (
     system boolean DEFAULT true NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT chk_roles_scope_level CHECK (((scope_level)::text = ANY (ARRAY[('organization'::character varying)::text, ('company'::character varying)::text, ('branch'::character varying)::text])))
+    CONSTRAINT chk_roles_scope_level CHECK ((((scope_level)::text = 'organization'::text) OR ((scope_level)::text = 'company'::text) OR ((scope_level)::text = 'branch'::text)))
 );
 
 
