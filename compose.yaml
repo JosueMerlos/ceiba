@@ -144,13 +144,14 @@ services:
       args:
         HOST_UID: ${HOST_UID:-1000}
         HOST_GID: ${HOST_GID:-1000}
-    image: ceiba-e2e:dev
+    # Sin etiqueta fija de imagen: Compose la nombra por proyecto y varios entornos en paralelo no se pisan.
     network_mode: "service:proxy"
     depends_on:
       proxy: { condition: service_healthy }
     environment:
       PLAYWRIGHT_BASE_URL: http://localhost:${PROXY_PORT:-8080}
       E2E_PASSWORD: ${E2E_PASSWORD:-ceiba-demo-2026}
+      E2E_RETRIES: ${E2E_RETRIES:-0}
     volumes:
       - ./frontend:/app/frontend
       - frontend_node_modules:/app/frontend/node_modules
@@ -170,7 +171,11 @@ services:
   proxy:
     image: caddy:2.11.9-alpine
     ports:
-      - "127.0.0.1:${PROXY_PORT:-8080}:8080"
+      # Caddy escucha en el MISMO puerto que se publica (PROXY_PORT): el Host y el Origin del navegador, y los E2E que
+      # comparten esta red, ven siempre el puerto público (hace falta para varios entornos en paralelo).
+      - "127.0.0.1:${PROXY_PORT:-8080}:${PROXY_PORT:-8080}"
+    environment:
+      PROXY_PORT: ${PROXY_PORT:-8080}
     volumes:
       - ./infra/proxy/Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
@@ -178,7 +183,7 @@ services:
       panel: { condition: service_healthy }
       booking: { condition: service_healthy }
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/__proxy/health"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:$${PROXY_PORT}/__proxy/health"]
       interval: 5s
       timeout: 3s
       retries: 10
