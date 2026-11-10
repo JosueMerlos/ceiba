@@ -6,7 +6,7 @@ Ecosistema modular y multi-tenant para negocios de servicios en Nicaragua: clín
 - Hoja de ruta y estado: [`docs/roadmap/`](docs/roadmap/README.md)
 - Decisiones de arquitectura: [`docs/adr/`](docs/adr/README.md)
 - Infraestructura y operación: [`docs/architecture/10-infrastructure.md`](docs/architecture/10-infrastructure.md)
-- Planes originales (históricos): [`plans/`](plans/)
+- Planes originales (históricos, fuera del árbol): tag `historico/plans`, ver [`docs/README.md`](docs/README.md)
 
 ## Requisitos
 

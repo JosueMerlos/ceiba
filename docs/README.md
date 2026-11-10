@@ -1,7 +1,7 @@
 # Ceiba — Documentación
 
 > **Fuente única de verdad del proyecto.** Lo que no está aquí no está decidido.
-> Los documentos de [`../plans/`](../plans/) son **históricos**: sirvieron para llegar hasta aquí y su contenido válido se migró a esta carpeta.
+> Los planes originales (`plans/`, un brainstorm) son **históricos**: sirvieron para llegar hasta aquí, su contenido válido se migró a esta carpeta y se retiraron del árbol para no competir con ella. Viven en el tag `historico/plans`: `git show historico/plans:plans/<archivo>.md` (`git ls-tree historico/plans plans/` los lista). Las referencias de tipo "Origen" de los ADRs apuntan a esos archivos.
 > Última actualización: 2026-11-07
 
 ## Cómo leer esta documentación

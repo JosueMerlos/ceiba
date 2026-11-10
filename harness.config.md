@@ -14,7 +14,7 @@ ticket_key_pattern: 'M[0-9]+\.[0-9]+'
 ticket_url_prefix:
 
 # --- Planes ---------------------------------------------------------------------------
-# Planes de trabajo locales (gitignorados). Los planes históricos versionados viven en plans/ y no se tocan.
+# Planes de trabajo locales (gitignorados). Los planes originales del proyecto viven en el tag historico/plans.
 plan_dir: .harness/plans
 plan_language: Spanish
 
