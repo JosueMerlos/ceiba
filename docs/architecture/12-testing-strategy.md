@@ -77,7 +77,7 @@ Son las que hacen que la extensibilidad sea **segura**: cubren automáticamente 
 
 ## E2E críticos (Playwright)
 
-> **Implementado en M0.12** (`frontend/e2e`): los flujos 1, 5 y 6 en su versión disponible en F0 (login, selector de contexto entre dos empresas, módulo inactivo → sin menú y «no encontrado»), más permisos por rol, sesión expirada con ruta de retorno, error de credenciales y logout. Sobre el stack de Compose y los seeds de demo; `make e2e` o `bin/ci e2e`; en CI solo en `main`. Los demás llegan con sus hitos (2 y 4: F2/F3; 3: M3.02).
+> **Implementado en M0.12** (`frontend/e2e`): los flujos 1, 5 y 6 en su versión disponible en F0 (login, selector de contexto entre dos empresas, módulo inactivo → sin menú y «no encontrado»), más permisos por rol, sesión expirada con ruta de retorno, error de credenciales y logout. Sobre el stack de Compose y los seeds de demo; `make e2e` o `bin/ci e2e`; en CI corre en cada PR y en `main` (check requerido). Los demás llegan con sus hitos (2 y 4: F2/F3; 3: M3.02).
 
 1. Login → selector de contexto → agenda vacía.
 2. Staff crea una cita, la mueve y la cancela.

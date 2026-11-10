@@ -292,18 +292,16 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: frontend/bin/ci-bundle
 
-  # Playwright E2E against the full Compose environment. Runs only on `main` pushes: bringing everything up is the slowest
-  # part of the pipeline and PRs already cover the logic with component tests (Vitest + MSW). Same step as `bin/ci e2e`.
-  # On failure, the report and screenshots are kept as the `e2e-report` artifact.
+  # Playwright E2E against the full Compose environment. Runs on PRs too: it is a required check, so a job skipped on PRs
+  # would block every merge. Same step as `bin/ci e2e`; on failure the report and screenshots are kept as `e2e-report`.
   e2e:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: bin/ci e2e
         env:
-          # On main a flaky E2E is retried once (the report keeps the trace); locally there are no retries.
+          # In CI a flaky E2E is retried once (the report keeps the trace); locally there are no retries.
           E2E_RETRIES: "1"
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
