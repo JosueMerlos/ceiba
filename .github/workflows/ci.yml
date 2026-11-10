@@ -39,13 +39,23 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      # fetch-depth 0: the large-file guard checks every blob the branch adds since the merge-base.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - name: Versiones consistentes con .tool-versions
         run: infra/scripts/check-versions.sh
       - name: Acciones fijadas por SHA de commit
         run: infra/scripts/check-action-pins.sh
       - name: Casos de prueba del validador de títulos de PR
         run: infra/scripts/check-pr-title_test.sh
+      - name: Casos de prueba del límite de archivos grandes
+        run: infra/scripts/check-large-files_test.sh
+      - name: Sin binarios > 100 KiB ni archivos > 1 MiB
+        env:
+          # PR: against the target branch. Push to main: against the commit before the push.
+          BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        run: infra/scripts/check-large-files.sh
       # Ruby sale de backend/.ruby-version; las gems se cachean por Gemfile.lock.
       - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
         with:
