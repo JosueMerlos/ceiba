@@ -1,6 +1,8 @@
 # Datos de demo.
 # Idempotente: se puede ejecutar cuantas veces haga falta (db:setup, db:seed, reset-db).
 #
+# Usuario multiorganización (M0.12): ana@multi-org.ceiba.test es org_admin de Barbería El Güegüense y dueña de Café Volcán.
+#
 # Corre como app_user (config/initializers/seed_role.rb) y crea TODO solo con las APIs públicas de los packs:
 # Tenancy::ProvisionOrganization (organización + primera empresa + primera sucursal + el dueño, por el hook de access),
 # Tenancy::AddCompany / Tenancy::AddBranch, Identity::ProvisionUser y Access::GrantRole. Nunca toca los modelos directamente:
@@ -28,7 +30,9 @@ DEMO_GROUPS = [
     staff: [
       { user: { email: "gerente@barberia-guegu.ceiba.test", full_name: "Mauricio Téllez" }, role: "branch_manager", company: "barberia-guegu", branch: "Sucursal Centro" },
       { user: { email: "recepcion@barberia-guegu.ceiba.test", full_name: "Julia Reyes" }, role: "receptionist", company: "barberia-guegu", branch: "Sucursal Centro" },
-      { user: { email: "profesional@barberia-guegu.ceiba.test", full_name: "Don Efraín Blandón" }, role: "professional", company: "barberia-guegu", branch: "Sucursal Centro" }
+      { user: { email: "profesional@barberia-guegu.ceiba.test", full_name: "Don Efraín Blandón" }, role: "professional", company: "barberia-guegu", branch: "Sucursal Centro" },
+      # Usuario en DOS organizaciones (ADR-0028, M0.12): org_admin aquí y dueña de "Café Volcán". Prueba el selector de contexto.
+      { user: { email: "ana@multi-org.ceiba.test", full_name: "Ana Lacayo" }, role: "org_admin" }
     ]
   },
   {
@@ -51,6 +55,17 @@ DEMO_GROUPS = [
       { user: { email: "recepcion@salud-estilo.ceiba.test", full_name: "Lucía Pérez" }, role: "receptionist", company: "salon-estilo", branch: "Estilo Centro" },
       { user: { email: "profesional@salud-estilo.ceiba.test", full_name: "Sandra Gómez" }, role: "professional", company: "salon-estilo", branch: "Estilo Centro" }
     ]
+  },
+  {
+    organization: { name: "Café Volcán", legal_name: "Café Volcán, S.A." },
+    user: { email: "ana@multi-org.ceiba.test", full_name: "Ana Lacayo" },
+    companies: [
+      {
+        company: { name: "Café Volcán", slug: "cafe-volcan", business_type: "cafe", currency: "NIO" },
+        branches: [ { name: "Sede Granada", time_zone: "America/Managua" } ]
+      }
+    ],
+    staff: []
   }
 ].freeze
 
