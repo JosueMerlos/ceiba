@@ -29,6 +29,7 @@ module Access
         raise ArgumentError, "activate! exige Tenancy.with_context de la organización #{organization_id} (hay #{current.inspect})" unless current == organization_id
 
         @organization_id = organization_id
+        @active_modules = nil # los módulos activos son de UNA organización: reactivar en otra no puede arrastrar el memo
         @grants = Grants.load(user_id: id, upward_keys: Access.registry.upward_keys, branch_company: ->(branch_id) { Tenancy::Directory.branch_company_id(branch_id) })
         self
       end

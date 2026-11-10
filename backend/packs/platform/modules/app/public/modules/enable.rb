@@ -11,6 +11,7 @@ module Modules
       raise NotEntitled, key unless Modules.entitled?(company, key)
 
       ApplicationRecord.transaction(requires_new: true) do
+        lock_company!
         row = locked_row
         next result(false) if row&.active?
 

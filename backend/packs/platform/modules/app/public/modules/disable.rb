@@ -5,6 +5,7 @@ module Modules
   class Disable < Activation
     def call
       ApplicationRecord.transaction(requires_new: true) do
+        lock_company!
         row = locked_row
         next result(false) unless row&.active?
 

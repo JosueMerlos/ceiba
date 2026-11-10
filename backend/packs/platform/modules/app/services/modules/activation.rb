@@ -25,6 +25,14 @@ module Modules
       raise Error, "La empresa #{company.id} no pertenece a la organización del contexto (#{tenant.id})"
     end
 
+    # Serializa TODAS las activaciones y desactivaciones de UNA empresa hasta el fin de la transacción: comprobar `requires` (leer) y
+    # escribir no es atómico por fila, y sin esto un Enable del complemento y un Disable de su base podían hacer COMMIT a la vez y
+    # dejar un módulo activo sin lo que requiere. Las de otras empresas no se bloquean.
+    def lock_company!
+      connection = ApplicationRecord.connection
+      connection.execute("SELECT pg_advisory_xact_lock(hashtext(#{connection.quote("ceiba.modules.company:#{company.id}")}))")
+    end
+
     # Fila de (empresa, módulo) bloqueada hasta el fin de la transacción: dos activaciones simultáneas se serializan.
     def locked_row = CompanyModule.lock.find_by(company_id: company.id, module_key: key)
 
