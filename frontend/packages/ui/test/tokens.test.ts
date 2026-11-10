@@ -132,3 +132,28 @@ describe("contraste WCAG AA (4.5:1) de los pares por defecto", () => {
     expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+// WCAG 1.4.11: los componentes de interfaz y sus estados necesitan 3:1 contra el fondo contiguo.
+describe("contraste no textual (3:1)", () => {
+  const pairs: [string, string][] = [
+    ["--input", "--card"],
+    ["--input", "--background"],
+    ["--ring", "--background"],
+    ["--ring", "--card"],
+    ["--nav-item-active-indicator", "--card"],
+  ];
+
+  it.each(pairs)("%s sobre %s", (foreground, background) => {
+    expect(contrast(foreground, background)).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("marca re-alcanzable en un contenedor (ADR-0031, vista previa de M2.04)", () => {
+  it("la capa semántica se declara en :root Y en [data-brand-scope]", () => {
+    expect(css).toMatch(/:root,\s*\[data-brand-scope\]\s*\{[^}]*--primary:/s);
+  });
+
+  it("--ring sigue a la marca", () => {
+    expect(declarations.get("--ring")).toBe("var(--brand-primary)");
+  });
+});

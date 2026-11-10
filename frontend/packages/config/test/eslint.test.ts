@@ -73,6 +73,60 @@ describe("configuración compartida de ESLint", () => {
       expect(await lint(code)).toEqual([]);
     });
 
+    it("prohíbe template literals como texto del JSX", async () => {
+      const code = "export function Hello() {\n  return <p>{`Hola mundo`}</p>;\n}\n";
+
+      expect(await lint(code)).toContain("i18next/no-literal-string");
+    });
+
+    it("prohíbe string literal en una expresión del JSX", async () => {
+      const code = `export function Hello() {\n  return <p>{"Hola mundo"}</p>;\n}\n`;
+
+      expect(await lint(code)).toContain("i18next/no-literal-string");
+    });
+
+    it.each([
+      "description",
+      "skipLinkLabel",
+      "navigationLabel",
+      "triggerLabel",
+      "summary",
+      "closeLabel",
+      "fallback",
+      "title",
+    ])("prohíbe texto literal en la prop de UI %s", async (prop) => {
+      const code = `export const View = () => <Widget ${prop}="Texto visible" />;\n`;
+
+      expect(await lint(code)).toContain("i18next/no-literal-string");
+    });
+
+    it("prohíbe template literals en atributos de texto", async () => {
+      const code = "export const View = () => <Widget description={`Texto visible`} />;\n";
+
+      expect(await lint(code)).toContain("i18next/no-literal-string");
+    });
+
+    it.each(["error", "success", "warning", "info", "message"])(
+      "prohíbe toast.%s con texto literal",
+      async (method) => {
+        const code = `import { toast } from "x";\nexport const run = () => toast.${method}("Texto visible");\n`;
+
+        expect(await lint(code, "apps/panel/src/example.ts")).toContain("no-restricted-syntax");
+      },
+    );
+
+    it("prohíbe toast() con un template literal", async () => {
+      const code = 'import { toast } from "x";\nexport const run = () => toast(`Texto visible`);\n';
+
+      expect(await lint(code, "apps/panel/src/example.ts")).toContain("no-restricted-syntax");
+    });
+
+    it("acepta toast con un texto que viene de t()", async () => {
+      const code = `import { toast } from "x";\nexport const run = (t: (k: string) => string) => toast.error(t("errors:generic"));\n`;
+
+      expect(await lint(code, "apps/panel/src/example.ts")).toEqual([]);
+    });
+
     it("no se aplica a los tests", async () => {
       const code = `export const View = () => <p>Hola mundo</p>;\n`;
 
