@@ -32,7 +32,7 @@ Reglas:
 ### Actualización (revisión de M0.12)
 
 - **Alcance re-aprovechable:** la capa semántica y la de componente se declaran en `:root, [data-brand-scope]`. Un contenedor con `data-brand-scope` y sus propios `--brand-*` (la vista previa de M2.04) vuelve a calcular `--primary`, `--ring`, etc. dentro de sí. Las primitivas y los defaults de marca siguen solo en `:root` (se heredan).
-- **`--ring` sigue a la marca** (`var(--brand-primary)`): el anillo de foco cambia con la empresa y cumple 3:1 porque la marca ya debe cumplir 4.5:1 con su texto.
+- **`--ring` sigue a la marca** (`var(--brand-primary)`): el anillo de foco cambia con la empresa. **Obligación de M2.04:** que la marca cumpla 4.5:1 con SU texto no garantiza 3:1 contra el fondo (un amarillo claro tiene texto oscuro legible y anillo invisible); `packages/branding` debe validar `--brand-primary` vs `--background` ≥ 3:1 y, si no llega, fijar `--ring` a la paleta (tarea añadida al hito M2.04).
 - **Contraste no textual (WCAG 1.4.11):** `--input` (borde de los campos) ≥ 3:1 contra `--card` y `--background`, y el indicador del ítem activo del menú usa `--primary` (el dorado de la marca no llega a 3:1 sobre blanco). `test/tokens.test.ts` verifica estos pares además de los de texto.
 
 ## Consecuencias
