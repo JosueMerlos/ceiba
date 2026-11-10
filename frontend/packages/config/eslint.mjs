@@ -17,7 +17,7 @@ const TEXT_ATTRIBUTES = [
 ];
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/coverage/**", "**/node_modules/**", "**/*.tsbuildinfo"] },
+  { ignores: ["**/dist/**", "**/playwright-report/**", "**/test-results/**", "**/coverage/**", "**/node_modules/**", "**/*.tsbuildinfo"] },
 
   js.configs.recommended,
   tseslint.configs.recommended,
