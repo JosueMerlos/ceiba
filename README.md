@@ -86,6 +86,7 @@ Los valores por defecto de `compose.yaml` funcionan sin configurar nada. Para ca
 | Síntoma | Causa y solución |
 | --- | --- |
 | `port is already allocated` (8080 u 8025) | Otro proceso usa el puerto. Cambia `PROXY_PORT` / `MAILPIT_PORT` en `.env` (y abre esa URL) |
+| El panel se ve sin estilos (HTML plano, logo gigante) | Vite se reinició solo tras un cambio en `vite.config.ts` (p. ej. al cambiar de rama) y el plugin de Tailwind quedó sin inicializar: sirve el CSS sin compilar. `docker compose restart panel` (o `booking`) |
 | `make up` tarda mucho la primera vez | Es normal (imágenes, gems, paquetes). Los volúmenes con nombre hacen que las siguientes veces sean rápidas |
 | `role "app_owner" does not exist` / la API no conecta tras actualizar | El volumen de PostgreSQL es anterior a M0.04: `initdb` solo corre con el volumen vacío. `make db-roles` (o `make up`, que lo ejecuta) crea los roles sin perder datos |
 | La API no queda `healthy` | `make logs s=api`. Suele ser un error en una migración o en una gem recién añadida |
