@@ -47,7 +47,7 @@ Leyenda: ⬜ pendiente · 🟦 en curso · 🟥 bloqueado · ✅ terminado
 | [M0.09](../milestones/F0-cimientos/M0.09-sistema-de-modulos.md) | Sistema de módulos (manifiesto, activación, `/me`) | 12 | [M0.08](../milestones/F0-cimientos/M0.08-control-de-acceso.md) | ✅ |
 | [M0.10](../milestones/F0-cimientos/M0.10-eventos-y-outbox.md) | Eventos de dominio y outbox | 12 | [M0.05](../milestones/F0-cimientos/M0.05-tenancy-base.md) | ✅ |
 | [M0.11](../milestones/F0-cimientos/M0.11-auditoria-e-idempotencia.md) | Auditoría append-only e idempotencia | 8 | [M0.07](../milestones/F0-cimientos/M0.07-identidad-y-sesiones.md) | ✅ |
-| [M0.12](../milestones/F0-cimientos/M0.12-frontend-shell.md) | Frontend shell (panel + paquetes compartidos) | 15 | M0.06, M0.09 | ⬜ |
+| [M0.12](../milestones/F0-cimientos/M0.12-frontend-shell.md) | Frontend shell (panel + paquetes compartidos) | 15 | M0.06, M0.09 | ✅ |
 | [M0.13](../milestones/F0-cimientos/M0.13-observabilidad-y-seguridad-base.md) | Observabilidad y seguridad base | 10 | [M0.07](../milestones/F0-cimientos/M0.07-identidad-y-sesiones.md) | ✅ |
 
 _Paralelo, no técnico:_ abrir la cuenta de Meta Business y solicitar la aprobación de las plantillas de WhatsApp durante F0, porque la aprobación tarda semanas.

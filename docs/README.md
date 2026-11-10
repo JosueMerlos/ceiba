@@ -57,7 +57,7 @@
 | Ritmo | 8–15 h/semana → hitos de ≤ 15 h | [roadmap](roadmap/README.md) |
 | Nombre | **Ceiba** (dominio y marca por verificar) | [0030](adr/0030-nombre-del-producto-ceiba.md) |
 
-**Decisiones pendientes con fecha:** BD gestionada vs autogestionada y proveedores de infraestructura → M4.04; router del frontend → M0.12; librería de calendario → M2.02; pasarela de cobro → F6.
+**Decisiones pendientes con fecha:** BD gestionada vs autogestionada y proveedores de infraestructura → M4.04; router del frontend → decidido en M0.12 (React Router, modo data; ver [08](architecture/08-frontend.md#router-decisión-de-m012)); librería de calendario → M2.02; pasarela de cobro → F6.
 
 ## Correcciones respecto a `plans/`
 

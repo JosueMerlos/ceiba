@@ -39,7 +39,8 @@ GitHub Actions; en cada PR:
 | Seguridad | `brakeman`, `bundler-audit`, `pnpm audit` (nivel alto) |
 | Contrato | Regenerar OpenAPI y el cliente TS → falla si hay diff |
 | Frontend | ESLint, `tsc --noEmit`, Vitest |
-| E2E (en `main` y nightly) | Playwright sobre el stack de Compose |
+| E2E (en `main` y nightly) | Playwright sobre el stack de Compose (M0.12: job `e2e` solo en `main`, servicio `e2e` de Compose con imagen propia fijada; el *nightly* sigue pendiente) |
+| Bundle de booking | Presupuesto de JS crítico < 150 KiB gzip (M0.12: job `frontend-bundle`) |
 | Migraciones | `strong_migrations` + `db:migrate` desde cero + `db:rollback` de la última |
 
 Rama `main` protegida; conventional commits; Dependabot mensual.
