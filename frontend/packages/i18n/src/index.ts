@@ -8,6 +8,15 @@ export { defaultLocale } from "./config";
 export { formatCurrency, formatDate, formatDateTime, formatNumber, formatTime } from "./formats";
 export type { i18n as I18n, TFunction } from "i18next";
 
+/** Cualquier `t` de i18next (de una instancia o de `useTranslation([...])`), sea cual sea su tipado de claves. */
+export type AnyTranslate = (...args: never[]) => unknown;
+
+/** `t` con claves como cadena, para cuando la clave es dinámica (p. ej. el `code` de un error de la API). */
+export type Translate = (key: string, options?: object) => string;
+
+/** Ensancha un `t` tipado a `Translate`. El tipado fino se pierde: úsese solo con claves dinámicas. */
+export const translator = (t: AnyTranslate): Translate => t as unknown as Translate;
+
 export const resources = { [defaultLocale]: esNI } as const;
 
 // Claves tipadas: una clave que no existe en el catálogo no compila.
@@ -36,7 +45,9 @@ export async function createI18n({ onMissingKey = "warn" }: CreateI18nOptions = 
     interpolation: { escapeValue: false }, // React ya escapa
     returnNull: false,
     saveMissing: true,
-    missingKeyHandler: (_languages, namespace, key) => {
+    missingKeyHandler: (_languages, namespace, key, _fallback, _update, options) => {
+      // Con `defaultValue` explícito el llamador ya maneja la ausencia (p. ej. un code de la API sin traducción).
+      if (options?.defaultValue !== undefined) return;
       const message = `Clave de i18n inexistente: ${namespace}:${key}`;
       if (onMissingKey === "throw") throw new Error(message);
       console.warn(message);
