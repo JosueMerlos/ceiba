@@ -1,6 +1,5 @@
-# Un suscriptor registrado, entregado DOS veces con el mismo evento, produce un solo efecto (docs/architecture/12-testing-strategy.md,
-# suite 6). Lo ejecuta spec/platform/events/events_suite_spec.rb sobre todos los suscriptores de los packs; un pack nuevo
-# no necesita escribir nada. `payload:` es el payload con el que se construye el evento de muestra.
+# A registered subscriber, delivered TWICE with the same event, produces a single effect. events_suite_spec runs it over
+# every pack's subscribers; a new pack needs to write nothing. `payload:` is the payload the sample event is built with.
 RSpec.shared_examples "un suscriptor idempotente" do |event_name, subscriber, payload: {}|
   let(:organization) { create(:organization) }
 

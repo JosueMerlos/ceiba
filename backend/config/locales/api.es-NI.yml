@@ -1,4 +1,4 @@
-# Títulos de los problemas de la API, por `code` (docs/architecture/07-api-contract.md). Los de cada pack, en su locale.
+# API problem titles by `code`; each pack's own titles live in its locale.
 es-NI:
   api:
     errors:

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { build } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-// Criterio 6: en el build de producción el módulo appointments va en un chunk separado del arranque.
+// In the production build the appointments module ships in a chunk separate from startup.
 interface ManifestEntry {
   file: string;
   src?: string;
@@ -44,7 +44,7 @@ describe("build de producción del panel", () => {
   });
 
   it("el código de las páginas del módulo no está en el chunk de arranque", () => {
-    // `data-module="appointments"` solo lo escribe la página del módulo.
+    // `data-module="appointments"` is written only by the module's page.
     expect(read(entry().file)).not.toContain("appointments-placeholder");
     const chunk = Object.values(manifest).find((item) =>
       item.src?.includes("modules/appointments/"),

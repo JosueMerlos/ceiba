@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Las factories de tenancy derivan organization_id del PADRE, nunca lo generan por separado: así no violan las FKs
-# compuestas (docs/architecture/12-testing-strategy.md, "Factories").
+# Tenancy factories derive organization_id from the PARENT, never generate it separately, so they do not violate the
+# composite FKs.
 RSpec.describe "Factories de tenancy" do
   it "crea una organización válida" do
     expect(create(:organization)).to be_persisted

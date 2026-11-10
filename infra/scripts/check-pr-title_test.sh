@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Pruebas de check-pr-title.sh: casos válidos e inválidos del formato conventional commits.
+# Tests for check-pr-title.sh: valid and invalid conventional-commits titles.
 set -uo pipefail
 cd "$(dirname "$0")"
 
 failures=0
-expect() { # expect <valid|invalid> <título>
+expect() { # expect <valid|invalid> <title>
   local expected=$1 title=$2 actual=invalid
   ./check-pr-title.sh "$title" >/dev/null 2>&1 && actual=valid
   if [ "$actual" = "$expected" ]; then echo "ok    [$expected] $title"

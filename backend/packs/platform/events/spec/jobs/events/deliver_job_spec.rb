@@ -14,7 +14,7 @@ RSpec.describe Events::DeliverJob do
     end
   end
 
-  # Entrega como lo hace el relay: el organization_id viaja en el payload del job y el middleware abre el contexto.
+  # Delivers as the relay does: the organization_id travels in the job payload and the middleware opens the context.
   def deliver(event = outbox_event, subscriber = "test.audit", org: event.organization_id)
     described_class.set("organization_id" => org).perform_async(event.id, subscriber)
     described_class.drain

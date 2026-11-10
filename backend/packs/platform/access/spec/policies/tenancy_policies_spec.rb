@@ -1,7 +1,6 @@
 require "rails_helper"
 
-# Policies de Organization, Company y Branch (viven en access porque tenancy no puede depender de access). Cada decisión
-# sale de can?(permiso, alcance), nunca de un nombre de rol.
+# Every decision comes from can?(permission, scope), never from a role name.
 RSpec.describe "Policies de organización, empresa y sucursal" do
   let(:world) { build_access_world }
   let(:organization) { world.organization }

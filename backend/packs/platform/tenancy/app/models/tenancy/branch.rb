@@ -1,7 +1,7 @@
 module Tenancy
-  # Sucursal: zona horaria, horarios, recursos y agenda de una empresa. Tabla tenant. Su empresa debe ser de la MISMA
-  # organización: lo garantiza la FK compuesta de la base (fk_branches_company) y el modelo traduce su violación
-  # a un error de validación.
+  # A company's branch: time zone, schedules, resources and agenda. Tenant table. Its company must belong to the SAME
+  # organization: the composite FK (fk_branches_company) guarantees it and the model translates its violation into a
+  # validation error.
   class Branch < ApplicationRecord
     COMPANY_FOREIGN_KEY = "fk_branches_company".freeze
     TIME_ZONES = TZInfo::Timezone.all_identifiers.to_set.freeze
@@ -19,10 +19,9 @@ module Tenancy
 
     private
 
-    # La validación del modelo ya rechaza una empresa de otra organización (la busca con el scope del tenant). Esta red
-    # cubre lo que se salta ese camino (`save(validate: false)`): la FK compuesta de la base lo rechaza y aquí se
-    # convierte en un error de validación en vez de una excepción de BD. El intento corre en un savepoint para que el
-    # error no aborte la transacción del llamador.
+    # Validation already rejects a company from another organization (it looks it up with the tenant scope). This safety net
+    # covers paths that skip it (`save(validate: false)`): the composite FK rejects it and it becomes a validation error
+    # instead of a DB exception. It runs in a savepoint so the error does not abort the caller's transaction.
     def create_or_update(**)
       self.class.transaction(requires_new: true) { super }
     rescue ActiveRecord::InvalidForeignKey => error

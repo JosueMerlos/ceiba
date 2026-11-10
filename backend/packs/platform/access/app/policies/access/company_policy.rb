@@ -1,7 +1,7 @@
 module Access
-  # Policy de la empresa (Tenancy::Company). Ver nota en OrganizationPolicy sobre su ubicación.
+  # Policy for Tenancy::Company. See OrganizationPolicy for why it lives here.
   class CompanyPolicy < BasePolicy
-    # Listar empresas de la organización activa: quien tenga algún membership en ella; el Scope filtra cuáles.
+    # Anyone with a membership in the active organization may list; the Scope filters which companies.
     def index? = principal.member?
 
     def show? = can?("platform.company.read", company_scope)

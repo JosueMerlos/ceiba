@@ -117,7 +117,7 @@ describe("sesión expirada (criterio 5)", () => {
 
   it("si CUALQUIER request responde 401 a mitad de uso, redirige y descarta lo cacheado", async () => {
     signedInBackend();
-    // La sesión vence mientras se usa: /me responde 401 y, desde ese momento, también la sesión.
+    // The session expires while in use: /me answers 401 and, from then on, so does the session.
     let expired = false;
     server.use(
       http.get(`${API}/api/v1/auth/session`, () =>
@@ -265,7 +265,6 @@ describe("selector de contexto", () => {
         screen.getByRole("button", { name: /Cambiar el contexto de trabajo/ }).textContent,
       ).toContain("Barbería Centro"),
     );
-    // La caché de la organización anterior ya no está.
     const stale = app.queryClient
       .getQueryCache()
       .findAll({ queryKey: ["me"] })
@@ -293,7 +292,7 @@ describe("selector de contexto", () => {
 });
 
 describe("cuenta", () => {
-  /** Tras cerrar la sesión, la API responde 401 a GET /auth/session, como la real. */
+  /** After logout, the API answers 401 to GET /auth/session, like the real one. */
   function sessionEndsOn(
     method: "logout" | "sessions",
     record: (request: Request) => void = () => {},

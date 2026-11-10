@@ -1,6 +1,6 @@
 module Api
-  # Rescates centralizados de la API: toda excepción sale como problem+json (docs/architecture/07-api-contract.md).
-  # La traducción excepción -> status/code vive en Api::ErrorRegistry; aquí solo se renderiza y se registra en el log.
+  # Central API rescues: every exception is rendered as problem+json. Api::ErrorRegistry maps exception -> status/code;
+  # this module only renders and logs.
   module ErrorHandling
     extend ActiveSupport::Concern
 
@@ -11,22 +11,22 @@ module Api
     private
 
     def render_problem(exception)
-      # Un error lanzado tras renderizar (p. ej. verify_authorized en un after_action) no debe dejar salir el cuerpo ya generado.
+      # An error raised after rendering (e.g. verify_authorized in an after_action) must not leak the built body.
       discard_rendered_body if performed?
       problem = Problem.from_exception(exception, request:)
       report(exception, problem) if problem.internal?
       render json: problem.to_h, status: problem.status, content_type: Problem::MEDIA_TYPE
     end
 
-    # Descarta el cuerpo ya renderizado (Rails no lo permite con `response_body = nil`: solo vacía la respuesta, y el segundo
-    # `render` seguiría lanzando DoubleRenderError).
+    # Rails cannot clear it via `response_body = nil` (it only empties the response), and a second `render` would still
+    # raise DoubleRenderError.
     def discard_rendered_body
       response.reset_body!
       @_response_body = nil
     end
 
-    # El detalle real (clase, mensaje, backtrace) va SOLO al log, ligado al request_id; la respuesta no lo lleva nunca,
-    # tampoco en desarrollo: quien depura busca el request_id en el log.
+    # Real details (class, message, backtrace) go only to the log, keyed by request_id; never in the response, even in
+    # development.
     def report(exception, problem)
       Api::ErrorReporter.call(exception, request_id: request.request_id, code: problem.code)
     end

@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Hand-off de M0.11: Enable, Disable y UpdateSettings auditan con Audit.record en la MISMA transacción (si algo falla no queda ni
-# el cambio ni el evento de auditoría) y solo cuando hubo un cambio real (una repetición idempotente no audita).
+# Enable, Disable and UpdateSettings audit with Audit.record in the SAME transaction (if anything fails neither the change nor
+# the audit event remains) and only on a real change (an idempotent repeat does not audit).
 RSpec.describe "Auditoría de módulos" do
   let(:world) { build_access_world }
   let(:organization) { world.organization }

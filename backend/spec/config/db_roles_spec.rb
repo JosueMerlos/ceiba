@@ -1,7 +1,7 @@
 require "rails_helper"
 require Rails.root.join("config/db_roles").to_s
 
-# Allowlist explícita de tareas que corren como app_owner (config/db_roles.rb). Todo lo demás, app_user.
+# Explicit allowlist of tasks that run as app_owner (config/db_roles.rb). Everything else, app_user.
 RSpec.describe DbRoles do
   describe ".select" do
     %w[db:create db:drop db:migrate db:migrate:up db:migrate:down db:migrate:redo db:rollback db:forward db:reset db:setup

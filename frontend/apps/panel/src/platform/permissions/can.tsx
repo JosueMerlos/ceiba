@@ -1,7 +1,7 @@
 import { useCallback, type ReactNode } from "react";
 import { useMe } from "../me/me-provider";
 
-/** Predicado sobre los permisos de /me. Solo REFLEJA: el backend es quien decide (05-module-system). */
+/** Predicate over the /me permissions. It only MIRRORS them: the backend decides. */
 export function useCan(): (permission: string) => boolean {
   const { permissions } = useMe();
   return useCallback((permission) => permissions.includes(permission), [permissions]);
@@ -12,8 +12,8 @@ type CanProps = { fallback?: ReactNode; children: ReactNode } & (
 );
 
 /**
- * Muestra `children` solo si el usuario tiene el permiso (o alguno de `any`). Ocultar un botón NO es control de acceso:
- * la API vuelve a validar cada acción.
+ * Renders `children` only if the user has the permission (or any of `any`). Hiding a button is NOT access control: the
+ * API validates every action again.
  *
  *   <Can permission="appointments.appointment.create"><NewAppointmentButton /></Can>
  */

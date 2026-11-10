@@ -1,5 +1,5 @@
 module Access
-  # La organización de la ruta está suspendida: sus miembros no operan bajo ella (403 access.organization_suspended). Quien no
-  # es miembro nunca llega a este error: recibe 404 antes, así la suspensión no revela que la organización existe.
+  # The route's organization is suspended: its members cannot operate under it (403 access.organization_suspended).
+  # Non-members never reach this error: they get 404 first, so suspension does not reveal the organization exists.
   class OrganizationSuspended < Error; end
 end

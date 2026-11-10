@@ -1,20 +1,20 @@
 module Api
-  # Registro de errores de dominio -> respuesta problem+json (docs/architecture/07-api-contract.md).
+  # Registry mapping domain errors to problem+json responses.
   #
-  # Cada pack registra las excepciones que su dominio lanza y que el cliente debe poder distinguir, una vez, en un
-  # initializer (dentro de `to_prepare`, para sobrevivir a la recarga de código):
+  # Each pack registers, once, the exceptions its domain raises that the client must tell apart, in an initializer
+  # (inside `to_prepare`, to survive code reloading):
   #
   #   Api::ErrorRegistry.register(Tenancy::InconsistentContext, status: :not_found, code: "tenancy.inconsistent_context")
   #
-  # `status`, `code`, `title`, `detail` y `errors` aceptan un valor fijo o un callable que recibe la excepción. Qué se
-  # expone es decisión explícita del registro: el mensaje de la excepción NO sale nunca por defecto (puede contener
-  # SQL, rutas o nombres internos). Una excepción sin registrar es un bug y se responde 500 genérico.
+  # `status`, `code`, `title`, `detail` and `errors` take a fixed value or a callable that receives the exception. What
+  # is exposed is an explicit registry decision: the exception message is NEVER exposed by default (it may contain SQL,
+  # paths or internal names). An unregistered exception is a bug and answers a generic 500.
   #
-  # `code` es estable y único: el frontend lo traduce con i18n, así que dos clases no pueden compartirlo.
+  # `code` is stable and unique: the frontend translates it with i18n, so two classes cannot share one.
   module ErrorRegistry
     Entry = Struct.new(:status, :code, :title, :detail, :errors, keyword_init: true)
 
-    # Lo ya resuelto contra una excepción concreta: valores finales, sin callables.
+    # What is already resolved for a concrete exception: final values, no callables.
     Resolved = Struct.new(:status, :code, :title, :detail, :errors, keyword_init: true)
 
     @entries = {}
@@ -32,7 +32,7 @@ module Api
         @entries.delete(error_class.name || error_class.object_id.to_s)
       end
 
-      # Busca por la clase más específica de la jerarquía de la excepción; nil si ninguna está registrada.
+      # Looks up the most specific class in the exception's hierarchy; nil if none is registered.
       def resolve(exception)
         exception.class.ancestors.each do |ancestor|
           entry = @entries[ancestor.name || ancestor.object_id.to_s]

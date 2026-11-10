@@ -1,8 +1,8 @@
-# Estado por request/job (ActiveSupport::CurrentAttributes).
-#   context    contexto de tenancy; SOLO Tenancy.with_context lo escribe: nada más debe asignarlo.
-#   session    Identity::CurrentSession de la request autenticada; SOLO Api::Authentication#authenticate! la escribe.
-#   principal  quién actúa (hoy Identity::Principal::User; M0.08 lo amplía con memberships y permisos).
-#   request_id, ip, user_agent  de la request en curso (Api::RequestMetadata); la auditoría los anota (M0.11).
+# Per-request/job state (ActiveSupport::CurrentAttributes).
+#   context    tenancy context; ONLY Tenancy.with_context writes it: nothing else may assign it.
+#   session    Identity::CurrentSession of the authenticated request; ONLY Api::Authentication#authenticate! writes it.
+#   principal  who is acting (currently Identity::Principal::User).
+#   request_id, ip, user_agent  of the current request (Api::RequestMetadata); the audit trail records them.
 class Current < ActiveSupport::CurrentAttributes
   attribute :context, :session, :principal, :request_id, :ip, :user_agent
 end

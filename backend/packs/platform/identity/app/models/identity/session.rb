@@ -1,14 +1,14 @@
 module Identity
-  # Sesión del panel respaldada en BD (ADR-0017). Se revoca desde el servidor sin desplegar (11-security).
+  # Panel session backed by the DB. It is revoked from the server without deploying.
   #
-  # - El token es aleatorio (256 bits) y SOLO existe en claro en la cookie del navegador y en `session.token` justo tras
-  #   emitirla; la BD guarda su digest SHA-256. Un volcado de la tabla no permite suplantar a nadie. SHA-256 (y no
-  #   bcrypt) basta porque el token tiene entropía de sobra: no hay nada que adivinar por fuerza bruta.
-  # - Vigencia: inactividad (IDLE_TIMEOUT) y absoluta (ABSOLUTE_LIFETIME, no se extiende con la actividad).
+  # - The token is random (256 bits) and exists in plain text ONLY in the browser cookie and in `session.token` right
+  #   after issuing it; the DB stores its SHA-256 digest. A table dump cannot impersonate anyone. SHA-256 (not bcrypt)
+  #   suffices because the token has ample entropy: there is nothing to brute-force.
+  # - Lifetime: idle (IDLE_TIMEOUT) and absolute (ABSOLUTE_LIFETIME, not extended by activity).
   class Session < ApplicationRecord
     IDLE_TIMEOUT = 12.hours
     ABSOLUTE_LIFETIME = 7.days
-    # `last_seen_at` se escribe como máximo una vez por minuto y sesión: no hay un UPDATE por request.
+    # `last_seen_at` is written at most once per minute per session: no UPDATE on every request.
     TOUCH_INTERVAL = 1.minute
     USER_AGENT_LIMIT = 255
 
@@ -22,7 +22,7 @@ module Identity
 
     def self.digest(token) = OpenSSL::Digest::SHA256.hexdigest(token.to_s)
 
-    # Crea la sesión y devuelve el registro; `session.token` es el único momento en que el token existe en claro.
+    # Creates the session and returns the record; `session.token` is the only moment the token exists in plain text.
     def self.issue!(user:, ip: nil, user_agent: nil, now: Time.current)
       token = SecureRandom.urlsafe_base64(32)
       create!(

@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Los campos de tenant y principal de cada línea de log se leen de Current/Tenancy de forma genérica: funcionan igual hoy
-# (principal mínimo de M0.07) y cuando M0.08 traiga permisos y contexto por ruta.
+# The tenant and principal fields of each log line are read from Current/Tenancy generically: they work the same with
+# the minimal principal and once permissions and route-based context arrive.
 RSpec.describe Observability::LogFields do
   include TenancyHelpers
 
@@ -50,7 +50,7 @@ RSpec.describe Observability::LogFields do
     organization = new_organization
 
     Tenancy.with_context(organization:) do
-      Observability::LogContext.company_id = "empresa-de-un-contexto-anterior" # lo recordado difiere del contexto vivo
+      Observability::LogContext.company_id = "empresa-de-un-contexto-anterior" # the remembered one differs from the live context
       expect(described_class.current).to include(organization_id: organization.id, company_id: nil, branch_id: nil)
     end
   ensure

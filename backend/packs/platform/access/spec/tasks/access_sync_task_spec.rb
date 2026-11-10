@@ -1,7 +1,6 @@
 require "rails_helper"
 require "open3"
 
-# `bin/rails access:sync` es lo que corre el despliegue (y db:migrate encadena): idempotente y con salida legible.
 RSpec.describe "tarea access:sync" do
   def run(*args)
     Open3.capture2e({ "RAILS_ENV" => "test" }, "bin/rails", *args, chdir: Rails.root.to_s)
@@ -35,7 +34,7 @@ RSpec.describe "tarea access:sync" do
     output, status = run("runner", 'Rails.application.load_tasks; puts Rake::Task["db:migrate"].actions.size')
     expect(status).to be_success, output
 
-    # Rails define 1 acción en db:migrate; la nuestra es la segunda.
+    # Rails defines 1 action on db:migrate; ours is the second.
     expect(output.lines.last.to_i).to be >= 2
   end
 end

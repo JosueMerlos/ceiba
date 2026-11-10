@@ -1,9 +1,8 @@
 module Identity
-  # Persona que inicia sesión. GLOBAL, no tenant (ADR-0028): una misma persona puede pertenecer a varias organizaciones
-  # y esa pertenencia vive en los memberships (M0.08), no aquí. Por eso `users` no tiene organization_id.
+  # Person who signs in. GLOBAL, not tenant: one person may belong to several organizations and that membership lives in
+  # memberships, not here. Hence `users` has no organization_id.
   class User < ApplicationRecord
-    # Mínimo de OWASP/NIST: longitud, sin reglas de complejidad ni rotación forzada (docs/architecture/11-security.md).
-    # El rechazo contra HIBP llega en M4.02.
+    # OWASP/NIST minimum: length, with no complexity rules or forced rotation.
     MINIMUM_PASSWORD_LENGTH = 12
 
     has_secure_password

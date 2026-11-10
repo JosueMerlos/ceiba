@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# La API pública de audit es CHICA a propósito: registrar (record, record_auth) y los errores de dominio. Los modelos, el
-# diff y los registradores son internos. Añadir algo a app/public es una decisión de diseño.
+# The public API of audit is SMALL on purpose: record (record, record_auth) and the domain errors. Models, diff and
+# recorders are internal. Adding something to app/public is a design decision.
 RSpec.describe "API pública de audit" do
   let(:root) { Rails.root.join("packs/platform/audit/app/public") }
   let(:public_files) { root.glob("**/*.rb").map { |file| file.relative_path_from(root).to_s } }

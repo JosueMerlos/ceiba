@@ -1,6 +1,5 @@
-# El tenant es la ORGANIZACIÓN (ADR-0003) y es obligatorio: toda consulta a una tabla tenant sin organización activa
-# lanza ActsAsTenant::Errors::NoTenantSet en lugar de devolver filas de todos los clientes (barrera 1,
-# docs/architecture/03-multi-tenancy.md). Solo Tenancy.with_context fija el tenant.
+# The tenant is the ORGANIZATION and is mandatory: any query to a tenant table without an active organization raises
+# ActsAsTenant::Errors::NoTenantSet instead of returning every customer's rows. Only Tenancy.with_context sets the tenant.
 ActsAsTenant.configure do |config|
   config.require_tenant = true
 end

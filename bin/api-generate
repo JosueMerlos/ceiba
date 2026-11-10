@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Regenera, dentro de Docker, el contrato OpenAPI (backend/openapi/v1.yaml, desde los specs de rswag) y el cliente
-# TypeScript (frontend/packages/api-client/src/schema.d.ts). Úsalo tras cambiar un endpoint o un serializer y versiona
-# el resultado: CI falla si el contrato o el cliente están desactualizados (infra/scripts/check-api-contract.sh).
+# Regenerates, inside Docker, the OpenAPI contract (backend/openapi/v1.yaml, from the rswag specs) and the TypeScript
+# client (frontend/packages/api-client/src/schema.d.ts). Run it after changing an endpoint or serializer and commit the
+# result: CI fails if the contract or the client are stale (infra/scripts/check-api-contract.sh).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

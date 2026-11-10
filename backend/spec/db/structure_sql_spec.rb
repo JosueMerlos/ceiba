@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# Criterio 6 de M0.04: db/structure.sql, cargado en una BD vacía, incluye extensiones, políticas y FKs compuestas.
-# Se prueba sobre una copia de la app con las migraciones reales (organizations/companies/branches, M0.05) más una
-# tabla de sonda con exclusion constraint y citext, y su propia base: migrar, volcar, volcar de nuevo (determinismo), revertir/migrar y cargar en una BD vacía.
+# db/structure.sql, loaded into an empty DB, includes extensions, policies and composite FKs. Tested on a copy of the app
+# with the real migrations (organizations/companies/branches) plus a probe table with an exclusion constraint and
+# citext, and its own database: migrate, dump, dump again (determinism), roll back/migrate and load into an empty DB.
 RSpec.describe "db/structure.sql" do
   let(:app) { TemporaryAppCopy.new(database: "ceiba_structure_probe").create }
 

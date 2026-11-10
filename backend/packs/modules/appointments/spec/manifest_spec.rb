@@ -1,7 +1,5 @@
 require "rails_helper"
 
-# Manifiesto MÍNIMO de appointments (M0.09): permisos y settings de docs/domain/appointments.md. Sin modelos ni endpoints: la
-# provisión lo activa y /me lo reporta; el dominio llega en F1.
 RSpec.describe "Manifiesto de appointments" do
   subject(:manifest) { Modules.registry.fetch("appointments") }
 

@@ -1,2 +1,2 @@
-# Alerta del lag del outbox (M0.13). La constante se resuelve en cada notificación: sobrevive a las recargas de desarrollo.
+# The constant is resolved on each notification, so it survives development reloads.
 ActiveSupport::Notifications.subscribe("outbox_lag.events") { |*, payload| Events::OutboxLagAlert.call(payload) }

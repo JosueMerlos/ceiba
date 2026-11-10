@@ -1,5 +1,5 @@
 module Modules
-  # El plan de la organización no incluye el módulo (entitlement, F6). Hoy `Modules.entitled?` siempre concede.
+  # The organization's plan does not include the module. `Modules.entitled?` always grants for now.
   class NotEntitled < Error
     attr_reader :key
 

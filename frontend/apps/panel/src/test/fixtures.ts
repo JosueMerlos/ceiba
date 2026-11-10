@@ -45,7 +45,7 @@ export const branch = (id: string, companyId: string, name: string) => ({
   updated_at: STAMP,
 });
 
-// Los permisos de cada rol sobre appointments (manifiesto de backend/packs/modules/appointments/manifest.rb).
+// Each role's permissions on appointments (backend/packs/modules/appointments/manifest.rb manifest).
 const APPOINTMENT_PERMISSIONS: Record<Role, string[]> = {
   org_owner: ["appointments.appointment.count"],
   company_manager: [
@@ -70,7 +70,6 @@ const APPOINTMENT_PERMISSIONS: Record<Role, string[]> = {
 
 interface MeOptions {
   role?: Role;
-  /** Módulos activos en la empresa del contexto. */
   modules?: string[];
   organization?: ReturnType<typeof organization>;
   company?: ReturnType<typeof company>;
@@ -78,7 +77,7 @@ interface MeOptions {
   name?: string;
 }
 
-/** Lo que devolvería GET /api/v1/me: la navegación sale de los permisos y de los módulos activos, como en el backend. */
+/** What GET /api/v1/me would return: navigation derives from permissions and active modules, as in the backend. */
 export function meFixture({
   role = "receptionist",
   modules = ["appointments"],

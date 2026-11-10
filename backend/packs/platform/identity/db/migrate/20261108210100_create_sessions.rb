@@ -1,5 +1,5 @@
-# Sesiones del panel (ADR-0017, docs/architecture/11-security.md). El token NUNCA se guarda: solo su digest SHA-256
-# (único: es la clave de búsqueda). Global, no tenant: una sesión es de la persona, no de una organización (ADR-0028).
+# Panel sessions. The token is NEVER stored: only its SHA-256 digest (unique: it is the lookup key). Global, not tenant:
+# a session belongs to the person, not to an organization.
 class CreateSessions < ActiveRecord::Migration[8.1]
   def change
     create_table :sessions, id: :uuid do |t|

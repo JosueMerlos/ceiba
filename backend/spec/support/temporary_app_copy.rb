@@ -1,9 +1,9 @@
 require "open3"
 require "tmpdir"
 
-# Copia de la app en un directorio temporal, con su PROPIA base de datos, para specs que ejecutan generadores,
-# migraciones y volcados reales (rails g model, db:migrate, db:structure:dump...) sin tocar el árbol de trabajo
-# ni la base de test. Cada comando corre en un proceso nuevo (como en CI o en consola).
+# Copy of the app in a temporary directory, with its OWN database, for specs that run real generators, migrations and
+# dumps (rails g model, db:migrate, db:structure:dump...) without touching the working tree or the test database. Each
+# command runs in a new process (as in CI or in a console).
 class TemporaryAppCopy
   ENTRIES = %w[Gemfile Gemfile.lock Rakefile config.ru .ruby-version .rspec packwerk.yml package.yml app bin config db lib packs spec].freeze
 
@@ -23,7 +23,7 @@ class TemporaryAppCopy
     self
   end
 
-  # Ejecuta un comando en la copia; devuelve [salida, estado].
+  # Runs a command in the copy; returns [output, status].
   def run(*command, env: {})
     Open3.capture2e(base_env.merge(env), *command, chdir: root.to_s)
   end
@@ -35,7 +35,7 @@ class TemporaryAppCopy
     output
   end
 
-  # Tareas de esquema (db:*): la allowlist de config/db_roles.rb las corre como app_owner.
+  # Schema tasks (db:*): the config/db_roles.rb allowlist runs them as app_owner.
   def db!(*tasks) = run!("bin/rails", *tasks)
 
   def rails_runner(script) = run!("bin/rails", "runner", script).lines.last.to_s.strip

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Protección de la rama main (M0.02). LISTO PARA CORRER cuando exista el remoto en GitHub.
+# Protection for the main branch. READY TO RUN once the GitHub remote exists.
 #
-#   infra/github/branch-protection.sh <owner>/<repo>            # muestra el payload, no cambia nada
-#   APPLY=1 infra/github/branch-protection.sh <owner>/<repo>    # lo aplica con `gh api` (requiere admin)
+#   infra/github/branch-protection.sh <owner>/<repo>            # prints the payload, changes nothing
+#   APPLY=1 infra/github/branch-protection.sh <owner>/<repo>    # applies it with `gh api` (needs admin)
 #
-# Requiere `gh` autenticado. app_id 15368 = GitHub Actions (el check solo cuenta si lo publica esa app). Los nombres de los checks son los de los jobs de
-# .github/workflows/ci.yml y .github/workflows/pr-title.yml.
+# Needs an authenticated `gh`. app_id 15368 = GitHub Actions (a check only counts if that app publishes it). Check names
+# are the job names in .github/workflows/ci.yml and .github/workflows/pr-title.yml.
 #
-# TODO(CODEOWNERS): con un solo desarrollador, `require_code_owner_reviews` queda en false (GitHub no permite
-# aprobar el PR propio). Cuando haya una segunda persona, activar A LA VEZ `require_code_owner_reviews: true`
-# y `required_approving_review_count >= 1`; uno sin el otro no protege nada. Mientras tanto, el guardián real
-# del aislamiento de packs es spec/packs/pack_contract_spec.rb (check requerido dentro de backend-test).
+# TODO(CODEOWNERS): with a single developer, `require_code_owner_reviews` stays false (GitHub does not allow approving
+# your own PR). Once there is a second person, enable `require_code_owner_reviews: true` AND
+# `required_approving_review_count >= 1` together; one without the other protects nothing. Meanwhile, the real guard for
+# pack isolation is spec/packs/pack_contract_spec.rb (a required check inside backend-test).
 set -euo pipefail
 
 repo="${1:?uso: $0 <owner>/<repo>}"
@@ -57,5 +57,5 @@ fi
 
 echo "$payload" | gh api --method PUT "repos/${repo}/branches/${branch}/protection" --input -
 echo "Rama ${branch} de ${repo} protegida."
-# Además, en Settings > General > Pull Requests: permitir solo "Squash merging" con el título del PR
-# como mensaje del commit (así el título validado es el que queda en main) y "Automatically delete head branches".
+# Also, in Settings > General > Pull Requests: allow only "Squash merging" with the PR title as the commit message (so
+# the validated title is the one that lands on main) and "Automatically delete head branches".

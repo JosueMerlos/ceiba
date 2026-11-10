@@ -1,8 +1,8 @@
 import type { ComponentProps } from "react";
 
 /**
- * La marca de Ceiba: la copa ancha del árbol sobre un tronco con raíces tabulares (contrafuertes), y una flor de
- * sacuanjoche. Es decorativa (aria-hidden): el nombre del producto va como texto al lado.
+ * The Ceiba mark: the tree's broad crown over a trunk with buttress roots, and a sacuanjoche flower. It is decorative
+ * (aria-hidden): the product name goes as text beside it.
  */
 function CeibaMark(props: ComponentProps<"svg">) {
   return (

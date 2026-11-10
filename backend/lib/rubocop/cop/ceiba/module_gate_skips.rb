@@ -5,10 +5,10 @@ require "rubocop"
 module RuboCop
   module Cop
     module Ceiba
-      # El 404 de un módulo inactivo lo emite `ensure_required_module_enabled!` (Modules::RequiresModule). Un controlador con
-      # `requires_module` que se lo salta (`skip_before_action`, `skip_callback`, redefinirlo o `self.required_module = nil`) deja
-      # sus rutas abiertas con el módulo apagado. La suite de cobertura de módulos también lo detecta en ejecución; este cop lo frena
-      # al escribirlo.
+      # The 404 of an inactive module is emitted by `ensure_required_module_enabled!` (Modules::RequiresModule). A
+      # controller with `requires_module` that skips it (`skip_before_action`, `skip_callback`, redefining it or
+      # `self.required_module = nil`) leaves its routes open with the module off. The module coverage suite also detects
+      # it at runtime; this cop stops it at write time.
       class ModuleGateSkips < Base
         MSG = "No te saltes el gate del módulo (ensure_required_module_enabled!): un módulo inactivo debe dar 404 en TODAS sus rutas."
 

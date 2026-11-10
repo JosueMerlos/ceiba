@@ -1,10 +1,10 @@
 module Identity
-  # Alta de un usuario por código (seeds, consola). Idempotente por correo: si ya existe se devuelve tal cual, SIN tocar
-  # su contraseña ni su nombre (un seed repetido no debe pisar lo que el usuario cambió).
+  # Creates a user from code (seeds, console). Idempotent by email: an existing user is returned as is, WITHOUT touching
+  # their password or name (a repeated seed must not overwrite what the user changed).
   #
-  # No es el registro público ni la invitación (M4.01); ningún endpoint lo expone.
+  # Not the public sign-up nor an invitation; no endpoint exposes it.
   #
-  #   Identity::ProvisionUser.call(email: "ana@ceiba.test", full_name: "Ana Pérez", password: "…12 o más caracteres…")
+  #   Identity::ProvisionUser.call(email: "ana@ceiba.test", full_name: "Ana Pérez", password: "…12 or more characters…")
   #   # => Identity::Principal::User
   module ProvisionUser
     def self.call(email:, full_name:, password:)
@@ -12,7 +12,7 @@ module Identity
       Principal::User.new(id: user.id, email: user.email, full_name: user.full_name)
     end
 
-    # Dos seeds simultáneos: gana el índice único y el perdedor lee la fila del ganador.
+    # Two simultaneous seeds: the unique index wins and the loser reads the winner's row.
     def self.create(email:, full_name:, password:)
       User.create!(email:, full_name:, password:)
     rescue ActiveRecord::RecordNotUnique

@@ -1,10 +1,8 @@
 require "rails_helper"
 
-# Guardián: las tablas con columna organization_id son EXACTAMENTE las registradas como tenant (política
-# tenant_isolation), en ambos sentidos. Una tabla creada con create_table normal + organization_id queda sin RLS
-# ni FK compuesta: aquí se detecta. Exentas solo las justificadas en EXEMPT (hoy ninguna).
+# A plain create_table plus organization_id would have no RLS or composite FK; this guard catches it.
 RSpec.describe Database::TenantTables, :tenant_schema do
-  let(:exempt) { {} } # tabla => motivo; vacío: ninguna tabla está exenta
+  let(:exempt) { {} } # table => reason; empty: no table is exempt
 
   it "el esquema real es consistente: organization_id <=> tabla registrada" do
     problems = described_class.inconsistencies(ActiveRecord::Base.connection, exempt: exempt.keys)

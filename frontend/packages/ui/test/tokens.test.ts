@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// Modelo de tres capas (ADR-0031): primitivo (--palette-*) -> semántico (nombres de shadcn/ui, con --brand-* como
-// capa de marca que M2.04 sobrescribe por empresa) -> componente (--button-*, --input-*...).
+// Three-layer model: primitive (--palette-*) -> semantic (shadcn/ui names, with --brand-* as the brand layer overridden
+// per company) -> component (--button-*, --input-*...).
 const css = readFileSync(join(import.meta.dirname, "../src/styles/tokens.css"), "utf8");
 
 const declarations = new Map<string, string>();
@@ -11,7 +11,7 @@ for (const match of css.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
   declarations.set(match[1]!, match[2]!.trim().replace(/\s+/g, " "));
 }
 
-/** Sigue las cadenas var(--x) hasta un valor final (#hex). */
+/** Follows var(--x) chains down to a final value (#hex). */
 function resolve(name: string): string {
   let value = declarations.get(name);
   if (value === undefined) throw new Error(`token ${name} no definido`);
@@ -133,7 +133,7 @@ describe("contraste WCAG AA (4.5:1) de los pares por defecto", () => {
   });
 });
 
-// WCAG 1.4.11: los componentes de interfaz y sus estados necesitan 3:1 contra el fondo contiguo.
+// WCAG 1.4.11: UI components and their states need 3:1 against the adjacent background.
 describe("contraste no textual (3:1)", () => {
   const pairs: [string, string][] = [
     ["--input", "--card"],

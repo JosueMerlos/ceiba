@@ -1,8 +1,8 @@
 #!/bin/sh
-# Arranque de api y worker. Idempotente: no reinstala nada si todo está al día.
+# Startup for api and worker. Idempotent: reinstalls nothing when everything is up to date.
 set -e
 
-# Instala gems solo si faltan (las gems viven en un volumen con nombre).
+# Install gems only when missing (they live in a named volume).
 bundle check >/dev/null 2>&1 || bundle install
 
 if [ "${RUN_SETUP:-false}" = "true" ]; then

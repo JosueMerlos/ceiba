@@ -1,10 +1,10 @@
 module Events
-  # Alerta del lag del outbox (M0.13, docs/architecture/06-events-and-jobs.md). Se engancha a la notificación
-  # `outbox_lag.events` que emite Events::OutboxLag.report cada minuto (Events::OutboxLagJob): si el evento pendiente más
-  # antiguo supera el umbral, lo reporta con Rails.error (que Sentry recoge) como Events::OutboxLagExceeded.
+  # Outbox lag alert. Hooks into the `outbox_lag.events` notification that Events::OutboxLag.report emits every minute
+  # (Events::OutboxLagJob): if the oldest pending event exceeds the threshold, it is reported via Rails.error (picked up
+  # by Sentry) as Events::OutboxLagExceeded.
   #
-  # Umbral: OUTBOX_LAG_ALERT_SECONDS, 300 (5 min) por defecto. Mientras dure el atasco habrá un reporte por minuto, todos en la
-  # misma incidencia de Sentry.
+  # Threshold: OUTBOX_LAG_ALERT_SECONDS, 300 (5 min) by default. While the backlog lasts there is one report per minute,
+  # all in the same Sentry issue.
   module OutboxLagAlert
     DEFAULT_THRESHOLD_SECONDS = 300
 

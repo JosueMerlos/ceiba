@@ -1,7 +1,7 @@
 module Modules
-  # Desactiva un módulo en una empresa: marca `disabled_at`, ejecuta `on_disable` y emite platform.module_disabled.v1, en una
-  # transacción. NO borra datos (la fila, los settings y los de sus sucursales se conservan: reactivar los recupera). IDEMPOTENTE.
-  # No deja desactivar un módulo que otro módulo ACTIVO de la empresa requiere (Modules::RequiredByOthers).
+  # Disables a module for a company in one transaction: sets `disabled_at`, runs `on_disable` and emits
+  # platform.module_disabled.v1. Deletes NO data (row and settings, including branches', survive so re-enabling recovers them).
+  # Idempotent. Refuses while another ACTIVE module of the company requires it (Modules::RequiredByOthers).
   class Disable < Activation
     def call
       ApplicationRecord.transaction(requires_new: true) do

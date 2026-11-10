@@ -4,7 +4,7 @@ interface LocationLike {
   hash: string;
 }
 
-/** Destino tras iniciar sesión: solo rutas internas. Cualquier otra cosa (URL absoluta, //host, javascript:) cae a "/". */
+/** Post-login destination: internal paths only. Anything else (absolute URL, //host, javascript:) falls back to "/". */
 export function safeReturnPath(raw: string | null | undefined): string {
   if (!raw) return "/";
   const internal = raw.startsWith("/") && !raw.startsWith("//") && !raw.includes("\\");
@@ -14,8 +14,8 @@ export function safeReturnPath(raw: string | null | undefined): string {
 }
 
 /**
- * `/login?next=<ruta actual>`: así el usuario vuelve a donde estaba. Desde la raíz o desde /login no añade `next`.
- * `expired` marca una sesión que VENCIÓ mientras se usaba (el login lo explica); un enlace profundo en frío no lo lleva.
+ * `/login?next=<current path>`: so the user returns to where they were. From the root or from /login it adds no `next`.
+ * `expired` marks a session that EXPIRED while in use (login explains it); a cold deep link does not carry it.
  */
 export function loginPathFor(
   { pathname, search, hash }: LocationLike,

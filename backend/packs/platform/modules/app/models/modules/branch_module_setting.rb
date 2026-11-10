@@ -1,5 +1,5 @@
 module Modules
-  # Overrides de settings de una sucursal para un módulo (solo claves permitidas a nivel sucursal). Tabla tenant, modelo PRIVADO.
+  # Branch-level settings overrides for a module (only keys allowed at branch level). Tenant table, private model.
   class BranchModuleSetting < ApplicationRecord
     acts_as_tenant :organization, class_name: "Tenancy::Organization"
 

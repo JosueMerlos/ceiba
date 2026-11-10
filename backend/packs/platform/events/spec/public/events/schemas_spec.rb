@@ -43,7 +43,7 @@ RSpec.describe Events::Schemas do
         allow(Rails.root).to receive(:glob).with(described_class::GLOB).and_return([ bad ])
 
         expect { described_class.reload! }.to raise_error(ArgumentError, /test\.malo\.v1\.json.*JSON Schema/)
-        RSpec::Mocks.space.proxy_for(Rails.root).reset # restaura el catálogo real antes de que se borre el directorio
+        RSpec::Mocks.space.proxy_for(Rails.root).reset # restores the real catalog before the directory is deleted
         described_class.reload!
       end
     end

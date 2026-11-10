@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# La API pública de access es CHICA a propósito (docs/architecture/02-modular-monolith.md): modelos, registro y servicios son
-# privados. Añadir algo a app/public es una decisión de diseño: este spec obliga a hacerla a conciencia.
+# The public API is SMALL on purpose: models, registry and services are private. Adding something to app/public is a
+# design decision; this spec forces it to be a conscious one.
 RSpec.describe "API pública de access" do
   let(:public_files) do
     root = Rails.root.join("packs/platform/access/app/public")

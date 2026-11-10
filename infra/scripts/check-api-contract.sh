@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Drift del contrato API (M0.06, ADR-0012): regenera backend/openapi/v1.yaml desde los specs de rswag y el cliente
-# TypeScript desde ese contrato, y falla si alguno difiere de lo versionado. Atrapa dos descuidos:
-#   - cambiar un serializer/endpoint (y su spec) sin regenerar el contrato;
-#   - cambiar el contrato sin regenerar el cliente.
+# API contract drift: regenerates backend/openapi/v1.yaml from the rswag specs and the TypeScript client from that
+# contract, and fails if either differs from the committed one. Catches two slips:
+#   - changing a serializer/endpoint (and its spec) without regenerating the contract;
+#   - changing the contract without regenerating the client.
 #
-# Los comandos de generación los pone quien llama (CI corre nativo; bin/ci los envuelve en Docker):
+# The caller supplies the generation commands (CI runs natively; bin/ci wraps them in Docker):
 #   OPENAPI_GENERATE='cd backend && bin/rails openapi:generate' CLIENT_GENERATE='cd frontend && pnpm api:generate' \
 #     infra/scripts/check-api-contract.sh
 #
-# Compara contra una copia hecha ANTES de regenerar (no contra el índice de git), así funciona igual con cambios sin
-# commitear. Si hay drift, los archivos regenerados QUEDAN en el árbol de trabajo: revísalos y commitéalos.
+# Compares against a copy taken BEFORE regenerating (not against the git index), so it works the same with uncommitted
+# changes. On drift, the regenerated files STAY in the working tree: review and commit them.
 set -uo pipefail
 
 root="${ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
@@ -27,7 +27,7 @@ done
 cp "$contract" "$snapshot/contract"
 cp "$client" "$snapshot/client"
 
-run() { # run <descripción> <comando>
+run() { # run <description> <command>
   echo "== $1 =="
   (cd "$root" && bash -c "$2") || { echo "check-api-contract: falló la generación de $1" >&2; exit 1; }
 }

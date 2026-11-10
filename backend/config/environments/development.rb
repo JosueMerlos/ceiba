@@ -6,14 +6,14 @@ Rails.application.configure do
   # Make code changes take effect immediately without server restart.
   config.enable_reloading = true
 
-  # Logs a stdout para `docker compose logs`.
+  # Log to stdout for `docker compose logs`.
   config.logger = ActiveSupport::TaggedLogging.logger($stdout)
 
   # Do not eager load code on boot.
   config.eager_load = false
 
-  # M0.06: sin páginas de error con stacktrace. Todo error de la API sale como problem+json, sin detalles internos, también
-  # en desarrollo (el detalle va al log con el request_id; docs/architecture/07-api-contract.md).
+  # No stacktrace error pages: every API error renders as problem+json without internals, even in development
+  # (details go to the log with the request_id).
   config.consider_all_requests_local = false
 
   # Enable server timing.
@@ -54,8 +54,8 @@ Rails.application.configure do
   config.active_record.migration_error = :page_load
 
   # Highlight code that triggered database queries in logs.
-  # Nivel info por defecto (M0.13): el SQL se registra en debug y lleva los valores como literales (`WHERE email = '...'`):
-  # correos y teléfonos en claro en el log. RAILS_LOG_LEVEL=debug lo activa a conciencia para depurar consultas.
+  # Info level by default: SQL is logged at debug with values as literals (`WHERE email = '...'`), putting emails and
+  # phone numbers in clear in the log. RAILS_LOG_LEVEL=debug opts in deliberately to debug queries.
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
 
   config.active_record.verbose_query_logs = true

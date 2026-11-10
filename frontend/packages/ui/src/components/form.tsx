@@ -12,8 +12,8 @@ import {
 import { cn } from "../lib/cn";
 import { Label } from "./label";
 
-// Formularios accesibles: la etiqueta, la descripción y el error se asocian al campo por id (aria-describedby) y el
-// error se anuncia (role="alert"). Se apoya en react-hook-form; los esquemas (zod) los aporta cada app.
+// Accessible forms: label, description and error are tied to the field by id (aria-describedby) and the error is
+// announced (role="alert"). Built on react-hook-form; each app supplies its own schemas (zod).
 const Form = FormProvider;
 
 interface FormFieldContextValue {

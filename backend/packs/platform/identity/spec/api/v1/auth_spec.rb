@@ -1,14 +1,14 @@
 require "swagger_helper"
 
-# rswag exige que el `let` se llame igual que el parámetro de cabecera (`X-CSRF-Token`).
+# rswag requires the `let` to be named like the header parameter (`X-CSRF-Token`).
 # rubocop:disable RSpec/VariableName, RSpec/VariableDefinition
 
-# Contrato de los endpoints de autenticación (M0.07). Cada `response` ejecuta la petición real y valida el cuerpo contra
-# el esquema; de aquí sale backend/openapi/v1.yaml.
+# Contract of the authentication endpoints. Each `response` runs the real request and validates the body against the
+# schema; backend/openapi/v1.yaml is generated from here.
 RSpec.describe "API v1: autenticación" do
   let(:user) { create(:user, email: "ana@ceiba.test", password: "contraseña-segura-1") }
 
-  # La cookie de sesión y el token CSRF viajan por el jar de la sesión de integración: se inicia sesión de verdad.
+  # The session cookie and CSRF token travel through the integration session's jar: login is real.
   path "/api/v1/auth/login" do
     post "Inicia sesión" do
       tags "Autenticación"
@@ -50,7 +50,8 @@ RSpec.describe "API v1: autenticación" do
         schema "$ref" => "#/components/schemas/Problem"
         let(:credentials) { { email: "ana@ceiba.test", password: "x" } }
 
-        # rswag siempre envía `consumes` (JSON): la petición con otro tipo se hace a mano; la respuesta documenta el contrato.
+        # rswag always sends `consumes` (JSON): the request with another type is made by hand; the response documents
+        # the contract.
         it "responde 415 con un formulario" do
           post "/api/v1/auth/login", params: "email=ana@ceiba.test&password=x", headers: { "CONTENT_TYPE" => "application/x-www-form-urlencoded" }
 

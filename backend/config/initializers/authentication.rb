@@ -1,30 +1,26 @@
-# Autenticación del panel (M0.07, docs/architecture/11-security.md).
-#
-# Rails en modo API (`config.api_only`) NO trae el middleware de cookies: sin él, `cookies[...] = ...` no emite ningún
-# Set-Cookie y la sesión nunca llegaría al navegador. Se incluye de forma explícita (y lo comprueba
-# spec/config/authentication_config_spec.rb). Sesión y flash de Rails siguen fuera: la sesión es nuestra, en BD.
+# Rails in API mode (`config.api_only`) does NOT ship the cookies middleware: without it `cookies[...] = ...` emits no
+# Set-Cookie and the session would never reach the browser. It is added explicitly (spec/config/authentication_config_spec.rb
+# checks it). Rails session and flash stay out: the session is ours, in the database.
 Rails.application.config.middleware.use ActionDispatch::Cookies
 
-# Formato de las mutaciones de la API (JSON, sin query string) antes de parsear y de registrar parámetros.
+# Enforces the format of API mutations (JSON, no query string) before parsing and parameter logging.
 require Rails.root.join("config/middleware/api_request_guard").to_s
 Rails.application.config.middleware.use ApiRequestGuard
 
-# Cookie `Secure` y prefijo `__Host-` (Secure + Path=/ + sin Domain: el navegador no deja que un subdominio la pise).
-# Solo con HTTPS: producción y staging (RAILS_ENV=production, ADR-0013). En desarrollo y test se sirve por HTTP.
+# `Secure` cookie with the `__Host-` prefix (Secure + Path=/ + no Domain, so a subdomain cannot overwrite it).
+# HTTPS only: production and staging (RAILS_ENV=production); development and test are served over HTTP.
 Rails.application.config.x.auth.secure_cookies = Rails.env.production?
 
-# Active Storage monta rutas propias (subidas directas) que no pasan por Api::BaseController, es decir, quedarían
-# abiertas sin sesión. Ningún hito usa archivos todavía (branding llega más tarde): sus rutas se dibujan cuando haya
-# un hito que las necesite, con autenticación (spec/requests/api/authentication_spec.rb lo vigila).
+# Active Storage mounts its own routes (direct uploads) that bypass Api::BaseController, so they would be open without a
+# session. Nothing uses files yet: draw the routes, with authentication, once something needs them.
 Rails.application.config.active_storage.draw_routes = false
 
-# Orígenes desde los que el navegador puede mutar (validación de Origin/Referer, Api::Authentication). Lista EXPLÍCITA:
-# no se deriva de Host ni de X-Forwarded-Host, que un cliente que llega directo al puerto de la app puede falsificar.
-#   APP_ORIGINS  orígenes separados por comas (p. ej. "https://app.ceiba.example"). Obligatoria en producción y staging.
-#   desarrollo   http://localhost:<PUBLIC_PORT|8080> (el proxy de compose.yaml)
-#   test         http://www.example.com (el host de los request specs)
-# Sin valor en producción la lista queda VACÍA y toda mutación con Origin se rechaza (falla cerrado, nunca abierto).
-# `config.hosts` (rechazo de Host desconocidos) llega con M0.13/M4.04.
+# Origins from which the browser may mutate (Origin/Referer validation). EXPLICIT list: never derived from Host or
+# X-Forwarded-Host, which a client reaching the app port directly can forge.
+#   APP_ORIGINS  comma-separated origins (e.g. "https://app.ceiba.example"). Required in production and staging.
+#   development  http://localhost:<PUBLIC_PORT|8080> (the compose proxy)
+#   test         http://www.example.com (the request specs' host)
+# Without a value in production the list is EMPTY and every mutation carrying an Origin is rejected (fail closed).
 Rails.application.config.x.auth.allowed_origins =
   if ENV["APP_ORIGINS"].present?
     ENV["APP_ORIGINS"].split(",").map { |origin| origin.strip.delete_suffix("/").downcase }.compact_blank

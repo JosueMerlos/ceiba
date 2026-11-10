@@ -1,6 +1,6 @@
 module Modules
-  # Los settings no cumplen el esquema del módulo (o piden una clave que no existe o no se permite en ese nivel). `errors` es el
-  # detalle POR CAMPO: [{ field:, code:, message: }]; la API lo devuelve como 422 (modules.invalid_settings).
+  # Settings violate the module's schema (or name a key that does not exist or is not allowed at that level). `errors` is the
+  # per-field detail [{ field:, code:, message: }]; the API returns it as 422 (modules.invalid_settings).
   class InvalidSettings < Error
     attr_reader :key, :errors
 

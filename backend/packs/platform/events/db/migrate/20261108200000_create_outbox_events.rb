@@ -1,11 +1,11 @@
-# outbox_events: el evento se escribe en la MISMA transacción del caso de uso (docs/architecture/06-events-and-jobs.md).
+# outbox_events: the event is written in the SAME transaction as the use case.
 #
-# Tabla tenant: todo evento pertenece a una organización y su suscriptor corre en ese contexto. El relay, que lee
-# pendientes de todas las organizaciones, es un camino privilegiado explícito (Events::Relay, AllowedFiles del cop
-# Ceiba/TenantBypass), y con RLS (M4.03) usará el rol privilegiado.
+# Tenant table: every event belongs to an organization and its subscriber runs in that context. The relay, which reads
+# pending events of all organizations, is an explicit privileged path (Events::Relay, AllowedFiles of the
+# Ceiba/TenantBypass cop) and will use the privileged role under RLS.
 #
-# `name` es el nombre completo y versionado (`platform.organization_provisioned.v1`): la versión va dentro, no en una
-# columna aparte que pudiera contradecirlo.
+# `name` is the full versioned name (`platform.organization_provisioned.v1`): the version lives inside it, not in a
+# separate column that could contradict it.
 class CreateOutboxEvents < ActiveRecord::Migration[8.1]
   def change
     create_tenant_table :outbox_events do |t|
@@ -20,9 +20,8 @@ class CreateOutboxEvents < ActiveRecord::Migration[8.1]
       t.timestamps
 
       t.check_constraint "name ~ '^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*\\.v[0-9]+$'", name: "chk_outbox_events_name_format"
-      # Lo que recorre el relay: pendientes por id (UUIDv7: orden de creación). Se vacía a medida que se publica.
+      # What the relay walks: pending events by id (UUIDv7: creation order). It shrinks as events are published.
       t.index :id, where: "published_at IS NULL", name: "idx_outbox_events_pending"
-      # Purga de publicados antiguos.
       t.index :published_at, where: "published_at IS NOT NULL", name: "idx_outbox_events_published_at"
     end
   end

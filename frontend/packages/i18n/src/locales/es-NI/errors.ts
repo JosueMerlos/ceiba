@@ -16,7 +16,7 @@ export const errors = {
     title: "Algo salió mal",
     description: "No pudimos mostrar esta pantalla. Ya quedó registrado; intente de nuevo.",
   },
-  // Mensajes por `code` de la API (problem+json). El frontend decide por `code`, nunca por el `message` del servidor.
+  // Messages by API `code` (problem+json). The front end decides by `code`, never by the server's `message`.
   code: {
     "auth.invalid_credentials": "El correo o la contraseña no son correctos.",
     "auth.csrf_invalid":

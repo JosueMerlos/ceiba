@@ -1,17 +1,17 @@
 Rails.application.routes.draw do
-  # Todo vive bajo /api: el proxy no quita el prefijo, así desarrollo y producción coinciden (ADR-0013).
-  # format: false: la API no admite extensión de formato (/login.json esquivaría las reglas de Rack::Attack por ruta).
+  # Everything lives under /api: the proxy does not strip the prefix, so development and production match.
+  # format: false because the API takes no format extension (/login.json would dodge the per-path Rack::Attack rules).
   scope path: "api", format: false do
     get "health", to: "health#show"
     get "ready", to: "ready#show"
 
-    # Swagger UI y el contrato versionado: solo desarrollo, test y staging (Api::Docs.enabled?).
+    # Swagger UI and the versioned contract: development, test and staging only.
     if Api::Docs.enabled?
       mount Rswag::Ui::Engine => "docs"
       mount Rswag::Api::Engine => "docs"
     end
 
-    # API v1. Cada pack aporta sus controladores en Api::V1::<Pack> (docs/architecture/02-modular-monolith.md).
+    # API v1. Each pack contributes its controllers under Api::V1::<Pack>.
     scope path: "v1", module: "api/v1" do
       draw(:identity)
       draw(:access)

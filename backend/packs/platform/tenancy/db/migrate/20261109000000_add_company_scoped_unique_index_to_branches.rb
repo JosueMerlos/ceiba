@@ -1,6 +1,6 @@
-# Una sucursal es identificable también por (organization_id, company_id, id): permite que otras tablas (memberships,
-# M0.08) referencien una sucursal CON su empresa mediante una FK compuesta, y que la base impida un membership de
-# sucursal cuya company_id no sea la de esa sucursal. El índice es único porque `id` ya lo es.
+# A branch is also identifiable by (organization_id, company_id, id): other tables (memberships) can reference a branch WITH
+# its company through a composite FK, and the database rejects a branch membership whose company_id is not that branch's.
+# The index is unique because `id` already is.
 class AddCompanyScopedUniqueIndexToBranches < ActiveRecord::Migration[8.1]
   disable_ddl_transaction!
 

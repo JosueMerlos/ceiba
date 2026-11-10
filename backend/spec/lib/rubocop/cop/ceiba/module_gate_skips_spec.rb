@@ -3,8 +3,8 @@ require "rubocop"
 require "rubocop/rspec/support"
 require "rubocop/cop/ceiba/module_gate_skips"
 
-# El 404 de un módulo inactivo lo emite ensure_required_module_enabled! (Modules::RequiresModule). Saltárselo en un controlador con
-# `requires_module` deja las rutas del módulo abiertas con el módulo apagado (sonda C1 de la revisión de M0.09).
+# The 404 of an inactive module is emitted by ensure_required_module_enabled! (Modules::RequiresModule). Skipping it in
+# a controller with `requires_module` leaves the module's routes open with the module off.
 RSpec.describe RuboCop::Cop::Ceiba::ModuleGateSkips, :config do
   let(:ruby_version) { 3.4 }
   let(:cop_config) { { "Include" => [ "packs/*/*/app/controllers/**/*.rb" ] } }

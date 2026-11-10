@@ -1,15 +1,16 @@
-# audit_events: quién hizo qué, con el antes y el después (ADR-0022). Tabla TENANT: cada evento pertenece a una
-# organización. APPEND-ONLY garantizado por un trigger de PostgreSQL que rechaza UPDATE, DELETE y TRUNCATE
-# (el trigger viaja en db/structure.sql; un REVOKE no lo haría porque structure.sql se vuelca sin privilegios).
+# audit_events: who did what, with before and after. TENANT table: each event belongs to an organization. APPEND-ONLY,
+# guaranteed by a PostgreSQL trigger that rejects UPDATE, DELETE and TRUNCATE (the trigger ships in db/structure.sql; a
+# REVOKE would not, because structure.sql is dumped without privileges).
 #
-# Es un control contra la APLICACIÓN (y contra SQL crudo con el rol app_user), no contra un DBA: el dueño de la tabla
-# puede desactivar el trigger (docs/architecture/11-security.md).
+# A control against the APPLICATION (and against raw SQL as app_user), not against a DBA: the table owner can disable
+# the trigger.
 #
-# - `actor_type` / `actor_id`: el principal (user, api_key, platform_staff...) o `system` sin id (jobs, seeds, consola).
-# - `auditable_type` / `auditable_id`: el sujeto (polimórfico, sin FK: una auditoría no debe impedir ni depender del
-#   ciclo de vida de su sujeto).
-# - `before` / `after`: SOLO los atributos que cambiaron, sin campos sensibles y con la PII cifrada como [FILTERED].
-# - Sin `updated_at`: una fila nunca cambia.
+# - `actor_type` / `actor_id`: the principal (user, api_key, platform_staff...) or `system` without id (jobs, seeds,
+#   console).
+# - `auditable_type` / `auditable_id`: the subject (polymorphic, no FK: an audit must neither block nor depend on its
+#   subject's lifecycle).
+# - `before` / `after`: ONLY the attributes that changed, without sensitive fields and with encrypted PII as [FILTERED].
+# - No `updated_at`: a row never changes.
 class CreateAuditEvents < ActiveRecord::Migration[8.1]
   REJECT_FUNCTION = <<~SQL.freeze
     CREATE FUNCTION reject_audit_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
@@ -36,7 +37,7 @@ class CreateAuditEvents < ActiveRecord::Migration[8.1]
       t.jsonb :metadata, null: false, default: {}
       t.datetime :created_at, null: false
 
-      # Historial de un sujeto ("qué le pasó a esta cita") y listado cronológico de la organización.
+      # A subject's history ("what happened to this appointment") and the organization's chronological listing.
       t.index %i[organization_id auditable_type auditable_id], name: "idx_audit_events_subject"
       t.index %i[organization_id created_at], name: "idx_audit_events_created_at"
     end

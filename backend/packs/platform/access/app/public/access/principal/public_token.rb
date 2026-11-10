@@ -1,7 +1,6 @@
 module Access
   module Principal
-    # Cliente final con un enlace firmado de una cita (alcance mínimo). SOLO LA INTERFAZ: la implementación llega con M3.04.
-    # Mientras tanto niega todo.
+    # End customer with a signed appointment link (minimal scope). INTERFACE ONLY: denies everything for now.
     class PublicToken
       include Principal
 

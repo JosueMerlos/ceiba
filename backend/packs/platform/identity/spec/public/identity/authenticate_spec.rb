@@ -1,6 +1,6 @@
 require "rails_helper"
 
-# Login (criterios 6 y 7 de M0.07): credenciales, rotación del token y tiempo constante frente a cuentas inexistentes.
+# Login: credentials, token rotation and constant time against nonexistent accounts.
 RSpec.describe Identity::Authenticate do
   let!(:user) { create(:user, email: "ana@ceiba.test", password: "contraseña-segura-1") }
   let(:now) { Time.zone.parse("2026-11-08 12:00:00") }

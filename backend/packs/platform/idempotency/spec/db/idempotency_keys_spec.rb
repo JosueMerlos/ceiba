@@ -1,7 +1,6 @@
 require "rails_helper"
 
-# Esquema de idempotency_keys (M0.11, docs/architecture/07-api-contract.md#idempotencia): tabla TENANT, una clave por
-# (organización, principal, clave).
+# Schema of idempotency_keys: TENANT table, one key per (organization, principal, key).
 RSpec.describe "Tabla idempotency_keys" do
   let(:connection) { ApplicationRecord.connection }
 

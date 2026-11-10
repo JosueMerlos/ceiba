@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Los specs con Redis real hacen flushdb y destruyen el cron: jamás pueden compartir la base de Redis con desarrollo
-# (compose da REDIS_URL=redis://redis:6379/0 a todos los contenedores, incluido el worker de desarrollo).
+# Specs with real Redis do flushdb and destroy the cron: they can never share the Redis database with development
+# (compose gives REDIS_URL=redis://redis:6379/0 to every container, including the development worker).
 RSpec.describe "Base de Redis de test" do
   it "la URL de Redis en test es una base exclusiva (/15), no la de desarrollo" do
     expect(URI(Rails.configuration.x.redis_url).path).to eq("/15")

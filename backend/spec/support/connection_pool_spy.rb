@@ -1,7 +1,6 @@
-# Espía los puntos de entrada del pool de Active Record por los que se obtiene una conexión.
-# Con fixtures transaccionales el hilo del test ya tiene una conexión arrendada, así que vigilar
-# solo `checkout` no detectaría un uso: también hay que vigilar `lease_connection` y
-# `with_connection` (`connection` ya no existe en Rails 8.1).
+# Spies on the Active Record pool entry points through which a connection is obtained. With transactional fixtures the
+# test thread already has a leased connection, so watching only `checkout` would not detect a use: `lease_connection`
+# and `with_connection` must be watched too (`connection` no longer exists in Rails 8.1).
 module ConnectionPoolSpy
   POOL_ENTRY_POINTS = %i[checkout with_connection lease_connection].freeze
 

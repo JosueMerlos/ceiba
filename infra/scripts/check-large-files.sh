@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fails when the change adds a binary over 100 KiB or any file over 1 MiB (docs/harness/verificacion.md).
+# Fails when the change adds a binary over 100 KiB or any file over 1 MiB.
 # A blob that enters history stays there forever, even if a later commit deletes it, so every blob the branch
 # introduces is checked, not only the final tree. Screenshots, videos and PR evidence belong in the PR, not in git.
 #

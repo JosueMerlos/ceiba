@@ -22,7 +22,7 @@ function DialogOverlay({ className, ...props }: ComponentProps<typeof DialogPrim
 }
 
 interface DialogContentProps extends ComponentProps<typeof DialogPrimitive.Content> {
-  /** Texto accesible del botón de cierre (lo aporta la app, ya traducido). */
+  /** Accessible text of the close button (supplied by the app, already translated). */
   closeLabel: string;
 }
 

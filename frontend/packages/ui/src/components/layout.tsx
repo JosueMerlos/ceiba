@@ -6,21 +6,19 @@ import { cn } from "../lib/cn";
 const MAIN_ID = "contenido-principal";
 
 interface AppLayoutProps {
-  /** Texto del enlace "saltar al contenido" (traducido por la app). */
+  /** Text of the "skip to content" link (translated by the app). */
   skipLinkLabel: string;
-  /** Nombre accesible de la navegación principal. */
   navigationLabel: string;
   brand: ReactNode;
-  /** Items de navegación (`NavItem`); null = sin navegación (p. ej. sin módulos). */
+  /** Navigation items (`NavItem`); null = no navigation (e.g. no modules). */
   navigation: ReactNode;
-  /** Acciones de la cabecera: selector de contexto, menú de cuenta. */
   actions: ReactNode;
   children: ReactNode;
 }
 
 /**
- * Estructura del panel: cabecera, navegación y contenido. En pantallas anchas la navegación es una columna lateral; en
- * tablet y móvil pasa a una fila deslizable bajo la cabecera.
+ * Panel structure: header, navigation and content. On wide screens navigation is a side column; on tablet and mobile
+ * it becomes a scrollable row under the header.
  */
 function AppLayout({
   skipLinkLabel,
@@ -59,7 +57,7 @@ function AppLayout({
   );
 }
 
-/** Enlace de navegación. Con `asChild` toma el estilo de un <NavLink>; se marca por `aria-current="page"`. */
+/** Navigation link. With `asChild` it styles a <NavLink>; the active one is marked by `aria-current="page"`. */
 function NavItem({
   className,
   asChild = false,
@@ -100,7 +98,7 @@ function PageHeader({ title, description, actions }: PageHeaderProps) {
 }
 
 interface StatusPageProps {
-  /** Código visible (404, 403…): es un dato, no texto traducible. */
+  /** Visible code (404, 403...): data, not translatable text. */
   code?: string;
   title: ReactNode;
   description: ReactNode;
@@ -108,7 +106,7 @@ interface StatusPageProps {
   className?: string;
 }
 
-/** Pantalla de estado (no encontrado, sin permiso, error): explica qué pasó y ofrece la salida. */
+/** Status screen (not found, no permission, error): explains what happened and offers a way out. */
 function StatusPage({ code, title, description, action, className }: StatusPageProps) {
   return (
     <section

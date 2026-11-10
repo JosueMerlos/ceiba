@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Integración de la selección de rol (config/db_roles.rb + config/initializers/seed_role.rb): cada caso corre
-# en un proceso nuevo sobre una copia de la app con su propia base.
+# Integration of role selection (config/db_roles.rb + config/initializers/seed_role.rb): each case runs in a new process
+# over a copy of the app with its own database.
 RSpec.describe "Rol de base de datos por tarea" do
   let(:app) { TemporaryAppCopy.new(database: "ceiba_role_probe").create }
   let(:current_user) { "puts ActiveRecord::Base.connection.select_value('SELECT current_user')" }
@@ -38,7 +38,7 @@ RSpec.describe "Rol de base de datos por tarea" do
 
   %w[db:prepare db:setup].each do |task|
     it "#{task} migra como owner pero siembra como app_user" do
-      # La base de test no se siembra (seeds: false); aquí se activa en la copia para probar el rol de los seeds.
+      # The test database is not seeded (seeds: false); here it is enabled in the copy to test the seeds' role.
       app.write("config/database.yml", app.read("config/database.yml").sub("\n  seeds: false", "\n  seeds: true"))
       run_as_seed_probe
 

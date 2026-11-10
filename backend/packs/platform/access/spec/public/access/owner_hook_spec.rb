@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Hook after_provision de access: el dueño de la organización recibe el membership org_owner EN LA MISMA transacción de la
-# provisión. Los datos del dueño llegan en `extras: { owner: }` (Tenancy no los interpreta).
+# The owner gets the org_owner membership IN THE SAME transaction as provisioning. Owner data arrives in
+# `extras: { owner: }` (Tenancy does not interpret it).
 RSpec.describe "Provisión de una organización con dueño", type: :request do
   let(:owner) { Identity::ProvisionUser.call(email: "dueno@ceiba.test", full_name: "Rosa Mendoza", password: "contraseña-segura-1") }
   let(:params) do

@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import { Toaster as Sonner, toast } from "sonner";
 
-// Avisos breves (shadcn/ui usa Sonner). Los colores salen de los tokens semánticos.
+// Brief notices (shadcn/ui uses Sonner). Colors come from the semantic tokens.
 function Toaster(props: ComponentProps<typeof Sonner>) {
   return (
     <Sonner

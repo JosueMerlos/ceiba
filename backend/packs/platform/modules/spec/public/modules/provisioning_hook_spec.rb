@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Hook after_provision (M0.09): la organización recién provisionada nace con los módulos por defecto activos (hoy, appointments).
-# Corre en la MISMA transacción que la provisión y se registra desde config.to_prepare (key: :modules_defaults).
+# after_provision hook: a freshly provisioned organization starts with the default modules enabled (currently appointments).
+# Runs in the SAME transaction as provisioning and is registered from config.to_prepare (key: :modules_defaults).
 RSpec.describe "Activación de los módulos por defecto al provisionar" do
   def provision(slug: "barberia-#{SecureRandom.hex(3)}")
     Tenancy::ProvisionOrganization.call(

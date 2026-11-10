@@ -1,11 +1,11 @@
 module Observability
-  # Formateador del logger de Rails: UNA línea JSON por entrada, apta para agregadores (Loki, CloudWatch, Datadog).
+  # Rails logger formatter: ONE JSON line per entry, suitable for aggregators (Loki, CloudWatch, Datadog).
   #
-  #   {"ts":"2026-11-09T12:30:15.123Z","level":"INFO","msg":"..."}                       texto
-  #   {"ts":"...","level":"INFO","method":"GET","status":200,"request_id":"..."}        Hash (la línea de lograge)
+  #   {"ts":"2026-11-09T12:30:15.123Z","level":"INFO","msg":"..."}                       text
+  #   {"ts":"...","level":"INFO","method":"GET","status":200,"request_id":"..."}        Hash (the lograge line)
   #
-  # Un Hash se aplana en la raíz para que cada campo sea filtrable sin parsear `msg`. Conserva las etiquetas de
-  # `Rails.logger.tagged` (lista `tags`). Un salto de línea dentro de un texto sale escapado: sigue siendo UNA línea.
+  # A Hash is flattened to the root so each field is filterable without parsing `msg`. Keeps the `Rails.logger.tagged`
+  # tags (`tags` list). A newline inside text comes out escaped: still ONE line.
   class JsonLogFormatter < ::Logger::Formatter
     include ActiveSupport::TaggedLogging::Formatter
 
@@ -19,8 +19,8 @@ module Observability
 
     private
 
-    # Dentro de un job de Sidekiq, TODA línea del logger de Rails (no solo las de Sidekiq) lleva el job y su organización.
-    # Los pone JobObservability::JobLogger en el contexto de Sidekiq.
+    # Inside a Sidekiq job, EVERY Rails logger line (not only Sidekiq's) carries the job and its organization.
+    # JobObservability::JobLogger sets them in the Sidekiq context.
     def job_fields
       return {} unless defined?(Sidekiq::Context)
 

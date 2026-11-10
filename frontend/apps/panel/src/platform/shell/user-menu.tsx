@@ -14,7 +14,7 @@ import { lazy, Suspense, useState } from "react";
 import { useNavigate } from "react-router";
 import { useMe } from "../me/me-provider";
 
-// El diálogo se carga la primera vez que se pide (no pesa en el arranque del panel).
+// The dialog loads the first time it is requested (it does not weigh on panel startup).
 const LogoutAllDialog = lazy(() => import("./logout-all-dialog"));
 
 const initials = (name: string) =>

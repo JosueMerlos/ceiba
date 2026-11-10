@@ -3,7 +3,7 @@ import { afterEach } from "vitest";
 
 afterEach(cleanup);
 
-// jsdom no implementa estas APIs, que Radix usa para el foco y el puntero.
+// jsdom does not implement these APIs, which Radix uses for focus and pointer handling.
 Element.prototype.hasPointerCapture ??= () => false;
 Element.prototype.setPointerCapture ??= () => {};
 Element.prototype.releasePointerCapture ??= () => {};

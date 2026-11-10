@@ -1,8 +1,8 @@
 require "rails_helper"
 require Rails.root.join("config/middleware/network_trust").to_s
 
-# Criterio 3 de M0.13 (parte automática): `remote_ip` es la del cliente, no la del proxy. La verificación real a través del
-# Caddy de desarrollo está en las notas de cierre del hito.
+# `remote_ip` is the client's, not the proxy's (the automatic part; the real check through the development Caddy is
+# manual).
 RSpec.describe "IP real del cliente tras el proxy" do
   let(:output) { StringIO.new }
 
@@ -30,7 +30,7 @@ RSpec.describe "IP real del cliente tras el proxy" do
     expect(logged_remote_ip).to eq("198.51.100.7")
   end
 
-  # Cabeceras con las que un cliente puede intentar decir "mi IP es otra": ninguna debe cambiar remote_ip.
+  # Headers with which a client may try to say "my IP is another one": none may change remote_ip.
   {
     "Forwarded (RFC 7239)" => { "HTTP_FORWARDED" => "for=6.6.6.6" },
     "X-Real-IP" => { "HTTP_X_REAL_IP" => "6.6.6.6" },

@@ -1,16 +1,16 @@
-# De quién nos fiamos en la red (M0.13): proxies que informan la IP del cliente y Host permitidos.
+# Who we trust on the network: proxies that report the client IP, and allowed Hosts.
 module NetworkTrust
-  # `remote_ip` sale de X-Forwarded-For SOLO si la conexión llega de un proxy de confianza. Rails ya confía en loopback y en los
-  # rangos privados (10/8, 172.16/12, 192.168/16, fc00::/7): cubre el Caddy de compose y kamal-proxy en el mismo host. Un proxy
-  # con IP pública (balanceador gestionado) se añade con TRUSTED_PROXIES="203.0.113.0/24,198.51.100.4". Sin esto, todo el
-  # tráfico parece venir de la IP del proxy y los límites de Rack::Attack agrupan a todos los clientes en uno.
-  # Condición: el proxy de borde debe SOBRESCRIBIR X-Forwarded-For (Caddy lo hace por defecto), no concatenar el del cliente.
+  # `remote_ip` comes from X-Forwarded-For ONLY if the connection arrives from a trusted proxy. Rails already trusts loopback
+  # and private ranges (10/8, 172.16/12, 192.168/16, fc00::/7), covering compose's Caddy and kamal-proxy on the same host.
+  # A public-IP proxy (managed load balancer) is added with TRUSTED_PROXIES="203.0.113.0/24,198.51.100.4". Without it all
+  # traffic looks like it comes from the proxy IP and Rack::Attack limits lump every client together.
+  # Requirement: the edge proxy must OVERWRITE X-Forwarded-For (Caddy does by default), not append to the client's.
   module Proxies
     module_function
 
-    # replace_defaults (producción): TRUSTED_PROXIES SUSTITUYE los rangos privados, para estrechar la confianza a la IP del
-    # proxy real (kamal-proxy). Sin TRUSTED_PROXIES se conservan los de Rails (la app no se queda sin ningún proxy). En
-    # desarrollo y test siempre se AÑADEN (la IP del Caddy de compose cambia con cada red).
+    # replace_defaults (production): TRUSTED_PROXIES REPLACES the private ranges, narrowing trust to the real proxy's IP
+    # (kamal-proxy). Without TRUSTED_PROXIES Rails' defaults stay (the app never ends up with no proxy at all). In
+    # development and test they are always ADDED (compose's Caddy IP changes with every network).
     def from(value, replace_defaults: false)
       extra = value.to_s.split(",").map(&:strip).compact_blank.map { |range| IPAddr.new(range) }
       return ActionDispatch::RemoteIp::TRUSTED_PROXIES if extra.empty?
@@ -19,13 +19,12 @@ module NetworkTrust
     end
   end
 
-  # Rails confía en las cabeceras de reenvío aunque la conexión NO venga de un proxy de confianza (probado en
-  # spec/requests/remote_ip_spec.rb): quien llegue directo a la app podría falsear su IP y esquivar el límite por IP de
-  # Rack::Attack. Este middleware, antes de RemoteIp:
-  #   - borra SIEMPRE `Forwarded` (RFC 7239), `Client-IP` y `X-Real-IP`: la app solo lee `X-Forwarded-For`, que el proxy
-  #     sobrescribe; que lleguen otras cabeceras (el cliente las puede mandar y el proxy las reenvía) solo sirve para
-  #     falsear la IP, o para provocar IpSpoofAttackError (500) si `Client-IP` no coincide;
-  #   - borra `X-Forwarded-For` cuando el par directo no es un proxy de confianza.
+  # Rails trusts forwarding headers even when the connection does NOT come from a trusted proxy: anyone reaching the app
+  # directly could forge their IP and dodge Rack::Attack's per-IP limit. This middleware, before RemoteIp:
+  #   - ALWAYS drops `Forwarded` (RFC 7239), `Client-IP` and `X-Real-IP`: the app only reads `X-Forwarded-For`, which the
+  #     proxy overwrites; other headers (a client can send them and the proxy forwards them) only serve to forge the IP,
+  #     or to trigger IpSpoofAttackError (500) when `Client-IP` does not match;
+  #   - drops `X-Forwarded-For` when the direct peer is not a trusted proxy.
   class UntrustedForwardingFilter
     ALWAYS_DROPPED = %w[HTTP_FORWARDED HTTP_CLIENT_IP HTTP_X_REAL_IP].freeze
     PROXY_ONLY = %w[HTTP_X_FORWARDED_FOR].freeze
@@ -51,8 +50,8 @@ module NetworkTrust
     end
   end
 
-  # Rechazo de Host desconocidos (config.hosts): los hosts salen de APP_ORIGINS, la misma lista que valida Origin. Las sondas se
-  # excluyen: un healthcheck llama por IP interna y Host arbitrario.
+  # Rejects unknown Hosts (config.hosts); hosts come from APP_ORIGINS, the same list that validates Origin. Probes are
+  # excluded: a healthcheck calls by internal IP and arbitrary Host.
   module Hosts
     EXCLUDE = ->(request) { %w[/api/health /api/ready].include?(request.path) }
 

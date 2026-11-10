@@ -1,9 +1,9 @@
 require "rails_helper"
 
-# Un spec que deja estado global (Current, Observability::LogContext, el tenant de acts_as_tenant) no debe contagiar al que
-# corre después: con `--seed 5718` log_fields_spec veía un organization_id dejado por otro spec (falla también en main).
-# El reinicio global vive en spec/support/current_attributes_reset.rb; estos dos ejemplos corren EN ORDEN (definido): el
-# primero ensucia, el segundo exige que todo esté limpio.
+# A spec that leaves global state (Current, Observability::LogContext, acts_as_tenant's tenant) must not infect the one
+# that runs next: with `--seed 5718` log_fields_spec saw an organization_id left by another spec (it fails on main too).
+# The global reset lives in spec/support/current_attributes_reset.rb; these two examples run IN ORDER (defined): the
+# first dirties, the second requires everything clean.
 RSpec.describe "reinicio global del estado de specs", order: :defined do
   it "(1) deja estado sucio a propósito" do
     Observability::LogContext.organization_id = "org-sucia"

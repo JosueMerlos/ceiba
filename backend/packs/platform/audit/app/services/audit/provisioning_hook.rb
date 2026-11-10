@@ -1,8 +1,7 @@
 module Audit
-  # Hook de Tenancy::ProvisionOrganization.after_provision: audita organization.provisioned. Corre dentro de la transacción
-  # de la provisión y del contexto de la organización nueva, así que el evento nace atómico con ella. Tenancy no conoce a
-  # Audit: el pack se engancha desde config.to_prepare (config/initializers/provisioning_hook.rb). El actor es el
-  # principal que provisiona (Current.principal) o el sistema.
+  # Tenancy::ProvisionOrganization.after_provision hook: audits organization.provisioned inside the provisioning
+  # transaction and the new organization's context, so the event is atomic with it.
+  # Tenancy does not know Audit; the pack registers this from config.to_prepare. Actor: Current.principal or the system.
   module ProvisioningHook
     KEY = :audit_organization_provisioned
 
@@ -15,7 +14,7 @@ module Audit
       )
     end
 
-    # Idempotente por `key:`: se puede llamar en cada recarga.
+    # Idempotent by `key:`: safe to call on every reload.
     def register = Tenancy::ProvisionOrganization.after_provision(self, key: KEY)
   end
 end

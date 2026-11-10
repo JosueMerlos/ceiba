@@ -1,4 +1,5 @@
 module Idempotency
-  # El endpoint idempotente corrió sin contexto de tenancy: no hay organización a la que atribuir la clave. Es un bug de programación (500); el contexto se abre ANTES (Tenancy.with_context).
+  # The idempotent endpoint ran without a tenancy context: no organization to attribute the key to. A programming bug
+  # (500); the context is opened BEFORE (Tenancy.with_context).
   class MissingContext < Error; end
 end

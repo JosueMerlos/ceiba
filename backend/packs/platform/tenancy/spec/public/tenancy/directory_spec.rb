@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Tenancy::Directory: la lectura PÚBLICA de organizaciones, empresas y sucursales para otros packs (access resuelve la ruta con
-# ella). Los modelos son privados; esto devuelve registros opacos y relaciones, y respeta el tenant activo.
+# Tenancy::Directory: PUBLIC read access to organizations, companies and branches for other packs (access resolves the route
+# with it). Models are private; this returns opaque records and relations and respects the active tenant.
 RSpec.describe Tenancy::Directory do
   let(:organization) { create(:organization) }
   let(:other_organization) { create(:organization) }

@@ -1,17 +1,17 @@
 module Observability
-  # Dónde está el tenant "recordado" de la request o el job en curso, para escribirlo en el log y en Sentry DESPUÉS de que
-  # el bloque de Tenancy.with_context haya terminado.
+  # Where the "remembered" tenant of the current request or job lives, to write it to the log and Sentry AFTER the
+  # Tenancy.with_context block has finished.
   #
-  # Por qué existe: la línea de log de una request se escribe al terminar la acción, cuando un `around_action` con
-  # `Tenancy.with_context` ya salió y `Current.context` volvió a nil. Y un job que lanza una excepción la propaga fuera del
-  # contexto antes de que Sentry la capture. Se rellena en Observability::TenancyHook (cada `with_context`) y en el middleware
-  # de jobs; Rails lo reinicia solo al terminar cada request o job (ActiveSupport::CurrentAttributes).
+  # Why it exists: a request's log line is written when the action ends, after an `around_action` with
+  # `Tenancy.with_context` already exited and `Current.context` went back to nil. And a job that raises propagates the
+  # exception out of the context before Sentry captures it. Filled by Observability::TenancyHook (every `with_context`)
+  # and the jobs middleware; Rails resets it after each request or job (ActiveSupport::CurrentAttributes).
   #
-  # Guarda IDs, nunca entidades: el log no debe retener modelos.
+  # Holds IDs, never entities: the log must not retain models.
   class LogContext < ActiveSupport::CurrentAttributes
     attribute :organization_id, :company_id, :branch_id, :job_class
 
-    # Recuerda el último contexto abierto (en un contexto anidado, el más interno).
+    # Remembers the last opened context (the innermost one when nested).
     def self.remember(context)
       self.organization_id = context.organization&.id
       self.company_id = context.company&.id

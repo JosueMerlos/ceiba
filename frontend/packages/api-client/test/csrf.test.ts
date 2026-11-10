@@ -22,7 +22,7 @@ beforeEach(() => {
   csrf = createCsrfStore();
 });
 
-/** Registra un handler que anota las cabeceras que llegaron. */
+/** Registers a handler that records the headers received. */
 function record(
   method: "get" | "post" | "delete",
   path: string,

@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Job backend-migrations de CI (y de bin/ci): las migraciones funcionan desde cero, son reversibles y
-# db/structure.sql corresponde a ellas. Se ejecuta desde backend/. Requiere PostgreSQL con los roles app_owner/app_user
-# (infra/db/init-roles.sh) y DB_HOST, POSTGRES_*, APP_OWNER_PASSWORD, APP_USER_PASSWORD.
+# CI backend-migrations job (and bin/ci): migrations work from scratch, are reversible and db/structure.sql matches
+# them. Run from backend/. Needs PostgreSQL with the app_owner/app_user roles and DB_HOST, POSTGRES_*,
+# APP_OWNER_PASSWORD, APP_USER_PASSWORD.
 #
-#   1. migrar DE VERDAD desde una base vacía        -> el volcado debe ser IGUAL al db/structure.sql versionado
-#   2. revertir la última migración y volver a migrar -> igual al paso 1 (down correcto y volcado determinista)
-#   3. cargar db/structure.sql en una base vacía y volver a volcarlo -> igual al versionado (estabilidad al recargar);
-#      extensiones, políticas y FKs compuestas incluidas
-# strong_migrations bloquea en el paso 1 cualquier migración peligrosa (spec/config/strong_migrations_spec.rb).
+#   1. really migrate from an empty database          -> the dump must EQUAL the versioned db/structure.sql
+#   2. roll back the last migration and migrate again -> equal to step 1 (correct down and deterministic dump)
+#   3. load db/structure.sql into an empty database and dump it again -> equal to the versioned one (stable on reload);
+#      extensions, policies and composite FKs included
+# strong_migrations blocks any dangerous migration in step 1.
 #
-# TRAMPA de Rails 8.1: con db/structure.sql presente, `db:migrate` sobre una base vacía NO ejecuta las migraciones: antes
-# (DatabaseTasks#initialize_database) CARGA el structure.sql y solo vuelca de nuevo, así que "migrar desde cero" pasaría
-# siempre aunque el archivo no corresponda a las migraciones (pg_dump y los CHECK pueden diferir: `OR` frente a `ANY(ARRAY)`).
-# Por eso el volcado va a un SCHEMA que no existe (tmp/): sin archivo que cargar, se migra de verdad.
+# Rails 8.1 TRAP: with db/structure.sql present, `db:migrate` on an empty database does NOT run the migrations: first
+# (DatabaseTasks#initialize_database) it LOADS structure.sql and only dumps again, so "migrate from scratch" would
+# always pass even if the file does not match the migrations (pg_dump and CHECKs may differ: `OR` vs `ANY(ARRAY)`).
+# That is why the dump goes to a SCHEMA that does not exist (tmp/): with no file to load, it really migrates.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -22,8 +22,8 @@ reloaded="tmp/structure_reloaded.sql"
 trap 'rm -f "$from_migrations" "$reloaded"' EXIT
 rm -f "$from_migrations" "$reloaded"
 
-# Compara dos volcados sin los comentarios `--` (versión de pg_dump, fechas) ni las líneas en blanco.
-assert_same_structure() { # esperado, obtenido, descripción
+# Compares two dumps ignoring `--` comments (pg_dump version, dates) and blank lines.
+assert_same_structure() { # expected, actual, description
   if ! diff -u <(grep -v '^--' "$1" | grep -v '^$') <(grep -v '^--' "$2" | grep -v '^$'); then
     echo "ci-migrations: el esquema no coincide tras '$3'. Regenera db/structure.sql migrando de verdad (ver docs/architecture/09-data-conventions.md)" >&2
     exit 1

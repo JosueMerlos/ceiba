@@ -1,19 +1,18 @@
 module Events
-  # Entrega un evento a UN suscriptor. Lo encola el relay con el organization_id en el payload; el middleware de Sidekiq
-  # (TenantJobMiddleware) lo ejecuta dentro de Tenancy.with_context, o sea, en una transacción y con el tenant del evento.
+  # Delivers an event to ONE subscriber. The relay enqueues it with the organization_id in the payload; the Sidekiq
+  # middleware (TenantJobMiddleware) runs it inside Tenancy.with_context, i.e. in a transaction with the event's tenant.
   #
-  # Idempotencia: processed_events tiene UNIQUE (event_id, subscriber). Se inserta la marca ANTES de invocar al
-  # suscriptor y en la misma transacción: si el suscriptor lanza, se revierte todo (marca incluida) y Sidekiq reintenta;
-  # si la marca ya existía, la entrega es un duplicado y no hace nada. Dos entregas simultáneas: la segunda espera al
-  # COMMIT de la primera y recibe RecordNotUnique.
-  #
-  # Pendiente de M0.09: verificar que el módulo del suscriptor esté activo para la empresa del evento.
+  # Idempotency: processed_events has UNIQUE (event_id, subscriber). The mark is inserted BEFORE invoking the
+  # subscriber, in the same transaction: if the subscriber raises, everything (mark included) rolls back and Sidekiq
+  # retries; if the mark already existed, the delivery is a duplicate and does nothing. Two simultaneous deliveries: the
+  # second waits for the first's COMMIT and gets RecordNotUnique.
   class DeliverJob
     include Sidekiq::Job
 
     sidekiq_options queue: "critical"
 
-    # Un suscriptor que este proceso no conoce no se arregla reintentando durante ~21 días: cola muerta de inmediato.
+    # A subscriber this process does not know is not fixed by retrying for ~21 days: send it to the dead queue
+    # immediately.
     sidekiq_retry_in { |_count, exception| exception.is_a?(UnknownSubscriber) ? :kill : :default }
 
     def perform(event_id, subscriber)
@@ -26,7 +25,7 @@ module Events
 
     private
 
-    # El savepoint permite capturar la violación de unicidad sin abortar la transacción del contexto.
+    # The savepoint lets us catch the uniqueness violation without aborting the context's transaction.
     def first_delivery?(record, subscriber)
       ProcessedEvent.transaction(requires_new: true) { ProcessedEvent.create!(event_id: record.id, subscriber:, processed_at: Time.current) }
       true

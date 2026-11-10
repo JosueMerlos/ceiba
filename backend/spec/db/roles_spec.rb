@@ -1,7 +1,6 @@
 require "rails_helper"
 
-# Criterio 5 de M0.04: la aplicación conecta como `app_user` (sin dueño de tablas, sin BYPASSRLS);
-# las migraciones corren como `app_owner`. ADR-0005 y docs/architecture/03-multi-tenancy.md.
+# The application connects as `app_user` (not a table owner, no BYPASSRLS); migrations run as `app_owner`.
 RSpec.describe "Roles de base de datos" do
   def select_value(sql) = ActiveRecord::Base.connection.select_value(sql)
 
@@ -50,8 +49,8 @@ RSpec.describe "Roles de base de datos" do
     OwnerConnection.with do |owner|
       owner.execute("CREATE TABLE roles_grant_probe (id uuid PRIMARY KEY DEFAULT uuidv7(), name text)")
       begin
-        # Se consulta con has_table_privilege desde la conexión de dueño: usar la conexión transaccional
-        # de la suite dejaría un bloqueo abierto sobre la tabla y el DROP se quedaría esperando.
+        # Queried with has_table_privilege from the owner connection: using the suite's transactional connection would
+        # leave a lock open on the table and the DROP would wait forever.
         privileges = %w[SELECT INSERT UPDATE DELETE].index_with do |privilege|
           owner.select_value("SELECT has_table_privilege('app_user', 'roles_grant_probe', '#{privilege}')")
         end

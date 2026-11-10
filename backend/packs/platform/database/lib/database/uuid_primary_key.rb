@@ -1,7 +1,7 @@
 module Database
-  # Toda PK `uuid` usa el default `uuidv7()` de PostgreSQL 18 (ADR-0006) en lugar del `gen_random_uuid()`
-  # (UUIDv4) que Rails pone por defecto: así `create_table :foos, id: :uuid` (lo que genera
-  # `rails g model` con primary_key_type: :uuid) es correcto sin recordar nada. Un default explícito se respeta.
+  # Every `uuid` PK defaults to PostgreSQL 18's `uuidv7()` instead of the `gen_random_uuid()` (UUIDv4) Rails uses,
+  # so `create_table :foos, id: :uuid` (what `rails g model` emits) is correct without extra work.
+  # An explicit default is respected.
   module UuidPrimaryKey
     DEFAULT = "uuidv7()".freeze
 

@@ -7,7 +7,7 @@ require "rspec/rails"
 # Helpers compartidos (spec/support/**/*.rb).
 Rails.root.glob("spec/support/**/*.rb").sort.each { |file| require file }
 
-# Esquema de test al día (db:prepare como dueño en un subproceso si hace falta): ver spec/support/test_schema.rb.
+# Test schema up to date (db:prepare as owner in a subprocess if needed): see spec/support/test_schema.rb.
 TestSchema.ensure_current!
 
 RSpec.configure do |config|

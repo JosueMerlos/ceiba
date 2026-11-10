@@ -1,5 +1,5 @@
 module Database
-  # Hace reversibles los helpers en migraciones `change`.
+  # Makes the helpers reversible in `change` migrations.
   module CommandRecorder
     def create_tenant_table(*args, &block)
       record(:create_tenant_table, args, &block)

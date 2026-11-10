@@ -1,10 +1,11 @@
 module Events
-  # Publica el outbox (Events::Relay). Lo programa sidekiq-cron cada 5 s y se dispara también tras el commit de cada
-  # evento. Es un job del SISTEMA: cruza organizaciones, así que declara `tenant: false` (sin él el middleware lo rechaza).
+  # Publishes the outbox (Events::Relay). Scheduled by sidekiq-cron every 5 s and also triggered after each event's
+  # commit. A SYSTEM job: it crosses organizations, so it declares `tenant: false` (the middleware rejects it
+  # otherwise).
   #
-  # Sin reintentos de Sidekiq: el cron lo vuelve a lanzar en 5 s y un reintento acumulado solo apilaría relays. El fallo
-  # no se pierde: se reporta al error reporter de Rails (Sentry lo recoge cuando exista), queda en outbox_events
-  # (attempts, last_error) y el lag crece hasta disparar la alerta (M0.13).
+  # No Sidekiq retries: cron relaunches it in 5 s and a queued retry would only pile up relays. A failure is not lost:
+  # it is reported to Rails' error reporter, recorded in outbox_events (attempts, last_error), and the lag grows until
+  # the alert fires.
   class RelayJob
     include Sidekiq::Job
 

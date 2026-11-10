@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Criterios 1, 2 y 3 de M0.06 y la tabla de estados de docs/architecture/07-api-contract.md: todo error de la API sale
-# como application/problem+json (RFC 9457) con type, title, status, code y request_id, y un 500 NUNCA filtra detalles.
+# Every API error comes out as application/problem+json (RFC 9457) with type, title, status, code and request_id, and a
+# 500 NEVER leaks details.
 RSpec.describe "Errores de la API (problem+json)" do
   include_context "con endpoints de prueba de la API"
 

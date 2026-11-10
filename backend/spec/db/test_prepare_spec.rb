@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# `db:prepare` sobre una base de test VACÍA (como en el job backend-test de CI) carga el esquema y, en Rails 8.1, también
-# los seeds. Los specs asumen una base sin organizaciones: la base de test no se siembra nunca.
+# `db:prepare` on an EMPTY test database (as in the CI backend-test job) loads the schema and, in Rails 8.1, the seeds
+# too. The specs assume a database with no organizations: the test database is never seeded.
 RSpec.describe "db:prepare en la base de test" do
   let(:app) { TemporaryAppCopy.new(database: "ceiba_prepare_probe").create }
 

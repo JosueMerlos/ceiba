@@ -1,12 +1,12 @@
-# idempotency_keys: respuestas guardadas para que reintentar una creación sea seguro (docs/architecture/07-api-contract.md).
-# Tabla TENANT. Única por (organización, principal, clave): la clave de un principal nunca repite la respuesta de otro.
+# idempotency_keys: stored responses so that retrying a creation is safe. TENANT table, unique per (organization,
+# principal, key): one principal's key never replays another's response.
 #
-# - `principal_key`: "user:<uuid>", "api_key:<uuid>"... o "anonymous" (reserva pública, sin sesión). Una sola columna de
-#   texto y no (type, id) porque un UNIQUE no trata los NULL como iguales y el anónimo no tiene id.
-# - `request_fingerprint`: SHA-256 de método + ruta + cuerpo. Misma clave y otro fingerprint => 409.
-# - `response_*` son NULL mientras la petición se procesa (la reserva vive dentro de la transacción del request: nadie más
-#   la ve hasta el commit, y un rollback la elimina).
-# - `expires_at`: 24 h. Las filas vencidas se ignoran y se reemplazan al reutilizar la clave; la purga masiva no se pide en M0.11.
+# - `principal_key`: "user:<uuid>", "api_key:<uuid>"... or "anonymous" (public booking, no session). A single text
+#   column rather than (type, id) because a UNIQUE does not treat NULLs as equal and anonymous has no id.
+# - `request_fingerprint`: SHA-256 of method + path + body. Same key and another fingerprint => 409.
+# - `response_*` are NULL while the request is processing (the reservation lives inside the request's transaction:
+#   nobody else sees it until commit, and a rollback removes it).
+# - `expires_at`: 24 h. Expired rows are ignored and replaced when the key is reused.
 class CreateIdempotencyKeys < ActiveRecord::Migration[8.1]
   def change
     create_tenant_table :idempotency_keys do |t|

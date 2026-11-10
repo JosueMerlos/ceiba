@@ -1,7 +1,6 @@
 module Modules
-  # Lo común de Enable y Disable (docs/architecture/05-module-system.md, "Activación por empresa"): ambos corren en UNA
-  # transacción con el cambio de la fila, el hook del módulo y el evento (atómicos: si algo falla no queda nada), son idempotentes
-  # y exigen que la empresa sea de la organización del contexto de tenancy.
+  # Shared by Enable and Disable: both run the row change, the module hook and the event in ONE transaction (atomic: if
+  # anything fails nothing remains), are idempotent, and require the company to belong to the tenancy context's organization.
   class Activation
     def self.call(company:, key:) = new(company:, key:).call
 
@@ -25,20 +24,20 @@ module Modules
       raise Error, "La empresa #{company.id} no pertenece a la organización del contexto (#{tenant.id})"
     end
 
-    # Serializa TODAS las activaciones y desactivaciones de UNA empresa hasta el fin de la transacción: comprobar `requires` (leer) y
-    # escribir no es atómico por fila, y sin esto un Enable del complemento y un Disable de su base podían hacer COMMIT a la vez y
-    # dejar un módulo activo sin lo que requiere. Las de otras empresas no se bloquean.
+    # Serializes ALL enables/disables of ONE company until the transaction ends: checking `requires` (read) then writing is not
+    # atomic per row, so an Enable of an add-on and a Disable of its base could commit together and leave a module active without
+    # what it requires. Other companies are not blocked.
     def lock_company!
       connection = ApplicationRecord.connection
       connection.execute("SELECT pg_advisory_xact_lock(hashtext(#{connection.quote("ceiba.modules.company:#{company.id}")}))")
     end
 
-    # Fila de (empresa, módulo) bloqueada hasta el fin de la transacción: dos activaciones simultáneas se serializan.
+    # Locked until the transaction ends, so two simultaneous activations serialize.
     def locked_row = CompanyModule.lock.find_by(company_id: company.id, module_key: key)
 
     def active_keys = CompanyModule.active.where(company_id: company.id).pluck(:module_key)
 
-    # `on_enable`/`on_disable` son cadenas (la plataforma no conoce las constantes de los módulos): se resuelven aquí.
+    # Hooks are strings (the platform does not know module constants), so they are resolved here.
     def run_hook(hook, constant_name)
       return if constant_name.nil?
 
@@ -50,8 +49,7 @@ module Modules
 
     def publish(event_name) = Events.publish(event_name, company_id: company.id, module: key)
 
-    # Auditoría (ADR-0022) en la misma transacción que el cambio: si falla, no queda ni el cambio ni el hook ni el evento. El sujeto es
-    # la fila de company_modules; `active` es lo único que cambia.
+    # Audited in the same transaction as the change: if it fails, neither the change, the hook nor the event remains.
     def audit(action, row, before:, after:)
       Audit.record(action:, subject: row, before: { "active" => before }, after: { "active" => after }, metadata: { "module" => key, "company_id" => company.id })
     end

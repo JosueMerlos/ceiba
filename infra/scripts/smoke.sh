@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Verificación de humo del entorno levantado, siempre a través del proxy (mismo origen).
-# Uso: ./infra/scripts/smoke.sh   (PROXY_PORT y MAILPIT_PORT para puertos distintos)
+# Smoke check of the running environment, always through the proxy (same origin).
+# Usage: ./infra/scripts/smoke.sh   (PROXY_PORT and MAILPIT_PORT for different ports)
 set -euo pipefail
 
 proxy="http://localhost:${PROXY_PORT:-8080}"
 mailpit="http://localhost:${MAILPIT_PORT:-8025}"
 failures=0
 
-check() { # descripción, comando...
+check() { # description, command...
   local description="$1"; shift
   if "$@" >/dev/null 2>&1; then echo "ok    $description"; else echo "FALLA $description"; failures=$((failures + 1)); fi
 }
@@ -24,7 +24,7 @@ check "GET / lleva la CSP en modo reporte (panel)"  header_has "content-security
 check "GET /api/health lleva nosniff y frame-ancestors"  bash -c "curl -fsSI '$proxy/api/health' | grep -qi '^x-content-type-options: nosniff' && curl -fsSI '$proxy/api/health' | grep -qi \"^content-security-policy: frame-ancestors 'none'\""
 check "Mailpit UI accesible"                      status_is 200 "$mailpit/"
 
-# El upgrade a websocket de HMR debe atravesar el proxy (101 Switching Protocols).
+# The HMR websocket upgrade must pass through the proxy (101 Switching Protocols).
 ws_status() {
   curl -s -o /dev/null -w '%{http_code}' --max-time 3 \
     -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \

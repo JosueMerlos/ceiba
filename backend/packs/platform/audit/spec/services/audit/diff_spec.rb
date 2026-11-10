@@ -1,7 +1,6 @@
 require "rails_helper"
 
-# Diff de atributos de la auditoría (M0.11, criterio 5): solo lo que cambió, sin campos sensibles y con la PII cifrada
-# enmascarada. Cubre el contrato de privacidad de docs/architecture/09-data-conventions.md y 11-security.md.
+# Audit attribute diff: only what changed, no sensitive fields, encrypted PII masked.
 RSpec.describe Audit::Diff do
   def diff(before:, after:, encrypted: []) = described_class.call(before:, after:, encrypted_attributes: encrypted)
 
@@ -27,9 +26,7 @@ RSpec.describe Audit::Diff do
     expect(diff(before: { name: "A" }, after: { name: "B" })).to eq(before: { "name" => "A" }, after: { "name" => "B" })
   end
 
-  # Mismo criterio que filter_parameters de la aplicación (passw, email, secret, token, _key, crypt, salt, certificate, otp,
-  # ssn, cvv, cvc) más digest, csrf y ciphertext. El valor sale como [FILTERED] y la CLAVE se conserva: que cambió una
-  # contraseña es un hecho auditable; cuál era, no.
+  # The value becomes [FILTERED] but the KEY is kept (see Audit::Diff).
   describe "campos sensibles" do
     %w[password password_digest password_confirmation token token_digest session_token csrf_token secret client_secret otp_secret api_key
        api_key_digest private_key encryption_salt tls_certificate card_cvv ssn email name_ciphertext].each do |field|

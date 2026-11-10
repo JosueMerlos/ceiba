@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Eventos de autenticación en la auditoría (M0.11, criterios 1 y 2). Van a auth_audit_events (global): un login fallido con
-# un correo sin cuenta no tiene organización. Peticiones HTTP reales, como las del navegador.
+# Authentication events in the audit trail. They go to auth_audit_events (global): a failed login with an unknown email
+# has no organization. Real HTTP requests, like the browser's.
 RSpec.describe "Auditoría de la autenticación" do
   let(:password) { "contraseña-segura-1" }
   let!(:user) { create(:user, email: "ana@ceiba.test", password:) }

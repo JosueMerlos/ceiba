@@ -1,30 +1,29 @@
-# Rate limiting capa 1 (M0.13, ADR-0027, reglas 1, 2, 3 y 8 de docs/architecture/11-security.md): Rack::Attack ANTES de
-# autenticar y sin tocar la BD. Solo usa claves disponibles sin sesión: IP real, y el correo del cuerpo del login.
-# La capa 2 (`rate_limit` por usuario y API key) y el resto de reglas llegan con M4.02.
+# Layer-1 rate limiting: Rack::Attack BEFORE authentication and without touching the database. It only uses keys available
+# without a session: the real IP, and the email in the login body.
 #
-# Este archivo concentra la lógica (límites, claves, respuestas 429) para poder probarla; las reglas se registran en
-# config/initializers/throttling.rb. No se autocarga (los initializers no ven app/); Api::Problem se resuelve al responder.
+# This file holds the logic (limits, keys, 429 responses) so it can be tested; the rules are registered in
+# config/initializers/throttling.rb. Not autoloaded (initializers cannot see app/); Api::Problem is resolved when responding.
 require "digest"
 require "json"
 
 module RateLimiting
-  LOGIN_PATH = %r{\A/api/v1/auth/login(\.\w+)?\z} # con o sin extensión de formato: Rails también la aceptaría
+  LOGIN_PATH = %r{\A/api/v1/auth/login(\.\w+)?\z} # with or without a format extension: Rails would accept it too
   PROBE_PATHS = %w[/api/health /api/ready].freeze
   MAX_LOGIN_BODY_BYTES = 4096
 
-  # limit: peticiones por ventana; period: segundos de la ventana; ban: segundos de bloqueo (solo la regla 8).
+  # limit: requests per window; period: window seconds; ban: block seconds (only the nonexistent-route rule).
   RULES = {
     catch_all: { limit: 600, period: 5.minutes.to_i },
     login_ip: { limit: 5, period: 15.minutes.to_i },
     login_email: { limit: 10, period: 15.minutes.to_i },
     not_found: { limit: 10, period: 5.minutes.to_i, ban: 1.hour.to_i }
   }.freeze
-  # Desarrollo holgado (un desarrollador equivoca la contraseña más de 5 veces); test no se limita (ver throttling.rb).
+  # Relaxed in development (a developer mistypes the password more than 5 times); test is not limited.
   DEVELOPMENT_LIMITS = { catch_all: 100_000, login_ip: 1000, login_email: 1000, not_found: 100_000 }.freeze
 
   module_function
 
-  # RATE_LIMIT_<REGLA> (p. ej. RATE_LIMIT_LOGIN_IP=20) cambia el límite sin redeploy de código.
+  # RATE_LIMIT_<RULE> (e.g. RATE_LIMIT_LOGIN_IP=20) changes the limit without a code deploy.
   def limit(rule)
     configured = ENV["RATE_LIMIT_#{rule.to_s.upcase}"]
     return Integer(configured) if configured.present?
@@ -34,16 +33,16 @@ module RateLimiting
 
   def period(rule) = RULES.fetch(rule).fetch(:period)
 
-  # La IP del CLIENTE tal como la resuelve ActionDispatch::RemoteIp (proxies de confianza), no Rack::Request#ip. Si resolverla
-  # lanza IpSpoofAttackError (cabeceras de reenvío contradictorias) se usa la dirección del par: el 500 sería peor.
+  # The CLIENT IP as ActionDispatch::RemoteIp resolves it (trusted proxies), not Rack::Request#ip. If resolving it raises
+  # IpSpoofAttackError (contradictory forwarding headers) the peer address is used: a 500 would be worse.
   def ip(request)
     (request.env["action_dispatch.remote_ip"] || request.ip).to_s
   rescue ActionDispatch::RemoteIp::IpSpoofAttackError
     request.env["REMOTE_ADDR"].to_s
   end
 
-  # Clave de límite por cliente: IPv4 tal cual; IPv6 agrupada por /64 (a un cliente le asignan al menos un /64 y rotar
-  # direcciones dentro de él no debe darle un límite nuevo cada vez).
+  # IPv4 as is; IPv6 grouped by /64 (a client gets at least a /64, and rotating addresses inside it must not grant a new
+  # limit each time).
   def client_key(request)
     address = IPAddr.new(ip(request))
     address.ipv6? && !address.ipv4_mapped? ? "#{address.mask(64)}/64" : address.to_s
@@ -59,10 +58,10 @@ module RateLimiting
 
   def login?(request) = request.post? && LOGIN_PATH.match?(request.path)
 
-  # Huella del correo normalizado (como Identity::User): el correo nunca se guarda en Redis. Solo lee cuerpos JSON pequeños.
+  # Digest of the normalized email (as Identity::User does): the email is never stored in Redis. Only reads small JSON bodies.
   def login_email_digest(request)
     return unless login?(request) && request.media_type == "application/json"
-    return unless request.content_length.to_i.between?(1, MAX_LOGIN_BODY_BYTES) # los mayores se rechazan antes (413)
+    return unless request.content_length.to_i.between?(1, MAX_LOGIN_BODY_BYTES) # larger ones are rejected earlier (413)
 
     body = request.body.read(MAX_LOGIN_BODY_BYTES)
     request.body.rewind
@@ -74,32 +73,29 @@ module RateLimiting
 
   def ban_key(request) = "ban:not-found:#{client_key(request)}"
 
-  # El valor guardado es el instante en que termina el bloqueo; se compara con el reloj además del TTL de Redis.
+  # The stored value is when the block ends; it is compared with the clock in addition to Redis' TTL.
   def banned?(request) = Rack::Attack.cache.read(ban_key(request)).to_i > Time.now.to_i
 
-  # 429 de un throttle: la ventana en curso (`rack.attack.match_data`).
   def throttled_response(request)
     data = request.env["rack.attack.match_data"]
     retry_after = (data[:period] - (data[:epoch_time] % data[:period])).to_i
     respond(request, code: "rate_limit.exceeded", retry_after:, limit: data[:limit])
   end
 
-  # Respuesta del blocklist: el cuerpo de login demasiado grande (413) o el bloqueo de la regla 8 (429).
   def blocklisted_response(request)
     return request_too_large(request) if request.env["rack.attack.matched"] == "login/oversized"
 
     blocked_response(request)
   end
 
-  # Un login real mide unas decenas de bytes. Un cuerpo mayor (relleno para que el correo quede fuera de lo que se lee y
-  # esquivar la regla 3) se rechaza sin parsearlo. Transfer-Encoding (sin longitud conocida) también.
+  # A real login is a few dozen bytes. A larger body (padding to push the email out of what is read and dodge the per-email
+  # limit) is rejected unparsed, and so is Transfer-Encoding (unknown length).
   def request_too_large(request)
     problem = Api::Problem.new(status: 413, code: "request.too_large", request: ActionDispatch::Request.new(request.env))
     body = problem.to_h.to_json
     [ 413, { "Content-Type" => "#{Api::Problem::MEDIA_TYPE}; charset=utf-8", "Content-Length" => body.bytesize.to_s }, [ body ] ]
   end
 
-  # 429 de un bloqueo (regla 8): el valor guardado es el instante en que termina.
   def blocked_response(request)
     until_epoch = Rack::Attack.cache.read(ban_key(request)).to_i
     retry_after = [ until_epoch - Time.now.to_i, 1 ].max
@@ -116,11 +112,11 @@ module RateLimiting
     [ 429, headers, [ body ] ]
   end
 
-  # Regla 8: cuenta por IP las respuestas de RUTA INEXISTENTE (ActionController::RoutingError, o método HTTP desconocido) y, al
-  # llegar al límite, escribe el bloqueo. NO cuenta los 404 de negocio (recurso no visible, contexto inconsistente): los
-  # provoca un usuario legítimo y una clínica entera comparte IP. Va justo DENTRO de Rack::Attack (necesita la respuesta de la
-  # aplicación, que un blocklist no ve): la lista de bloqueo lee la marca que aquí se escribe. Rails deja la excepción en
-  # `action_dispatch.exception` cuando la delega en la app de excepciones; los 404 que un controlador rescata no la dejan.
+  # Counts per IP the responses for a NONEXISTENT ROUTE (ActionController::RoutingError, or unknown HTTP method) and writes
+  # the block at the limit. Business 404s (invisible resource, inconsistent context) are NOT counted: a legitimate user
+  # causes them and a whole clinic shares one IP. Sits just INSIDE Rack::Attack (it needs the app's response, which a
+  # blocklist cannot see): the blocklist reads the mark written here. Rails leaves the exception in
+  # `action_dispatch.exception` when delegating to the exceptions app; 404s a controller rescues do not leave it.
   class NotFoundTracker
     def initialize(app) = @app = app
 

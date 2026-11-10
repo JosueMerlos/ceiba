@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# CSRF del panel (M0.07, docs/architecture/11-security.md): token ligado a la sesión en `X-CSRF-Token` + validación de
-# Origin/Referer en toda mutación. Criterio 5: mutación con sesión válida y sin token -> 403.
+# Panel CSRF: token bound to the session in `X-CSRF-Token` + Origin/Referer validation on every mutation. A mutation
+# with a valid session and no token -> 403.
 RSpec.describe "CSRF y validación de Origin" do
   let(:user) { create(:user) }
   let!(:signed_in) { sign_in(user) }

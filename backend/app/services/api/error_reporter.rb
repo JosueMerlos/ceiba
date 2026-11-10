@@ -1,6 +1,6 @@
 module Api
-  # Registra en el log (y en Rails.error, donde se enganchará el servicio de errores) una excepción que la API
-  # respondió como 5xx. Es el único sitio con el detalle real: la respuesta nunca lo lleva.
+  # Logs (and sends to Rails.error, where the error service will hook in) an exception the API answered as 5xx. The
+  # only place with the real detail: the response never carries it.
   module ErrorReporter
     def self.call(exception, request_id:, code:)
       Rails.logger.error(

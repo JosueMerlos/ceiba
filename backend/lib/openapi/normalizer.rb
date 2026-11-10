@@ -1,7 +1,7 @@
 module Openapi
-  # Deja un documento OpenAPI en forma canónica: claves y valores de texto (sin símbolos) y claves ordenadas en todos los niveles. Los arrays conservan su
-  # orden (`parameters`, `required` y `enum` son significativos). Así `openapi/v1.yaml` no cambia por el orden en que
-  # rswag fue acumulando los specs, y el check de drift no da falsos positivos.
+  # Puts an OpenAPI document in canonical form: text keys and values (no symbols) and sorted keys at every level.
+  # Arrays keep their order (`parameters`, `required` and `enum` are significant). So `openapi/v1.yaml` does not change
+  # with the order rswag accumulated the specs in, and the drift check has no false positives.
   module Normalizer
     def self.call(node)
       case node

@@ -1,10 +1,10 @@
-# auth_audit_events: eventos de identidad (login correcto o fallido, logout, revocación). Tabla GLOBAL, sin
-# organization_id: `users` y `sessions` son globales (ADR-0028) y un login fallido con un correo sin cuenta no pertenece a
-# ninguna organización. Meterlos en `audit_events` obligaría a un organization_id NULL, que rompe el guardián de tablas
-# tenant (organization_id <=> política tenant_isolation), la FK a organizations y la RLS de M4.03.
+# auth_audit_events: identity events (successful or failed login, logout, revocation). GLOBAL table, no organization_id:
+# `users` and `sessions` are global and a failed login with an unknown email belongs to no organization. Putting them in
+# `audit_events` would force a NULL organization_id, which breaks the tenant-table guard (organization_id <=>
+# tenant_isolation policy), the FK to organizations and RLS.
 #
-# Mismo trigger append-only que audit_events. `user_id` NO lleva FK a propósito: la evidencia no debe impedir ni
-# depender de la vida de la cuenta (anonimización de la Ley 787), y admite NULL (correo sin cuenta).
+# Same append-only trigger as audit_events. `user_id` has NO FK on purpose: the evidence must neither block nor depend
+# on the account's life (anonymization), and it admits NULL (email without an account).
 class CreateAuthAuditEvents < ActiveRecord::Migration[8.1]
   def up
     create_table :auth_audit_events, id: :uuid do |t|

@@ -1,8 +1,7 @@
 require "rails_helper"
 
-# La API pública de tenancy es CHICA a propósito (docs/architecture/02-modular-monolith.md): modelos y servicios internos
-# son privados y packwerk (privacy) lo impide desde fuera. Añadir algo a app/public es una decisión de diseño: este spec
-# obliga a hacerla a conciencia.
+# Tenancy's public API is SMALL on purpose: internal models and services are private and packwerk (privacy) blocks outside
+# access. Adding something to app/public is a design decision: this spec forces it to be made consciously.
 RSpec.describe "API pública de tenancy" do
   let(:public_files) do
     Rails.root.join("packs/platform/tenancy/app/public").glob("**/*.rb").map { |file| file.relative_path_from(Rails.root.join("packs/platform/tenancy/app/public")).to_s }

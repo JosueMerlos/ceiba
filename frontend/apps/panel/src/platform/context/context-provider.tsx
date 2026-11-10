@@ -3,9 +3,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 interface ContextSelectionValue {
-  /** Lo que se le pide a /me. Vacío = el último contexto usado (cookie del servidor) o el primero disponible. */
+  /** What is requested from /me. Empty = the last used context (server cookie) or the first available. */
   selection: MeContext;
-  /** Cambia de contexto: descarta TODA la caché de datos (menos la sesión) y vuelve a pedir /me. */
+  /** Switches context: discards ALL cached data (except the session) and requests /me again. */
   switchContext(next: MeContext): void;
 }
 
@@ -17,8 +17,8 @@ export function ContextProvider({ children }: { children: ReactNode }) {
 
   const switchContext = useCallback(
     (next: MeContext) => {
-      // `removeQueries` (no `invalidateQueries`): invalidar mostraría los datos de la organización anterior mientras
-      // llegan los nuevos. Aquí el dato viejo desaparece de inmediato (criterio 2).
+      // `removeQueries` (not `invalidateQueries`): invalidating would show the previous organization's data while the
+      // new data loads. Here the old data disappears immediately.
       queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== "session" });
       setSelection(next);
     },

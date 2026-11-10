@@ -8,8 +8,8 @@ function PageLoading() {
 }
 
 /**
- * Página de un módulo cargada bajo demanda: el `import()` hace que Vite la emita en el chunk del módulo y no en el de
- * arranque. El `load` de todas las páginas de un módulo apunta al mismo archivo, así que comparten un solo chunk.
+ * Module page loaded on demand: `import()` makes Vite emit it in the module's chunk, not the startup one. Every page's
+ * `load` in a module points at the same file, so they share a single chunk.
  */
 export function lazyPage<Name extends string>(
   load: () => Promise<Record<Name, ComponentType>>,

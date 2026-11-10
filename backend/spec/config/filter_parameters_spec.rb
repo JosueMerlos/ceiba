@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# M0.13: ningún dato personal ni secreto llega a un log o a Sentry por los parámetros de una request. El filtro de
-# Rails es por coincidencia parcial de la CLAVE (:passw filtra password, password_confirmation...).
+# No personal data or secret reaches a log or Sentry through a request's parameters. Rails' filter matches the KEY
+# partially (:passw filters password, password_confirmation...).
 RSpec.describe "config.filter_parameters" do
   let(:filter) { ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters) }
 

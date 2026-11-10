@@ -1,6 +1,6 @@
 require "swagger_helper"
 
-# Contrato de GET /api/v1/me (M0.09). Cada `response` ejecuta la petición real y valida el cuerpo contra el esquema.
+# GET /api/v1/me contract. Each `response` runs the real request and validates the body against the schema.
 RSpec.describe "API v1: yo (contexto, módulos, permisos y navegación)" do
   let(:world) { build_access_world }
 

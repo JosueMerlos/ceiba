@@ -1,5 +1,5 @@
 module Modules
-  # Se pidió algo que exige el módulo activo en la empresa (p. ej. cambiar sus settings) y está inactivo.
+  # Something that needs the module active in the company (e.g. changing its settings) was requested while it is inactive.
   class NotEnabled < Error
     attr_reader :key
 

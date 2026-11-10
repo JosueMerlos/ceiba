@@ -1,8 +1,8 @@
 import { useTranslation } from "@ceiba/i18n";
 import { CeibaMark } from "@ceiba/ui";
 
-// Estructura base de la reserva pública (ADR-0015): sin funcionalidad todavía. Comparte tokens y primitivas con el
-// panel, pero NO el design system completo: solo se importa lo que se usa (tree-shaking), por el presupuesto de bundle.
+// Shares tokens and primitives with the panel but NOT the full design system: only what is used is imported
+// (tree-shaking) to stay within the bundle budget.
 export function App() {
   const { t } = useTranslation(["booking", "common"]);
   return (

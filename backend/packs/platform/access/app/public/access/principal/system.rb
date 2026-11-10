@@ -1,7 +1,7 @@
 module Access
   module Principal
-    # Los jobs internos (relay, purgas, tareas programadas) actúan como el sistema: de confianza, sin pasar por memberships.
-    # Ninguna request HTTP lo construye. Aun así, un permiso sin registrar sigue siendo un error.
+    # Internal jobs (relay, purges, scheduled tasks) act as the system: trusted, bypassing memberships.
+    # No HTTP request builds it. Even so, an unregistered permission is still an error.
     class System
       include Principal
 

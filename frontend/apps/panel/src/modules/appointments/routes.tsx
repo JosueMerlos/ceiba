@@ -2,7 +2,7 @@ import { useTranslation } from "@ceiba/i18n";
 import { PageHeader } from "@ceiba/ui";
 import { CalendarDays, ChartNoAxesColumn, type LucideIcon } from "lucide-react";
 
-// Placeholders de F0: el dominio de citas llega en F1 y las pantallas de agenda en F2.
+// Placeholders: the appointments domain and the agenda screens are not built yet.
 function Placeholder({ icon: Icon, children }: { icon: LucideIcon; children: string }) {
   return (
     <section

@@ -1,5 +1,5 @@
-# Servidor TCP que acepta conexiones y nunca responde: simula una dependencia colgada
-# (como `docker compose pause db`) sin necesidad de stubs.
+# TCP server that accepts connections and never answers: simulates a hung dependency (like `docker compose pause db`)
+# without stubs.
 module BlackholeServer
   def with_blackhole
     server = TCPServer.new("127.0.0.1", 0)

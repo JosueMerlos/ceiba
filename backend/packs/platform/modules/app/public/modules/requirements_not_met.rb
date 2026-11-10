@@ -1,5 +1,5 @@
 module Modules
-  # Se intentó activar un módulo cuyos `requires` no están activos en la empresa.
+  # Tried to enable a module whose `requires` are not active in the company.
   class RequirementsNotMet < Error
     attr_reader :key, :missing
 

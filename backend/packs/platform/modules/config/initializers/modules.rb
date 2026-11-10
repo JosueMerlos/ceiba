@@ -1,3 +1,3 @@
-# Carga y valida los manifiestos al arrancar y tras cada recarga de código (docs/architecture/05-module-system.md): un
-# manifiesto inválido falla aquí, con un mensaje claro, no en la primera request.
+# Loads and validates manifests at boot and on every code reload: an invalid manifest fails here with a clear message, not on
+# the first request.
 Rails.application.config.to_prepare { Modules.load! }

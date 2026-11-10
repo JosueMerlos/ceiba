@@ -1,6 +1,6 @@
-# Avisos de seguridad ignorados por bundler-audit.
-# Política (M0.02): solo con motivo y fecha de revisión, nunca un ignore permanente.
-# Formato de cada entrada (lo verifica spec/config/audit_ignores_spec.rb):
+# Security advisories ignored by bundler-audit.
+# Policy: ignores need a reason and a review date, never a permanent ignore.
+# Entry format (checked by spec/config/audit_ignores_spec.rb):
 #   - CVE-AAAA-NNNNN  # revisar: AAAA-MM-DD | motivo: por qué no aplica / qué lo desbloquea
-# Una fecha vencida hace fallar la suite: se revisa el aviso o se retira el ignorado.
+# An expired date fails the suite: re-review the advisory or drop the ignore.
 ignore: []

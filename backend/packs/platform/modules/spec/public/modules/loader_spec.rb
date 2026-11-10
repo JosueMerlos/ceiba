@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# El registro descubre los manifiestos por ARCHIVO (packs/modules/*/manifest.rb), sin referenciar constantes de ningún módulo
-# (visible_to: [], docs/architecture/02-modular-monolith.md). Al arrancar los carga, los valida y registra sus permisos en access.
+# The registry discovers manifests by FILE (packs/modules/*/manifest.rb), referencing no module constants. On boot it loads
+# and validates them and registers their permissions in access.
 RSpec.describe "Carga de manifiestos" do
   def write_manifest(root, pack, body)
     path = root.join("packs/modules/#{pack}")

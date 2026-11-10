@@ -1,16 +1,16 @@
-# Selección del rol de base de datos (M0.04). La usa config/database.yml, que se evalúa antes de que la app
-# cargue (por eso es un módulo plano en config/ y no una constante autocargada).
+# Database role selection, used by config/database.yml, which is evaluated before the app loads (hence a plain module
+# in config/ rather than an autoloaded constant).
 #
-#   app_user   por defecto: servidor, worker, consola, runner, rspec, db:seed y cualquier tarea propia.
-#   app_owner  solo las tareas de esquema de la ALLOWLIST de abajo (o DB_ROLE=owner explícito).
+#   app_user   default: server, worker, console, runner, rspec, db:seed and any custom task.
+#   app_owner  only the schema tasks in the allowlist below (or an explicit DB_ROLE=owner).
 #
-# REGLA: una tarea propia (rake) que cambie el esquema o la base debe AÑADIRSE a OWNER_TASKS, con revisión
-# (CODEOWNERS). Cualquier otra tarea, por omisión, corre sin privilegios de dueño. Los seeds siempre corren como
-# app_user, también dentro de db:prepare/db:setup/db:reset (config/initializers/seed_role.rb).
+# RULE: a custom rake task that changes the schema or database must be ADDED to OWNER_TASKS, with review (CODEOWNERS).
+# Any other task runs without owner privileges by default. Seeds always run as app_user, even inside
+# db:prepare/db:setup/db:reset.
 module DbRoles
-  # Tareas de Rails 8.1 que crean, borran o alteran la base o su esquema. Quedan FUERA a propósito: db:seed,
-  # db:seed:replant, db:fixtures:load, db:truncate_all (tareas de datos), db:migrate:status, db:version,
-  # db:abort_if_pending_migrations, db:charset, db:collation (solo lectura).
+  # Rails 8.1 tasks that create, drop or alter the database or its schema. Deliberately EXCLUDED: data tasks (db:seed,
+  # db:seed:replant, db:fixtures:load, db:truncate_all) and read-only ones (db:migrate:status, db:version,
+  # db:abort_if_pending_migrations, db:charset, db:collation).
   OWNER_TASKS = %w[
     db:create db:create:all db:drop db:drop:all db:purge db:purge:all
     db:migrate db:migrate:up db:migrate:down db:migrate:redo db:migrate:reset db:rollback db:forward
@@ -24,8 +24,7 @@ module DbRoles
 
   module_function
 
-  # tasks: tareas de nivel superior de rake (p. ej. ["db:migrate"] o ["db:migrate[20260101]"]).
-  # override: valor de DB_ROLE (nil si no está definido).
+  # tasks: top-level rake tasks (e.g. ["db:migrate"] or ["db:migrate[20260101]"]); override: DB_ROLE value or nil.
   def select(tasks, override = nil)
     if override
       raise "DB_ROLE inválido: #{override.inspect} (owner o user)" unless ROLES.include?(override)

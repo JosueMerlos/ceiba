@@ -1,6 +1,5 @@
 require "rails_helper"
 
-# Convención (ADR-0006): toda PK uuid usa el default uuidv7() de PostgreSQL 18, no el gen_random_uuid() de Rails.
 RSpec.describe "PK uuid por defecto", :tenant_schema do
   it "create_table con id: :uuid usa uuidv7()" do
     with_tenant_schema do |owner|

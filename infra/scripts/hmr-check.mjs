@@ -1,31 +1,29 @@
-// Comprueba el HMR de Vite a través del proxy (criterio 5 de M0.01).
-// Hace el upgrade a websocket por el puerto del PROXY con Host "localhost:8080" (como un navegador),
-// modifica un componente y espera el mensaje "update" de Vite.
-// Se invoca desde infra/scripts/hmr-check.sh: node - <panel|booking> <ruta-del-websocket>
+// Checks Vite HMR through the proxy: upgrades to a websocket on the PROXY port with Host "localhost:8080" (like a
+// browser), edits a component and waits for Vite's "update" message.
+// Invoked from infra/scripts/hmr-check.sh: node - <panel|booking> <websocket-path>
 //
-// Se usa http en vez de WebSocket global porque este no permite fijar la cabecera Host, y Vite
-// rechaza hosts desconocidos (proxy:8080) igual que lo haría con un navegador mal configurado.
+// Uses http instead of the global WebSocket because the latter cannot set the Host header, and Vite rejects unknown
+// hosts (proxy:8080) just as it would for a misconfigured browser.
 //
-// Robustez (M0.02): Vite solo emite "update" para módulos que ya están en su grafo. En un arranque
-// en frío nadie ha pedido App.tsx todavía y la edición no genera ningún mensaje, de modo que la
-// prueba fallaba de forma intermitente. Por eso (1) se pide el módulo a través del proxy antes de
-// editar, como haría el navegador, y (2) si aun así no llega el update, se reintenta una vez.
+// Vite only emits "update" for modules already in its graph. On a cold start nobody has requested App.tsx yet, so the
+// edit produces no message and the check failed intermittently. Hence (1) the module is requested through the proxy
+// before editing, as a browser would, and (2) if no update still arrives, it retries once.
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import http from "node:http";
 
 const [app, path] = process.argv.slice(-2).length === 2 ? process.argv.slice(-2) : [];
-// Componente raíz de cada app (en el panel vive en src/app/app.tsx desde M0.12).
+// Root component of each app (the panel's lives in src/app/app.tsx).
 const rootComponent = app === "panel" ? "src/app/app.tsx" : "src/App.tsx";
 const file = `/app/frontend/apps/${app}/${rootComponent}`;
 const modulePath = `${path}${rootComponent}`;
-// Puerto público del proxy (PROXY_PORT; los contenedores de Vite lo reciben como PUBLIC_PORT).
+// Public proxy port (PROXY_PORT; the Vite containers receive it as PUBLIC_PORT).
 const publicPort = Number(process.env.PUBLIC_PORT ?? 8080);
 const UPDATE_TIMEOUT_MS = 10_000;
 const MAX_ATTEMPTS = 2;
 
 const original = readFileSync(file, "utf8");
 const restore = () => writeFileSync(file, original);
-// Pase lo que pase (éxito, fallo, Ctrl-C o excepción) el componente vuelve a su estado original.
+// Whatever happens (success, failure, Ctrl-C or exception) the component returns to its original state.
 process.on("exit", restore);
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => process.exit(130));
 
@@ -33,7 +31,7 @@ const proxyOptions = (requestPath, headers = {}) => ({
   host: "proxy", port: publicPort, path: requestPath, headers: { Host: `localhost:${publicPort}`, ...headers },
 });
 
-// Pide el módulo a Vite a través del proxy para que entre en su grafo de módulos.
+// Requests the module from Vite through the proxy so it enters Vite's module graph.
 const loadModule = () => new Promise((resolve, reject) => {
   http.get(proxyOptions(modulePath), (response) => {
     response.resume();
@@ -43,8 +41,8 @@ const loadModule = () => new Promise((resolve, reject) => {
   }).on("error", reject);
 });
 
-// Frames de servidor sin máscara: [opcode, longitud (7 bits | 126+2 bytes | 127+8 bytes), payload].
-// Devuelve los mensajes de texto JSON completos y el buffer restante.
+// Unmasked server frames: [opcode, length (7 bits | 126+2 bytes | 127+8 bytes), payload].
+// Returns the complete JSON text messages and the remaining buffer.
 const parseFrames = (buffer) => {
   const messages = [];
   for (;;) {
@@ -53,7 +51,7 @@ const parseFrames = (buffer) => {
     if (length === 126) { if (buffer.length < 4) break; length = buffer.readUInt16BE(2); offset = 4; }
     else if (length === 127) { if (buffer.length < 10) break; length = Number(buffer.readBigUInt64BE(2)); offset = 10; }
     if (buffer.length < offset + length) break;
-    const isText = (buffer[0] & 0x0f) === 0x1; // se ignoran ping/pong/close/binarios
+    const isText = (buffer[0] & 0x0f) === 0x1; // ping/pong/close/binary frames are ignored
     const payload = buffer.subarray(offset, offset + length).toString("utf8");
     buffer = buffer.subarray(offset + length);
     if (!isText) continue;
@@ -62,7 +60,7 @@ const parseFrames = (buffer) => {
   return { messages, buffer };
 };
 
-// Un intento: abre el websocket, edita el componente al recibir "connected" y espera el "update".
+// One attempt: opens the websocket, edits the component on "connected" and waits for the "update".
 const attempt = () => new Promise((resolve) => {
   let settled = false;
   const settle = (result) => {

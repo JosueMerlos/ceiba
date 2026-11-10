@@ -5,11 +5,11 @@ import { gzipSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
 import { checkBudget, checkBudgets, criticalJs } from "../bundle-budget.mjs";
 
-// Presupuesto de booking (ADR-0015): el JS CRÍTICO (entrada + lo que importa estáticamente) debe pesar < 150 KiB gzip.
+// Booking budget: the CRITICAL JS (entry + what it statically imports) must weigh < 150 KiB gzip.
 const dirs: string[] = [];
 afterEach(() => dirs.splice(0).forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
-/** Un dist de Vite falso: manifest.json + archivos con el contenido indicado. */
+/** A fake Vite dist: manifest.json + files with the given content. */
 function fakeDist(files: Record<string, string>, manifest: Record<string, object>) {
   const dir = mkdtempSync(join(tmpdir(), "bundle-"));
   dirs.push(dir);
@@ -20,7 +20,7 @@ function fakeDist(files: Record<string, string>, manifest: Record<string, object
   return dir;
 }
 
-// Texto pseudoaleatorio: se comprime poco, así el tamaño gzip es previsible.
+// Pseudo-random text: it compresses little, so the gzip size is predictable.
 const noise = (length: number) =>
   Array.from({ length }, (_, i) =>
     String.fromCharCode(33 + ((i * 7919 + (i >> 3) * 104729) % 90)),

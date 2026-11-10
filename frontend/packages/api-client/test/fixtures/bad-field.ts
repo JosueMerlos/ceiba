@@ -1,4 +1,4 @@
-// Fixture de type-safety.test.ts: accede a un campo que NO existe en el contrato; tsc debe rechazarlo (TS2339).
+// Fixture for type-safety.test.ts: reads a field that does NOT exist in the contract; tsc must reject it (TS2339).
 import type { components } from "../../src/schema";
 
 type Organization = components["schemas"]["Organization"];

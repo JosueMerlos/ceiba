@@ -1,6 +1,6 @@
 require "rails_helper"
 
-# El resto de principales comparten la interfaz can?(permission, scope) (docs/architecture/04-access-control.md).
+# The other principals share the can?(permission, scope) interface.
 RSpec.describe "Access::Principal (interfaz y principales no-usuario)" do
   let(:scope) { Access::Scope.organization("0198f0a0-0000-7000-8000-000000000000") }
 

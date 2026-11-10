@@ -1,8 +1,7 @@
 require "rails_helper"
 
-# `read_only: true` convierte la transacción del contexto en SOLO LECTURA (SET TRANSACTION READ ONLY): una lectura (GET) no puede
-# escribir ni por error, y la transacción larga de una request de lectura es más barata. Sin fixtures transaccionales: el BEGIN
-# y el COMMIT son reales.
+# `read_only: true` makes the context's transaction READ ONLY (SET TRANSACTION READ ONLY): a read (GET) cannot write even by
+# mistake. No transactional fixtures: BEGIN and COMMIT are real.
 RSpec.describe "Tenancy.with_context(read_only: true)" do
   self.use_transactional_tests = false
 

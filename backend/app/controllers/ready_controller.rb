@@ -1,4 +1,4 @@
-# Readiness: 200 solo si las dependencias críticas (PostgreSQL y Redis) responden.
+# Readiness: 200 only if the critical dependencies (PostgreSQL and Redis) respond.
 class ReadyController < ApplicationController
   def show
     result = ReadinessCheck.new.call

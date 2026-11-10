@@ -1,4 +1,4 @@
-# Rutas del pack identity, montadas por config/routes.rb con `draw(:identity)` bajo /api/v1 (docs/architecture/02).
+# Identity pack routes, mounted by config/routes.rb with `draw(:identity)` under /api/v1.
 scope path: "auth" do
   post "login", to: "identity/sessions#create"
   get "session", to: "identity/sessions#show"

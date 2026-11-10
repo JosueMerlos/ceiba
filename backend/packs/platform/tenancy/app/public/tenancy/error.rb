@@ -1,4 +1,4 @@
 module Tenancy
-  # Base de los errores de dominio de Tenancy: quien llama puede rescatarla sin conocer los detalles.
+  # Base of Tenancy's domain errors: callers can rescue it without knowing the details.
   class Error < StandardError; end
 end

@@ -1,7 +1,6 @@
 module Api
-  # Datos de la request que la auditoría anota (M0.11): request_id, IP y user agent, en Current. Va en Api::BaseController
-  # antes que la autenticación para que estén disponibles en cualquier caso de uso, incluido el login. `remote_ip` es la
-  # del cliente según el proxy confiable (no se lee X-Forwarded-For a mano).
+  # Request data for the audit trail (request_id, IP, user agent), stored in Current. Included before authentication so
+  # login has it too. `remote_ip` honors the trusted proxy: X-Forwarded-For is never read by hand.
   module RequestMetadata
     extend ActiveSupport::Concern
 

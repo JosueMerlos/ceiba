@@ -1,5 +1,5 @@
 module Events
-  # Borra de processed_events las marcas de idempotencia de más de 30 días (de todas las organizaciones). Job del sistema.
+  # System job: purges processed_events marks older than 30 days (all organizations).
   class PurgeProcessedJob
     include Sidekiq::Job
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Verifica los `uses:` de los workflows: cada acción debe fijarse a un SHA de COMMIT de 40 hex con
-# la versión en un comentario (`uses: owner/repo@<sha> # vX.Y.Z`).
+# Checks the workflows' `uses:` lines: each action must be pinned to a 40-hex COMMIT SHA with the version in a comment
+# (`uses: owner/repo@<sha> # vX.Y.Z`).
 #
-# Trampa: en tags anotados, `git ls-remote` muestra primero el SHA del objeto tag (no sirve como
-# pin; GitHub lo rechaza o resuelve mal). El commit es la línea `refs/tags/<tag>^{}`.
+# Trap: for annotated tags, `git ls-remote` lists the tag object's SHA first, which is no good as a pin (GitHub rejects
+# or mis-resolves it). The commit is the `refs/tags/<tag>^{}` line.
 #
-# Offline: solo comprueba el formato. Con red (por defecto) además confirma contra el remoto que el
-# SHA es el commit del tag declarado. Sin red: ONLINE=0, o avisa y sigue si el remoto no responde.
-# Uso: check-action-pins.sh [raíz-del-repo]
+# Offline: only the format is checked. With network (default) it also confirms against the remote that the SHA is the
+# declared tag's commit. Skip the network with ONLINE=0; it warns and continues if the remote does not answer.
+# Usage: check-action-pins.sh [repo-root]
 set -euo pipefail
 root="${1:-$(cd "$(dirname "$0")/../.." && pwd)}"
 cd "$root"
@@ -15,9 +15,9 @@ online="${ONLINE:-1}"
 failures=0
 
 export GIT_TERMINAL_PROMPT=0
-# Consulta el remoto. Códigos: 0 = ok (puede no haber salida: el tag no existe), 1 = FALLA (repo
-# inexistente), 2 = sin red u otro error (solo aviso).
-remote_refs() { # remote_refs <repo> <tag>  -> imprime las refs y devuelve 0/1/2
+# Queries the remote. Codes: 0 = ok (output may be empty: the tag does not exist), 1 = FAILURE (repo does not exist),
+# 2 = no network or another error (warning only).
+remote_refs() { # remote_refs <repo> <tag>  -> prints the refs and returns 0/1/2
   local out err_file rc=0
   err_file=$(mktemp)
   out=$(git -c http.lowSpeedLimit=1 -c http.lowSpeedTime=10 ls-remote "https://github.com/$1.git" \
@@ -28,10 +28,10 @@ remote_refs() { # remote_refs <repo> <tag>  -> imprime las refs y devuelve 0/1/2
   printf '%s' "$out"
 }
 
-# Una línea por `uses:` único: archivo<TAB>contenido (sin número de línea, para deduplicar).
+# One line per unique `uses:`: file<TAB>content (no line number, to deduplicate).
 while IFS=$'\t' read -r file line; do
   [ -n "$file" ] || continue
-  # `uses: ./local` y `uses: docker://` no se fijan por SHA.
+  # `uses: ./local` and `uses: docker://` are not pinned by SHA.
   if [[ "$line" =~ uses:[[:space:]]+(\./|docker://) ]]; then echo "salto $line"; continue; fi
   if [[ ! "$line" =~ uses:[[:space:]]+([A-Za-z0-9._-]+/[A-Za-z0-9._/-]+)@([^[:space:]]+)([[:space:]]+#[[:space:]]*(v?[0-9][^[:space:]]*))? ]]; then
     echo "FALLA $file: 'uses' no reconocido: $line" >&2; failures=$((failures + 1)); continue
@@ -46,7 +46,7 @@ while IFS=$'\t' read -r file line; do
     if [ "$rc" -eq 1 ]; then echo "FALLA $file: el repositorio $repo no existe" >&2; failures=$((failures + 1)); continue; fi
     if [ "$rc" -eq 2 ]; then echo "aviso $repo@$tag: sin acceso al remoto, solo se validó el formato" >&2; continue; fi
     if [ -z "$refs" ]; then echo "FALLA $file: el tag $tag no existe en $repo" >&2; failures=$((failures + 1)); continue; fi
-    # Si hay línea ^{} (tag anotado) el commit es esa; si no, el tag es ligero y apunta al commit.
+    # With a ^{} line (annotated tag) that is the commit; otherwise the tag is lightweight and points at the commit.
     commit=$(awk '/\^\{\}$/ { print $1 }' <<<"$refs"); commit="${commit:-$(awk '{ print $1; exit }' <<<"$refs")}"
     if [ "$commit" != "$sha" ]; then
       echo "FALLA $file: $repo@$tag debería ser el commit $commit, no $sha" >&2; failures=$((failures + 1)); continue

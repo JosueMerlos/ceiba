@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# Carrera real (criterio 3, "incluida la carrera"): dos peticiones SIMULTÁNEAS con la misma clave. Sin fixtures
-# transaccionales: hacen falta COMMITs y conexiones distintas. La sonda duerme 0,6 s DENTRO de la acción, así que la segunda
-# llega mientras la primera aún no ha terminado: el índice único la hace esperar y luego repite la respuesta guardada.
+# Real race: two SIMULTANEOUS requests with the same key. No transactional fixtures: real COMMITs and separate
+# connections are needed. The probe sleeps 0.6 s INSIDE the action so the second request arrives while the first is
+# still running: the unique index makes it wait and then replay the stored response.
 RSpec.describe "Idempotencia: peticiones concurrentes" do
   self.use_transactional_tests = false
 
@@ -91,7 +91,7 @@ RSpec.describe "Idempotencia: peticiones concurrentes" do
 
     responses = run_concurrently(first_fails, -> { delayed(0.2) { post_company("", delay: 0.0) } })
 
-    expect(responses.map(&:status)).to eq([ 422, 422 ]) # mismo cuerpo inválido: ambas se evalúan; ninguna consumió la clave
+    expect(responses.map(&:status)).to eq([ 422, 422 ]) # same invalid body: both are evaluated; neither consumed the key
     expect(with_tenant(organization) { Idempotency::Key.where(key:).count }).to eq(0)
   end
 
@@ -124,7 +124,7 @@ RSpec.describe "Idempotencia: peticiones concurrentes" do
     expect(elapsed).to be < 1.0
   end
 
-  # Otra transacción con la fila bloqueada (FOR UPDATE) durante `seconds`; vuelve cuando el bloqueo ya está tomado.
+  # Another transaction holding the row locked (FOR UPDATE) for `seconds`; returns once the lock is held.
   def hold_row_lock(key, seconds:)
     locked = Queue.new
     thread = Thread.new do

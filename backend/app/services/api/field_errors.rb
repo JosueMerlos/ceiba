@@ -1,8 +1,8 @@
 module Api
-  # Convierte errores de validación en `errors[]` del problema: { field, code, message } por cada uno.
+  # Converts validation errors into the problem's `errors[]`: { field, code, message } for each one.
   module FieldErrors
-    # `code` es el tipo del error de Active Model (:blank, :taken...) y es estable para el frontend; si el error
-    # lleva un mensaje propio en lugar de un tipo, el código es "invalid".
+    # `code` is the Active Model error type (:blank, :taken...), stable for the frontend; if the error carries a custom
+    # message instead of a type, the code is "invalid".
     def self.from_record(record)
       record.errors.map do |error|
         { field: error.attribute.to_s, code: error.type.is_a?(Symbol) ? error.type.to_s : "invalid", message: error.message }

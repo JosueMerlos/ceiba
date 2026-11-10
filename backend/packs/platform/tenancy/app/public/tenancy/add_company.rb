@@ -1,6 +1,6 @@
 module Tenancy
-  # Alta de una empresa ADICIONAL en una organización ya provisionada (seeds, back-office M4.01). La primera empresa
-  # nace con Tenancy::ProvisionOrganization. Devuelve la empresa; los fallos previstos son Tenancy::ProvisioningFailed.
+  # Creates an ADDITIONAL company in an already provisioned organization (seeds, back-office). The first company is born with
+  # Tenancy::ProvisionOrganization. Returns the company; expected failures are Tenancy::ProvisioningFailed.
   #
   #   Tenancy::AddCompany.call(organization:, name:, slug:, business_type:, currency:)
   class AddCompany

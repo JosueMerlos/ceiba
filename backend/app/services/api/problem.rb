@@ -1,17 +1,17 @@
 module Api
-  # Cuerpo de error `application/problem+json` (RFC 9457). Es la ÚNICA forma de construirlo: lo usan tanto el
-  # controlador base como la app de excepciones (errores que ocurren antes de llegar a un controlador).
+  # `application/problem+json` error body (RFC 9457). The ONLY way to build it: used by both the base controller and the
+  # exceptions app (errors raised before reaching a controller).
   #
-  #   { type, title, status, code, instance, request_id }  (+ detail y errors[] cuando el error los registra)
+  #   { type, title, status, code, instance, request_id }  (+ detail and errors[] when the error registers them)
   class Problem
     MEDIA_TYPE = "application/problem+json".freeze
     INTERNAL_CODE = "internal.error".freeze
 
     attr_reader :status, :code
 
-    # Convierte una excepción en problema. Sin registro se consulta cómo la clasifica Rails: un status de cliente
-    # (< 500: método desconocido, token inválido...) sale con ese status y `code: "http.<status>"`; cualquier otra cosa es
-    # un bug: 500 genérico, sin mensaje ni detalles.
+    # Converts an exception into a problem. Without a registration, Rails' own classification applies: a client status
+    # (< 500: unknown method, invalid token...) is returned with `code: "http.<status>"`; anything else is a bug: a
+    # generic 500 with no message or details.
     def self.from_exception(exception, request:)
       resolved = ErrorRegistry.resolve(exception)
       return new(**resolved.to_h, request:) if resolved
@@ -36,7 +36,7 @@ module Api
       @request_id = request.request_id
     end
 
-    # Solo un 500 genérico es un bug a investigar; un 4xx (o un 501 registrado) es del cliente y no se reporta.
+    # Only a generic 500 is a bug to investigate; a 4xx (or a registered 501) is the client's and is not reported.
     def internal? = code == INTERNAL_CODE
 
     def title = @title || I18n.t(code, scope: "api.errors", default: Rack::Utils::HTTP_STATUS_CODES.fetch(status))

@@ -1,10 +1,9 @@
-# Engancha el guard de escritura de tenancy en TODO modelo que declare acts_as_tenant, sin que el pack raíz
-# (ApplicationRecord) conozca a tenancy: la dependencia va de tenancy hacia el pack raíz, no al revés.
+# Hooks tenancy's write guard into EVERY model that declares acts_as_tenant, without the root pack (ApplicationRecord)
+# knowing tenancy: the dependency goes from tenancy to the root pack, not the other way.
 #
-# Vive en lib/ del pack (no se recarga) y NO guarda constantes recargables: Tenancy::TenantWriteGuard se resuelve en
-# el momento de la llamada.
+# Lives in the pack's lib/ (not reloaded) and holds NO reloadable constants: Tenancy::TenantWriteGuard is resolved at call time.
 module TenantGuardInstaller
-  # Se antepone a Base.singleton_class: acts_as_tenant sigue siendo el de la gema (super) y luego se incluye el guard.
+  # Prepended to Base.singleton_class: the gem's acts_as_tenant still runs (super), then the guard is included.
   module ModelMethods
     def acts_as_tenant(*, **)
       super
@@ -12,7 +11,7 @@ module TenantGuardInstaller
     end
   end
 
-  # Se antepone a ActiveRecord::Relation: las escrituras masivas pasan por la relación (Model.upsert_all la usa).
+  # Prepended to ActiveRecord::Relation: bulk writes go through the relation (Model.upsert_all uses it).
   module RelationMethods
     def insert_all(attributes, **)
       guard! { |guard| guard.ensure_bulk_rows!(klass, attributes) }

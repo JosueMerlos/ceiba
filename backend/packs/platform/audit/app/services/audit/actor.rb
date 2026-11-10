@@ -1,6 +1,6 @@
 module Audit
-  # Quién actúa: el principal explícito, el de la request o el del contexto; sin ninguno, el sistema. Todo principal declara
-  # su tipo con `actor_type` (contrato de Access::Principal): no se adivina por el nombre de su clase.
+  # Who acts: the explicit principal, the request's or the context's; with none, the system. Every principal declares
+  # its type with `actor_type` (Access::Principal contract); it is not guessed from the class name.
   Actor = Data.define(:type, :id) do
     SYSTEM = "system".freeze
 

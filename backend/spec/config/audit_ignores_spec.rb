@@ -1,9 +1,8 @@
 require "rails_helper"
 require "ci/audit_ignore_policy"
 
-# Política de M0.02: ningún ignorado de bundler-audit sin motivo y fecha de revisión vigente.
-# La lógica vive en lib/audit_ignore_policy.rb (probada en spec/lib) para que este spec no pueda
-# pasar de forma trivial con la lista vacía.
+# No bundler-audit ignore without a reason and a current review date. The logic lives in lib/ci (tested in spec/lib) so
+# this spec cannot pass trivially with an empty list.
 RSpec.describe "Lista de ignorados de bundler-audit" do
   it "cumple la política (motivo, fecha de revisión y sin vencer)" do
     policy = AuditIgnorePolicy.new(Rails.root.join(".bundler-audit.yml").read, today: Date.current)

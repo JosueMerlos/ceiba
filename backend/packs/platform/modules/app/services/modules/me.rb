@@ -1,10 +1,10 @@
 module Modules
-  # Arma la respuesta de GET /api/v1/me: contexto elegido, módulos activos con settings resueltos, permisos y navegación.
+  # Builds the GET /api/v1/me response: chosen context, active modules with resolved settings, permissions and navigation.
   #
-  # Elección del contexto: lo pedido por parámetros (explícito: si no es visible, 404/403 como cualquier ruta); si no, el último
-  # recordado (Modules::ContextCookie) y, si no sirve (ya no hay acceso, organización suspendida), la primera organización del
-  # usuario por id. Dentro de la organización, sin empresa pedida se toma la primera que el usuario ve (por id). Sin ningún
-  # membership, el contexto queda vacío. Devuelve [payload, selección usada] (la selección es null con el contexto vacío).
+  # Context choice: what the params request (explicit: if not visible, 404/403 like any route); else the remembered one
+  # (Modules::ContextCookie) and, if unusable (access lost, organization suspended), the user's first organization by id.
+  # Within the organization, without a requested company the first one the user sees (by id) is taken. With no membership the
+  # context is empty. Returns [payload, selection used] (nil selection for an empty context).
   class Me
     EMPTY_CONTEXT = { organization: nil, company: nil, branch: nil }.freeze
 
@@ -22,7 +22,7 @@ module Modules
       candidates.each do |selection|
         return build(selection)
       rescue ActiveRecord::RecordNotFound, Access::OrganizationSuspended
-        next # un contexto recordado o por defecto que ya no sirve no es un error del usuario
+        next # a stale remembered or default context is not a user error
       end
       [ payload(EMPTY_CONTEXT, [], [], []), nil ]
     end
@@ -48,7 +48,7 @@ module Modules
       end
     end
 
-    # Sin empresa pedida: la primera que el usuario ve (permiso de leer la empresa, que todo membership tiene).
+    # No company requested: the first one the user sees (company read permission, which every membership has).
     def default_company
       reach = @principal.reach("platform.company.read")
       companies = Tenancy::Directory.companies.order(:id)

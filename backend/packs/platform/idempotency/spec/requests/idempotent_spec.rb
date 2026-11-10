@@ -1,14 +1,14 @@
 require "rails_helper"
 
-# Concern Idempotency::Idempotent (M0.11, criterios 3 y 4): `idempotent :create` hace seguro el reintento de una creación.
-# Sobre una sonda que crea una empresa (un recurso real y contable).
+# Idempotency::Idempotent concern: `idempotent :create` makes retrying a creation safe, over a probe that creates a
+# company (a real, countable resource).
 RSpec.describe "Idempotencia de escrituras (Idempotency-Key)" do
   include ActiveSupport::Testing::TimeHelpers
   include_context "con endpoints de prueba de idempotencia"
 
   let(:organization) { build_access_world.organization }
   let(:other_organization) { create(:organization) }
-  # Un usuario con membership en AMBAS organizaciones: el contexto lo abre Access::Authorization desde la ruta.
+  # A user with membership in BOTH organizations: Access::Authorization opens the context from the route.
   let(:user) { user_with_role("org_admin", organization).tap { |member| user_with_role("org_admin", other_organization, user: member) } }
   let!(:signed_in) { sign_in(user) }
   let(:key) { SecureRandom.uuid }
@@ -93,7 +93,7 @@ RSpec.describe "Idempotencia de escrituras (Idempotency-Key)" do
 
     it "la misma clave y el mismo cuerpo en otra RUTA también es otro request (409)" do
       create_company
-      response = create_company(kind: "companies_alias") # otra ruta, mismo principal y cuerpo
+      response = create_company(kind: "companies_alias") # another path, same principal and body
 
       expect(response).to have_http_status(:conflict)
       expect(response.parsed_body["code"]).to eq("idempotency.key_reused")

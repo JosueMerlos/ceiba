@@ -1,5 +1,5 @@
-# Colas (docs/architecture/06-events-and-jobs.md): critical (relay y entregas), default, notifications, low (reportes y
-# mantenimiento). Los pesos reparten el tiempo de los hilos: un envío masivo en notifications no frena el relay.
+# Queues: critical (relay and deliveries), default, notifications, low (reports and maintenance). Weights split thread
+# time: a bulk send in notifications does not stall the relay.
 :concurrency: 5
 :queues:
   - [critical, 6]

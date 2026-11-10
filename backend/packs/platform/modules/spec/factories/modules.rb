@@ -1,6 +1,6 @@
 FactoryBot.define do
-  # Como el resto de modelos tenant, se crean DENTRO de un tenant (`create_in(org, :company_module, company_id: ...)`).
-  # organization_id sale del tenant activo; company_id es obligatorio y lo da quien llama (la FK compuesta exige que sea de ese tenant).
+  # Created INSIDE a tenant (`create_in(org, :company_module, company_id: ...)`). organization_id comes from the active tenant;
+  # company_id is required from the caller (the composite FK demands it belongs to that tenant).
   factory :company_module, class: "Modules::CompanyModule" do
     organization { ActsAsTenant.current_tenant }
     company_id { create(:company).id }
@@ -8,7 +8,7 @@ FactoryBot.define do
     enabled_at { Time.current }
   end
 
-  # La sucursal fija la empresa; el módulo debe estar activado en ella (FK compuesta): la factory lo crea si hace falta.
+  # The branch fixes the company; the module must be enabled in it (composite FK), so the factory creates it if needed.
   factory :branch_module_setting, class: "Modules::BranchModuleSetting" do
     organization { ActsAsTenant.current_tenant }
     branch_id { create(:branch).id }

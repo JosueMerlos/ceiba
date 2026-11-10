@@ -1,6 +1,6 @@
-# Rutas de la jerarquía organización > empresa > sucursal, montadas por config/routes.rb con `draw(:access)` bajo /api/v1
-# (docs/architecture/02). Viven en access y no en tenancy porque cada una se resuelve contra los memberships del principal
-# (Access::Authorization). Solo lectura en M0.08; las escrituras llegan con M4.01.
+# Routes of the organization > company > branch hierarchy, mounted by config/routes.rb with `draw(:access)` under /api/v1.
+# They live in access, not tenancy, because each one resolves against the principal's memberships (Access::Authorization).
+# Read-only for now.
 resources :organizations, only: %i[index show], controller: "access/organizations" do
   resources :companies, only: %i[index show], controller: "access/companies" do
     resources :branches, only: %i[index show], controller: "access/branches"

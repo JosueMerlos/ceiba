@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# Suite de aislamiento de tenant (M0.05). Descubre los modelos con organization_id y, para CADA uno, demuestra que
-# la organización A nunca ve datos de la B. Un modelo nuevo de cualquier pack entra solo; si no tiene factory, el
-# test FALLA (no se salta). La autorización entre empresas de una misma organización es otra suite (M0.08).
+# Tenant isolation suite. Discovers the models with organization_id and, for EACH one, proves that organization A never
+# sees B's data. A new model in any pack gets in on its own; without a factory the test FAILS (it is not skipped).
+# Authorization between companies of the same organization is another suite.
 RSpec.describe "Aislamiento de tenant" do
   it "descubre al menos los modelos tenant de tenancy" do
     expect(TenantIsolation.models).to include(Tenancy::Company, Tenancy::Branch)

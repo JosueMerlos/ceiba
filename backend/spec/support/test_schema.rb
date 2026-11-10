@@ -1,11 +1,11 @@
-# Mantiene al día el esquema de la base de test (reemplaza a ActiveRecord::Migration.maintain_test_schema!).
+# Keeps the test database schema up to date (replaces ActiveRecord::Migration.maintain_test_schema!).
 #
-# maintain_test_schema! recargaría el esquema EN PROCESO con la conexión de la suite, que es app_user (sin
-# DDL). Si el esquema está desactualizado se lanza una tarea en un SUBPROCESO con DB_ROLE=owner: el rol de dueño
-# queda acotado a ese proceso y la suite sigue como app_user.
-#   - migraciones pendientes            -> aborta pidiendo `make migrate`: migrar vuelca db/structure.sql, que está
-#                                          versionado, y la suite no debe reescribirlo en silencio
-#   - structure.sql distinto del cargado -> db:test:prepare (recarga el esquema de test)
+# maintain_test_schema! would reload the schema IN PROCESS over the suite's connection, which is app_user (no DDL). If
+# the schema is out of date a task runs in a SUBPROCESS with DB_ROLE=owner: the owner role stays confined to that
+# process and the suite keeps running as app_user.
+#   - pending migrations           -> aborts asking for `make migrate`: migrating dumps db/structure.sql, which is
+#                                     versioned, and the suite must not silently rewrite it
+#   - structure.sql differs from loaded -> db:test:prepare (reloads the test schema)
 module TestSchema
   OWNER_ENV = { "DB_ROLE" => "owner", "RAILS_ENV" => "test", "RUN_SETUP" => "false" }.freeze
 
@@ -18,7 +18,7 @@ module TestSchema
   end
 
   def run_task(task)
-    # El purge de db:test:prepare borra la base: esta conexión no puede seguir abierta.
+    # db:test:prepare's purge drops the database: this connection cannot stay open.
     ActiveRecord::Base.connection_handler.clear_all_connections!
     ok = system(OWNER_ENV, "bin/rails", task, out: File::NULL)
     abort "No se pudo preparar la base de test: corre `make db-prepare` (DB_ROLE=owner bin/rails #{task})" unless ok

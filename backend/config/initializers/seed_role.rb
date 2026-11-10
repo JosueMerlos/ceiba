@@ -1,6 +1,5 @@
-# Los seeds SIEMPRE corren como app_user (el rol de la aplicación, sin BYPASSRLS), aunque se carguen dentro de
-# db:prepare / db:setup / db:reset, que son tareas de esquema y corren como app_owner (config/db_roles.rb).
-# Antes de cargar los seeds se reconecta como app_user y al terminar se restaura la conexión original.
+# Seeds ALWAYS run as app_user (the application role, without BYPASSRLS), even when loaded inside db:prepare / db:setup /
+# db:reset, which are schema tasks running as app_owner. Reconnects as app_user for the seeds, then restores the original.
 module SeedAsAppUser
   def load_seed
     original = ActiveRecord::Base.connection_db_config

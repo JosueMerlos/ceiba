@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Criterio 4 de M0.05: un modelo tenant nuevo, en cualquier pack, SIN factory hace fallar la suite de aislamiento
-# indicando qué factory falta. Se demuestra con una tabla tenant real (efímera) y un modelo sin factory.
+# A new tenant model, in any pack, WITHOUT a factory fails the isolation suite saying which factory is missing. Shown
+# with a real (ephemeral) tenant table and a model without a factory.
 RSpec.describe TenantIsolation do
   let(:probe_table) { "isolation_probes" }
   let(:probe_model) do
@@ -11,7 +11,7 @@ RSpec.describe TenantIsolation do
     end
   end
 
-  # La tabla es real (efímera, creada por el dueño): un modelo tenant "nuevo" sin factory.
+  # The table is real (ephemeral, created by the owner): a "new" tenant model without a factory.
   before do
     OwnerConnection.with do |owner|
       owner.drop_table(probe_table, if_exists: true)
@@ -46,7 +46,7 @@ RSpec.describe TenantIsolation do
     group.run(RSpec::Core::NullReporter)
     failures = group.descendants.flat_map(&:examples).filter_map { |example| example.execution_result.exception }
 
-    expect(failures.size).to eq(15) # todos salvo los que no necesitan registros (NoTenantSet, guard incluido, update_all, on_duplicate)
+    expect(failures.size).to eq(15) # all except those that need no records (NoTenantSet, guard included, update_all, on_duplicate)
     expect(failures.map(&:message)).to all(include("Falta una factory para IsolationProbe"))
   ensure
     RSpec.world.example_groups.delete(group)

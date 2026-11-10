@@ -6,9 +6,9 @@ namespace :access do
   end
 end
 
-# Cada despliegue migra y luego sincroniza el catálogo (ADR-0008: "sincronizar permisos al desplegar"). Si la tabla aún no
-# existe (migrar hacia una versión anterior a M0.08) no hay nada que sincronizar.
-# db:prepare NO invoca db:migrate (migra por su cuenta), así que se encadena también.
+# Every deploy migrates and then syncs the catalog. If the table does not exist yet (migrating to a version before the
+# access catalog) there is nothing to sync. db:prepare does NOT invoke db:migrate (it migrates on its own), so it is
+# chained too.
 %w[db:migrate db:prepare].each do |task|
   Rake::Task[task].enhance do
     Rake::Task["access:sync"].invoke if ActiveRecord::Base.connection.table_exists?("roles")

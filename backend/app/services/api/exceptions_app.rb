@@ -1,8 +1,7 @@
 module Api
-  # `config.exceptions_app`: responde problem+json a los errores que ocurren ANTES de un controlador de la API (ruta
-  # inexistente, JSON mal formado en el cuerpo, método HTTP desconocido) y que, por tanto, no pasan por sus
-  # `rescue_from`. Fuera de /api delega en el comportamiento por defecto de Rails con el `env` INTACTO (PublicExceptions
-  # deriva el status de PATH_INFO, que ShowExceptions ya reescribió a "/<status>").
+  # `config.exceptions_app`: answers problem+json for errors raised BEFORE an API controller (unknown route, malformed
+  # JSON body, unknown HTTP method), which therefore skip its `rescue_from`. Outside /api it delegates to Rails' default
+  # with the `env` INTACT (PublicExceptions derives the status from PATH_INFO, which ShowExceptions rewrote to "/<status>").
   class ExceptionsApp
     API_PATH = %r{\A/api(/|\z)}
 
@@ -10,7 +9,7 @@ module Api
       original_path = env["action_dispatch.original_path"] || env["PATH_INFO"]
       return default.call(env) unless API_PATH.match?(original_path)
 
-      # ShowExceptions reescribe PATH_INFO a "/404" antes de llamar aquí: para `instance` se restaura el original.
+      # ShowExceptions rewrites PATH_INFO to "/404" before calling here: restore the original for `instance`.
       request = ActionDispatch::Request.new(env.merge("PATH_INFO" => original_path))
       exception = env["action_dispatch.exception"]
       problem = Problem.from_exception(exception, request:)

@@ -1,12 +1,11 @@
-# Imagen de DESARROLLO de la API (Rails) y del worker (Sidekiq). La de producción llega en M4.04.
+# DEVELOPMENT image for the API (Rails) and the worker (Sidekiq).
 FROM ruby:3.4.12-slim-trixie
 
 ARG HOST_UID=1000
 ARG HOST_GID=1000
 
-# pg_dump/psql DEBEN ser de la misma versión mayor que el servidor (PostgreSQL 18): `db:structure:dump`
-# (structure.sql, M0.04) falla con "server version mismatch" si el cliente es más antiguo, y Debian trixie
-# trae el cliente 17. Se instala postgresql-client-18 desde el repositorio oficial PGDG.
+# pg_dump/psql MUST match the server's major version (PostgreSQL 18): `db:structure:dump` fails with "server version
+# mismatch" with an older client, and Debian trixie ships client 17. postgresql-client-18 comes from the official PGDG repo.
 RUN apt-get update -qq \
  && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
  && install -d /usr/share/keyrings \
@@ -17,8 +16,8 @@ RUN apt-get update -qq \
       build-essential git libpq-dev libyaml-dev pkg-config postgresql-client-18 tzdata \
  && rm -rf /var/lib/apt/lists/*
 
-# Usuario no root con el UID/GID del host. `-o` permite reutilizar un GID que ya existe
-# en la imagen base (p. ej. GID 20 = staff en macOS, que en Debian es `dialout`).
+# Non-root user with the host's UID/GID. `--non-unique` allows reusing a GID that already exists in the base image
+# (e.g. GID 20 = staff on macOS, which is `dialout` on Debian).
 RUN groupadd --gid "${HOST_GID}" --non-unique app \
  && useradd --uid "${HOST_UID}" --gid "${HOST_GID}" --non-unique --create-home --shell /bin/bash app \
  && mkdir -p /app/backend \

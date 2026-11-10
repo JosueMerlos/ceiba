@@ -1,5 +1,5 @@
-# Un "mundo" de control de acceso para los specs: UNA organización con dos empresas (A y B) y sus sucursales (A1, A2 en A; B1
-# en B), y usuarios con un rol de sistema en un alcance. Es la base de los specs de rutas, policies y de la matriz.
+# An access control "world" for specs: ONE organization with two companies (A and B) and their branches (A1, A2 in A; B1
+# in B), and users with a system role in a scope. It is the basis of the route, policy and matrix specs.
 #
 #   world = build_access_world
 #   user  = user_with_role("branch_manager", world, branch: world.branch_a1)
@@ -17,8 +17,8 @@ module AccessWorld
     )
   end
 
-  # Crea un usuario y le concede `role_key` en el alcance dado (organización por defecto). El alcance DEBE coincidir con el
-  # del rol de sistema (la base lo exige). `user:` permite sumar un segundo membership al mismo usuario.
+  # Creates a user and grants `role_key` in the given scope (organization by default). The scope MUST match the system
+  # role's (the database requires it). `user:` adds a second membership to the same user.
   def user_with_role(role_key, world_or_organization, company: nil, branch: nil, user: create(:user))
     organization = world_or_organization.respond_to?(:organization) ? world_or_organization.organization : world_or_organization
     with_tenant(organization) do
@@ -27,8 +27,8 @@ module AccessWorld
     user
   end
 
-  # Un usuario con un rol de PRUEBA (no de sistema) con exactamente los permisos dados, en el alcance dado. Sirve para ejercitar el
-  # 403 ("visible pero no permitido") sin depender de la matriz de los roles de sistema.
+  # A user with a TEST role (not a system one) with exactly the given permissions, in the given scope. Exercises the 403
+  # ("visible but not allowed") without depending on the system roles matrix.
   def user_with_custom_role(world, scope_level:, permissions: [], company: nil, branch: nil)
     role = create(:role, scope_level:)
     permissions.each { |key| Access::RolePermission.create!(role:, permission_key: key) }

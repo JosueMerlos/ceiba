@@ -1,7 +1,6 @@
 require "rails_helper"
 
-# Criterio de tarea 1 de M0.07: normalización del correo y longitud de la contraseña. User es GLOBAL (no tenant,
-# ADR-0028): no lleva organization_id.
+# Email normalization and password length. User is GLOBAL (not tenant): it has no organization_id.
 RSpec.describe Identity::User do
   describe "correo" do
     it "se normaliza: sin espacios y en minúsculas" do

@@ -1,4 +1,4 @@
 @import "@ceiba/ui/styles.css";
 
-/* Tailwind escanea también el código del panel. */
+/* Tailwind also scans the panel code. */
 @source "./";

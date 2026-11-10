@@ -1,13 +1,12 @@
 module Modules
-  # Los módulos ACTIVOS de una empresa con sus settings ya resueltos (default -> empresa -> sucursal del contexto), para /me. Dos
-  # consultas como máximo (filas de company_modules y overrides de la sucursal), sin importar cuántos módulos haya.
+  # A company's ACTIVE modules with settings already resolved (default -> company -> context branch), for /me. At most two
+  # queries (company_modules rows and branch overrides), however many modules there are.
   module ActiveModules
     Entry = Data.define(:manifest, :settings)
 
-    # Lo guardado puede dejar de cumplir el esquema (un cambio incompatible, un dato corrupto). /me no debe romperse por UN módulo:
-    # se degrada a los defaults del esquema (el módulo sigue activo) y se REPORTA para corregir el dato.
-    # Degradación gradual: un override de SUCURSAL inválido cae al nivel de empresa (la empresa conserva lo suyo); si la empresa
-    # tampoco es válida, a los defaults del esquema.
+    # Stored data can stop satisfying the schema (incompatible change, corrupt data) and /me must not break over ONE module:
+    # degrade gradually and REPORT. An invalid BRANCH override falls back to the company level; if that is invalid too, to the
+    # schema defaults (the module stays active).
     def resolve(manifest, row, branch_row)
       SettingsResolver.call!(manifest, row.settings, branch_row&.settings)
     rescue InvalidSettings => error
@@ -28,7 +27,7 @@ module Modules
       rows = CompanyModule.active.where(company_id: company.id).to_a
       branch_settings = branch ? BranchModuleSetting.where(branch_id: branch.id).index_by(&:module_key) : {}
       rows.filter_map do |row|
-        # Una fila de un módulo cuyo manifiesto ya no existe se ignora (el módulo se retiró del código).
+        # Skip rows of modules whose manifest no longer exists (removed from the code).
         next unless Modules.registry.key?(row.module_key)
 
         manifest = Modules.registry.fetch(row.module_key)

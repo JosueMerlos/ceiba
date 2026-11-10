@@ -1,7 +1,7 @@
 module Modules
-  # El gate que modules entrega a access (`Access.module_gate`): access pregunta, aquí se responde desde company_modules y el
-  # registro de manifiestos. Devuelve qué empresas de la organización activa tienen cada módulo ENCENDIDO con UNA consulta
-  # (acotada por el tenant, índice parcial idx_company_modules_active); el principal la memoiza por request.
+  # The gate modules hands to access (`Access.module_gate`): answers from company_modules and the manifest registry. Returns
+  # which companies of the active organization have each module ENABLED with ONE tenant-scoped query (partial index
+  # idx_company_modules_active); the principal memoizes it per request.
   module AccessGate
     module_function
 

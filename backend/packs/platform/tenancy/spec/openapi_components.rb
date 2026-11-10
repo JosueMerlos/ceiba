@@ -1,4 +1,4 @@
-# Esquemas OpenAPI del pack tenancy (los carga spec/swagger_helper.rb).
+# OpenAPI schemas of the tenancy pack.
 OpenapiComponents.register(
   Organization: {
     type: :object,

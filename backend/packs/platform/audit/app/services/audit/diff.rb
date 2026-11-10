@@ -1,18 +1,17 @@
 module Audit
-  # Diff de atributos para audit_events (privacidad de la auditoría; criterio 5 de M0.11).
+  # Attribute diff for audit_events (privacy of the audit trail).
   #
   #   Audit::Diff.call(before: { "name" => "A" }, after: { "name" => "B" }, encrypted_attributes: [:phone])
   #   # => { before: { "name" => "A" }, after: { "name" => "B" } }
   #
-  # - Con ambos lados guarda solo las claves de primer nivel cuyo valor cambió (o que aparecen/desaparecen). Una creación
-  #   (before nil) o un borrado (after nil) conservan todo el lado presente.
-  # - SENSIBLES: se enmascaran como "[FILTERED]" con el MISMO criterio que los logs (`config.filter_parameters`: passw,
-  #   email, secret, token, _key, crypt, salt, certificate, otp, ssn, cvv, cvc...) más digest, csrf y ciphertext, y de forma
-  #   RECURSIVA (hashes y arrays anidados: un jsonb `settings: { whatsapp_token: … }` no se cuela). La clave se conserva: que
-  #   cambió una contraseña es un hecho auditable; cuál era, no. Es un criterio por NOMBRE: coincide por subcadena, así que
-  #   enmascara de más (p. ej. `footprint` contiene `otp`) y nunca de menos.
-  # - PII CIFRADA (atributos que el sujeto declara con `encrypts`): se compara el valor real para saber si cambió, pero se
-  #   guarda "[FILTERED]". Un cifrado que no cambió no aparece.
+  # - With both sides, keeps only top-level keys whose value changed (or appeared/disappeared). A create (before nil) or
+  #   a delete (after nil) keeps the whole present side.
+  # - SENSITIVE keys are masked as "[FILTERED]" with the SAME criteria as the logs (`config.filter_parameters`) plus
+  #   digest, csrf and ciphertext, RECURSIVELY (nested hashes and arrays: a jsonb `settings: { whatsapp_token: … }` does
+  #   not slip through). The key is kept: that a password changed is auditable, its value is not. Matching is by NAME
+  #   substring, so it over-masks (`footprint` contains `otp`) and never under-masks.
+  # - ENCRYPTED PII (attributes the subject declares with `encrypts`): compared by real value to detect a change, but
+  #   stored as "[FILTERED]". An unchanged encrypted value does not appear.
   class Diff
     FILTERED = ActiveSupport::ParameterFilter::FILTERED
     EXTRA_FILTERS = [ /digest/i, /csrf/i, /ciphertext/i ].freeze
@@ -32,7 +31,7 @@ module Audit
 
     private
 
-    # Se lee en cada llamada: otro initializer puede ampliar filter_parameters después de cargar este archivo.
+    # Read on each call: another initializer may extend filter_parameters after this file loads.
     def parameter_filter = ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters + EXTRA_FILTERS)
 
     def changed_keys
@@ -47,7 +46,6 @@ module Audit
       parameter_filter.filter(side.slice(*keys)).to_h { |key, value| [ key, @encrypted.include?(key) ? FILTERED : value ] }
     end
 
-    # Copia con claves de texto en todos los niveles (no muta lo recibido).
     def stringify(value)
       case value
       when Hash then value.to_h { |key, nested| [ key.to_s, stringify(nested) ] }

@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Criterio 4 de M0.04: una migración que agrega un índice sin `algorithm: :concurrently` la bloquea
-# strong_migrations. Estos specs corren en CI (backend-test), así que una migración peligrosa no llega a main.
+# A migration that adds an index without `algorithm: :concurrently` is blocked by strong_migrations. These specs run in
+# CI (backend-test), so a dangerous migration never reaches main.
 RSpec.describe "strong_migrations" do
   around { |example| ActiveRecord::Migration.suppress_messages { example.run } }
 
@@ -9,7 +9,7 @@ RSpec.describe "strong_migrations" do
     Class.new(ActiveRecord::Migration[8.1]) { define_method(:change, &body) }
   end
 
-  # `migrate` es el punto donde strong_migrations registra la dirección y comprueba cada comando.
+  # `migrate` is where strong_migrations records the direction and checks each command.
   def run_up(migration) = migration.new.migrate(:up)
 
   it "se ajusta a PostgreSQL 18" do

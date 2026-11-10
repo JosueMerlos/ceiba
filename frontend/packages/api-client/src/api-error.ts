@@ -1,17 +1,17 @@
 import type { components } from "./schema";
 
-/** Un problema `application/problem+json` tal como lo define el contrato (components.schemas.Problem). */
+/** An `application/problem+json` problem as defined by the contract (components.schemas.Problem). */
 export type Problem = components["schemas"]["Problem"];
-/** Error de validación por campo (`errors[]` de un 422). */
+/** Per-field validation error (`errors[]` of a 422). */
 export type FieldError = components["schemas"]["FieldError"];
 
 /**
- * Error de la API traducido desde un problem+json (RFC 9457). El frontend decide qué hacer por `status` y `code`
- * (estable y traducible con i18n), nunca por `message`: ver docs/architecture/08-frontend.md ("Errores").
+ * API error translated from a problem+json (RFC 9457). The front end decides what to do by `status` and `code` (stable
+ * and translatable with i18n), never by `message`.
  *
- * Una respuesta HTTP que NO es problem+json (un 502 del proxy, una página HTML) también termina aquí, con
- * `code: "http.<status>"`. Un fallo de red (sin respuesta HTTP) NO: `fetch` rechaza con un `TypeError` que se propaga tal
- * cual; quien captura distingue `isApiError(error)` (el servidor respondió) de un error de red.
+ * An HTTP response that is NOT problem+json (a proxy 502, an HTML page) also ends up here, with `code: "http.<status>"`.
+ * A network failure (no HTTP response) does NOT: `fetch` rejects with a `TypeError` that propagates as is; callers tell
+ * `isApiError(error)` (the server answered) apart from a network error.
  */
 export class ApiError extends Error {
   override readonly name = "ApiError";
@@ -29,7 +29,6 @@ export class ApiError extends Error {
     super(title);
   }
 
-  /** Construye el error a partir de una respuesta cuyo cuerpo YA se leyó (openapi-fetch lo parsea). */
   static from(response: Response, body: unknown): ApiError {
     if (isProblem(body)) {
       return new ApiError(
@@ -50,7 +49,6 @@ export class ApiError extends Error {
     );
   }
 
-  /** Lee el cuerpo de la respuesta (si es JSON) y construye el error. */
   static async fromResponse(response: Response): Promise<ApiError> {
     const body: unknown = await response.json().catch(() => undefined);
     return ApiError.from(response, body);

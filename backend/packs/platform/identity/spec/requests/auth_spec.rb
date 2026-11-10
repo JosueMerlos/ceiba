@@ -1,6 +1,5 @@
 require "rails_helper"
 
-# Endpoints de autenticación (M0.07, docs/architecture/11-security.md). Criterios 1, 2, 3, 6 y 7.
 RSpec.describe "Autenticación: login, sesión actual y cierre" do
   include ActiveSupport::Testing::TimeHelpers
 
@@ -42,7 +41,7 @@ RSpec.describe "Autenticación: login, sesión actual y cierre" do
 
     it "criterio 1: la cookie lleva Secure y el prefijo __Host- cuando está activa la política de producción", :aggregate_failures do
       with_secure_cookies do
-        https! # Rails no escribe cookies Secure en una request HTTP plana
+        https! # Rails does not write Secure cookies on a plain HTTP request
         login
 
         cookie = set_cookie

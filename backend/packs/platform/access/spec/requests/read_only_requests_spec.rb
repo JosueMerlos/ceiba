@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Las lecturas (GET) de la API corren en una transacción de SOLO LECTURA (Access::RouteContextResolver). Sin fixtures
-# transaccionales: el BEGIN real es lo que se observa.
+# GET requests run in a READ-ONLY transaction (Access::RouteContextResolver). No transactional fixtures: the real BEGIN is
+# what is observed.
 RSpec.describe "Transacciones de solo lectura en GET", type: :request do
   self.use_transactional_tests = false
 

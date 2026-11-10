@@ -1,8 +1,8 @@
 module Modules
-  # Hook de Tenancy::ProvisionOrganization.after_provision: activa en la empresa recién creada los módulos por defecto
-  # (`Modules.default_keys`). Corre dentro de la transacción de la provisión y del contexto de la organización nueva: si algo
-  # falla (p. ej. una key por defecto que ningún manifiesto declara) se revierte TODA la provisión. Tenancy no conoce a modules;
-  # el pack se engancha desde config.to_prepare (config/initializers/provisioning_hook.rb).
+  # Tenancy::ProvisionOrganization.after_provision hook: enables the default modules (`Modules.default_keys`) in the new
+  # company. Runs inside the provisioning transaction and the new organization's context: if anything fails (e.g. a default
+  # key no manifest declares) the WHOLE provisioning rolls back. Tenancy does not know modules; this pack hooks in from
+  # config.to_prepare.
   module ProvisioningHook
     KEY = :modules_defaults
 
@@ -12,7 +12,7 @@ module Modules
       Modules.default_keys.each { |key| Enable.call(company: result.company, key:) }
     end
 
-    # Idempotente por `key:`: se puede llamar en cada recarga.
+    # Idempotent by `key:`, so it can be called on every reload.
     def register = Tenancy::ProvisionOrganization.after_provision(self, key: KEY)
   end
 end

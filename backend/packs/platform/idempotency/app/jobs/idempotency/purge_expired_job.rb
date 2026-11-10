@@ -1,5 +1,5 @@
 module Idempotency
-  # Borra las idempotency_keys vencidas de todas las organizaciones. Job del sistema (sin organización).
+  # System job (no organization): deletes expired idempotency_keys of all organizations.
   class PurgeExpiredJob
     include Sidekiq::Job
 

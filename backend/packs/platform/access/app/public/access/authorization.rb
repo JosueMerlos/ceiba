@@ -1,21 +1,21 @@
 module Access
-  # Autorización de la API (ADR-0007). Lo incluye Api::BaseController, así que TODO controlador de la API queda con:
+  # API authorization. Included by Api::BaseController, so EVERY API controller gets:
   #
-  #   1. el principal de acceso (Access::Principal::User) construido desde la sesión;
-  #   2. el contexto resuelto desde la ruta y validado contra sus memberships (Access::RouteContextResolver) cuando la ruta trae
-  #      organization_id (o el parámetro equivalente, ver `route_context`);
-  #   3. `verify_authorized` tras CADA acción (una acción que no autoriza FALLA: 500 con el detalle en el log) y
-  #      `verify_collection_scoped` tras cada acción que NO autorizó un registro concreto: autorizar una clase o una relación
-  #      (listados, búsquedas, cualquier acción de colección, se llame como se llame) exige además `policy_scope`. Así no hay que
-  #      declarar qué acciones son de colección ni depender de que se llamen `index`. Como corren DENTRO del contexto, lo que la
-  #      acción haya escrito se revierte si fallan.
+  #   1. the access principal (Access::Principal::User) built from the session;
+  #   2. the context resolved from the route and validated against its memberships (Access::RouteContextResolver) when the
+  #      route carries organization_id (or the equivalent param, see `route_context`);
+  #   3. `verify_authorized` after EVERY action (an action that does not authorize FAILS: 500 with details in the log) and
+  #      `verify_collection_scoped` after every action that did NOT authorize a single record: authorizing a class or a
+  #      relation (any collection action, whatever its name) also requires `policy_scope`. This avoids declaring which
+  #      actions are collection ones or relying on them being called `index`. They run INSIDE the context, so whatever the
+  #      action wrote is rolled back if they fail.
   #
-  # Para una acción que de verdad no autoriza (login, logout, sesión) se declara `skip_authorization!(reason:, only:)`: `only:` o
-  # `except:` son obligatorios (no existe el skip de todo el controlador), la lista queda en `authorization_skips` y
-  # spec/requests/api/authorization_spec.rb la compara con una allowlist por ruta. El cop Ceiba/AuthorizationSkips prohíbe
-  # cualquier otra forma de saltarse la verificación.
+  # An action that truly does not authorize (login, logout, session) declares `skip_authorization!(reason:, only:)`: `only:`
+  # or `except:` is mandatory (no controller-wide skip), the list is kept in `authorization_skips` and
+  # spec/requests/api/authorization_spec.rb compares it with a per-route allowlist. The Ceiba/AuthorizationSkips cop
+  # forbids any other way to skip verification.
   #
-  # Rutas cuyo recurso ES la organización, la empresa o la sucursal usan su `:id` como identificador:
+  # Routes whose resource IS the organization, company or branch use its `:id` as the identifier:
   #
   #   route_context organization: :id        # GET /organizations/:id
   #   route_context company: :id             # GET /organizations/:organization_id/companies/:id
@@ -32,17 +32,17 @@ module Access
 
       before_action :establish_access_principal!
       around_action :within_route_context
-      # Declarados DESPUÉS del around: sus after_action corren dentro del contexto (y de su transacción).
+      # Declared AFTER the around action so these after_actions run inside the context (and its transaction).
       after_action :verify_authorized
       after_action :verify_collection_scoped
 
-      # Definido en la clase (no en el módulo): Pundit::Authorization, incluido arriba, define su propio pundit_user
-      # (current_user) y ganaría en la resolución de métodos.
+      # Defined on the class (not the module): Pundit::Authorization, included above, defines its own pundit_user
+      # (current_user) and would win method resolution.
       def pundit_user = Current.principal
       private :pundit_user
 
-      # Recuerda si la acción autorizó un REGISTRO concreto. Autorizar una clase o una relación (acciones de colección) obliga a
-      # usar policy_scope; el resto de la firma es la de Pundit.
+      # Remembers whether the action authorized a single RECORD. Authorizing a class or relation (collection actions)
+      # requires policy_scope; the signature is otherwise Pundit's.
       def authorize(record, query = nil, policy_class: nil)
         authorized = super
         @member_authorized = true unless collection?(record)
@@ -71,13 +71,13 @@ module Access
     end
 
     def verify_collection_scoped
-      # Si ni siquiera autorizó, verify_authorized (que corre después) da el error correcto.
+      # If nothing was authorized, verify_authorized (which runs later) raises the right error.
       return if @member_authorized || pundit_policy_scoped? || !pundit_policy_authorized?
 
       raise Pundit::PolicyScopingNotPerformedError, self.class
     end
 
-    # La sesión entrega la identidad (Identity::Principal::User); aquí se envuelve en el principal que sabe de permisos.
+    # The session provides the identity (Identity::Principal::User); it is wrapped in the principal that knows permissions.
     def establish_access_principal!
       identity = Current.principal
       Current.principal = Principal::User.new(identity) if identity.is_a?(::Identity::Principal::User)
@@ -85,8 +85,8 @@ module Access
 
     def within_route_context(&)
       principal = Current.principal
-      # SOLO los parámetros de la RUTA: `params` mezcla query y cuerpo, y un cliente podría fijar el contexto con
-      # `?organization_id=`. path_parameters viene únicamente del router.
+      # ONLY route params: `params` mixes query and body, so a client could set the context with `?organization_id=`.
+      # path_parameters comes solely from the router.
       route = request.path_parameters
       organization_id = route[route_context_params.fetch(:organization)]
       return yield unless principal.is_a?(Principal::User) && organization_id.present?

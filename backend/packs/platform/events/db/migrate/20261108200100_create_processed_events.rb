@@ -1,8 +1,8 @@
-# processed_events: la idempotencia de los suscriptores. El UNIQUE (event_id, subscriber) hace que el segundo intento
-# de procesar el mismo evento para el mismo suscriptor falle en la base, no en una comprobación de la aplicación.
+# processed_events: subscriber idempotency. UNIQUE (event_id, subscriber) makes a second attempt to process the same
+# event for the same subscriber fail in the database, not in an application check.
 #
-# Sin FK a outbox_events: la purga de ambas tablas es independiente (30 días cada una) y un processed_events que
-# sobrevive a su evento no rompe nada. La tabla es tenant: se escribe dentro del contexto del evento.
+# No FK to outbox_events: both tables are purged independently (30 days each) and a processed_events row that outlives
+# its event breaks nothing. The table is tenant: written inside the event's context.
 class CreateProcessedEvents < ActiveRecord::Migration[8.1]
   def change
     create_tenant_table :processed_events do |t|

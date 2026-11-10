@@ -1,5 +1,5 @@
-# Payload mínimo válido de un esquema de evento (solo propiedades requeridas, por tipo y formato). Lo usa la suite de
-# eventos de plataforma para comprobar que cada esquema del catálogo es satisfacible.
+# Minimal valid payload of an event schema (required properties only, by type and format). The platform events suite
+# uses it to check that every schema in the catalog is satisfiable.
 module EventSamples
   module_function
 

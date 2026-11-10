@@ -1,15 +1,15 @@
 require "rails_helper"
 
-# Criterio 1 de M0.13: la línea de log de una request autenticada es JSON con request_id, organization_id y principal_id,
-# y sin correo ni teléfono.
-RSpec.describe "Log estructurado de requests" do # rubocop:disable RSpec/MultipleMemoizedHelpers -- el mundo de acceso, la ruta y la captura del log son el montaje común
+# The log line of an authenticated request is JSON with request_id, organization_id and principal_id, and no email or
+# phone.
+RSpec.describe "Log estructurado de requests" do # rubocop:disable RSpec/MultipleMemoizedHelpers -- the access world, the route and the log capture are the shared setup
   include TenancyHelpers
 
   let(:output) { StringIO.new }
   let(:world) { build_access_world }
   let(:organization) { world.organization }
   let(:user) { user_with_role("branch_manager", world, branch: world.branch_a1).tap { |u| u.update!(email: "ana.secreta@ceiba.test", full_name: "Ana Secreta") } }
-  # La ruta REAL que resuelve el contexto desde la URL (Access::RouteContextResolver) dentro de una transacción de solo lectura.
+  # The REAL route that resolves the context from the URL (Access::RouteContextResolver) inside a read-only transaction.
   let(:branch_path) { "/api/v1/organizations/#{organization.id}/companies/#{world.company_a.id}/branches/#{world.branch_a1.id}" }
   let(:log_lines) { output.string.lines.filter_map { |line| JSON.parse(line) rescue nil } } # rubocop:disable Style/RescueModifier
   let(:request_line) { log_lines.find { |line| line["controller"] } }
@@ -27,7 +27,7 @@ RSpec.describe "Log estructurado de requests" do # rubocop:disable RSpec/Multipl
 
   before do
     sign_in(user)
-    output.truncate(0) # el login también se registra: cada ejemplo mira solo la request que le interesa
+    output.truncate(0) # login is logged too: each example looks only at the request it cares about
     output.rewind
   end
 

@@ -1,10 +1,9 @@
-# API pública del pack platform/modules (ADR-0010, docs/architecture/05-module-system.md). Los módulos de negocio se
-# DECLARAN con `Modules.define` desde su `manifest.rb`; la plataforma los descubre por archivo (no referencia sus constantes).
+# Public API of the platform/modules pack. Business modules are DECLARED with `Modules.define` from their `manifest.rb`;
+# the platform discovers them by file and never references their constants.
 module Modules
   class << self
-    # Declara un módulo. Se llama desde `packs/modules/<key>/manifest.rb`: durante la carga (Modules.load!) va al registro que
-    # se está construyendo y toma el pack como `root`; fuera de ella (los specs, p. ej. el módulo `sample`) va al registro global
-    # y registra sus permisos en access. Valida el manifiesto: si algo está mal lanza Modules::InvalidManifest.
+    # Called from `packs/modules/<key>/manifest.rb`. During Modules.load! it goes to the registry being built and takes the
+    # pack as `root`; outside it (specs) it goes to the global registry and registers its permissions in access.
     def define(key, root: nil, &block)
       loading = Loader.current
       return loading[:registry].define(key, root: root || loading[:root], &block) if loading
@@ -12,17 +11,15 @@ module Modules
       registry.define(key, root:, &block).tap { |manifest| AccessRegistration.call(manifest) }
     end
 
-    # Registro global de la aplicación.
     def registry = @registry ||= Registry.new
 
-    # ¿Está el módulo ACTIVO en la empresa? Una consulta. `company` es la empresa (o su id), dentro de Tenancy.with_context.
+    # `company` is the record or its id; must run inside Tenancy.with_context.
     def enabled?(company, key)
       CompanyModule.active.exists?(company_id: company.respond_to?(:id) ? company.id : company, module_key: key.to_s)
     end
 
-    # Settings RESUELTOS y validados de un módulo: default del esquema -> empresa -> sucursal (si se da `branch`). El módulo debe estar
-    # activo en la empresa (Modules::NotEnabled); lo guardado que ya no cumpla el esquema lanza Modules::InvalidSettings.
-    # Dentro de Tenancy.with_context. Devuelve un Hash nuevo. Escribir: Modules::UpdateSettings.
+    # Resolved settings: schema default -> company -> branch (when given). Raises NotEnabled if the module is inactive, and
+    # InvalidSettings if stored values no longer satisfy the schema. Returns a new Hash; must run inside Tenancy.with_context.
     def settings_for(key, company:, branch: nil)
       raise ArgumentError, "la sucursal #{branch.id} no es de la empresa #{company.id}" if branch && branch.company_id != company.id
 
@@ -32,23 +29,18 @@ module Modules
       SettingsResolver.call!(manifest, company_row.settings, branch_settings)
     end
 
-    # ¿Permite el plan de la organización este módulo? (entitlement: docs/architecture/05-module-system.md, "Tres conceptos").
-    # TODO(F6): consultar plans/plan_entitlements cuando existan (docs/roadmap/README.md, F6 — Producto vendible). Hasta entonces
-    # todos los planes tienen entitlement a todo (sin límites): activar solo exige `requires`.
+    # Until plan entitlements exist, every plan is entitled to everything: enabling only requires `requires`.
     def entitled?(_company, _key) = true
 
-    # ¿Está liberada una funcionalidad NUEVA (feature flag de Flipper) para la organización? `organization` es el registro o su id.
-    # Un flag nunca sustituye la activación de un módulo (Modules::Enable) ni un entitlement. Sin flags definidos, siempre false.
+    # A Flipper flag never replaces module activation (Modules::Enable) or an entitlement. `organization` is the record or its id.
     def flag_enabled?(feature, organization:)
       Flipper.enabled?(feature, FlagActor.new(organization.respond_to?(:id) ? organization.id : organization))
     end
 
-    # Módulos que se activan al provisionar una organización. Hoy todos los planes incluyen `appointments`.
-    # TODO(F6): derivarlos del plan contratado (plans/plan_entitlements, docs/roadmap/README.md, F6).
+    # Modules enabled when provisioning an organization; every plan includes `appointments` until plans drive this.
     def default_keys = %w[appointments]
 
-    # Carga y valida todos los manifiestos de packs/modules y registra sus permisos en access. Corre al arrancar (y en cada
-    # recarga de código, config/initializers/modules.rb): un manifiesto inválido FALLA el arranque con un mensaje claro.
+    # Runs at boot and on every code reload: an invalid manifest FAILS the boot with a clear message.
     def load!(root: Rails.root)
       fresh = Loader.call(root:, registry: Registry.new)
       fresh.each { |manifest| AccessRegistration.call(manifest) }

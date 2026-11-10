@@ -1,18 +1,18 @@
-# Middleware de entrada de la API (/api/...): rechaza ANTES de que Rails parsee, enrute o registre los parámetros las
-# mutaciones (POST/PUT/PATCH/DELETE) que no cumplen el formato del contrato:
+# API entry middleware (/api/...): BEFORE Rails parses, routes or logs parameters, rejects mutations (POST/PUT/PATCH/DELETE)
+# that break the contract format:
 #
-#   - con cuerpo que no es application/json            -> 415 request.unsupported_media_type
-#   - con parámetros en la query string                -> 400 request.query_not_allowed
+#   - with a body that is not application/json   -> 415 request.unsupported_media_type
+#   - with parameters in the query string        -> 400 request.query_not_allowed
 #
-# Por qué aquí y no en un before_action:
-#   * Un cuerpo JSON SIN Content-Type lo parsea Rack como formulario y el log de Rails ("Parameters:") lo registra
-#     como CLAVE, con la contraseña en claro (el filtro de parámetros solo oculta valores). El `Parameters:` se escribe
-#     antes de cualquier before_action; en el middleware nunca llega a escribirse.
-#   * Los secretos no deben viajar en la URL (quedan en logs de proxies, historial, Referer): una mutación no
-#     necesita query string, todo va en el cuerpo JSON o en la ruta.
+# Why here and not in a before_action:
+#   * A JSON body WITHOUT Content-Type is parsed by Rack as a form and Rails' "Parameters:" log line records it as a KEY,
+#     with the password in clear (the parameter filter only hides values). "Parameters:" is written before any
+#     before_action; in a middleware it is never written.
+#   * Secrets must not travel in the URL (they end up in proxy logs, history, Referer): a mutation needs no query
+#     string, everything goes in the JSON body or the route.
 #
-# La respuesta es el mismo problem+json que el resto de la API (Api::Problem). Las lecturas (GET/HEAD/OPTIONS) no se tocan.
-# Se carga con require desde config/initializers/authentication.rb (config/ no es una ruta de autocarga).
+# Responds with the same problem+json as the rest of the API. Reads (GET/HEAD/OPTIONS) are untouched. Loaded with require
+# because config/ is not an autoload path.
 class ApiRequestGuard
   API_PATH = %r{\A/api(/|\z)}
   SAFE_METHODS = %w[GET HEAD OPTIONS].freeze

@@ -1,6 +1,6 @@
 module Audit
-  # Fila de audit_events. Modelo PRIVADO del pack: se escribe con Audit.record. Tabla tenant, de solo inserción: el
-  # trigger de PostgreSQL rechaza UPDATE/DELETE/TRUNCATE y, además, el modelo es de solo lectura una vez guardado.
+  # Row of audit_events. Private to the pack; written via Audit.record. Insert-only: a PostgreSQL trigger rejects
+  # UPDATE/DELETE/TRUNCATE and the model is read-only once saved.
   class Event < ApplicationRecord
     self.table_name = "audit_events"
 

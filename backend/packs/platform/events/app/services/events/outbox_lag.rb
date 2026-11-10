@@ -1,7 +1,7 @@
 module Events
-  # Lag del outbox: cuántos eventos esperan y qué edad tiene el más antiguo. Si el relay se detiene, la edad crece sin
-  # parar. Events::OutboxLagAlert se suscribe a la notificación `outbox_lag.events` y reporta a Sentry si la edad supera el umbral
-  # (M0.13); además queda una línea de log con formato clave=valor.
+  # Outbox lag: how many events wait and how old the oldest is. If the relay stops, the age grows without bound.
+  # Events::OutboxLagAlert subscribes to the `outbox_lag.events` notification and reports to Sentry above the threshold;
+  # a key=value log line is also written.
   module OutboxLag
     module_function
 

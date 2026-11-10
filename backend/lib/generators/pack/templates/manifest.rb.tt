@@ -1,27 +1,27 @@
-# Manifiesto del módulo <%= pack_name %> (docs/architecture/05-module-system.md, docs/playbooks/add-a-module.md). El registro de
-# platform/modules lo carga por ARCHIVO al arrancar y lo valida: la key debe coincidir con el nombre del pack y no puede cambiar nunca.
-# Solo hay cadenas y datos aquí (nada de constantes de otro pack: este archivo está excluido de packwerk).
+# Manifest of module <%= pack_name %>. The platform/modules registry loads it by FILE at boot and validates it: the key
+# must match the pack name and can never change.
+# Only strings and data here (no constants from another pack: this file is excluded from packwerk).
 #
-# Campos disponibles (solo los de 05); descomenta y completa los que el módulo necesite:
+# Available fields; uncomment and fill in the ones the module needs:
 #
 #   permissions do
-#     permission "<%= pack_name %>.<recurso>.<accion>", description: "Qué permite"   # el prefijo es la key del módulo
+#     permission "<%= pack_name %>.<resource>.<action>", description: "What it allows"   # the prefix is the module key
 #   end
-#   role_grants do                                    # plantilla por defecto de los roles de sistema
+#   role_grants do                                    # default template for the system roles
 #     grant :company_manager, all: true
-#     grant :receptionist, %w[<%= pack_name %>.<recurso>.read]
+#     grant :receptionist, %w[<%= pack_name %>.<resource>.read]
 #   end
-#   api_scopes  "read:<%= pack_name %>" => %w[<%= pack_name %>.<recurso>.read]
-#   settings_schema "config/settings.schema.json"     # JSON Schema; cada propiedad lleva `default`
+#   api_scopes  "read:<%= pack_name %>" => %w[<%= pack_name %>.<resource>.read]
+#   settings_schema "config/settings.schema.json"     # JSON Schema; every property carries a `default`
 #   settings_levels %i[company branch]
-#   publishes   %w[<%= pack_name %>.<evento>.v1]       # cada evento necesita su esquema en app/public/<%= pack_name %>/events/
-#   subscribes  { "otro.evento.v1" => "<%= namespace %>::Subscribers::Algo" }
-#   navigation  [ { key: "inicio", path: "/<%= pack_name %>", permission: "<%= pack_name %>.<recurso>.read" } ]
-#   on_enable   "<%= namespace %>::Lifecycle::OnEnable"    # se resuelve con constantize al ejecutarse
+#   publishes   %w[<%= pack_name %>.<event>.v1]        # each event needs its schema in app/public/<%= pack_name %>/events/
+#   subscribes  { "other.event.v1" => "<%= namespace %>::Subscribers::Something" }
+#   navigation  [ { key: "home", path: "/<%= pack_name %>", permission: "<%= pack_name %>.<resource>.read" } ]
+#   on_enable   "<%= namespace %>::Lifecycle::OnEnable"    # resolved with constantize when run
 #   on_disable  "<%= namespace %>::Lifecycle::OnDisable"
 Modules.define :<%= pack_name %> do
-  name        "<%= namespace %>"   # nombre legible, p. ej. "Lealtad"
+  name        "<%= namespace %>"   # human-readable name, e.g. "Loyalty"
   version     "1.0"
-  requires    []                   # otros módulos que deben estar activos en la empresa
-  platform    []                   # capacidades de plataforma que usa (customers, notifications...)
+  requires    []                   # other modules that must be active in the company
+  platform    []                   # platform capabilities it uses (customers, notifications...)
 end

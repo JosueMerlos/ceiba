@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# GET /api/v1/me (M0.09): el contexto elegido (parámetros o el último usado), los módulos ACTIVOS con sus settings resueltos, los
-# permisos que ejerce y la navegación. La SPA solo REFLEJA esto; el control de acceso es del backend (05).
+# GET /api/v1/me: the chosen context (params or last used), ACTIVE modules with resolved settings, the permissions exercised
+# and navigation. The SPA only REFLECTS this; access control belongs to the backend.
 RSpec.describe "GET /api/v1/me" do
   include_context "con el módulo sample sincronizado"
 

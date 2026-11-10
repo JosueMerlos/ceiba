@@ -3,9 +3,9 @@ require "generators/pack/pack_generator"
 require "open3"
 require "tmpdir"
 
-# Prueba de integración REAL (subprocesos) sobre una COPIA de la aplicación en un directorio temporal
-# (no se escribe en packs/ del repositorio): genera un pack y, en un proceso nuevo, comprueba que
-# packwerk lo valida y que Rails/Zeitwerk lo cargan (app/*, namespace, eager_load! y db/migrate).
+# REAL integration test (subprocesses) over a COPY of the application in a temporary directory (nothing is written to
+# the repository's packs/): generates a pack and, in a new process, checks that packwerk validates it and Rails/Zeitwerk
+# load it (app/*, namespace, eager_load! and db/migrate).
 RSpec.describe "Pack generado" do
   def namespace = "GeneratorProbe"
   def migration_version = "20260101000000"

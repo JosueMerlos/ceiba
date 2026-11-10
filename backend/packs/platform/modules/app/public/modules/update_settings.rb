@@ -1,12 +1,12 @@
 module Modules
-  # Escribe los settings de un módulo en una empresa o, con `branch:`, en una sucursal (docs/architecture/05-module-system.md).
-  # Cada valor se valida contra el JSON Schema del módulo; un valor inválido, una clave que el esquema no define o una clave que
-  # no se permite a nivel sucursal lanza Modules::InvalidSettings con el detalle por campo (422 en la API) y NO guarda nada.
+  # Writes a module's settings for a company or, with `branch:`, for a branch. Each value is validated against the module's
+  # JSON Schema; an invalid value, a key the schema does not define or a key not allowed at branch level raises
+  # Modules::InvalidSettings with per-field detail (422 in the API) and saves NOTHING.
   #
   #   Modules::UpdateSettings.call(company:, key: "appointments", settings: { "min_lead_time_minutes" => 60 }, branch:)
   #
-  # `settings` son SOLO las claves a cambiar (se combinan con los overrides anteriores del mismo nivel); un valor `nil` quita el
-  # override y vuelve al del nivel superior. Devuelve los settings resueltos de ese nivel. Exige el módulo activo (NotEnabled).
+  # `settings` holds ONLY the keys to change (merged with earlier overrides of the same level); a `nil` value removes the
+  # override and falls back to the higher level. Returns that level's resolved settings. Requires the module active (NotEnabled).
   class UpdateSettings
     def self.call(company:, key:, settings:, branch: nil) = new(company:, key:, settings:, branch:).call
 
@@ -66,8 +66,8 @@ module Modules
 
     def error(field, code) = { field:, code:, message: I18n.t("modules.settings_errors.#{code}") }
 
-    # Auditoría (ADR-0022): solo las claves tocadas, con su valor anterior y el nuevo, en la misma transacción. Los nombres de las
-    # propiedades no pueden ser sensibles (el manifiesto lo impide), así que el enmascarado de Audit::Diff nunca oculta un valor.
+    # Audits only the touched keys, old and new value, in the same transaction. Property names cannot be sensitive (the
+    # manifest forbids it), so Audit::Diff's masking never hides a value.
     def audit(row, previous, current, **scope)
       return if previous == current
 

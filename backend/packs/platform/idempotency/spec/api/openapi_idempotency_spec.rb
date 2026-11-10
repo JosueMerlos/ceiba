@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# El contrato (openapi/v1.yaml) documenta el header Idempotency-Key y sus errores como componentes reutilizables
-# (M0.11, docs/architecture/07-api-contract.md#idempotencia): cada endpoint de creación idempotente los referencia con $ref
-# en lugar de repetirlos. El archivo está al día respecto de los specs: lo comprueba infra/scripts/check-api-contract.sh.
+# The contract (openapi/v1.yaml) documents the Idempotency-Key header and its errors as reusable components: each
+# idempotent creation endpoint references them with $ref instead of repeating them. The file is kept in sync with the
+# specs by a CI check.
 RSpec.describe "Contrato OpenAPI: Idempotency-Key" do
   let(:document) { YAML.safe_load_file(Rails.root.join("openapi/v1.yaml")) }
   let(:parameter) { document.dig("components", "parameters", "IdempotencyKey") }

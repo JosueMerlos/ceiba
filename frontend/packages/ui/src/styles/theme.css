@@ -1,4 +1,4 @@
-/* Expone los tokens semánticos como utilidades de Tailwind (bg-primary, text-muted-foreground, rounded-lg...). */
+/* Exposes the semantic tokens as Tailwind utilities (bg-primary, text-muted-foreground, rounded-lg...). */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

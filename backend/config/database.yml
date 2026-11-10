@@ -1,14 +1,13 @@
-# Los parámetros de conexión vienen de variables de entorno (compose.yaml).
-# No se usa DATABASE_URL a propósito: en test sobrescribiría el nombre de la base
-# y los specs acabarían corriendo contra la base de desarrollo.
+# Connection parameters come from environment variables.
+# DATABASE_URL is deliberately not used: in test it would override the database name and specs would run against the
+# development database.
 #
-# DOS ROLES (M0.04, ADR-0005, docs/architecture/03-multi-tenancy.md):
-#   app_user   por defecto: servidor, worker, consola, runner, specs, db:seed y toda tarea no listada. No es dueño de
-#              tablas, no es superusuario y no tiene BYPASSRLS, para que las políticas RLS le apliquen.
-#   app_owner  solo las tareas de esquema de la allowlist DbRoles::OWNER_TASKS (db:create, db:migrate, db:rollback,
-#              db:schema:load, db:prepare...; config/db_roles.rb) o DB_ROLE=owner explícito.
-# DB_ROLE=owner|user fuerza el rol. Los seeds siempre corren como app_user (config/initializers/seed_role.rb).
-# Los roles los crea infra/db/init-roles.sh.
+# TWO ROLES:
+#   app_user   default: server, worker, console, runner, specs, db:seed and any unlisted task. It does not own tables, is
+#              not a superuser and lacks BYPASSRLS, so RLS policies apply to it.
+#   app_owner  only the schema tasks in the DbRoles::OWNER_TASKS allowlist (db:create, db:migrate, db:rollback,
+#              db:schema:load, db:prepare...) or an explicit DB_ROLE=owner.
+# DB_ROLE=owner|user forces the role. Seeds always run as app_user. The roles are created by infra/db/init-roles.sh.
 <%
   require File.join(Rails.root, "config/db_roles")
   role = DbRoles.select(DbRoles.top_level_tasks, ENV["DB_ROLE"])
@@ -28,9 +27,8 @@ development:
   <<: *default
   database: ceiba_development
 
-# seeds: false — Rails 8.1 siembra la base cuando db:prepare la crea o la carga vacía (como en el job backend-test de CI).
-# Los specs asumen una base de test sin organizaciones: la de test no se siembra nunca. Los seeds se prueban con
-# `db:seed` explícito sobre una copia de la app (spec/db/seeds_spec.rb).
+# seeds: false because Rails 8.1 seeds the database when db:prepare creates it or loads it empty (as in CI). Specs assume
+# a test database with no organizations, so it is never seeded; seeds are tested with an explicit `db:seed`.
 test:
   <<: *default
   database: ceiba_test

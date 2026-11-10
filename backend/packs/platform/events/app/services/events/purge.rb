@@ -1,9 +1,9 @@
 module Events
-  # Retención del outbox: 30 días. Se borra por lotes (sin una transacción gigante ni bloqueos largos).
+  # Outbox retention: 30 days, deleted in batches (no giant transaction or long locks).
   #
-  # Un evento pendiente NUNCA se purga, por antiguo que sea (purgeable exige published_at). Una marca de processed_events
-  # más vieja que la retención deja de proteger contra duplicados: por eso la retención es mayor que cualquier ventana de
-  # reintentos de Sidekiq (que son de ~21 días como máximo).
+  # A pending event is NEVER purged, however old (purgeable requires published_at). A processed_events mark older than
+  # the retention stops protecting against duplicates, so the retention exceeds any Sidekiq retry window (~21 days at
+  # most).
   module Purge
     RETENTION = 30.days
     BATCH_SIZE = 1_000
@@ -14,7 +14,7 @@ module Events
 
     def processed(now: Time.current) = delete_in_batches(ProcessedEvent) { ProcessedEvent.older_than(now - RETENTION) }
 
-    # El alcance se construye DENTRO del bloque privilegiado: el filtro de tenant se aplica al construir la relación.
+    # The scope is built INSIDE the privileged block: the tenant filter is applied when the relation is built.
     def delete_in_batches(model)
       total = 0
       CrossTenant.read do

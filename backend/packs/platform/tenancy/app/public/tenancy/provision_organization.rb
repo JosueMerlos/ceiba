@@ -1,6 +1,6 @@
 module Tenancy
-  # El ÚNICO camino para crear una organización con su primera empresa y su primera sucursal (seeds, consola,
-  # back-office M4.01, tests y el futuro auto-registro).
+  # The ONLY way to create an organization with its first company and first branch (seeds, console, back-office, tests and
+  # future self-signup).
   #
   #   result = Tenancy::ProvisionOrganization.call(
   #     organization: { name:, legal_name: },
@@ -9,19 +9,18 @@ module Tenancy
   #   )
   #   result.organization / result.company / result.branch
   #
-  # `extras:` (opcional) lleva a los hooks datos que este servicio NO interpreta, p. ej. el dueño que access convierte en un
-  # membership `org_owner` (M0.08) o el plan que fija los módulos por defecto (M0.09). Llegan en `result.extras`, congelados.
-  # Cada hook valida los suyos y decide si la ausencia de un dato es un error. Sin `extras:` todo funciona como antes:
+  # Optional `extras:` carries data this service does NOT interpret to the hooks, e.g. the owner that access turns into an
+  # `org_owner` membership or the plan that sets the default modules. They arrive frozen in `result.extras`. Each hook
+  # validates its own and decides whether a missing value is an error.
   #
   #   Tenancy::ProvisionOrganization.call(organization:, company:, branch:, extras: { owner: Identity::ProvisionUser.call(...) })
   #
-  # - Una sola transacción: si algo falla (incluido un hook), no queda nada a medias.
-  # - Los errores previstos se lanzan como Tenancy::ProvisioningFailed (slug reservado o repetido, datos inválidos).
-  #   La unicidad del slug la decide la BASE: si dos provisiones compiten, la restricción UNIQUE gana y el perdedor
-  #   recibe :slug_taken.
-  # - Hooks `after_provision`: otros packs se enganchan SIN modificar este servicio (M0.08: dueño de la organización;
-  #   M0.09: módulos por defecto). Corren en orden de registro, dentro de la transacción y dentro del contexto de la
-  #   organización nueva. Un hook que lanza revierte TODO y su error se propaga tal cual.
+  # - One transaction: if anything fails (a hook included), nothing is left half-done.
+  # - Expected errors are raised as Tenancy::ProvisioningFailed (reserved or taken slug, invalid data). The DATABASE decides
+  #   slug uniqueness: if two provisions race, the UNIQUE constraint wins and the loser gets :slug_taken.
+  # - `after_provision` hooks: other packs plug in WITHOUT modifying this service (organization owner, default modules). They
+  #   run in registration order, inside the transaction and the new organization's context. A raising hook rolls back
+  #   EVERYTHING and its error propagates as is.
   class ProvisionOrganization
     Result = Data.define(:organization, :company, :branch, :extras) do
       def initialize(organization:, company:, branch:, extras: {})
@@ -29,10 +28,10 @@ module Tenancy
       end
     end
 
-    # El registro de hooks vive en la configuración de la aplicación y NO en la clase: en desarrollo la clase se
-    # recarga y un ivar de clase perdería los hooks. Cada hook puede llevar una `key`: registrar otro con la misma
-    # clave lo REEMPLAZA, así un `config.to_prepare { ProvisionOrganization.after_provision(Hook, key: :x) }` es
-    # idempotente aunque corra en cada recarga (y los callables recargables no quedan obsoletos).
+    # The hook registry lives in the application config, NOT in the class: in development the class reloads and a class ivar
+    # would lose the hooks. A hook may carry a `key`: registering another with the same key REPLACES it, so
+    # `config.to_prepare { ProvisionOrganization.after_provision(Hook, key: :x) }` is idempotent on every reload (and
+    # reloadable callables do not go stale).
     STORE = Rails.application.config.x.tenancy
 
     class << self
@@ -40,7 +39,7 @@ module Tenancy
         new(organization:, company:, branch:, extras:).call
       end
 
-      # Registra un hook (lambda, proc u objeto con #call(result)). Devuelve el hook para poder quitarlo.
+      # Hook is a lambda, proc or object with #call(result). Returns it so it can be removed.
       def after_provision(callable = nil, key: nil, &block)
         hook = callable || block
         raise ArgumentError, "after_provision requiere un objeto que responda a call (o un bloque)" unless hook.respond_to?(:call)
@@ -78,12 +77,12 @@ module Tenancy
 
     def call
       result = nil
-      # requires_new: dentro de una transacción ajena (tests, un job) un fallo hace rollback a un savepoint y deja la
-      # conexión utilizable, en vez de abortar la transacción entera.
+      # requires_new: inside a foreign transaction (tests, a job) a failure rolls back to a savepoint and leaves the
+      # connection usable instead of aborting the whole transaction.
       ApplicationRecord.transaction(requires_new: true) do
         result = FailureTranslator.translating(slug: @company_attributes[:slug]) { create_records }.with(extras: @extras)
-        # Los hooks corren en la MISMA transacción pero FUERA del traductor: su error se propaga tal cual (y revierte todo),
-        # no se disfraza de ProvisioningFailed.
+        # Hooks run in the SAME transaction but OUTSIDE the translator: their error propagates as is (rolling everything
+        # back) instead of being disguised as ProvisioningFailed.
         run_hooks(result)
       end
       result

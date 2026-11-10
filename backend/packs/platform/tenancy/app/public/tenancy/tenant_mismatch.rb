@@ -1,4 +1,4 @@
 module Tenancy
-  # Se intentó escribir (crear o destruir) un registro cuyo organization_id no es el del tenant activo.
+  # Tried to write (create or destroy) a record whose organization_id is not the active tenant's.
   class TenantMismatch < Error; end
 end

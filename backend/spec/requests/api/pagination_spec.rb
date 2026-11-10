@@ -1,6 +1,6 @@
 require "rails_helper"
 
-# El contrato HTTP de la paginación: { data: [...], page: { next_cursor, has_more } } y errores 400 problem+json.
+# The pagination HTTP contract: { data: [...], page: { next_cursor, has_more } } and 400 problem+json errors.
 RSpec.describe "Paginación por cursor en la API" do
   include_context "con endpoints de prueba de la API"
 

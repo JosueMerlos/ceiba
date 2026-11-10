@@ -1,20 +1,19 @@
-# Observabilidad de los jobs de Sidekiq (M0.13): el mismo esquema de log que las requests.
+# Sidekiq job observability: the same log schema as requests.
 #
 #   {"ts":"...","level":"INFO","pid":1,"tid":"1gx","msg":"done","job_class":"Events::DeliverJob","jid":"...",
 #    "organization_id":"...","duration":12.4}
 #
-# - Formatter: una línea JSON plana por entrada de log del proceso Sidekiq (en lugar del anidado `ctx` del JSON de Sidekiq).
-# - JobLogger: añade `organization_id` (del payload, que el middleware de tenancy copia al encolar) al contexto del log y
-#   a Observability::LogContext, para que Sentry etiquete el error con la organización y el job. Nunca escribe `args`.
+# - Formatter: one flat JSON line per log entry of the Sidekiq process (instead of Sidekiq JSON's nested `ctx`).
+# - JobLogger: adds `organization_id` (from the payload, which the tenancy middleware copies on enqueue) to the log context
+#   and to Observability::LogContext, so Sentry tags the error with the organization and job. Never writes `args`.
 #
-# Vive en config/middleware (no se autocarga): Sidekiq guarda estas clases al arrancar y una recarga las dejaría obsoletas, y
-# los initializers no pueden usar constantes de app/. Se activa con JobObservability.install en
-# config/initializers/job_logging.rb. Las constantes de Observability se resuelven al ejecutar, no al cargar.
+# Lives in config/middleware (not autoloaded): Sidekiq keeps these classes from boot and a reload would leave them stale,
+# and initializers cannot use app/ constants. Observability constants are resolved at run time, not load time.
 require "sidekiq"
 require "sidekiq/job_logger"
 
 module JobObservability
-  # Del contexto de Sidekiq (:class, :elapsed, ...) a los nombres del log de requests.
+  # Maps Sidekiq context keys (:class, :elapsed, ...) to the request log's names.
   CONTEXT_KEYS = { class: :job_class, elapsed: :duration }.freeze
 
   class Formatter < Sidekiq::Logger::Formatters::Base
@@ -22,7 +21,7 @@ module JobObservability
       entry = { ts: time.utc.iso8601(3), level: severity, pid: ::Process.pid, tid: tid, msg: message.to_s }
       Sidekiq::Context.current.each { |key, value| entry[CONTEXT_KEYS.fetch(key.to_sym, key.to_sym)] = value }
       entry[:duration] = (entry[:duration] * 1000).round(2) if entry[:duration]
-      # Mismo esquema que las requests: tenant y principal vivos (company_id, branch_id y principal_* de LogFields).
+      # Same schema as requests: live tenant and principal (company_id, branch_id, principal_*).
       Observability::LogFields.current.each { |key, value| entry[key] = value if entry[key].nil? }
       "#{Sidekiq.dump_json(entry)}\n"
     end

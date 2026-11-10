@@ -1,6 +1,6 @@
 require "rails_helper"
 
-# Rails en modo API no trae cookies ni protección CSRF (riesgo de M0.07): se incluyen explícitamente.
+# Rails in API mode ships neither cookies nor CSRF protection: they are included explicitly.
 RSpec.describe "Configuración de autenticación" do
   it "incluye ActionDispatch::Cookies en la pila de middleware (modo API no lo trae)" do
     expect(Rails.application.middleware.map(&:klass)).to include(ActionDispatch::Cookies)

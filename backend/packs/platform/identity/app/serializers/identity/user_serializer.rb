@@ -1,5 +1,6 @@
 module Identity
-  # Representación pública de la persona autenticada (Identity::Principal::User). EXACTAMENTE components.schemas.User.
+  # Public representation of the authenticated person (Identity::Principal::User). Must match components.schemas.User
+  # EXACTLY.
   class UserSerializer < Api::Serializer
     attributes :id, :email, :full_name
   end

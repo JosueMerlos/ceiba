@@ -1,6 +1,6 @@
-# Cabeceras de seguridad en toda respuesta (config/middleware/security_headers.rb). HSTS solo en producción: en desarrollo y
-# test se sirve por HTTP y el navegador recordaría el host como "solo HTTPS". Rails (`force_ssl`) también puede emitirlo; este
-# middleware pisa su valor para que haya UNA cabecera y con `preload`.
+# Security headers on every response. HSTS only in production: development and test are served over HTTP and the browser
+# would remember the host as "HTTPS only". Rails (`force_ssl`) can also emit it; this middleware overrides its value so
+# there is ONE header, with `preload`.
 require Rails.root.join("config/middleware/security_headers").to_s
 
 Rails.application.config.middleware.insert_before 0, SecurityHeaders, hsts: Rails.env.production?

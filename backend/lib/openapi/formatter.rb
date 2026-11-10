@@ -3,17 +3,17 @@ require "rswag/specs/swagger_formatter"
 require "openapi/normalizer"
 
 module Openapi
-  # Formateador de rswag que escribe el documento en forma canónica (claves ordenadas). Se usa con
-  # `bin/rails openapi:generate`, no se invoca a mano.
+  # rswag formatter that writes the document in canonical form (sorted keys). Used by `bin/rails openapi:generate`, not
+  # invoked by hand.
   class Formatter < Rswag::Specs::SwaggerFormatter
-    # RSpec registra los formateadores por clase: la subclase no hereda el registro de la madre.
+    # RSpec registers formatters by class: the subclass does not inherit its parent's registration.
     ::RSpec::Core::Formatters.register self, :example_group_finished, :stop
 
     private
 
-    # rswag declara `produces` por OPERACIÓN y lo copia a todas sus respuestas: un 200 saldría también como
-    # problem+json y un 404 como json, y el cliente generado tendría uniones absurdas. Una respuesta de éxito es
-    # application/json; una de error (>= 400), application/problem+json.
+    # rswag declares `produces` per OPERATION and copies it to all its responses: a 200 would also come out as
+    # problem+json and a 404 as json, and the generated client would get absurd unions. A success response is
+    # application/json; an error one (>= 400), application/problem+json.
     def prune_content_types(doc)
       doc = doc.deep_dup
       doc[:paths]&.each_value do |path_item|
@@ -22,7 +22,7 @@ module Openapi
 
           operation[:responses]&.each do |code, response|
             kept = code.to_s.to_i >= 400 ? "application/problem+json" : "application/json"
-            # Sin select!: rswag comparte el mismo Hash `content` entre las respuestas de una operación.
+            # No select!: rswag shares the same `content` Hash across an operation's responses.
             response[:content] = response[:content].select { |media_type, _| media_type == kept } if response[:content]
           end
         end
@@ -30,8 +30,8 @@ module Openapi
       doc
     end
 
-    # Sin ajuste de línea (line_width -1): el plegado de textos largos de Psych es un detalle de versión que no debe
-    # decidir si hay drift.
+    # No line wrapping (line_width -1): Psych's folding of long text is a version detail that must not decide whether
+    # there is drift.
     def pretty_generate(doc)
       normalized = Normalizer.call(prune_content_types(doc))
       @config.openapi_format == :yaml ? YAML.dump(normalized, line_width: -1) : JSON.pretty_generate(normalized)

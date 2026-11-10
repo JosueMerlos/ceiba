@@ -1,5 +1,5 @@
 module Access
-  # Policy de la sucursal (Tenancy::Branch). Ver nota en OrganizationPolicy sobre su ubicación.
+  # Policy for Tenancy::Branch. See OrganizationPolicy for why it lives here.
   class BranchPolicy < BasePolicy
     def index? = principal.member?
 

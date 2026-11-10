@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Job frontend-lint de CI (y de bin/ci): ESLint, Prettier y tipos (tsc --noEmit). Se ejecuta desde frontend/.
+# frontend-lint CI job (and bin/ci): ESLint, Prettier and types (tsc --noEmit). Runs from frontend/.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

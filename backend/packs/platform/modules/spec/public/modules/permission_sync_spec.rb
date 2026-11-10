@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# Criterio de la tarea "Sincronización de permisos": los permisos y las concesiones de los manifiestos llegan a la base por el
-# Access.sync! existente (con sus salvaguardas), no por un camino paralelo.
+# Manifest permissions and grants reach the database through the existing Access.sync! (with its safeguards), not a parallel
+# path.
 RSpec.describe "Sincronización de permisos desde los manifiestos" do
   def granted(role_key)
     Access::RolePermission.joins(:role).where(roles: { key: role_key }).pluck(:permission_key)

@@ -1,9 +1,9 @@
-# Errores de dominio de idempotency que la API traduce a problem+json (ver Api::ErrorRegistry).
+# Idempotency domain errors that the API translates to problem+json (see Api::ErrorRegistry).
 #
-# - KeyReused: 409, misma clave con otro método, ruta o cuerpo. No expone el cuerpo guardado.
-# - RequestInProgress: 409, la primera petición con esa clave sigue en curso (espera acotada).
+# - KeyReused: 409, same key with another method, path or body. Does not expose the stored body.
+# - RequestInProgress: 409, the first request with that key is still running (bounded wait).
 # - KeyRequired / KeyInvalid: 400.
-# - MissingContext NO se registra a propósito: es un bug de programación (500 genérico, detalle solo en el log).
+# - MissingContext is NOT registered on purpose: it is a programming bug (generic 500, detail only in the log).
 Rails.application.config.to_prepare do
   Api::ErrorRegistry.register(Idempotency::KeyReused, status: :conflict, code: "idempotency.key_reused")
   Api::ErrorRegistry.register(Idempotency::RequestInProgress, status: :conflict, code: "idempotency.request_in_progress")

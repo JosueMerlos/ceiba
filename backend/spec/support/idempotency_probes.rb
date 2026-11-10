@@ -1,9 +1,9 @@
-# Endpoints de prueba de la idempotencia (M0.11). Aún no hay endpoints de creación reales, así que el concern
-# Idempotency::Idempotent se prueba sobre una sonda que CREA UNA EMPRESA (un recurso real, contable). Las rutas existen solo
-# en los grupos que las piden (mismo patrón que ApiProbes). La sonda hereda de Api::BaseController, como cualquier
-# controlador de un pack. En las acciones autenticadas el contexto lo abre Access::Authorization desde la ruta
-# (/organizations/:organization_id/..., exige un membership); las acciones PÚBLICAS (principal anónimo) abren el suyo, como
-# hará la reserva pública al resolver la organización por el slug.
+# Idempotency test endpoints. There are no real create endpoints yet, so the Idempotency::Idempotent concern is tested
+# against a probe that CREATES A COMPANY (a real, countable resource). The routes exist only in the groups that ask for
+# them (same pattern as ApiProbes). The probe inherits Api::BaseController, like any pack controller. In authenticated
+# actions the context is opened by Access::Authorization from the route (/organizations/:organization_id/..., requires a
+# membership); PUBLIC actions (anonymous principal) open their own, as the public booking will when resolving the
+# organization by slug.
 module IdempotencyProbes
   def self.define_controller!
     return if const_defined?(:ProbesController, false)
@@ -15,7 +15,7 @@ module IdempotencyProbes
       skip_authorization! reason: "sondas de test de la idempotencia: crean empresas de prueba, no autorizan un recurso", only: %i[
         create required_create soft_fail public_create slow_create no_context audit_in_get idempotent_get
       ]
-      # Declarado ANTES que `idempotent`: el contexto debe estar abierto cuando corre el filtro de la clave.
+      # Declared BEFORE `idempotent`: the context must be open when the key filter runs.
       around_action :in_public_organization, only: %i[public_create slow_create]
 
       idempotent :create, :public_create, :slow_create, :soft_fail
@@ -27,7 +27,7 @@ module IdempotencyProbes
       def required_create = create_company
       def no_context = head(:created)
 
-      # Lecturas: corren en una transacción de SOLO LECTURA (Access::RouteContextResolver). Escribir en ellas debe fallar.
+      # Reads: run in a READ-ONLY transaction (Access::RouteContextResolver). Writing in them must fail.
       def audit_in_get
         Audit.record(action: "probe.read", subject: Current.context.organization)
         head :ok
@@ -35,7 +35,7 @@ module IdempotencyProbes
 
       def idempotent_get = head(:ok)
 
-      # Responde 422 SIN lanzar una excepción (el camino "render 4xx").
+      # Answers 422 WITHOUT raising an exception (the "render 4xx" path).
       def soft_fail = render(json: { error: "rechazada" }, status: :unprocessable_content)
 
       def slow_create
@@ -84,6 +84,6 @@ module IdempotencyProbes
 end
 
 RSpec.shared_context "con endpoints de prueba de idempotencia" do
-  before(:context) { extend IdempotencyProbes::Helpers; idempotency_routes } # rubocop:disable RSpec/BeforeAfterAll -- dibujar rutas es caro y global
+  before(:context) { extend IdempotencyProbes::Helpers; idempotency_routes } # rubocop:disable RSpec/BeforeAfterAll -- drawing routes is expensive and global
   after(:context) { Rails.application.reload_routes! } # rubocop:disable RSpec/BeforeAfterAll
 end

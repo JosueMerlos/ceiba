@@ -1,4 +1,4 @@
 module Events
-  # El evento tal como lo ven publicadores y suscriptores: inmutable y sin exponer la fila del outbox.
+  # The event as publishers and subscribers see it: immutable, without exposing the outbox row.
   Event = Data.define(:id, :name, :organization_id, :payload, :metadata, :occurred_at)
 end

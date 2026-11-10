@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Pruebas de check-package-todo-growth.sh sobre repositorios git temporales.
+# Tests for check-package-todo-growth.sh on temporary git repositories.
 set -uo pipefail
 script="$(cd "$(dirname "$0")" && pwd)/check-package-todo-growth.sh"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
 failures=0
-new_repo() { # crea un repo con main que ya tiene una deuda de 2 líneas
+new_repo() { # creates a repo whose main already has 2 lines of debt
   rm -rf "$work/repo" && mkdir -p "$work/repo/packs/modules/foo" && cd "$work/repo" || exit 1
   git init -q -b main && git config user.email t@t && git config user.name t
   printf '"packs/platform/bar":\n  "::Bar::Thing":\n' > packs/modules/foo/package_todo.yml
   git add -A && git commit -q -m "chore: base"
 }
-expect() { # expect <ok|fail> <descripción> [args del script]
+expect() { # expect <ok|fail> <description> [script args]
   local expected=$1 description=$2; shift 2
   local actual=ok
   "$script" "$@" >/dev/null 2>&1 || actual=fail

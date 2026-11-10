@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# Audit.pseudonymize (M0.11): seudónimo estable de un dato personal para correlacionar eventos sin guardarlo. HMAC-SHA256 con
-# una clave derivada de secret_key_base (como el token CSRF): sin la clave no se puede confirmar por fuerza bruta que un
-# correo concreto intentó entrar, a diferencia de un SHA-256 simple.
+# Audit.pseudonymize: stable pseudonym of personal data to correlate events without storing it. HMAC-SHA256 keyed from
+# secret_key_base (like the CSRF token): unlike a plain SHA-256, without the key one cannot brute-force-confirm that a
+# given email tried to log in.
 RSpec.describe "Audit.pseudonymize" do
   it "es un HMAC-SHA256 hexadecimal con clave derivada de la aplicación, no un SHA-256 simple" do
     value = "nadie@ceiba.test"

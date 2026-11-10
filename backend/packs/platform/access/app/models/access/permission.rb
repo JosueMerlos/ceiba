@@ -1,6 +1,6 @@
 module Access
-  # Permiso declarado por un módulo (<modulo>.<recurso>.<accion>). Tabla GLOBAL, sincronizada desde el registro en memoria
-  # (Access.register_permissions) por Access.sync!. Modelo PRIVADO del pack.
+  # Permission declared by a module (<module>.<resource>.<action>). GLOBAL table, synced from the in-memory registry
+  # (Access.register_permissions) by Access.sync!. PRIVATE model of the pack.
   class Permission < ApplicationRecord
     self.primary_key = "key"
 

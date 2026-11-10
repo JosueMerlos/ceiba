@@ -1,6 +1,6 @@
 module Observability
-  # Job que SIEMPRE falla, para comprobar a mano que un error de job llega a Sentry con organization_id y el nombre del job
-  # (criterio 4 de M0.13). Lo encola `bin/rails sentry:test`; sin reintentos para no repetir el aviso.
+  # Job that ALWAYS fails, to check by hand that a job error reaches Sentry with organization_id and the job name.
+  # Enqueued by `bin/rails sentry:test`; no retries so the alert is not repeated.
   class SentryTestJob
     include Sidekiq::Job
 

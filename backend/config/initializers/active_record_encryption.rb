@@ -1,12 +1,9 @@
-# Active Record Encryption (M0.11: idempotency_keys.response_body; la PII del cliente final llega con customers).
-#
-# Las claves NO viven en el repositorio:
-#   - desarrollo y test: se DERIVAN de secret_key_base con key_generator (como el token CSRF y el cursor): son estables
-#     mientras no cambie esa secreta y no hay que gestionar nada.
-#   - producción y staging (RAILS_ENV=production): vienen del entorno. Si faltan, quedan en nil y `encrypts` FALLA al usar
-#     (ActiveRecord::Encryption::Errors::Configuration): falla cerrado, nunca con una clave por defecto.
-#       AR_ENCRYPTION_PRIMARY_KEY, AR_ENCRYPTION_DETERMINISTIC_KEY, AR_ENCRYPTION_KEY_DERIVATION_SALT  (cadenas aleatorias de 32+ bytes;
-#       por ejemplo `bin/rails db:encryption:init` las genera). Rotarlas: docs/architecture/09-data-conventions.md.
+# Active Record Encryption keys are NOT stored in the repository:
+#   - development and test: DERIVED from secret_key_base via key_generator, so they are stable while that secret is.
+#   - production and staging (RAILS_ENV=production): read from the environment. If missing they stay nil and `encrypts`
+#     FAILS on use (ActiveRecord::Encryption::Errors::Configuration): fail closed, never with a default key.
+#       AR_ENCRYPTION_PRIMARY_KEY, AR_ENCRYPTION_DETERMINISTIC_KEY, AR_ENCRYPTION_KEY_DERIVATION_SALT (random strings of
+#       32+ bytes; `bin/rails db:encryption:init` generates them).
 module EncryptionKeys
   ENV_NAMES = {
     primary_key: "AR_ENCRYPTION_PRIMARY_KEY",

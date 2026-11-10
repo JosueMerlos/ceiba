@@ -5,10 +5,10 @@ require "rubocop"
 module RuboCop
   module Cop
     module Ceiba
-      # Tenancy::Directory entrega registros y relaciones `readonly`, pero una relación admite escrituras masivas que no pasan
-      # por los registros (`update_all`, `delete_all`...) y `readonly(false)` levanta la protección. Fuera del pack tenancy se
-      # prohíben sobre cualquier cadena que parta de `Tenancy::Directory`. Límite conocido: no sigue la relación si se guarda
-      # antes en una variable; para eso están las revisiones de CODEOWNERS.
+      # Tenancy::Directory returns `readonly` records and relations, but a relation allows bulk writes that bypass the
+      # records (`update_all`, `delete_all`...) and `readonly(false)` lifts the protection. Outside the tenancy pack they
+      # are forbidden on any chain starting at `Tenancy::Directory`. Known limit: it does not follow the relation if it
+      # is first stored in a variable; CODEOWNERS reviews cover that.
       class DirectoryWrites < Base
         MSG = "No escribas a través de Tenancy::Directory (`%<method>s`): es de solo lectura. Las altas son Tenancy::ProvisionOrganization / AddCompany / AddBranch."
 

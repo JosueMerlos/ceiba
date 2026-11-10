@@ -1,7 +1,7 @@
 require "rails_helper"
 
-# M0.04: i18n base del backend. Español de Nicaragua por defecto (rails-i18n) y UTC como zona de la app;
-# la zona de cada sucursal es un dato (branches.time_zone), nunca la del servidor (docs/architecture/09).
+# Backend base i18n. Nicaraguan Spanish by default (rails-i18n) and UTC as the app's zone; each branch's zone is data
+# (branches.time_zone), never the server's.
 RSpec.describe "Configuración de i18n y zona horaria" do
   it "usa es-NI como locale por defecto" do
     expect(I18n.default_locale).to eq(:"es-NI")

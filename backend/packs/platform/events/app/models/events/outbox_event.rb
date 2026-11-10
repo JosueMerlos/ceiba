@@ -1,6 +1,6 @@
 module Events
-  # Fila del outbox. Modelo PRIVADO del pack: el resto de la aplicación publica con Events.publish y se suscribe con
-  # Events.subscribe, nunca toca la tabla.
+  # Outbox row. Private to the pack: the rest of the app publishes with Events.publish and subscribes with
+  # Events.subscribe, never touching the table.
   class OutboxEvent < ApplicationRecord
     self.table_name = "outbox_events"
 

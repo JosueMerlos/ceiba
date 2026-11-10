@@ -1,8 +1,8 @@
 require "rails_helper"
 
-# acts_as_tenant 2.2.2 instala por su cuenta una extensión de Active Job que serializa el tenant actual al encolar y lo
-# restaura al ejecutar SIN pasar por Tenancy.with_context (no escribe app.organization_id). Se desactiva: el único
-# camino es TenantJobMiddleware (M0.10).
+# acts_as_tenant 2.2.2 installs on its own an Active Job extension that serializes the current tenant on enqueue and
+# restores it on perform WITHOUT going through Tenancy.with_context (it does not write app.organization_id). It is disabled:
+# TenantJobMiddleware is the only path.
 RSpec.describe "Extensión de Active Job de acts_as_tenant (desactivada)" do
   let(:organization) { create(:organization) }
   let(:job_class) do

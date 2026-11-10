@@ -1,5 +1,5 @@
 FactoryBot.define do
-  # Tenant: se usa DENTRO de un tenant (ver packs/platform/tenancy/spec/factories/tenancy.rb).
+  # Tenant factories: use them INSIDE a tenant.
   factory :audit_event, class: "Audit::Event" do
     organization { ActsAsTenant.current_tenant }
     actor_type { "system" }

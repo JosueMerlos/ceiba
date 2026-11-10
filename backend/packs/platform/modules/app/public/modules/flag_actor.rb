@@ -1,6 +1,6 @@
 module Modules
-  # El actor de Flipper para una organización: Flipper identifica a un actor con `flipper_id`. Se usa un value object con el id (y no el
-  # modelo Tenancy::Organization, privado de otro pack) para activar un flag por organización:
+  # Flipper actor for an organization (Flipper identifies actors by `flipper_id`). A value object with the id is used instead
+  # of Tenancy::Organization, which is private to another pack:
   #
   #   Flipper.enable_actor(:nueva_funcion, Modules::FlagActor.new(organization.id))
   #   Modules.flag_enabled?(:nueva_funcion, organization:)

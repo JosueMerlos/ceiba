@@ -1,6 +1,7 @@
 require "rails_helper"
 
-# Identity::Authenticate y CurrentSession registran en la auditoría con los datos que reciben (sin depender de la request).
+# Identity::Authenticate and CurrentSession record in the audit trail with the data they receive (independent of the
+# request).
 RSpec.describe "Identity: auditoría desde los servicios" do
   let!(:user) { create(:user, email: "ana@ceiba.test", password: "contraseña-segura-1") }
 

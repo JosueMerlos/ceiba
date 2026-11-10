@@ -1,8 +1,8 @@
 require "rails_helper"
 require Rails.root.join("config/middleware/sentry_setup").to_s
 
-# Verificación manual del criterio 4 de M0.13 (necesita un DSN real): `bin/rails sentry:test[<organization_id>]`.
-# Aquí se prueba el mecanismo con un transporte falso.
+# Manual Sentry check (needs a real DSN): `bin/rails sentry:test[<organization_id>]`. Here the mechanism is tested with
+# a fake transport.
 RSpec.describe Observability::SentryCheck do
   include TenancyHelpers
 

@@ -1,6 +1,6 @@
 require "swagger_helper"
 
-# Contrato de las organizaciones del usuario (M0.08). Cada `response` ejecuta la petición real y valida el cuerpo.
+# Each `response` runs the real request and validates the body.
 RSpec.describe "API v1: organizaciones" do
   let(:world) { build_access_world }
   let(:unknown_id) { "0198f0a0-0000-7000-8000-000000000000" }
@@ -24,7 +24,7 @@ RSpec.describe "API v1: organizaciones" do
 
         run_test! do |response|
           expect(response.parsed_body["data"].pluck("id")).to eq([ world.organization.id ])
-          # El selector de contexto no expone razón social, país ni fechas: solo lo necesario para elegir (id, name, status).
+          # The context selector exposes only what is needed to choose (id, name, status), no legal name, country or dates.
           expect(response.parsed_body["data"].first.keys).to contain_exactly("id", "name", "status")
         end
       end

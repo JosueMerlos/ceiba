@@ -1,16 +1,16 @@
-# Pack platform/access (namespace Access). Reglas: docs/architecture/02-modular-monolith.md
+# Pack platform/access (namespace Access).
 layer: platform
 enforce_dependencies: true
 enforce_privacy: true
 enforce_layers: true
 
-# Declara aquí SOLO lo que el pack usa. "." es el pack raíz (ApplicationRecord, ApplicationController...).
-# Un pack de platform no depende de ningún módulo.
+# Declare ONLY what the pack uses. "." is the root pack (ApplicationRecord, ApplicationController...).
+# A platform pack never depends on a module.
 dependencies:
   - "."
-  # Resolver el contexto desde la ruta (Tenancy.with_context, Tenancy::Directory) y conectar el dueño en la provisión.
+  # Resolve the context from the route (Tenancy.with_context, Tenancy::Directory) and hook the owner into provisioning.
   - "packs/platform/tenancy"
-  # El dueño de una organización es un Identity::Principal::User (Identity::ProvisionUser).
+  # An organization's owner is an Identity::Principal::User (Identity::ProvisionUser).
   - "packs/platform/identity"
-  # Los cambios de memberships se auditan en la misma transacción (Audit.record, M0.11).
+  # Membership changes are audited in the same transaction (Audit.record).
   - "packs/platform/audit"

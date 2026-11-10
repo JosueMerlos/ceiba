@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Job frontend-test de CI (y de bin/ci): Vitest en todos los workspaces.
+# frontend-test CI job (and bin/ci): Vitest in every workspace.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

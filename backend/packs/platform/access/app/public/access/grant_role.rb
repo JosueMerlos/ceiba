@@ -1,16 +1,16 @@
 module Access
-  # Concede un rol de SISTEMA a un usuario en un alcance de una organización. Es el camino público de escritura de
-  # memberships (seeds, el hook del dueño, y las invitaciones de M4.01). Idempotente: repetir la misma concesión no duplica.
+  # Grants a SYSTEM role to a user at a scope of an organization. It is the public write path for memberships (seeds,
+  # the owner hook, invitations). Idempotent: repeating the same grant does not duplicate it.
   #
   #   Access::GrantRole.call(user:, role_key: "org_admin", organization:)
   #   Access::GrantRole.call(user:, role_key: "company_manager", organization:, company:)
-  #   Access::GrantRole.call(user:, role_key: "receptionist", organization:, branch:)   # la empresa se deduce de la sucursal
+  #   Access::GrantRole.call(user:, role_key: "receptionist", organization:, branch:)   # the company is derived from the branch
   #
-  # Cada concesión NUEVA se audita (`membership.granted`, con Audit.record) en la misma transacción; una repetida no.
+  # Each NEW grant is audited (`membership.granted`, via Audit.record) in the same transaction; a repeated one is not.
   #
-  # `user`: cualquier objeto con `id` (Identity::Principal::User). `organization`, `company` y `branch` son los registros que
-  # devuelven Tenancy::ProvisionOrganization / AddCompany / AddBranch (opacos aquí). El alcance debe ser el del rol; empresa y
-  # sucursal deben ser de la organización dada. Lanza ArgumentError ante un rol desconocido o un alcance incoherente.
+  # `user`: any object with `id` (Identity::Principal::User). `organization`, `company` and `branch` are the records
+  # returned by Tenancy::ProvisionOrganization / AddCompany / AddBranch (opaque here). The scope must match the role's;
+  # company and branch must belong to the given organization. Raises ArgumentError on an unknown role or inconsistent scope.
   module GrantRole
     module_function
 
@@ -21,16 +21,16 @@ module Access
       Tenancy.with_context(organization:) do
         role = Role.find_by!(key: role_key.to_s)
         attributes = { user_id: user.id, role:, company_id:, branch_id: }
-        # Repetir la concesión no cambia nada y, por tanto, no se audita otra vez.
+        # A repeated grant changes nothing, so it is not audited again.
         audit_granted(Membership.create!(attributes), role_key) unless Membership.exists?(attributes)
       end
       nil
     rescue ActiveRecord::RecordNotUnique
-      nil # dos concesiones simultáneas: gana el índice único y el resultado es el mismo
+      nil # two concurrent grants: the unique index wins and the outcome is the same
     end
 
-    # Mismo contexto y misma transacción que la concesión: sin evento no hay membership. `role` (y no `role_key`) porque el
-    # filtro de privacidad de la auditoría enmascara cualquier campo cuyo nombre contenga `_key`.
+    # Same context and transaction as the grant: no event, no membership. `role` (not `role_key`) because the audit
+    # privacy filter masks any field whose name contains `_key`.
     def audit_granted(membership, role_key)
       Audit.record(
         action: "membership.granted", subject: membership,

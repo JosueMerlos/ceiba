@@ -1,4 +1,4 @@
 module Api
-  # Cuerpo de una mutación que no es application/json. Responde 415 (ver ApiRequestGuard).
+  # Mutation body that is not application/json. Answers 415 (see ApiRequestGuard).
   class UnsupportedMediaType < StandardError; end
 end

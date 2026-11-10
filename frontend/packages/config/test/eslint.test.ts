@@ -2,7 +2,7 @@ import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
 import config from "../eslint.mjs";
 
-// Lint de código en memoria con la configuración compartida, como si fuera un archivo de una app.
+// Lints code in memory with the shared config, as if it were an app file.
 const lint = async (code: string, filePath = "apps/panel/src/example.tsx") => {
   const eslint = new ESLint({
     overrideConfigFile: true,

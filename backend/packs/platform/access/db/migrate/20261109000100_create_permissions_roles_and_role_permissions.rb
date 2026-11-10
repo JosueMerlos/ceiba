@@ -1,10 +1,9 @@
-# Catálogo de control de acceso (ADR-0008). GLOBAL, no tenant: los permisos los declaran los manifiestos de los packs y los
-# roles de sistema son plantillas de plataforma, iguales para todas las organizaciones. Por eso NO llevan organization_id
-# ni política RLS (el guardián de tablas tenant lo comprueba: Database::TenantTables.inconsistencies).
+# Access control catalog. GLOBAL, not tenant: permissions are declared by the packs' manifests and system roles are
+# platform templates, identical for every organization. Hence NO organization_id and NO RLS policy (the tenant-table
+# guard checks this: Database::TenantTables.inconsistencies).
 #
-# `roles` NO lleva organization_id todavía (docs/architecture/04 lo preveía NULL para roles personalizados, P3): una
-# columna organization_id obligaría a registrar la tabla como tenant, y una tabla mixta (filas globales + filas de una
-# organización) necesita una política RLS propia. Cuando existan los roles personalizados se decide entonces (ver 04).
+# `roles` has no organization_id yet: such a column would force registering the table as tenant, and a mixed table
+# (global rows + per-organization rows) needs its own RLS policy. Decide that when custom roles exist.
 class CreatePermissionsRolesAndRolePermissions < ActiveRecord::Migration[8.1]
   def change
     create_table :permissions, id: false do |t|
@@ -14,7 +13,7 @@ class CreatePermissionsRolesAndRolePermissions < ActiveRecord::Migration[8.1]
       t.timestamps
 
       t.index :module_key
-      # <modulo>.<recurso>.<accion>, y el módulo de la clave es su module_key.
+      # <module>.<resource>.<action>, and the key's module is its module_key.
       t.check_constraint "key ~ '^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$'", name: "chk_permissions_key_format"
       t.check_constraint "split_part(key, '.', 1) = module_key", name: "chk_permissions_module_prefix"
     end
@@ -26,10 +25,10 @@ class CreatePermissionsRolesAndRolePermissions < ActiveRecord::Migration[8.1]
       t.timestamps
 
       t.index :key, unique: true, name: "uq_roles_key"
-      # Para la FK compuesta (role_id, scope_level) de memberships: el alcance del membership ES el del rol.
+      # Target of memberships' composite FK (role_id, scope_level): the membership's scope IS the role's.
       t.index %i[id scope_level], unique: true, name: "uq_roles_id_scope_level"
-      # Con OR y no IN (...): sobre varchar, PostgreSQL vuelca el IN de forma distinta según la BD se cree migrando o cargando el
-      # esquema, y structure.sql tendría un falso drift (mismo criterio que chk_companies_currency).
+      # OR instead of IN (...): on varchar, PostgreSQL dumps IN differently depending on whether the DB was created by
+      # migrating or by loading the schema, which would cause false drift in structure.sql.
       t.check_constraint "scope_level = 'organization' OR scope_level = 'company' OR scope_level = 'branch'", name: "chk_roles_scope_level"
     end
 

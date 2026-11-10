@@ -1,6 +1,6 @@
 /**
- * Token CSRF del panel (11-security): vive SOLO en memoria (nunca en localStorage). Lo entrega el cuerpo de
- * `POST /auth/login` y de `GET /auth/session` (que la SPA llama al arrancar) y se envía en `X-CSRF-Token` en toda mutación.
+ * Panel CSRF token: lives ONLY in memory (never in localStorage). The body of `POST /auth/login` and of
+ * `GET /auth/session` (which the SPA calls on startup) delivers it, and it is sent in `X-CSRF-Token` on every mutation.
  */
 export interface CsrfStore {
   get(): string | undefined;
@@ -21,5 +21,5 @@ export function createCsrfStore(): CsrfStore {
   };
 }
 
-/** Almacén compartido por defecto: un navegador, una sesión. */
+/** Default shared store: one browser, one session. */
 export const csrfStore = createCsrfStore();
