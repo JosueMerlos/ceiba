@@ -209,7 +209,7 @@ Viven en **`access`** (`Access::OrganizationPolicy`, `CompanyPolicy`, `BranchPol
 | `GET .../companies` · `GET .../companies/:id` | `platform.company.read` (todo rol con membership, para su propia empresa); el Scope lista solo las alcanzadas |
 | `GET .../companies/:company_id/branches` · `.../branches/:id` | `platform.branch.read`; el Scope: empresas alcanzadas más sucursales alcanzadas |
 
-Con la decisión "lectura de su alcance", `receptionist` y `professional` leen su sucursal y su empresa y `branch_manager` también su empresa; ninguno lee sucursales hermanas ni la organización (`GET /organizations/:id` es solo de `org_owner`/`org_admin`: 403 para el resto). `/me` (M0.09) devolverá lo que la SPA necesita.
+Con la decisión "lectura de su alcance", `receptionist` y `professional` leen su sucursal y su empresa y `branch_manager` también su empresa; ninguno lee sucursales hermanas ni la organización (`GET /organizations/:id` es solo de `org_owner`/`org_admin`: 403 para el resto). `GET /api/v1/me` (M0.09, [05](05-module-system.md#implementación-m009)) devuelve lo que la SPA necesita.
 
 ### Pruebas y linter
 
@@ -223,3 +223,10 @@ Con la decisión "lectura de su alcance", `receptionist` y `professional` leen s
 ### Alta de una organización con dueño
 
 `Tenancy::ProvisionOrganization.call(organization:, company:, branch:, extras: { owner: })`. `extras` es un Hash que Tenancy **no interpreta**; llega congelado a los hooks en `result.extras` (sin `extras:` todo funciona como antes). El hook `Access::OwnerHook` (clave `:access_owner`, registrado en `config.to_prepare`) espera `owner` = `Identity::Principal::User` (lo que devuelve `Identity::ProvisionUser.call(email:, full_name:, password:)`), crea el membership `org_owner` **en la misma transacción** y un `owner` de otro tipo revierte todo. Sin `owner` la organización nace sin dueño (el alta con invitación llega con M4.01). `Access::GrantRole.call(user:, role_key:, organization:, company: nil, branch: nil)` es el camino público para el resto de concesiones (seeds; invitaciones en M4.01).
+
+### Módulos y permisos (M0.09)
+
+- **`Access.module_gate`**: el permiso de un módulo exige además que el módulo esté activo en la empresa del alcance ([05](05-module-system.md#implementación-m009)). access no depende de modules (ciclo): `platform/modules` instala un gate (`gated?`, `active_companies_by_module`) al arrancar. `Principal::User#can?`/`reach` lo consultan; la consulta es perezosa, **una por principal** y no se hace al activar ni para permisos `platform.*` (el spec de "UNA consulta al activar" sigue en pie). Sin contexto de tenancy el gate niega.
+- Nuevas piezas públicas: `Access.with_context(principal:, organization_id:, company_id:, branch_id:, read_only:)` (el resolvedor de rutas para endpoints sin contexto en la ruta, como `/me`), `Principal::User#module_active?` y `#permission_keys_in(company_id:, branch_id:)`.
+- Los manifiestos registran sus permisos con `Access.register_permissions` (los roles salen de su `role_grants`) y `Access.sync!` los lleva a la base con todas sus salvaguardas; `bin/rails modules:sync` valida los manifiestos y delega en `access:sync`.
+- Allowlist de skips: se añadió `Api::V1::Modules::MeController#show`.

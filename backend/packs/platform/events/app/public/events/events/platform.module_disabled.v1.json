@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "platform.module_disabled.v1",
-  "description": "Un módulo se desactivó para una empresa. PROVISIONAL: el emisor (Modules::Enable/Disable) llega en M0.09; el payload se confirma allí.",
+  "description": "Un módulo se desactivó para una empresa (Modules::Disable, M0.09). Payload confirmado; la organización viaja en el sobre del evento. Solo se emite si hubo un cambio real (las repeticiones idempotentes no publican).",
   "type": "object",
   "required": ["company_id", "module"],
   "properties": {

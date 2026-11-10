@@ -81,7 +81,7 @@ Eventos de plataforma:
 | Evento | Estado |
 | --- | --- |
 | `platform.organization_provisioned.v1` | Emitido por `Events::ProvisioningHook` (hook de `ProvisionOrganization`, M0.10). Payload: `organization_id, company_id, branch_id` |
-| `platform.module_enabled.v1`, `platform.module_disabled.v1` | **Esquema registrado, sin emisor**: `Modules::Enable`/`Disable` llegan en M0.09, que los emitirá y confirmará el payload (provisional: `company_id, module`) |
+| `platform.module_enabled.v1`, `platform.module_disabled.v1` | Emitidos por `Modules::Enable`/`Disable` (M0.09) en la misma transacción que el cambio, solo si hubo cambio real. Payload confirmado: `company_id, module` |
 | `platform.customer_consent_changed.v1` | Sin esquema todavía (M3.01) |
 
 ## Jobs: reglas

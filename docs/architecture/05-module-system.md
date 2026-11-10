@@ -1,6 +1,6 @@
 # 05 — Sistema de módulos
 
-> Decisiones: [ADR-0010](../adr/0010-modulos-por-empresa-y-manifiesto.md), [ADR-0011](../adr/0011-el-giro-no-es-un-modulo.md). Hitos: M0.09, M2.04 (settings de UI), F6 (entitlements).
+> **Implementado en M0.09** (`packs/platform/modules`); la sección "Implementación (M0.09)" al final resume lo real y los desvíos. Decisiones: [ADR-0010](../adr/0010-modulos-por-empresa-y-manifiesto.md), [ADR-0011](../adr/0011-el-giro-no-es-un-modulo.md). Hitos: M0.09, M2.04 (settings de UI), F6 (entitlements).
 > Esta es la pieza que hace **fácil extender** el ecosistema: un módulo nuevo se **declara**, no se cablea a mano.
 
 ## Tres conceptos que no deben mezclarse
@@ -124,3 +124,64 @@ El panel tiene un registro estático `frontend/apps/panel/src/modules/<key>/inde
 
 - **El giro** (dental, salón): es configuración de la empresa ([ADR-0011](../adr/0011-el-giro-no-es-un-modulo.md)). Un salón y una clínica usan el mismo pack `appointments`.
 - **Capacidades de plataforma** (clientes, notificaciones, auditoría): no se activan ni desactivan; siempre existen.
+
+## Implementación (M0.09)
+
+Pack `platform/modules` (namespace `Modules`; depende de `tenancy`, `access`, `events` y `audit`). API pública: `Modules.define`, `Modules.registry`, `Modules.load!`, `Modules.enabled?(company, key)`, `Modules.settings_for(key, company:, branch:)`, `Modules.entitled?`, `Modules.default_keys`, `Modules.flag_enabled?`, `Modules::Enable`, `Modules::Disable`, `Modules::UpdateSettings`, `Modules::RequiresModule`, `Modules::Registry`/`Manifest`/`FlagActor` y los errores. El resto (modelos, loader, gate, controladores) es privado.
+
+### Manifiesto y registro
+
+- `packs/modules/<key>/manifest.rb` llama a `Modules.define :<key>`. El registro **descubre por archivo** (`Dir.glob` + `Kernel.load`, `Modules::Loader`) y no referencia ninguna constante de módulo: `visible_to: []` queda intacto y no hizo falta tocar `PackContract::ALLOWED_VISIBLE_TO`. La key debe coincidir con el nombre del pack.
+- Se carga y valida en `config.to_prepare` (arranque y cada recarga): **un manifiesto inválido falla el arranque** con la lista completa de problemas. `bin/rails modules:sync` (paso de release) valida y delega en `access:sync`.
+- Campos: solo los de este documento. Un campo desconocido es un error. Matices del DSL real:
+  - `permission "<key>.<recurso>.<accion>", description: "…"` — la descripción es **obligatoria** (la exige `Access.register_permissions`).
+  - `role_grants`: `grant :rol, %w[…]` o `grant :rol, all: true`; los roles deben ser de sistema y los permisos, del módulo.
+  - `settings_schema` acepta la ruta de un JSON Schema (relativa al pack) o un Hash. Se valida: JSON Schema válido, `type: object` con `properties`, **`default` en cada propiedad y que el default cumpla su esquema**, `additionalProperties: false` forzado. La extensión **`x-levels`** de una propiedad limita los niveles en que se puede sobrescribir (p. ej. `["company"]`); sin ella valen los de `settings_levels`.
+  - Los nombres de las propiedades de settings **no pueden coincidir con `filter_parameters`** (`_key`, `token`, `secret`, `digest`…): la auditoría de settings enmascara por nombre y perdería el valor. Los secretos no van en settings.
+  - `publishes` exige esquema registrado (`Events::Schemas`); `navigation` exige `key`, `path` y un permiso del módulo; `api_scopes` se llama `read:<key>`/`write:<key>` y apunta a permisos del módulo; `on_enable`/`on_disable` son cadenas con nombre de constante (se resuelven con `constantize`/`safe_constantize` al ejecutarse y reciben `call(company:)`).
+  - `subscribes` se acepta y valida (nombres de evento) pero **el registro no cablea suscriptores todavía**: no existe ninguno hasta F1. Lo pendiente: que `Events::DeliverJob` no entregue a un suscriptor de un módulo inactivo (nota de cierre de M0.10); llega con el primer suscriptor de un módulo.
+- `requires`: existentes y sin ciclos (`Registry#validate!`, el ciclo se muestra: `a -> b -> a`). Al desactivar, un módulo que otro **activo** requiere no se deja desactivar (`Modules::RequiredByOthers`, 409).
+
+### Datos
+
+`company_modules` (tenant): una fila por `(empresa, módulo)` con `UNIQUE (organization_id, company_id, module_key)` (equivale al `(company_id, module_key)` del diseño y es el destino de una FK compuesta), índice parcial de activos, CHECKs de formato y de `settings` objeto. `branch_module_settings` (tenant): overrides por sucursal, con FK compuesta a la sucursal **y** a `company_modules` (el módulo debe haberse activado alguna vez en la empresa), `UNIQUE (organization_id, branch_id, module_key)`. Desactivar solo pone `disabled_at`: la fila, los settings y los de las sucursales se conservan; reactivar reutiliza la fila.
+
+### Activación y eventos
+
+`Modules::Enable.call(company:, key:)` / `Modules::Disable.call(company:, key:)`: una transacción con fila (bloqueada), hook, `Events.publish("platform.module_enabled.v1" | "platform.module_disabled.v1", company_id:, module:)` (payload **confirmado**; la organización viaja en el sobre) y `Audit.record(action: "module.enabled" | "module.disabled", subject: company_module, before: { active: … }, after: { active: … })`. **Idempotentes**: una repetición devuelve `changed: false` y no ejecuta hook, evento ni auditoría. Una carrera por la primera fila la resuelve el UNIQUE. `Modules.entitled?` devuelve `true` (TODO F6: planes y `plan_entitlements`). Los módulos por defecto de una organización (`Modules.default_keys`, hoy `appointments`; en F6, los del plan) los activa el hook `after_provision` `Modules::ProvisioningHook` (key `:modules_defaults`), dentro de la transacción de la provisión: si falla, se revierte todo. `Tenancy::AddCompany` **no** activa módulos por defecto (fuera de alcance; lo decide M4.01).
+
+### Settings
+
+`Modules.settings_for(:appointments, company:, branch:)` = defaults del esquema → `company_modules.settings` → `branch_module_settings.settings` (solo claves cuyo nivel incluye `branch`), validado contra el esquema y devuelto como copia. `Modules::UpdateSettings.call(company:, key:, settings:, branch: nil)` combina las claves enviadas con los overrides del nivel (`nil` quita el override), valida el resultado y lanza `Modules::InvalidSettings` con `errors[]` por campo (`reminders.0.offset_minutes`; códigos `minimum`, `type`, `required`, `unknown`, `not_allowed_at_level`…, mensajes en `es-NI`) **sin guardar nada**. Audita `module.settings_updated` con solo las claves tocadas.
+
+### Cumplimiento
+
+- **Rutas**: `include Modules::RequiresModule` + `requires_module :<key>` en el controlador. Corre tras resolver el contexto y **antes** de la autorización; módulo inactivo (o ruta sin empresa) = el mismo `404 resource.not_found` que un recurso inexistente. Incluirlo sin declarar el módulo falla cerrado (error de programación).
+- **Autorización**: `Access.module_gate` (punto de extensión de access, que no puede depender de modules) lo instala `Modules.load!`. `Principal::User#can?` exige además que el módulo del permiso esté activo en la empresa del alcance (en el de organización, en alguna); `reach` deja solo las empresas/sucursales con el módulo activo. La consulta (`company_modules` activos de la organización) es **una por principal**, perezosa y memoizada, y la reutiliza `RequiresModule`: una request no consulta dos veces. Es una foto por request. Los permisos `platform.*` no dependen de ningún módulo.
+- **Suite de cobertura de módulos** (`spec/requests/api/module_coverage_spec.rb`): todo controlador de `packs/modules/*` declara su módulo y toda ruta de un módulo inactivo responde 404 (y deja de hacerlo al activarlo). El módulo `sample` (solo specs, `spec/support/sample_module*.rb`) ejercita la maquinaria; sus permisos se sincronizan dentro de la transacción de cada spec (contexto `"con el módulo sample sincronizado"`), nunca en la base compartida.
+
+### API
+
+| Endpoint | Detalle |
+| --- | --- |
+| `GET /api/v1/me` | Ver abajo |
+| `PUT /api/v1/organizations/:o/companies/:c/modules/:key` | `{ "enabled": bool }`; `platform.company_module.manage` |
+| `PATCH …/companies/:c/modules/:key/settings` | `{ "settings": {…} }`, nivel empresa; 422 con `errors[]` por campo |
+| `PATCH …/companies/:c/branches/:b/modules/:key/settings` | Nivel sucursal. **Desvío**: la sucursal va en la ruta (cuarto nivel) y no como filtro, porque la API rechaza query string en las mutaciones (`request.query_not_allowed`) y así `Access::Authorization` valida la sucursal como cualquier ruta |
+
+Errores de dominio (registrados en `Api::ErrorRegistry`): `modules.unknown_module` 404, `modules.not_entitled` 403, `modules.requirements_not_met` 409, `modules.required_by_others` 409, `modules.not_enabled` 409, `modules.invalid_settings` 422.
+
+**`GET /api/v1/me[?organization_id=&company_id=&branch_id=]`**: `{ data: { principal: {id, name, email}, context: {organization, company, branch}, modules: [{key, version, settings}], permissions: [...], navigation: [{module, key, path}] } }`. 
+- *Contexto*: parámetros (explícitos: si no son visibles, 404/403 como una ruta; `company_id` exige `organization_id`) → si no, el **último usado** → si no, la primera organización del usuario (por id) y su primera empresa visible (por id). Sin sucursal elegida, `branch` es `null` y los settings son los de la empresa. Un usuario sin memberships recibe 200 con el contexto vacío. Se valida con `Access.with_context` (API pública nueva de access, el mismo resolvedor de las rutas) y corre en transacción de solo lectura.
+- *Último usado*: **cookie firmada `ceiba_context`** (`org:empresa:sucursal`, HttpOnly, SameSite=Lax, 90 días; prefijo `__Host-` con `secure_cookies`), una por navegador. Decisión: un GET no escribe en la base y es una conveniencia por dispositivo, no un dato del usuario; no es una credencial: se revalida en cada uso y si ya no hay acceso se cae al contexto por defecto; una cookie manipulada se ignora.
+- *Permisos*: los que el principal ejerce **dentro** del contexto (de la organización, de la empresa, de cualquiera de sus sucursales o, si se eligió, de esa sucursal) cuyo módulo está activo; es una lista plana, no por alcance (el frontend refleja, no decide).
+- *Navegación*: entradas de los manifiestos de módulos **activos** cuyo permiso está en `permissions`.
+- Autorización: `skip_authorization!` en `MeController#show` (entrada en la allowlist de `authorization_spec.rb`): devuelve lo del propio principal y el contexto ya se valida contra sus memberships.
+
+### Feature flags (Flipper)
+
+`flipper` y `flipper-active_record` **1.4.2** (tablas globales `flipper_features`/`flipper_gates`), actor = organización (`Modules::FlagActor.new(id)`, `flipper_id` `"Organization;<id>"`), `Modules.flag_enabled?(:flag, organization:)`. Sin flags definidos. En test Flipper usa un adaptador de memoria (`flipper/test_help`) vaciado en cada ejemplo. Un flag nunca activa un módulo.
+
+### Appointments (manifiesto mínimo)
+
+Seis permisos de la matriz de [04](04-access-control.md) más **`appointments.appointment.count`** (conteos, decisión de M0.09): la matriz dice que `org_owner`/`org_admin` ven citas solo como conteos y el criterio 7 exige navegación para el dueño recién provisionado; el permiso (más la entrada de navegación `summary`, `/agenda/summary`) lo resuelve sin darles el detalle. Settings de [domain/appointments](../domain/appointments.md) con sus niveles (`x-levels`). `publishes []` hasta F1 (sus esquemas de evento no existen aún).
