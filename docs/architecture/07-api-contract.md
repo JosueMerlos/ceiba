@@ -208,3 +208,7 @@ Solo lectura, en el pack `platform/access` (`Api::V1::Access::*`, rutas en `pack
 3. Errores de dominio nuevos: `Api::ErrorRegistry.register` en el initializer del pack + título en su locale.
 4. Spec de rswag en `spec/api/` del pack (200 y los errores con `$ref` a `Problem`/`ValidationProblem`; `security [ { cookieAuth: [] } ]`, `sign_in` y, en mutaciones, el parámetro `X-CSRF-Token`); esquemas nuevos en `spec/openapi_components.rb` del pack.
 5. `bin/api-generate` y versionar `backend/openapi/v1.yaml` y `schema.d.ts`. Si lo olvidas, `bin/ci api-contract` (y CI) fallan.
+
+### Módulos y contexto (M0.09)
+
+`GET /api/v1/me` y los endpoints de módulos de una empresa están descritos en [05](05-module-system.md#api). Una consecuencia de las convenciones: **las mutaciones no admiten query string**, así que el filtro de sucursal de los settings es parte de la ruta (`…/branches/:branch_id/modules/:key/settings`). Un módulo inactivo responde `404 resource.not_found` en sus rutas, indistinguible de un recurso inexistente.

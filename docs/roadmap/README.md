@@ -44,7 +44,7 @@ Leyenda: ⬜ pendiente · 🟦 en curso · 🟥 bloqueado · ✅ terminado
 | [M0.06](../milestones/F0-cimientos/M0.06-contrato-api.md) | Contrato API (OpenAPI, errores, paginación, cliente TS) | 12 | [M0.05](../milestones/F0-cimientos/M0.05-tenancy-base.md) | ✅ |
 | [M0.07](../milestones/F0-cimientos/M0.07-identidad-y-sesiones.md) | Identidad y sesiones | 14 | [M0.06](../milestones/F0-cimientos/M0.06-contrato-api.md) | ✅ |
 | [M0.08](../milestones/F0-cimientos/M0.08-control-de-acceso.md) | Control de acceso (permisos como datos, principal, Pundit) | 14 | [M0.07](../milestones/F0-cimientos/M0.07-identidad-y-sesiones.md) | ✅ |
-| [M0.09](../milestones/F0-cimientos/M0.09-sistema-de-modulos.md) | Sistema de módulos (manifiesto, activación, `/me`) | 12 | [M0.08](../milestones/F0-cimientos/M0.08-control-de-acceso.md) | ⬜ |
+| [M0.09](../milestones/F0-cimientos/M0.09-sistema-de-modulos.md) | Sistema de módulos (manifiesto, activación, `/me`) | 12 | [M0.08](../milestones/F0-cimientos/M0.08-control-de-acceso.md) | ✅ |
 | [M0.10](../milestones/F0-cimientos/M0.10-eventos-y-outbox.md) | Eventos de dominio y outbox | 12 | [M0.05](../milestones/F0-cimientos/M0.05-tenancy-base.md) | ✅ |
 | [M0.11](../milestones/F0-cimientos/M0.11-auditoria-e-idempotencia.md) | Auditoría append-only e idempotencia | 8 | [M0.07](../milestones/F0-cimientos/M0.07-identidad-y-sesiones.md) | ✅ |
 | [M0.12](../milestones/F0-cimientos/M0.12-frontend-shell.md) | Frontend shell (panel + paquetes compartidos) | 15 | M0.06, M0.09 | ⬜ |

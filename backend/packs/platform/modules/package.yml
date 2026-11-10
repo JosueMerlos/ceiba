@@ -1,0 +1,18 @@
+# Pack platform/modules (namespace Modules). Reglas: docs/architecture/02-modular-monolith.md
+layer: platform
+enforce_dependencies: true
+enforce_privacy: true
+enforce_layers: true
+
+# Declara aquí SOLO lo que el pack usa. "." es el pack raíz (ApplicationRecord, ApplicationController...).
+# Un pack de platform no depende de ningún módulo.
+dependencies:
+  - "."
+  # El contexto (Tenancy.with_context, Tenancy::Directory) y las empresas sobre las que se activa un módulo.
+  - "packs/platform/tenancy"
+  # Los permisos del manifiesto se registran en access; access consulta de vuelta a este pack mediante el gate de módulos.
+  - "packs/platform/access"
+  # Enable/Disable publican platform.module_enabled/disabled.v1; el manifiesto valida que sus eventos tengan esquema.
+  - "packs/platform/events"
+  # Enable/Disable/UpdateSettings auditan con Audit.record en su misma transacción (ADR-0022).
+  - "packs/platform/audit"

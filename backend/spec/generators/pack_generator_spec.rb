@@ -49,8 +49,16 @@ RSpec.describe PackGenerator do
       expect(package["dependencies"]).to eq([ "." ])
     end
 
-    it "crea un manifest.rb placeholder" do
-      expect(pack_file("modules/foo", "manifest.rb").read).to include("foo").and include("M0.09")
+    it "crea un manifest.rb que el registro de módulos ya acepta (Modules.define con su key)" do
+      registry = Modules.registry.class.new
+
+      expect(Modules::Loader.call(root: destination, registry:).keys).to eq([ "foo" ])
+    end
+
+    it "el manifest.rb generado no registra permisos ni settings: el módulo empieza vacío y válido" do
+      manifest = Modules::Loader.call(root: destination, registry: Modules.registry.class.new).fetch("foo")
+
+      expect(manifest).to have_attributes(permissions: [], settings_schema: include("properties" => {}), version: "1.0")
     end
 
     it "crea el archivo de locales es-NI con la raíz del pack" do

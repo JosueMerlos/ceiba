@@ -259,6 +259,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Contexto del usuario autenticado
+         * @description El contexto elegido (organización, empresa y sucursal), los módulos ACTIVOS en esa empresa con sus settings resueltos (default del esquema, empresa, sucursal), los permisos que el usuario ejerce ahí y la navegación permitida. El frontend solo lo REFLEJA: ocultar algo no es control de acceso. Sin parámetros usa el último contexto elegido (cookie firmada `ceiba_context`) o, si no hay, la primera organización y empresa que el usuario ve. Un usuario sin memberships recibe el contexto vacío.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Requerido si se pasa company_id */
+                    organization_id?: string;
+                    company_id?: string;
+                    /** @description Requiere company_id */
+                    branch_id?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el contexto del usuario */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Me"];
+                    };
+                };
+                /** @description company_id o branch_id sin su organización/empresa */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description la organización elegida está suspendida (`access.organization_suspended`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description la organización, empresa o sucursal no existe o el usuario no la ve */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations": {
         parameters: {
             query?: never;
@@ -533,6 +614,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/modules/{key}/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Cambia los settings del módulo a nivel sucursal
+         * @description Igual que a nivel empresa, pero solo para las claves que el esquema permite sobrescribir en una sucursal; las demás dan 422 (`not_allowed_at_level`). La sucursal debe ser de la empresa de la ruta y visible para el usuario (404 si no).
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        settings: Record<string, never>;
+                    };
+                };
+            };
+            responses: {
+                /** @description los settings resueltos de la sucursal (criterio 5) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ModuleSettings"];
+                    };
+                };
+                /** @description sin `platform.company_module.manage` en la sucursal */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description la sucursal no es de la empresa o no existe */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description una clave que el esquema solo permite a nivel empresa */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{id}": {
         parameters: {
             query?: never;
@@ -609,6 +775,201 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/modules/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                /** @description Key estable del módulo (p. ej. appointments) */
+                key: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Activa o desactiva un módulo en la empresa
+         * @description Idempotente: repetir no cambia nada (`changed: false`). Activar exige que los módulos de `requires` estén activos; desactivar no borra datos y no deja si otro módulo activo lo requiere. Exige `platform.company_module.manage`.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description Key estable del módulo (p. ej. appointments) */
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        enabled: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description desactivar (y repetir no cambia nada) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ModuleActivation"];
+                    };
+                };
+                /** @description falta `enabled` */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin `platform.company_module.manage` (p. ej. company_manager) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description módulo inexistente (`modules.unknown_module`) o empresa no visible */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description faltan módulos requeridos (`modules.requirements_not_met`) o lo requiere otro activo (`modules.required_by_others`) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/modules/{key}/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Cambia los settings del módulo (empresa o sucursal)
+         * @description Cambia SOLO las claves enviadas (un valor `null` quita el override), a nivel empresa. Cada valor se valida contra el JSON Schema del módulo: un valor inválido da 422 con el detalle por campo. Exige el módulo activo y `platform.company_module.manage`.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    key: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        settings: Record<string, never>;
+                    };
+                };
+            };
+            responses: {
+                /** @description los settings resueltos de ese nivel */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ModuleSettings"];
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin `platform.company_module.manage` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el módulo no está activo en la empresa (`modules.not_enabled`) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description criterio 6: valores inválidos según el esquema, con el detalle por campo */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/v1/organizations/{organization_id}/companies/{id}": {
@@ -769,6 +1130,58 @@ export interface components {
             field: string;
             /** @example no puede estar en blanco */
             message: string;
+        };
+        /** @description Respuesta de GET /api/v1/me */
+        Me: {
+            data: {
+                /** @description Lo elegido; cada nivel es null si no hay (usuario sin memberships, sin sucursal elegida) */
+                context: {
+                    branch: components["schemas"]["Branch"] | null;
+                    company: components["schemas"]["Company"] | null;
+                    organization: components["schemas"]["OrganizationSummary"] | null;
+                };
+                /** @description Módulos ACTIVOS en la empresa del contexto, con los settings resueltos (default -> empresa -> sucursal) */
+                modules: {
+                    /** @example appointments */
+                    key: string;
+                    settings: {
+                        [key: string]: unknown;
+                    };
+                    /** @example 1.0 */
+                    version: string;
+                }[];
+                navigation: {
+                    key: string;
+                    module: string;
+                    /** @example /agenda */
+                    path: string;
+                }[];
+                /** @description Permisos que el usuario ejerce en el contexto, de los módulos activos y de la plataforma. El frontend los refleja; no decide. */
+                permissions: string[];
+                principal: {
+                    email: string;
+                    /** Format: uuid */
+                    id: string;
+                    name: string;
+                };
+            };
+        };
+        ModuleActivation: {
+            data: {
+                /** @description false si la llamada fue una repetición */
+                changed: boolean;
+                enabled: boolean;
+                key: string;
+            };
+        };
+        ModuleSettings: {
+            data: {
+                key: string;
+                /** @description Settings resueltos del nivel escrito (default -> empresa -> sucursal) */
+                settings: {
+                    [key: string]: unknown;
+                };
+            };
         };
         /** @description Organización: el tenant (ADR-0003) */
         Organization: {

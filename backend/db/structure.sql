@@ -106,6 +106,24 @@ CREATE TABLE public.auth_audit_events (
 
 
 --
+-- Name: branch_module_settings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.branch_module_settings (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    branch_id uuid NOT NULL,
+    module_key character varying NOT NULL,
+    settings jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_branch_module_settings_settings_object CHECK ((jsonb_typeof(settings) = 'object'::text)),
+    CONSTRAINT chk_branch_module_settings_settings_size CHECK ((pg_column_size(settings) < 16384))
+);
+
+
+--
 -- Name: branches; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -143,6 +161,52 @@ CREATE TABLE public.companies (
     CONSTRAINT chk_companies_currency CHECK ((((currency)::text = 'NIO'::text) OR ((currency)::text = 'USD'::text))),
     CONSTRAINT chk_companies_slug_format CHECK (((slug)::text ~ '^[a-z0-9-]{3,40}$'::text)),
     CONSTRAINT chk_companies_status CHECK ((((status)::text = 'active'::text) OR ((status)::text = 'inactive'::text)))
+);
+
+
+--
+-- Name: company_modules; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.company_modules (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    module_key character varying NOT NULL,
+    enabled_at timestamp(6) without time zone NOT NULL,
+    disabled_at timestamp(6) without time zone,
+    settings jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_company_modules_module_key CHECK (((module_key)::text ~ '^[a-z][a-z0-9_]*$'::text)),
+    CONSTRAINT chk_company_modules_settings_object CHECK ((jsonb_typeof(settings) = 'object'::text)),
+    CONSTRAINT chk_company_modules_settings_size CHECK ((pg_column_size(settings) < 16384))
+);
+
+
+--
+-- Name: flipper_features; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.flipper_features (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    key character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: flipper_gates; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.flipper_gates (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    feature_key character varying NOT NULL,
+    key character varying NOT NULL,
+    value text,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
 );
 
 
@@ -344,6 +408,14 @@ ALTER TABLE ONLY public.auth_audit_events
 
 
 --
+-- Name: branch_module_settings branch_module_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branch_module_settings
+    ADD CONSTRAINT branch_module_settings_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: branches branches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -357,6 +429,30 @@ ALTER TABLE ONLY public.branches
 
 ALTER TABLE ONLY public.companies
     ADD CONSTRAINT companies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: company_modules company_modules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.company_modules
+    ADD CONSTRAINT company_modules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: flipper_features flipper_features_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.flipper_features
+    ADD CONSTRAINT flipper_features_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: flipper_gates flipper_gates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.flipper_gates
+    ADD CONSTRAINT flipper_gates_pkey PRIMARY KEY (id);
 
 
 --
@@ -448,6 +544,22 @@ ALTER TABLE ONLY public.audit_events
 
 
 --
+-- Name: branch_module_settings uq_branch_module_settings_branch_module; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branch_module_settings
+    ADD CONSTRAINT uq_branch_module_settings_branch_module UNIQUE (organization_id, branch_id, module_key);
+
+
+--
+-- Name: branch_module_settings uq_branch_module_settings_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branch_module_settings
+    ADD CONSTRAINT uq_branch_module_settings_organization_id_id UNIQUE (organization_id, id);
+
+
+--
 -- Name: branches uq_branches_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -461,6 +573,22 @@ ALTER TABLE ONLY public.branches
 
 ALTER TABLE ONLY public.companies
     ADD CONSTRAINT uq_companies_organization_id_id UNIQUE (organization_id, id);
+
+
+--
+-- Name: company_modules uq_company_modules_company_module; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.company_modules
+    ADD CONSTRAINT uq_company_modules_company_module UNIQUE (organization_id, company_id, module_key);
+
+
+--
+-- Name: company_modules uq_company_modules_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.company_modules
+    ADD CONSTRAINT uq_company_modules_organization_id_id UNIQUE (organization_id, id);
 
 
 --
@@ -532,6 +660,13 @@ CREATE INDEX idx_auth_audit_events_user ON public.auth_audit_events USING btree 
 
 
 --
+-- Name: idx_company_modules_active; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_company_modules_active ON public.company_modules USING btree (organization_id, module_key, company_id) WHERE (disabled_at IS NULL);
+
+
+--
 -- Name: idx_idempotency_keys_expires_at; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -560,10 +695,38 @@ CREATE INDEX idx_processed_events_processed_at ON public.processed_events USING 
 
 
 --
+-- Name: index_branch_module_settings_on_organization_id_and_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_branch_module_settings_on_organization_id_and_company_id ON public.branch_module_settings USING btree (organization_id, company_id);
+
+
+--
 -- Name: index_branches_on_organization_id_and_company_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_branches_on_organization_id_and_company_id ON public.branches USING btree (organization_id, company_id);
+
+
+--
+-- Name: index_company_modules_on_organization_id_and_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_company_modules_on_organization_id_and_company_id ON public.company_modules USING btree (organization_id, company_id);
+
+
+--
+-- Name: index_flipper_features_on_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_flipper_features_on_key ON public.flipper_features USING btree (key);
+
+
+--
+-- Name: index_flipper_gates_on_feature_key_and_key_and_value; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_flipper_gates_on_feature_key_and_key_and_value ON public.flipper_gates USING btree (feature_key, key, value);
 
 
 --
@@ -694,6 +857,38 @@ ALTER TABLE ONLY public.audit_events
 
 
 --
+-- Name: branch_module_settings fk_branch_module_settings_branch; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branch_module_settings
+    ADD CONSTRAINT fk_branch_module_settings_branch FOREIGN KEY (organization_id, company_id, branch_id) REFERENCES public.branches(organization_id, company_id, id);
+
+
+--
+-- Name: branch_module_settings fk_branch_module_settings_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branch_module_settings
+    ADD CONSTRAINT fk_branch_module_settings_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: branch_module_settings fk_branch_module_settings_company_module; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branch_module_settings
+    ADD CONSTRAINT fk_branch_module_settings_company_module FOREIGN KEY (organization_id, company_id, module_key) REFERENCES public.company_modules(organization_id, company_id, module_key);
+
+
+--
+-- Name: branch_module_settings fk_branch_module_settings_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branch_module_settings
+    ADD CONSTRAINT fk_branch_module_settings_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: branches fk_branches_company; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -715,6 +910,22 @@ ALTER TABLE ONLY public.branches
 
 ALTER TABLE ONLY public.companies
     ADD CONSTRAINT fk_companies_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: company_modules fk_company_modules_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.company_modules
+    ADD CONSTRAINT fk_company_modules_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: company_modules fk_company_modules_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.company_modules
+    ADD CONSTRAINT fk_company_modules_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
 
 
 --
@@ -813,6 +1024,13 @@ CREATE POLICY tenant_isolation ON public.audit_events USING ((organization_id = 
 
 
 --
+-- Name: branch_module_settings tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.branch_module_settings USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
 -- Name: branches tenant_isolation; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -824,6 +1042,13 @@ CREATE POLICY tenant_isolation ON public.branches USING ((organization_id = (NUL
 --
 
 CREATE POLICY tenant_isolation ON public.companies USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
+-- Name: company_modules tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.company_modules USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
 
 
 --
@@ -861,6 +1086,10 @@ CREATE POLICY tenant_isolation ON public.processed_events USING ((organization_i
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261110100300'),
+('20261110100200'),
+('20261110100100'),
+('20261110100000'),
 ('20261110000200'),
 ('20261110000100'),
 ('20261110000000'),

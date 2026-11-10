@@ -121,8 +121,8 @@ RSpec.describe "Access.sync!" do
   end
 
   describe "el registro global (lo que hacen los packs al arrancar)" do
-    it "la base contiene exactamente los permisos registrados" do
-      expect(Access::Permission.pluck(:key).sort).to eq(Access.permission_keys.sort)
+    it "la base contiene exactamente los permisos registrados (salvo los módulos ficticios de la suite, que no viajan a la base compartida)" do
+      expect(Access::Permission.pluck(:key).sort).to eq(AccessCatalogSuite.registry_without_samples.keys.sort)
     end
   end
 end

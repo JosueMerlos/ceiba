@@ -1,12 +1,27 @@
-# Manifiesto del módulo <%= pack_name %>. PLACEHOLDER (M0.03): el DSL `Modules.define`, sus campos y su
-# validación llegan con M0.09 (docs/architecture/05-module-system.md). Se rellena entonces:
+# Manifiesto del módulo <%= pack_name %> (docs/architecture/05-module-system.md, docs/playbooks/add-a-module.md). El registro de
+# platform/modules lo carga por ARCHIVO al arrancar y lo valida: la key debe coincidir con el nombre del pack y no puede cambiar nunca.
+# Solo hay cadenas y datos aquí (nada de constantes de otro pack: este archivo está excluido de packwerk).
 #
-#   Modules.define :<%= pack_name %> do
-#     name        ""
-#     version     "1.0"
-#     requires    []
-#     platform    []
-#     permissions { }
-#     publishes   []
-#     subscribes  {}
+# Campos disponibles (solo los de 05); descomenta y completa los que el módulo necesite:
+#
+#   permissions do
+#     permission "<%= pack_name %>.<recurso>.<accion>", description: "Qué permite"   # el prefijo es la key del módulo
 #   end
+#   role_grants do                                    # plantilla por defecto de los roles de sistema
+#     grant :company_manager, all: true
+#     grant :receptionist, %w[<%= pack_name %>.<recurso>.read]
+#   end
+#   api_scopes  "read:<%= pack_name %>" => %w[<%= pack_name %>.<recurso>.read]
+#   settings_schema "config/settings.schema.json"     # JSON Schema; cada propiedad lleva `default`
+#   settings_levels %i[company branch]
+#   publishes   %w[<%= pack_name %>.<evento>.v1]       # cada evento necesita su esquema en app/public/<%= pack_name %>/events/
+#   subscribes  { "otro.evento.v1" => "<%= namespace %>::Subscribers::Algo" }
+#   navigation  [ { key: "inicio", path: "/<%= pack_name %>", permission: "<%= pack_name %>.<recurso>.read" } ]
+#   on_enable   "<%= namespace %>::Lifecycle::OnEnable"    # se resuelve con constantize al ejecutarse
+#   on_disable  "<%= namespace %>::Lifecycle::OnDisable"
+Modules.define :<%= pack_name %> do
+  name        "<%= namespace %>"   # nombre legible, p. ej. "Lealtad"
+  version     "1.0"
+  requires    []                   # otros módulos que deben estar activos en la empresa
+  platform    []                   # capacidades de plataforma que usa (customers, notifications...)
+end

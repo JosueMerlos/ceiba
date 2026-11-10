@@ -12,6 +12,11 @@ gem "sidekiq", "~> 8.1"
 # Eventos de dominio y outbox (M0.10): cron de segundos para el relay y validación de payloads por JSON Schema.
 gem "sidekiq-cron", "2.4.0"
 gem "json_schemer", "2.5.0"
+# Feature flags por organización (M0.09, docs/architecture/05-module-system.md): liberan funcionalidad NUEVA, no sustituyen una activación.
+gem "flipper", "1.4.2"
+# require: false — al cargarse define modelos de Active Record y adelantaría ActiveRecord::Base a la configuración de cifrado
+# (config/initializers/active_record_encryption.rb); se requiere desde el initializer de platform/modules.
+gem "flipper-active_record", "1.4.2", require: false
 
 # Monolito modular (ADR-0001, M0.03): límites entre packs verificados por herramienta.
 gem "packwerk", "3.3.1"

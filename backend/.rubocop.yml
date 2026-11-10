@@ -10,6 +10,7 @@ require:
   - ./lib/rubocop/cop/ceiba/access_policy_roles
   - ./lib/rubocop/cop/ceiba/authorization_skips
   - ./lib/rubocop/cop/ceiba/directory_writes
+  - ./lib/rubocop/cop/ceiba/module_gate_skips
 
 plugins:
   - rubocop-rails
@@ -42,6 +43,8 @@ RSpec/DescribeClass:
     - "packs/*/*/spec/api/**/*"
     - "spec/config/**/*"
     - "spec/packs/**/*"
+    - "packs/platform/modules/spec/**/*"
+    - "packs/modules/*/spec/**/*"
     - "spec/db/**/*"
     - "spec/generators/model_generator_spec.rb"
     - "packs/*/*/spec/package_spec.rb"
@@ -108,6 +111,13 @@ Ceiba/AccessPolicyRoles:
 
 # La autorización solo se omite con skip_authorization!(reason:, only:) (allowlist revisada en spec/requests/api/authorization_spec.rb).
 Ceiba/AuthorizationSkips:
+  Enabled: true
+  Include:
+    - "app/controllers/**/*.rb"
+    - "packs/*/*/app/controllers/**/*.rb"
+
+# Un controlador con `requires_module` no puede saltarse su gate (ensure_required_module_enabled!): sus rutas quedarían abiertas.
+Ceiba/ModuleGateSkips:
   Enabled: true
   Include:
     - "app/controllers/**/*.rb"
