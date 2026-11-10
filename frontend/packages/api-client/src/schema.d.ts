@@ -4,1341 +4,1341 @@
  */
 
 export interface paths {
-    "/api/v1/auth/login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Inicia sesión
-         * @description Correo y contraseña. Entrega la cookie de sesión (`HttpOnly`, `SameSite=Lax`, `Secure` en producción) y el token CSRF. Un correo inexistente y una contraseña errónea dan EXACTAMENTE la misma respuesta.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: {
-                    /** @description Lo envía el navegador; si está presente debe ser el origen propio */
-                    Origin?: string;
-                };
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /** Format: email */
-                        email: string;
-                        /** Format: password */
-                        password: string;
-                    };
-                };
-            };
-            responses: {
-                /** @description sesión iniciada */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: components["schemas"]["AuthSession"];
-                        };
-                    };
-                };
-                /** @description faltan el correo o la contraseña */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ValidationProblem"];
-                    };
-                };
-                /** @description credenciales inválidas (código `auth.invalid_credentials`) */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description `Origin` que no es el propio (código `auth.origin_forbidden`); frena el login CSRF */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description el cuerpo no es `application/json` (código `request.unsupported_media_type`) */
-                415: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  "/api/v1/auth/login": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/auth/logout": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Inicia sesión
+     * @description Correo y contraseña. Entrega la cookie de sesión (`HttpOnly`, `SameSite=Lax`, `Secure` en producción) y el token CSRF. Un correo inexistente y una contraseña errónea dan EXACTAMENTE la misma respuesta.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: {
+          /** @description Lo envía el navegador; si está presente debe ser el origen propio */
+          Origin?: string;
         };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Cierra la sesión actual
-         * @description Revoca la sesión del navegador y borra la cookie. Las demás sesiones del usuario siguen vigentes.
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header: {
-                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
-                    "X-CSRF-Token": string;
-                };
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description sesión cerrada */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                /** @description sin sesión válida */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description sesión válida sin token CSRF correcto (`auth.csrf_invalid`) o con `Origin` ajeno (`auth.origin_forbidden`) */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            password: string;
+          };
         };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+      };
+      responses: {
+        /** @description sesión iniciada */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: components["schemas"]["AuthSession"];
+            };
+          };
+        };
+        /** @description faltan el correo o la contraseña */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["ValidationProblem"];
+          };
+        };
+        /** @description credenciales inválidas (código `auth.invalid_credentials`) */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description `Origin` que no es el propio (código `auth.origin_forbidden`); frena el login CSRF */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description el cuerpo no es `application/json` (código `request.unsupported_media_type`) */
+        415: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+      };
     };
-    "/api/v1/auth/session": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Sesión actual
-         * @description Quién es el usuario autenticado y su token CSRF. La SPA lo llama al arrancar para recuperar el token.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description la sesión vigente */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: components["schemas"]["AuthSession"];
-                        };
-                    };
-                };
-                /** @description sin sesión válida (ausente, vencida o revocada; código `auth.unauthenticated`) */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/logout": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/auth/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Cierra la sesión actual
+     * @description Revoca la sesión del navegador y borra la cookie. Las demás sesiones del usuario siguen vigentes.
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header: {
+          /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+          "X-CSRF-Token": string;
         };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Cierra todas las sesiones
-         * @description Revoca todas las sesiones del usuario, en todos los dispositivos.
-         */
-        delete: {
-            parameters: {
-                query?: never;
-                header: {
-                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
-                    "X-CSRF-Token": string;
-                };
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description todas las sesiones revocadas */
-                204: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                /** @description sin sesión válida */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description sesión válida sin token CSRF correcto (`auth.csrf_invalid`) o con `Origin` ajeno (`auth.origin_forbidden`) */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description sesión cerrada */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+        /** @description sin sesión válida */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description sesión válida sin token CSRF correcto (`auth.csrf_invalid`) o con `Origin` ajeno (`auth.origin_forbidden`) */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+      };
     };
-    "/api/v1/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Contexto del usuario autenticado
-         * @description El contexto elegido (organización, empresa y sucursal), los módulos ACTIVOS en esa empresa con sus settings resueltos (default del esquema, empresa, sucursal), los permisos que el usuario ejerce ahí y la navegación permitida. El frontend solo lo REFLEJA: ocultar algo no es control de acceso. Sin parámetros usa el último contexto elegido (cookie firmada `ceiba_context`) o, si no hay, la primera organización y empresa que el usuario ve. Un usuario sin memberships recibe el contexto vacío.
-         */
-        get: {
-            parameters: {
-                query?: {
-                    /** @description Requerido si se pasa company_id */
-                    organization_id?: string;
-                    company_id?: string;
-                    /** @description Requiere company_id */
-                    branch_id?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description el contexto del usuario */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Me"];
-                    };
-                };
-                /** @description company_id o branch_id sin su organización/empresa */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ValidationProblem"];
-                    };
-                };
-                /** @description sin sesión válida */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description la organización elegida está suspendida (`access.organization_suspended`) */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description la organización, empresa o sucursal no existe o el usuario no la ve */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/session": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/organizations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Lista las organizaciones del usuario
-         * @description Las organizaciones donde el usuario autenticado tiene algún membership (selector de contexto, ADR-0028). Incluye las suspendidas, con su `status`.
-         */
-        get: {
-            parameters: {
-                query?: {
-                    limit?: number;
-                    /** @description Cursor opaco de la página anterior */
-                    after?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
+    /**
+     * Sesión actual
+     * @description Quién es el usuario autenticado y su token CSRF. La SPA lo llama al arrancar para recuperar el token.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description la sesión vigente */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: components["schemas"]["AuthSession"];
             };
-            requestBody?: never;
-            responses: {
-                /** @description las organizaciones del usuario */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: components["schemas"]["OrganizationSummary"][];
-                            page: components["schemas"]["PageInfo"];
-                        };
-                    };
-                };
-                /** @description sin sesión válida */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
+          };
         };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+        /** @description sin sesión válida (ausente, vencida o revocada; código `auth.unauthenticated`) */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+      };
     };
-    "/api/v1/organizations/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description ID de la organización (UUIDv7) */
-                id: string;
-            };
-            cookie?: never;
-        };
-        /**
-         * Obtiene una organización
-         * @description Exige el permiso `platform.organization.read` (org_owner y org_admin). Una organización donde el usuario no tiene membership responde 404, igual que una inexistente.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /** @description ID de la organización (UUIDv7) */
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description la organización */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: components["schemas"]["Organization"];
-                        };
-                    };
-                };
-                /** @description sin sesión válida */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description miembro de la organización sin el permiso, o la organización está suspendida (`access.forbidden`, `access.organization_suspended`) */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description no existe, no es un UUID o el usuario no pertenece a ella */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/sessions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/organizations/{organization_id}/companies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organization_id: string;
-            };
-            cookie?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Cierra todas las sesiones
+     * @description Revoca todas las sesiones del usuario, en todos los dispositivos.
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header: {
+          /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+          "X-CSRF-Token": string;
         };
-        /**
-         * Lista las empresas que el usuario puede ver
-         * @description Solo las empresas donde el usuario tiene `platform.company.read` (org_owner y org_admin, todas; company_manager, la suya).
-         */
-        get: {
-            parameters: {
-                query?: {
-                    limit?: number;
-                    after?: string;
-                };
-                header?: never;
-                path: {
-                    organization_id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description las empresas visibles */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: components["schemas"]["Company"][];
-                            page: components["schemas"]["PageInfo"];
-                        };
-                    };
-                };
-                /** @description sin sesión válida */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description organización suspendida (`access.organization_suspended`) */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description la organización no existe o el usuario no pertenece a ella */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description todas las sesiones revocadas */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+        /** @description sin sesión válida */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description sesión válida sin token CSRF correcto (`auth.csrf_invalid`) o con `Origin` ajeno (`auth.origin_forbidden`) */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+      };
     };
-    "/api/v1/organizations/{organization_id}/companies/{company_id}/branches": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organization_id: string;
-                company_id: string;
-            };
-            cookie?: never;
-        };
-        /**
-         * Lista las sucursales de una empresa que el usuario puede ver
-         * @description Solo las sucursales donde el usuario tiene `platform.branch.read`: un company_manager ve todas las de su empresa; un branch_manager, la suya.
-         */
-        get: {
-            parameters: {
-                query?: {
-                    limit?: number;
-                    after?: string;
-                };
-                header?: never;
-                path: {
-                    organization_id: string;
-                    company_id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description las sucursales visibles */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: components["schemas"]["Branch"][];
-                            page: components["schemas"]["PageInfo"];
-                        };
-                    };
-                };
-                /** @description sin sesión válida */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description la empresa está fuera del alcance del usuario */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/me": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/modules/{key}/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organization_id: string;
-                company_id: string;
-                branch_id: string;
-                key: string;
-            };
-            cookie?: never;
+    /**
+     * Contexto del usuario autenticado
+     * @description El contexto elegido (organización, empresa y sucursal), los módulos ACTIVOS en esa empresa con sus settings resueltos (default del esquema, empresa, sucursal), los permisos que el usuario ejerce ahí y la navegación permitida. El frontend solo lo REFLEJA: ocultar algo no es control de acceso. Sin parámetros usa el último contexto elegido (cookie firmada `ceiba_context`) o, si no hay, la primera organización y empresa que el usuario ve. Un usuario sin memberships recibe el contexto vacío.
+     */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Requerido si se pasa company_id */
+          organization_id?: string;
+          company_id?: string;
+          /** @description Requiere company_id */
+          branch_id?: string;
         };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Cambia los settings del módulo a nivel sucursal
-         * @description Igual que a nivel empresa, pero solo para las claves que el esquema permite sobrescribir en una sucursal; las demás dan 422 (`not_allowed_at_level`). La sucursal debe ser de la empresa de la ruta y visible para el usuario (404 si no).
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header: {
-                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
-                    "X-CSRF-Token": string;
-                };
-                path: {
-                    organization_id: string;
-                    company_id: string;
-                    branch_id: string;
-                    key: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        settings: Record<string, never>;
-                    };
-                };
-            };
-            responses: {
-                /** @description los settings resueltos de la sucursal (criterio 5) */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ModuleSettings"];
-                    };
-                };
-                /** @description sin `platform.company_module.manage` en la sucursal */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description la sucursal no es de la empresa o no existe */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description una clave que el esquema solo permite a nivel empresa */
-                422: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ValidationProblem"];
-                    };
-                };
-            };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description el contexto del usuario */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["Me"];
+          };
         };
-        trace?: never;
+        /** @description company_id o branch_id sin su organización/empresa */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["ValidationProblem"];
+          };
+        };
+        /** @description sin sesión válida */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description la organización elegida está suspendida (`access.organization_suspended`) */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description la organización, empresa o sucursal no existe o el usuario no la ve */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+      };
     };
-    "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organization_id: string;
-                company_id: string;
-                /** @description ID de la sucursal */
-                id: string;
-            };
-            cookie?: never;
-        };
-        /**
-         * Obtiene una sucursal
-         * @description Exige `platform.branch.read`. Una sucursal fuera del alcance del usuario (p. ej. la hermana de la suya) responde 404.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    organization_id: string;
-                    company_id: string;
-                    /** @description ID de la sucursal */
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description la sucursal */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: components["schemas"]["Branch"];
-                        };
-                    };
-                };
-                /** @description sin sesión válida */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description visible pero sin permiso (`access.forbidden`) */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description la sucursal no existe o está fuera del alcance del usuario */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/organizations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/organizations/{organization_id}/companies/{company_id}/modules/{key}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organization_id: string;
-                company_id: string;
-                /** @description Key estable del módulo (p. ej. appointments) */
-                key: string;
-            };
-            cookie?: never;
+    /**
+     * Lista las organizaciones del usuario
+     * @description Las organizaciones donde el usuario autenticado tiene algún membership (selector de contexto, ADR-0028). Incluye las suspendidas, con su `status`.
+     */
+    get: {
+      parameters: {
+        query?: {
+          limit?: number;
+          /** @description Cursor opaco de la página anterior */
+          after?: string;
         };
-        get?: never;
-        /**
-         * Activa o desactiva un módulo en la empresa
-         * @description Idempotente: repetir no cambia nada (`changed: false`). Activar exige que los módulos de `requires` estén activos; desactivar no borra datos y no deja si otro módulo activo lo requiere. Exige `platform.company_module.manage`.
-         */
-        put: {
-            parameters: {
-                query?: never;
-                header: {
-                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
-                    "X-CSRF-Token": string;
-                };
-                path: {
-                    organization_id: string;
-                    company_id: string;
-                    /** @description Key estable del módulo (p. ej. appointments) */
-                    key: string;
-                };
-                cookie?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description las organizaciones del usuario */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: components["schemas"]["OrganizationSummary"][];
+              page: components["schemas"]["PageInfo"];
             };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        enabled: boolean;
-                    };
-                };
-            };
-            responses: {
-                /** @description desactivar (y repetir no cambia nada) */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ModuleActivation"];
-                    };
-                };
-                /** @description falta `enabled` */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ValidationProblem"];
-                    };
-                };
-                /** @description sin sesión válida */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description sin `platform.company_module.manage` (p. ej. company_manager) */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description módulo inexistente (`modules.unknown_module`) o empresa no visible */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description faltan módulos requeridos (`modules.requirements_not_met`) o lo requiere otro activo (`modules.required_by_others`) */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
+          };
         };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+        /** @description sin sesión válida */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+      };
     };
-    "/api/v1/organizations/{organization_id}/companies/{company_id}/modules/{key}/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organization_id: string;
-                company_id: string;
-                key: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Cambia los settings del módulo (empresa o sucursal)
-         * @description Cambia SOLO las claves enviadas (un valor `null` quita el override), a nivel empresa. Cada valor se valida contra el JSON Schema del módulo: un valor inválido da 422 con el detalle por campo. Exige el módulo activo y `platform.company_module.manage`.
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header: {
-                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
-                    "X-CSRF-Token": string;
-                };
-                path: {
-                    organization_id: string;
-                    company_id: string;
-                    key: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        settings: Record<string, never>;
-                    };
-                };
-            };
-            responses: {
-                /** @description los settings resueltos de ese nivel */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ModuleSettings"];
-                    };
-                };
-                /** @description sin sesión válida */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description sin `platform.company_module.manage` */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description el módulo no está activo en la empresa (`modules.not_enabled`) */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description criterio 6: valores inválidos según el esquema, con el detalle por campo */
-                422: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["ValidationProblem"];
-                    };
-                };
-            };
-        };
-        trace?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/organizations/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description ID de la organización (UUIDv7) */
+        id: string;
+      };
+      cookie?: never;
     };
-    "/api/v1/organizations/{organization_id}/companies/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organization_id: string;
-                /** @description ID de la empresa */
-                id: string;
-            };
-            cookie?: never;
+    /**
+     * Obtiene una organización
+     * @description Exige el permiso `platform.organization.read` (org_owner y org_admin). Una organización donde el usuario no tiene membership responde 404, igual que una inexistente.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description ID de la organización (UUIDv7) */
+          id: string;
         };
-        /**
-         * Obtiene una empresa
-         * @description Exige `platform.company.read`. Una empresa fuera del alcance de los memberships del usuario responde 404.
-         */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    organization_id: string;
-                    /** @description ID de la empresa */
-                    id: string;
-                };
-                cookie?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description la organización */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: components["schemas"]["Organization"];
             };
-            requestBody?: never;
-            responses: {
-                /** @description la empresa */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: components["schemas"]["Company"];
-                        };
-                    };
-                };
-                /** @description sin sesión válida */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description visible por una sucursal, pero sin permiso sobre la empresa (`access.forbidden`) */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-                /** @description la empresa no existe o está fuera del alcance del usuario */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
+          };
         };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+        /** @description sin sesión válida */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description miembro de la organización sin el permiso, o la organización está suspendida (`access.forbidden`, `access.organization_suspended`) */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description no existe, no es un UUID o el usuario no pertenece a ella */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+      };
     };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/organizations/{organization_id}/companies": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organization_id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * Lista las empresas que el usuario puede ver
+     * @description Solo las empresas donde el usuario tiene `platform.company.read` (org_owner y org_admin, todas; company_manager, la suya).
+     */
+    get: {
+      parameters: {
+        query?: {
+          limit?: number;
+          after?: string;
+        };
+        header?: never;
+        path: {
+          organization_id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description las empresas visibles */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: components["schemas"]["Company"][];
+              page: components["schemas"]["PageInfo"];
+            };
+          };
+        };
+        /** @description sin sesión válida */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description organización suspendida (`access.organization_suspended`) */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description la organización no existe o el usuario no pertenece a ella */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/branches": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organization_id: string;
+        company_id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * Lista las sucursales de una empresa que el usuario puede ver
+     * @description Solo las sucursales donde el usuario tiene `platform.branch.read`: un company_manager ve todas las de su empresa; un branch_manager, la suya.
+     */
+    get: {
+      parameters: {
+        query?: {
+          limit?: number;
+          after?: string;
+        };
+        header?: never;
+        path: {
+          organization_id: string;
+          company_id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description las sucursales visibles */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: components["schemas"]["Branch"][];
+              page: components["schemas"]["PageInfo"];
+            };
+          };
+        };
+        /** @description sin sesión válida */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description la empresa está fuera del alcance del usuario */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/modules/{key}/settings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organization_id: string;
+        company_id: string;
+        branch_id: string;
+        key: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Cambia los settings del módulo a nivel sucursal
+     * @description Igual que a nivel empresa, pero solo para las claves que el esquema permite sobrescribir en una sucursal; las demás dan 422 (`not_allowed_at_level`). La sucursal debe ser de la empresa de la ruta y visible para el usuario (404 si no).
+     */
+    patch: {
+      parameters: {
+        query?: never;
+        header: {
+          /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+          "X-CSRF-Token": string;
+        };
+        path: {
+          organization_id: string;
+          company_id: string;
+          branch_id: string;
+          key: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            settings: Record<string, never>;
+          };
+        };
+      };
+      responses: {
+        /** @description los settings resueltos de la sucursal (criterio 5) */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ModuleSettings"];
+          };
+        };
+        /** @description sin `platform.company_module.manage` en la sucursal */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description la sucursal no es de la empresa o no existe */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description una clave que el esquema solo permite a nivel empresa */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["ValidationProblem"];
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organization_id: string;
+        company_id: string;
+        /** @description ID de la sucursal */
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * Obtiene una sucursal
+     * @description Exige `platform.branch.read`. Una sucursal fuera del alcance del usuario (p. ej. la hermana de la suya) responde 404.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          organization_id: string;
+          company_id: string;
+          /** @description ID de la sucursal */
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description la sucursal */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: components["schemas"]["Branch"];
+            };
+          };
+        };
+        /** @description sin sesión válida */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description visible pero sin permiso (`access.forbidden`) */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description la sucursal no existe o está fuera del alcance del usuario */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/modules/{key}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organization_id: string;
+        company_id: string;
+        /** @description Key estable del módulo (p. ej. appointments) */
+        key: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Activa o desactiva un módulo en la empresa
+     * @description Idempotente: repetir no cambia nada (`changed: false`). Activar exige que los módulos de `requires` estén activos; desactivar no borra datos y no deja si otro módulo activo lo requiere. Exige `platform.company_module.manage`.
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header: {
+          /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+          "X-CSRF-Token": string;
+        };
+        path: {
+          organization_id: string;
+          company_id: string;
+          /** @description Key estable del módulo (p. ej. appointments) */
+          key: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            enabled: boolean;
+          };
+        };
+      };
+      responses: {
+        /** @description desactivar (y repetir no cambia nada) */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ModuleActivation"];
+          };
+        };
+        /** @description falta `enabled` */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["ValidationProblem"];
+          };
+        };
+        /** @description sin sesión válida */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description sin `platform.company_module.manage` (p. ej. company_manager) */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description módulo inexistente (`modules.unknown_module`) o empresa no visible */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description faltan módulos requeridos (`modules.requirements_not_met`) o lo requiere otro activo (`modules.required_by_others`) */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/modules/{key}/settings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organization_id: string;
+        company_id: string;
+        key: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Cambia los settings del módulo (empresa o sucursal)
+     * @description Cambia SOLO las claves enviadas (un valor `null` quita el override), a nivel empresa. Cada valor se valida contra el JSON Schema del módulo: un valor inválido da 422 con el detalle por campo. Exige el módulo activo y `platform.company_module.manage`.
+     */
+    patch: {
+      parameters: {
+        query?: never;
+        header: {
+          /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+          "X-CSRF-Token": string;
+        };
+        path: {
+          organization_id: string;
+          company_id: string;
+          key: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": {
+            settings: Record<string, never>;
+          };
+        };
+      };
+      responses: {
+        /** @description los settings resueltos de ese nivel */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ModuleSettings"];
+          };
+        };
+        /** @description sin sesión válida */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description sin `platform.company_module.manage` */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description el módulo no está activo en la empresa (`modules.not_enabled`) */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description criterio 6: valores inválidos según el esquema, con el detalle por campo */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["ValidationProblem"];
+          };
+        };
+      };
+    };
+    trace?: never;
+  };
+  "/api/v1/organizations/{organization_id}/companies/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organization_id: string;
+        /** @description ID de la empresa */
+        id: string;
+      };
+      cookie?: never;
+    };
+    /**
+     * Obtiene una empresa
+     * @description Exige `platform.company.read`. Una empresa fuera del alcance de los memberships del usuario responde 404.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          organization_id: string;
+          /** @description ID de la empresa */
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description la empresa */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              data: components["schemas"]["Company"];
+            };
+          };
+        };
+        /** @description sin sesión válida */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description visible por una sucursal, pero sin permiso sobre la empresa (`access.forbidden`) */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+        /** @description la empresa no existe o está fuera del alcance del usuario */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/problem+json": components["schemas"]["Problem"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /** @description Sesión del panel: quién es y el token CSRF que debe enviar en `X-CSRF-Token` en toda mutación */
-        AuthSession: {
-            /** @description Ligado a esta sesión; cambia cuando la sesión rota (login). Se guarda en memoria, no en almacenamiento persistente */
-            csrf_token: string;
-            /**
-             * Format: date-time
-             * @description Caducidad ABSOLUTA de la sesión (UTC); la inactividad de 12 h es aparte
-             */
-            expires_at: string;
-            user: components["schemas"]["User"];
-        };
-        /** @description Sucursal: una ubicación de una empresa */
-        Branch: {
-            address: string | null;
-            /** Format: uuid */
-            company_id: string;
-            /**
-             * Format: date-time
-             * @description UTC
-             */
-            created_at: string;
-            /** Format: uuid */
-            id: string;
-            name: string;
-            /** @example +50588887777 */
-            phone_e164: string | null;
-            /** @enum {string} */
-            status: "active" | "inactive";
-            /**
-             * @description Zona horaria IANA
-             * @example America/Managua
-             */
-            time_zone: string;
-            /**
-             * Format: date-time
-             * @description UTC
-             */
-            updated_at: string;
-        };
-        /** @description Empresa: un negocio dentro de una organización (ADR-0004) */
-        Company: {
-            /** @example barbershop */
-            business_type: string;
-            /**
-             * Format: date-time
-             * @description UTC
-             */
-            created_at: string;
-            /** @enum {string} */
-            currency: "NIO" | "USD";
-            /** Format: uuid */
-            id: string;
-            /** @example es-NI */
-            locale: string;
-            name: string;
-            /**
-             * @description Único en toda la plataforma (URL pública /c/:slug)
-             * @example barberia-guegu
-             */
-            slug: string;
-            /** @enum {string} */
-            status: "active" | "inactive";
-            /**
-             * Format: date-time
-             * @description UTC
-             */
-            updated_at: string;
-        };
-        FieldError: {
-            /**
-             * @description Tipo del error (blank, taken, invalid...)
-             * @example blank
-             */
-            code: string;
-            /** @example company.slug */
-            field: string;
-            /** @example no puede estar en blanco */
-            message: string;
-        };
-        /** @description Respuesta de GET /api/v1/me */
-        Me: {
-            data: {
-                /** @description Lo elegido; cada nivel es null si no hay (usuario sin memberships, sin sucursal elegida) */
-                context: {
-                    branch: components["schemas"]["Branch"] | null;
-                    company: components["schemas"]["Company"] | null;
-                    organization: components["schemas"]["OrganizationSummary"] | null;
-                };
-                /** @description Módulos ACTIVOS en la empresa del contexto, con los settings resueltos (default -> empresa -> sucursal) */
-                modules: {
-                    /** @example appointments */
-                    key: string;
-                    settings: {
-                        [key: string]: unknown;
-                    };
-                    /** @example 1.0 */
-                    version: string;
-                }[];
-                navigation: {
-                    key: string;
-                    module: string;
-                    /** @example /agenda */
-                    path: string;
-                }[];
-                /** @description Permisos que el usuario ejerce en el contexto, de los módulos activos y de la plataforma. El frontend los refleja; no decide. */
-                permissions: string[];
-                principal: {
-                    email: string;
-                    /** Format: uuid */
-                    id: string;
-                    name: string;
-                };
-            };
-        };
-        ModuleActivation: {
-            data: {
-                /** @description false si la llamada fue una repetición */
-                changed: boolean;
-                enabled: boolean;
-                key: string;
-            };
-        };
-        ModuleSettings: {
-            data: {
-                key: string;
-                /** @description Settings resueltos del nivel escrito (default -> empresa -> sucursal) */
-                settings: {
-                    [key: string]: unknown;
-                };
-            };
-        };
-        /** @description Organización: el tenant (ADR-0003) */
-        Organization: {
-            /**
-             * @description ISO 3166-1 alfa-2
-             * @example NI
-             */
-            country_code: string;
-            /**
-             * Format: date-time
-             * @description UTC
-             */
-            created_at: string;
-            /** Format: uuid */
-            id: string;
-            legal_name: string | null;
-            name: string;
-            /** @enum {string} */
-            status: "active" | "suspended";
-            /**
-             * Format: date-time
-             * @description UTC
-             */
-            updated_at: string;
-        };
-        /** @description Resumen de una organización para el selector de contexto (id, nombre, estado) */
-        OrganizationSummary: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            /** @enum {string} */
-            status: "active" | "suspended";
-        };
-        /** @description Metadatos de la paginación por cursor */
-        PageInfo: {
-            has_more: boolean;
-            /** @description Cursor opaco para pedir la siguiente página (?after=); null en la última */
-            next_cursor: string | null;
-        };
-        /** @description application/problem+json (RFC 9457) */
-        Problem: {
-            /**
-             * @description Código estable y traducible por el frontend (i18n)
-             * @example resource.not_found
-             */
-            code: string;
-            /** @description Explicación específica, solo cuando el error la define */
-            detail?: string;
-            /**
-             * @description Ruta de la petición
-             * @example /api/v1/organizations/0198f0a0-0000-7000-8000-000000000000
-             */
-            instance: string;
-            /** @description Mismo valor que la cabecera X-Request-Id; sirve para buscar el detalle en el log */
-            request_id: string;
-            /**
-             * @description Código HTTP, repetido en el cuerpo
-             * @example 404
-             */
-            status: number;
-            /**
-             * @description Resumen legible, en el idioma de la API
-             * @example No se encontró el recurso
-             */
-            title: string;
-            /**
-             * @description URN estable del tipo de problema
-             * @example urn:ceiba:error:resource.not_found
-             */
-            type: string;
-        };
-        /** @description Persona autenticada. Global: no pertenece a una organización (ADR-0028) */
-        User: {
-            /**
-             * Format: email
-             * @description Normalizado: minúsculas y sin espacios
-             */
-            email: string;
-            full_name: string;
-            /** Format: uuid */
-            id: string;
-        };
-        /** @description Problema con errores por campo (422 y algunos 400) */
-        ValidationProblem: {
-            /**
-             * @description Código estable y traducible por el frontend (i18n)
-             * @example resource.not_found
-             */
-            code: string;
-            /** @description Explicación específica, solo cuando el error la define */
-            detail?: string;
-            errors: components["schemas"]["FieldError"][];
-            /**
-             * @description Ruta de la petición
-             * @example /api/v1/organizations/0198f0a0-0000-7000-8000-000000000000
-             */
-            instance: string;
-            /** @description Mismo valor que la cabecera X-Request-Id; sirve para buscar el detalle en el log */
-            request_id: string;
-            /**
-             * @description Código HTTP, repetido en el cuerpo
-             * @example 404
-             */
-            status: number;
-            /**
-             * @description Resumen legible, en el idioma de la API
-             * @example No se encontró el recurso
-             */
-            title: string;
-            /**
-             * @description URN estable del tipo de problema
-             * @example urn:ceiba:error:resource.not_found
-             */
-            type: string;
-        };
+  schemas: {
+    /** @description Sesión del panel: quién es y el token CSRF que debe enviar en `X-CSRF-Token` en toda mutación */
+    AuthSession: {
+      /** @description Ligado a esta sesión; cambia cuando la sesión rota (login). Se guarda en memoria, no en almacenamiento persistente */
+      csrf_token: string;
+      /**
+       * Format: date-time
+       * @description Caducidad ABSOLUTA de la sesión (UTC); la inactividad de 12 h es aparte
+       */
+      expires_at: string;
+      user: components["schemas"]["User"];
     };
-    responses: {
-        /** @description `Idempotency-Key` inválida (`idempotency.key_invalid`) o ausente en un endpoint que la exige (`idempotency.key_required`) */
-        IdempotencyKeyInvalid: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description La `Idempotency-Key` ya se usó con otro método, ruta o cuerpo (código `idempotency.key_reused`) */
-        IdempotencyKeyReused: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /** @description Otra petición con la misma `Idempotency-Key` sigue en curso (código `idempotency.request_in_progress`); reintenta con la misma clave */
-        IdempotencyRequestInProgress: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
+    /** @description Sucursal: una ubicación de una empresa */
+    Branch: {
+      address: string | null;
+      /** Format: uuid */
+      company_id: string;
+      /**
+       * Format: date-time
+       * @description UTC
+       */
+      created_at: string;
+      /** Format: uuid */
+      id: string;
+      name: string;
+      /** @example +50588887777 */
+      phone_e164: string | null;
+      /** @enum {string} */
+      status: "active" | "inactive";
+      /**
+       * @description Zona horaria IANA
+       * @example America/Managua
+       */
+      time_zone: string;
+      /**
+       * Format: date-time
+       * @description UTC
+       */
+      updated_at: string;
     };
-    parameters: {
-        /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
-        IdempotencyKey: string;
-        /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
-        IdempotencyKeyRequired: string;
+    /** @description Empresa: un negocio dentro de una organización (ADR-0004) */
+    Company: {
+      /** @example barbershop */
+      business_type: string;
+      /**
+       * Format: date-time
+       * @description UTC
+       */
+      created_at: string;
+      /** @enum {string} */
+      currency: "NIO" | "USD";
+      /** Format: uuid */
+      id: string;
+      /** @example es-NI */
+      locale: string;
+      name: string;
+      /**
+       * @description Único en toda la plataforma (URL pública /c/:slug)
+       * @example barberia-guegu
+       */
+      slug: string;
+      /** @enum {string} */
+      status: "active" | "inactive";
+      /**
+       * Format: date-time
+       * @description UTC
+       */
+      updated_at: string;
     };
-    requestBodies: never;
-    headers: {
-        /** @description `true` cuando la respuesta es la guardada de una petición anterior con la misma `Idempotency-Key` (repetida, no ejecutada de nuevo). */
-        IdempotencyReplayed: "true";
+    FieldError: {
+      /**
+       * @description Tipo del error (blank, taken, invalid...)
+       * @example blank
+       */
+      code: string;
+      /** @example company.slug */
+      field: string;
+      /** @example no puede estar en blanco */
+      message: string;
     };
-    pathItems: never;
+    /** @description Respuesta de GET /api/v1/me */
+    Me: {
+      data: {
+        /** @description Lo elegido; cada nivel es null si no hay (usuario sin memberships, sin sucursal elegida) */
+        context: {
+          branch: components["schemas"]["Branch"] | null;
+          company: components["schemas"]["Company"] | null;
+          organization: components["schemas"]["OrganizationSummary"] | null;
+        };
+        /** @description Módulos ACTIVOS en la empresa del contexto, con los settings resueltos (default -> empresa -> sucursal) */
+        modules: {
+          /** @example appointments */
+          key: string;
+          settings: {
+            [key: string]: unknown;
+          };
+          /** @example 1.0 */
+          version: string;
+        }[];
+        navigation: {
+          key: string;
+          module: string;
+          /** @example /agenda */
+          path: string;
+        }[];
+        /** @description Permisos que el usuario ejerce en el contexto, de los módulos activos y de la plataforma. El frontend los refleja; no decide. */
+        permissions: string[];
+        principal: {
+          email: string;
+          /** Format: uuid */
+          id: string;
+          name: string;
+        };
+      };
+    };
+    ModuleActivation: {
+      data: {
+        /** @description false si la llamada fue una repetición */
+        changed: boolean;
+        enabled: boolean;
+        key: string;
+      };
+    };
+    ModuleSettings: {
+      data: {
+        key: string;
+        /** @description Settings resueltos del nivel escrito (default -> empresa -> sucursal) */
+        settings: {
+          [key: string]: unknown;
+        };
+      };
+    };
+    /** @description Organización: el tenant (ADR-0003) */
+    Organization: {
+      /**
+       * @description ISO 3166-1 alfa-2
+       * @example NI
+       */
+      country_code: string;
+      /**
+       * Format: date-time
+       * @description UTC
+       */
+      created_at: string;
+      /** Format: uuid */
+      id: string;
+      legal_name: string | null;
+      name: string;
+      /** @enum {string} */
+      status: "active" | "suspended";
+      /**
+       * Format: date-time
+       * @description UTC
+       */
+      updated_at: string;
+    };
+    /** @description Resumen de una organización para el selector de contexto (id, nombre, estado) */
+    OrganizationSummary: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+      /** @enum {string} */
+      status: "active" | "suspended";
+    };
+    /** @description Metadatos de la paginación por cursor */
+    PageInfo: {
+      has_more: boolean;
+      /** @description Cursor opaco para pedir la siguiente página (?after=); null en la última */
+      next_cursor: string | null;
+    };
+    /** @description application/problem+json (RFC 9457) */
+    Problem: {
+      /**
+       * @description Código estable y traducible por el frontend (i18n)
+       * @example resource.not_found
+       */
+      code: string;
+      /** @description Explicación específica, solo cuando el error la define */
+      detail?: string;
+      /**
+       * @description Ruta de la petición
+       * @example /api/v1/organizations/0198f0a0-0000-7000-8000-000000000000
+       */
+      instance: string;
+      /** @description Mismo valor que la cabecera X-Request-Id; sirve para buscar el detalle en el log */
+      request_id: string;
+      /**
+       * @description Código HTTP, repetido en el cuerpo
+       * @example 404
+       */
+      status: number;
+      /**
+       * @description Resumen legible, en el idioma de la API
+       * @example No se encontró el recurso
+       */
+      title: string;
+      /**
+       * @description URN estable del tipo de problema
+       * @example urn:ceiba:error:resource.not_found
+       */
+      type: string;
+    };
+    /** @description Persona autenticada. Global: no pertenece a una organización (ADR-0028) */
+    User: {
+      /**
+       * Format: email
+       * @description Normalizado: minúsculas y sin espacios
+       */
+      email: string;
+      full_name: string;
+      /** Format: uuid */
+      id: string;
+    };
+    /** @description Problema con errores por campo (422 y algunos 400) */
+    ValidationProblem: {
+      /**
+       * @description Código estable y traducible por el frontend (i18n)
+       * @example resource.not_found
+       */
+      code: string;
+      /** @description Explicación específica, solo cuando el error la define */
+      detail?: string;
+      errors: components["schemas"]["FieldError"][];
+      /**
+       * @description Ruta de la petición
+       * @example /api/v1/organizations/0198f0a0-0000-7000-8000-000000000000
+       */
+      instance: string;
+      /** @description Mismo valor que la cabecera X-Request-Id; sirve para buscar el detalle en el log */
+      request_id: string;
+      /**
+       * @description Código HTTP, repetido en el cuerpo
+       * @example 404
+       */
+      status: number;
+      /**
+       * @description Resumen legible, en el idioma de la API
+       * @example No se encontró el recurso
+       */
+      title: string;
+      /**
+       * @description URN estable del tipo de problema
+       * @example urn:ceiba:error:resource.not_found
+       */
+      type: string;
+    };
+  };
+  responses: {
+    /** @description `Idempotency-Key` inválida (`idempotency.key_invalid`) o ausente en un endpoint que la exige (`idempotency.key_required`) */
+    IdempotencyKeyInvalid: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/problem+json": components["schemas"]["Problem"];
+      };
+    };
+    /** @description La `Idempotency-Key` ya se usó con otro método, ruta o cuerpo (código `idempotency.key_reused`) */
+    IdempotencyKeyReused: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/problem+json": components["schemas"]["Problem"];
+      };
+    };
+    /** @description Otra petición con la misma `Idempotency-Key` sigue en curso (código `idempotency.request_in_progress`); reintenta con la misma clave */
+    IdempotencyRequestInProgress: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/problem+json": components["schemas"]["Problem"];
+      };
+    };
+  };
+  parameters: {
+    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+    IdempotencyKey: string;
+    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+    IdempotencyKeyRequired: string;
+  };
+  requestBodies: never;
+  headers: {
+    /** @description `true` cuando la respuesta es la guardada de una petición anterior con la misma `Idempotency-Key` (repetida, no ejecutada de nuevo). */
+    IdempotencyReplayed: "true";
+  };
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

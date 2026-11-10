@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, type ReactNode } from "react";
 import { createApiClient, unwrap, type ApiClient } from "./client";
-import { csrfStore } from "./csrf";
 
 // Hooks base de TanStack Query sobre el cliente generado. Los `queryFn` usan `unwrap`: devuelven el cuerpo tipado del
 // contrato o rechazan con ApiError, que es lo que TanStack Query espera. El estado del servidor vive SOLO en la caché.
@@ -48,6 +47,9 @@ export const queryKeys = {
 };
 
 /** Páginas del selector de contexto: el máximo que admite la API (100). Más de eso no es un selector, es un buscador. */
+// El contrato declara X-CSRF-Token como parámetro obligatorio; el middleware del cliente lo reemplaza por el token real.
+const CSRF_PLACEHOLDER = "";
+
 const SELECTOR_PAGE = { limit: 100 };
 
 export function useSessionQuery() {
@@ -116,6 +118,8 @@ export function useLoginMutation() {
   return useMutation({
     mutationFn: (credentials: { email: string; password: string }) =>
       unwrap(client.POST("/api/v1/auth/login", { body: credentials })),
+    // El error (credenciales inválidas, límite de intentos) lo muestra el propio formulario: sin aviso global.
+    meta: { silent: true },
     // El middleware ya guardó el token CSRF; aquí la sesión entra a la caché para que el panel no la pida de nuevo.
     onSuccess: (session) => queryClient.setQueryData(queryKeys.session, session),
   });
@@ -128,7 +132,7 @@ export function useLogoutMutation() {
   return useMutation({
     mutationFn: async () => {
       const result = await client.DELETE("/api/v1/auth/logout", {
-        params: { header: { "X-CSRF-Token": csrfStore.get() ?? "" } },
+        params: { header: { "X-CSRF-Token": CSRF_PLACEHOLDER } },
       });
       if (result.error !== undefined) await unwrap(Promise.resolve(result));
     },
@@ -142,7 +146,7 @@ export function useLogoutAllMutation() {
   return useMutation({
     mutationFn: async () => {
       const result = await client.DELETE("/api/v1/auth/sessions", {
-        params: { header: { "X-CSRF-Token": csrfStore.get() ?? "" } },
+        params: { header: { "X-CSRF-Token": CSRF_PLACEHOLDER } },
       });
       if (result.error !== undefined) await unwrap(Promise.resolve(result));
     },

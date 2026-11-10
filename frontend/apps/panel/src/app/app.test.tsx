@@ -15,7 +15,7 @@ import { renderApp } from "../test/render-app";
 import { respondWith, server, signedInBackend, signedOutBackend } from "../test/server";
 
 const contextButton = () =>
-  screen.queryByRole("button", { name: "Cambiar el contexto de trabajo" });
+  screen.queryByRole("button", { name: /Cambiar el contexto de trabajo/ });
 const mainNav = () => screen.findByRole("navigation", { name: "Navegación principal" });
 
 describe("login", () => {
@@ -115,8 +115,18 @@ describe("sesión expirada (criterio 5)", () => {
 
   it("si CUALQUIER request responde 401 a mitad de uso, redirige y descarta lo cacheado", async () => {
     signedInBackend();
+    // La sesión vence mientras se usa: /me responde 401 y, desde ese momento, también la sesión.
+    let expired = false;
     server.use(
-      http.get(`${API}/api/v1/me`, respondWith(401, problem(401, "auth.unauthenticated"))),
+      http.get(`${API}/api/v1/auth/session`, () =>
+        expired
+          ? HttpResponse.json(problem(401, "auth.unauthenticated"), { status: 401 })
+          : HttpResponse.json(authSession()),
+      ),
+      http.get(`${API}/api/v1/me`, () => {
+        expired = true;
+        return HttpResponse.json(problem(401, "auth.unauthenticated"), { status: 401 });
+      }),
     );
     const { app } = await renderApp({ route: "/agenda" });
 
@@ -244,13 +254,13 @@ describe("selector de contexto", () => {
   it("criterio 2: con dos organizaciones aparece el selector y cambiar de organización recarga el contexto", async () => {
     twoOrganizations();
     const { user, app } = await renderApp();
-    await user.click(await screen.findByRole("button", { name: "Cambiar el contexto de trabajo" }));
+    await user.click(await screen.findByRole("button", { name: /Cambiar el contexto de trabajo/ }));
 
     await user.click(await screen.findByRole("menuitemradio", { name: "Barbería El Güegüense" }));
 
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "Cambiar el contexto de trabajo" }).textContent,
+        screen.getByRole("button", { name: /Cambiar el contexto de trabajo/ }).textContent,
       ).toContain("Barbería Centro"),
     );
     // La caché de la organización anterior ya no está.
@@ -273,7 +283,7 @@ describe("selector de contexto", () => {
     });
     const { user } = await renderApp();
 
-    await user.click(await screen.findByRole("button", { name: "Cambiar el contexto de trabajo" }));
+    await user.click(await screen.findByRole("button", { name: /Cambiar el contexto de trabajo/ }));
 
     expect(await screen.findByRole("menuitemradio", { name: "Estilo Altamira" })).toBeTruthy();
     expect(screen.getByRole("menuitemradio", { name: "Todas las sucursales" })).toBeTruthy();
@@ -281,15 +291,32 @@ describe("selector de contexto", () => {
 });
 
 describe("cuenta", () => {
-  it("cerrar sesión envía el token CSRF y lleva al login", async () => {
-    signedInBackend();
-    let csrfHeader: string | null = null;
+  /** Tras cerrar la sesión, la API responde 401 a GET /auth/session, como la real. */
+  function sessionEndsOn(
+    method: "logout" | "sessions",
+    record: (request: Request) => void = () => {},
+  ) {
+    let ended = false;
     server.use(
-      http.delete(`${API}/api/v1/auth/logout`, ({ request }) => {
-        csrfHeader = request.headers.get("x-csrf-token");
+      http.get(`${API}/api/v1/auth/session`, () =>
+        ended
+          ? HttpResponse.json(problem(401, "auth.unauthenticated"), { status: 401 })
+          : HttpResponse.json(authSession()),
+      ),
+      http.delete(`${API}/api/v1/auth/${method}`, ({ request }) => {
+        ended = true;
+        record(request);
         return new HttpResponse(null, { status: 204 });
       }),
     );
+  }
+
+  it("cerrar sesión envía el token CSRF y lleva al login", async () => {
+    signedInBackend();
+    let csrfHeader: string | null = null;
+    sessionEndsOn("logout", (request) => {
+      csrfHeader = request.headers.get("x-csrf-token");
+    });
     const { user } = await renderApp();
 
     await user.click(await screen.findByRole("button", { name: "Cuenta de Julia Reyes" }));
@@ -302,12 +329,9 @@ describe("cuenta", () => {
   it("cerrar todas las sesiones pide confirmación en un diálogo", async () => {
     signedInBackend();
     let called = false;
-    server.use(
-      http.delete(`${API}/api/v1/auth/sessions`, () => {
-        called = true;
-        return new HttpResponse(null, { status: 204 });
-      }),
-    );
+    sessionEndsOn("sessions", () => {
+      called = true;
+    });
     const { user } = await renderApp();
 
     await user.click(await screen.findByRole("button", { name: "Cuenta de Julia Reyes" }));
