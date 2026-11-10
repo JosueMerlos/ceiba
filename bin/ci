@@ -36,7 +36,7 @@ stage_backend_security() { backend bin/ci-security; }
 stage_frontend_lint()    { frontend bin/ci-lint; }
 stage_frontend_test()    { frontend bin/ci-test; }
 stage_frontend_security() { frontend bin/ci-security; }
-# Presupuesto de bundle de booking (M0.12, ADR-0015): JS crítico < 150 KiB gzip.
+# Presupuestos de bundle (M0.12, ADR-0015): JS crítico de booking < 150 KiB y de panel < 220 KiB gzip (bundle-budgets.json).
 stage_frontend_bundle()  { frontend bin/ci-bundle; }
 # E2E (M0.12): roles de BD, entorno completo (API con seeds, panel, booking, proxy) y Playwright. Capturas y reporte
 # en frontend/e2e (screenshots, playwright-report, test-results).
