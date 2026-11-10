@@ -8,12 +8,34 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 // Atributos JSX cuyo valor ve o escucha el usuario (lectores de pantalla incluidos).
+// Incluye las props de texto de los componentes de packages/ui (description, summary, fallback, skipLinkLabel,
+// navigationLabel, triggerLabel, closeLabel... y cualquier `*Label`).
+const TEXT_PROPS = "alt|title|label|placeholder|description|summary|fallback|[a-zA-Z]+Label";
 const TEXT_ATTRIBUTES = [
-  "^alt$",
-  "^title$",
-  "^label$",
-  "^placeholder$",
+  `^(${TEXT_PROPS})$`,
   "^aria-(label|description|placeholder|roledescription|valuetext)$",
+];
+
+// `no-literal-string` no revisa template literals ni los avisos (toast): se cubren con selectores.
+const UI_TEXT_SELECTORS = [
+  {
+    selector: "JSXElement > JSXExpressionContainer > TemplateLiteral",
+    message: "Texto de UI fuera de i18n: use t(...) en vez de un template literal.",
+  },
+  {
+    selector: `JSXAttribute[name.name=/^(${TEXT_PROPS})$/] > JSXExpressionContainer > TemplateLiteral`,
+    message: "Texto de UI fuera de i18n: use t(...) en vez de un template literal.",
+  },
+  {
+    selector:
+      "CallExpression[callee.name='toast'] > :matches(Literal, TemplateLiteral).arguments:first-child",
+    message: "Aviso con texto fuera de i18n: use toast(t(...)).",
+  },
+  {
+    selector:
+      "CallExpression[callee.object.name='toast'] > :matches(Literal, TemplateLiteral).arguments:first-child",
+    message: "Aviso con texto fuera de i18n: use toast.<tipo>(t(...)).",
+  },
 ];
 
 export default tseslint.config(
@@ -61,6 +83,12 @@ export default tseslint.config(
         },
       ],
     },
+  },
+
+  {
+    files: ["apps/*/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}", "**/test/**"],
+    rules: { "no-restricted-syntax": ["error", ...UI_TEXT_SELECTORS] },
   },
 
   // Desactiva las reglas de estilo que chocarían con Prettier. Debe ir al final.

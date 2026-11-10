@@ -76,7 +76,7 @@ describe("configuración compartida de ESLint", () => {
     it("prohíbe template literals como texto del JSX", async () => {
       const code = "export function Hello() {\n  return <p>{`Hola mundo`}</p>;\n}\n";
 
-      expect(await lint(code)).toContain("i18next/no-literal-string");
+      expect(await lint(code)).toContain("no-restricted-syntax");
     });
 
     it("prohíbe string literal en una expresión del JSX", async () => {
@@ -103,7 +103,7 @@ describe("configuración compartida de ESLint", () => {
     it("prohíbe template literals en atributos de texto", async () => {
       const code = "export const View = () => <Widget description={`Texto visible`} />;\n";
 
-      expect(await lint(code)).toContain("i18next/no-literal-string");
+      expect(await lint(code)).toContain("no-restricted-syntax");
     });
 
     it.each(["error", "success", "warning", "info", "message"])(

@@ -47,6 +47,15 @@
   --brand-accent-foreground: var(--palette-kapok-900);
   --brand-font: var(--palette-font-body);
 
+}
+
+/*
+ * Capa semántica y de componente. Se declara en :root Y en [data-brand-scope]: las variables que usan var() se
+ * resuelven donde se DECLARAN, así que un contenedor con su propio --brand-* (vista previa de M2.04) necesita que la
+ * semántica se vuelva a calcular dentro de él. Sin ese atributo, el branding se escribe en :root (ADR-0031).
+ */
+:root,
+[data-brand-scope] {
   /* ---------- 2b. Semántica: nombres de shadcn/ui ---------- */
   --background: var(--palette-kapok-50);
   --foreground: var(--palette-kapok-900);
@@ -66,8 +75,9 @@
   --destructive: var(--palette-ember-600);
   --destructive-foreground: var(--palette-kapok-0);
   --border: var(--palette-kapok-200);
-  --input: var(--palette-kapok-300);
-  --ring: var(--palette-canopy-500);
+  /* Borde de campos: 3:1 contra el fondo (WCAG 1.4.11). */
+  --input: var(--palette-kapok-500);
+  --ring: var(--brand-primary);
   --radius: 0.625rem;
 
   /* El acento de marca, con su propio nombre para no teñir cada menú. */
@@ -85,6 +95,6 @@
   --dialog-radius: calc(var(--radius) + 0.25rem);
   --nav-item-radius: calc(var(--radius) - 0.125rem);
   --nav-item-active-bg: var(--accent);
-  --nav-item-active-indicator: var(--highlight);
+  --nav-item-active-indicator: var(--primary);
   --sidebar-width: 15rem;
 }
