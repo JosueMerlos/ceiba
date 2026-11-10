@@ -15,6 +15,7 @@ module SampleModule
 
     const_set(:ThingPolicy, Class.new(Access::BasePolicy) do
       def index? = can?("sample.thing.read", company_scope)
+      def show? = can?("sample.thing.read", company_scope)
 
       private
 
@@ -38,6 +39,27 @@ module SampleModule
         authorize things, :index?, policy_class: SampleModule::ThingPolicy
         render json: { data: policy_scope(things, policy_scope_class: SampleModule::ThingPolicy::Scope).pluck(:id) }
       end
+
+      # Ruta de MIEMBRO (:id): un id desconocido da 404 por sí solo, por eso la suite de cobertura usa ids reales.
+      def show
+        thing = Tenancy::Directory.branches.where(company_id: Current.context.company.id).find(params[:id])
+        authorize thing, :show?, policy_class: SampleModule::ThingPolicy
+        render json: { data: thing.id }
+      end
+    end)
+
+    # Ruta bajo branches/:branch_id: el resolvedor de rutas valida la sucursal ANTES del gate (404 si no existe).
+    const_set(:BranchThingsController, Class.new(Api::BaseController) do
+      include Modules::RequiresModule
+      requires_module :sample
+
+      route_context branch: :branch_id
+
+      def index
+        branch = Current.context.branch
+        authorize branch, :show?, policy_class: SampleModule::ThingPolicy
+        render json: { data: [ branch.id ] }
+      end
     end)
   end
 
@@ -48,6 +70,10 @@ module SampleModule
       Rails.application.routes.disable_clear_and_finalize = true
       Rails.application.routes.draw do
         scope path: "api/v1/organizations/:organization_id/companies/:company_id/sample", controller: "sample_module/things" do
+          get "things", action: :index
+          get "things/:id", action: :show
+        end
+        scope path: "api/v1/organizations/:organization_id/companies/:company_id/branches/:branch_id/sample", controller: "sample_module/branch_things" do
           get "things", action: :index
         end
       end

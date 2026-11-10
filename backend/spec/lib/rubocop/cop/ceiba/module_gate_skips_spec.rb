@@ -27,6 +27,12 @@ RSpec.describe RuboCop::Cop::Ceiba::ModuleGateSkips, :config do
     expect(flagged(source).size).to eq(3)
   end
 
+  it "rechaza el nombre del gate escrito como cadena (define_method, alias_method, undef_method, send)" do
+    source = "  define_method(\"ensure_required_module_enabled!\") { true }\n  alias_method \"ensure_required_module_enabled!\", :otro\n  " \
+             "undef_method \"ensure_required_module_enabled!\"\n  skip_before_action \"ensure_required_module_enabled!\""
+    expect(flagged(source).size).to eq(4)
+  end
+
   it "rechaza required_module = nil escrito a mano" do
     expect(flagged("  self.required_module = nil")).to eq([ "self.required_module = nil" ])
   end

@@ -36,8 +36,18 @@ RSpec.describe "Cobertura de módulos: rutas de un módulo inactivo => 404" do
     callback.present? && callback.instance_variable_get(:@if).blank? && callback.instance_variable_get(:@unless).blank?
   end
 
-  def url_for_route(spec, company)
-    spec.gsub(":organization_id", company.organization_id).gsub(":company_id", company.id).gsub(/:\w+/, SampleModule::UNKNOWN_ID)
+  # URL con ids REALES: un id desconocido (o la sucursal de otra empresa) da 404 en el resolvedor de rutas o en la acción, ANTES o
+  # aparte del gate, y la comprobación no probaría nada. :branch_id es una sucursal real de la empresa; los demás parámetros
+  # (:id, ...) los fabrica el módulo con ModuleCoverageFactories (falla explícito si falta).
+  def url_for_route(route, company)
+    route[:spec].gsub(/:(\w+)/) do
+      case (param = Regexp.last_match(1).to_sym)
+      when :organization_id then company.organization_id
+      when :company_id then company.id
+      when :branch_id then world.branch_a1.id
+      else ModuleCoverageFactories.build(route[:module], param, company:, branch: world.branch_a1)
+      end
+    end
   end
 
   let(:world) { build_access_world }
@@ -90,18 +100,29 @@ RSpec.describe "Cobertura de módulos: rutas de un módulo inactivo => 404" do
     it "con el módulo inactivo, TODAS responden 404 problem+json y el 404 lo emite el gate (no un id desconocido)" do
       manager
       results = module_routes.map do |route|
-        denials = denials_during { process(route[:verb].downcase.to_sym, url_for_route(route[:spec], company), headers: manager.csrf_headers, as: :json) }
+        denials = denials_during { process(route[:verb].downcase.to_sym, url_for_route(route, company), headers: manager.csrf_headers, as: :json) }
         [ route[:spec], response.status, response.parsed_body["code"], denials.pluck(:module) ]
       end
 
       expect(results).to all(satisfy { |spec, status, code, denied| status == 404 && code == "resource.not_found" && denied == [ module_routes.find { |r| r[:spec] == spec }[:module] ] })
     end
 
+    it "cubre rutas con :id y :branch_id (con ids reales)" do
+      specs = module_routes.pluck(:spec)
+
+      expect(specs).to include(a_string_including("/branches/:branch_id/"), a_string_including("/things/:id"))
+    end
+
+    it "falla explícitamente si un módulo no registra cómo fabricar el recurso de un parámetro" do
+      expect { ModuleCoverageFactories.build("sample", :slug, company:, branch: world.branch_a1) }
+        .to raise_error(ModuleCoverageFactories::Missing, /registra un fabricante para :slug de sample/)
+    end
+
     it "con el módulo activo dejan de ser 404 (la comprobación de arriba no es vacía)" do
       manager
       with_tenant(world.organization) { Modules::Enable.call(company:, key: "sample") }
       statuses = module_routes.map do |route|
-        process(route[:verb].downcase.to_sym, url_for_route(route[:spec], company), headers: manager.csrf_headers, as: :json)
+        process(route[:verb].downcase.to_sym, url_for_route(route, company), headers: manager.csrf_headers, as: :json)
         response.status
       end
 

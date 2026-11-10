@@ -221,6 +221,32 @@ RSpec.describe "GET /api/v1/me" do
     end
   end
 
+  describe "un override de SUCURSAL inválido con un override de empresa válido" do
+    before do
+      enable("sample")
+      with_tenant(organization) do
+        Modules::UpdateSettings.call(company: world.company_a, key: "sample", settings: { "max_advance_days" => 30 })
+        Modules::BranchModuleSetting.create!(company_id: world.company_a.id, branch_id: world.branch_a1.id, module_key: "sample", settings: { "min_lead_time_minutes" => -5 })
+      end
+      sign_in(manager)
+      allow(Rails.error).to receive(:report)
+    end
+
+    it "en la sucursal rota cae al nivel de empresa (no a los defaults de todo el módulo) y lo reporta" do
+      me({ organization_id: organization.id, company_id: world.company_a.id, branch_id: world.branch_a1.id })
+
+      expect(data.dig("modules", 0, "settings")).to include("max_advance_days" => 30, "min_lead_time_minutes" => 120)
+      expect(Rails.error).to have_received(:report).with(an_instance_of(Modules::InvalidSettings), hash_including(context: hash_including(branch_id: world.branch_a1.id)))
+    end
+
+    it "sin sucursal elegida no se ve afectado" do
+      me({ organization_id: organization.id, company_id: world.company_a.id })
+
+      expect(data.dig("modules", 0, "settings")).to include("max_advance_days" => 30)
+      expect(Rails.error).not_to have_received(:report)
+    end
+  end
+
   describe "la cookie del último contexto está ligada al usuario" do
     it "otro usuario en el mismo navegador no hereda el contexto recordado" do
       sign_in(user_with_role("org_admin", world))
