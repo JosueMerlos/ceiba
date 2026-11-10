@@ -48,4 +48,35 @@ describe("configuración compartida de ESLint", () => {
     expect(await lint('console.log("x");\n', "src/a.ts")).toContain("no-console");
     expect(await lint('console.error("x");\n', "src/a.ts")).not.toContain("no-console");
   });
+  describe("textos de la UI (i18n)", () => {
+    it("prohíbe texto literal en el JSX de las apps", async () => {
+      const code = `export function Hello() {\n  return <p>Hola mundo</p>;\n}\n`;
+
+      expect(await lint(code)).toContain("i18next/no-literal-string");
+    });
+
+    it("prohíbe texto literal en atributos de la UI (placeholder, aria-label, title)", async () => {
+      const code = `export function Hello() {\n  return <input placeholder="Correo" aria-label="Correo electrónico" />;\n}\n`;
+
+      expect(await lint(code)).toContain("i18next/no-literal-string");
+    });
+
+    it("acepta textos que vienen de t()", async () => {
+      const code = `export function Hello({ t }: { t: (key: string) => string }) {\n  return <p>{t("hola")}</p>;\n}\n`;
+
+      expect(await lint(code)).toEqual([]);
+    });
+
+    it("acepta nombres de clase, tipos de input y roles (no son texto de UI)", async () => {
+      const code = `export function Hello() {\n  return <input type="email" className="a b" role="search" />;\n}\n`;
+
+      expect(await lint(code)).toEqual([]);
+    });
+
+    it("no se aplica a los tests", async () => {
+      const code = `export const View = () => <p>Hola mundo</p>;\n`;
+
+      expect(await lint(code, "apps/panel/src/example.test.tsx")).toEqual([]);
+    });
+  });
 });
