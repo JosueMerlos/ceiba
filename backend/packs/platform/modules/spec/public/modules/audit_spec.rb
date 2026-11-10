@@ -119,7 +119,7 @@ RSpec.describe "Auditoría de módulos" do
         Modules::Registry.new.define(:secreto) do
           name "Secreto"
           version "1.0"
-          settings_schema(type: "object", properties: { whatsapp_token: { type: "string", default: "" } })
+          settings_schema(type: "object", properties: { whatsapp_token: { type: "string", maxLength: 100, default: "" } })
         end
       end.to raise_error(Modules::InvalidManifest, /"whatsapp_token".*auditor/m)
     end

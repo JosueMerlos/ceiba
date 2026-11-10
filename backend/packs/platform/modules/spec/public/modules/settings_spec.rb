@@ -85,6 +85,39 @@ RSpec.describe "Settings de módulo" do
     end
   end
 
+  describe "cotas del esquema de appointments (sondas P3 y P2b)" do
+    let(:appointments_company) { create_in(organization, :company) }
+
+    def update_appointments(settings)
+      with_tenant(organization) do
+        Modules::Enable.call(company: appointments_company, key: "appointments")
+        Modules::UpdateSettings.call(company: appointments_company, key: "appointments", settings:)
+      end
+    end
+
+    it "limita el número de recordatorios" do
+      reminders = Array.new(6) { |index| { "kind" => "r#{index}", "offset_minutes" => 60 } }
+
+      expect { update_appointments("reminders" => reminders) }.to raise_error(Modules::InvalidSettings, /reminders/)
+    end
+
+    it "limita la longitud de las cadenas y el rango de los enteros" do
+      expect { update_appointments("reminders" => [ { "kind" => "x" * 31, "offset_minutes" => 10**30 } ]) }.to raise_error(Modules::InvalidSettings) { |error|
+        expect(error.errors.pluck(:field)).to contain_exactly("reminders.0.kind", "reminders.0.offset_minutes")
+      }
+    end
+
+    it "no acepta enteros gigantes en los demás ajustes" do
+      expect { update_appointments("min_lead_time_minutes" => 10**30, "max_advance_days" => 10**9) }.to raise_error(Modules::InvalidSettings) { |error|
+        expect(error.errors.pluck(:field)).to contain_exactly("min_lead_time_minutes", "max_advance_days")
+      }
+    end
+
+    it "el máximo razonable sí se acepta" do
+      expect(update_appointments("max_advance_days" => 730)["max_advance_days"]).to eq(730)
+    end
+  end
+
   describe "Modules::UpdateSettings" do
     it "guarda solo los overrides y devuelve los settings resueltos" do
       resolved = update("max_advance_days" => 30)

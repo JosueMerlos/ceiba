@@ -16,6 +16,21 @@ RSpec.describe "Módulos de una empresa: bordes" do
     expect(response).to have_http_status(:bad_request)
   end
 
+  it "enabled solo acepta true o false literales: \"abc\" y \"no\" son 400 y no activan nada" do
+    %w[abc no 1].each do |value|
+      put base, params: { enabled: value }, as: :json, headers: signed_in.csrf_headers
+
+      expect(response).to have_http_status(:bad_request)
+    end
+    expect(with_tenant(world.organization) { Modules.enabled?(world.company_a, "sample") }).to be(true)
+  end
+
+  it "enabled: false y true literales funcionan" do
+    put base, params: { enabled: false }, as: :json, headers: signed_in.csrf_headers
+
+    expect(response.parsed_body.dig("data", "enabled")).to be(false)
+  end
+
   it "una sucursal que no es un UUID: 404" do
     patch "/api/v1/organizations/#{world.organization.id}/companies/#{world.company_a.id}/branches/zzz/modules/sample/settings", params: { settings: { max_advance_days: 3 } }, as: :json, headers: signed_in.csrf_headers
 

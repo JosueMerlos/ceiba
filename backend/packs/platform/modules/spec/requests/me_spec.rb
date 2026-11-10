@@ -196,6 +196,53 @@ RSpec.describe "GET /api/v1/me" do
     end
   end
 
+  describe "un setting persistido que ya no cumple el esquema (sonda P5: antes dejaba /me en 422)" do
+    before do
+      enable("sample")
+      with_tenant(organization) { Modules::CompanyModule.find_by!(company_id: world.company_a.id, module_key: "sample").update!(settings: { "max_advance_days" => 0 }) }
+      sign_in(manager)
+    end
+
+    it "no rompe /me: el módulo sigue activo con los defaults y se reporta el problema" do
+      allow(Rails.error).to receive(:report)
+      me
+
+      expect(response).to have_http_status(:ok)
+      expect(data["modules"]).to eq([ { "key" => "sample", "version" => "1.0", "settings" => Modules.registry.fetch("sample").defaults } ])
+      expect(Rails.error).to have_received(:report).with(an_instance_of(Modules::InvalidSettings), hash_including(handled: true, context: hash_including(module: "sample")))
+    end
+
+    it "el resto de los módulos no se ve afectado" do
+      allow(Rails.error).to receive(:report)
+      enable("sample_addon")
+      me
+
+      expect(data["modules"].pluck("key")).to eq(%w[sample sample_addon])
+    end
+  end
+
+  describe "la cookie del último contexto está ligada al usuario" do
+    it "otro usuario en el mismo navegador no hereda el contexto recordado" do
+      sign_in(user_with_role("org_admin", world))
+      me({ organization_id: organization.id, company_id: world.company_b.id })
+      remembered = cookies[Modules::ContextCookie.name]
+      other = user_with_role("org_admin", world)
+      sign_in(other)
+      cookies[Modules::ContextCookie.name] = remembered
+      me
+
+      expect(data.dig("context", "company", "id")).to eq([ world.company_a.id, world.company_b.id ].min)
+    end
+
+    it "el mismo usuario sí recupera su contexto" do
+      sign_in(user_with_role("org_admin", world))
+      me({ organization_id: organization.id, company_id: world.company_b.id })
+      me
+
+      expect(data.dig("context", "company", "id")).to eq(world.company_b.id)
+    end
+  end
+
   describe "un usuario sin memberships" do
     it "recibe 200 con el contexto vacío (la SPA decide qué mostrar)" do
       sign_in(create(:user))

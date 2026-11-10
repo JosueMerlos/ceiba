@@ -9,9 +9,9 @@ RSpec.describe Modules::SettingsValidator do
         type: "object",
         properties: {
           reminders: {
-            type: "array", default: [],
+            type: "array", maxItems: 5, default: [],
             items: { type: "object", required: %w[kind offset_minutes],
-                     properties: { kind: { type: "string" }, offset_minutes: { type: "integer", minimum: 1 } } }
+                     properties: { kind: { type: "string", maxLength: 10 }, offset_minutes: { type: "integer", minimum: 1, maximum: 9999 } } }
           }
         }
       )

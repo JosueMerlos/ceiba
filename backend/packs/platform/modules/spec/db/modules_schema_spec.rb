@@ -62,6 +62,33 @@ RSpec.describe "Esquema de platform/modules" do
     end
   end
 
+  describe "tamaño de settings (sonda P3: un /me de 4,5 MB)" do
+    let(:huge) { { "reminders" => Array.new(2_000) { |index| { "kind" => "recordatorio-#{index}", "offset_minutes" => index } } }.to_json }
+
+    it "company_modules rechaza settings de más de 16 KB" do
+      expect { insert_company_module(settings: huge) }.to raise_error(ActiveRecord::CheckViolation, /chk_company_modules_settings_size/)
+    end
+
+    it "branch_module_settings rechaza settings de más de 16 KB" do
+      insert_company_module
+      expect do
+        savepoint do
+          connection.execute("INSERT INTO branch_module_settings (organization_id, company_id, branch_id, module_key, settings, created_at, updated_at) " \
+                             "VALUES (#{quoted(organization.id, company.id, branch.id, 'sample')}, #{quoted(huge)}::jsonb, now(), now())")
+        end
+      end.to raise_error(ActiveRecord::CheckViolation, /chk_branch_module_settings_settings_size/)
+    end
+  end
+
+  describe "índice del gate" do
+    it "el índice parcial de módulos activos empieza por organization_id (la consulta del gate está acotada por el tenant)" do
+      index = connection.indexes("company_modules").find { |candidate| candidate.name == "idx_company_modules_active" }
+
+      expect(index.columns).to eq(%w[organization_id module_key company_id])
+      expect(index.where).to include("disabled_at IS NULL")
+    end
+  end
+
   describe "branch_module_settings" do
     before { insert_company_module }
 

@@ -29,7 +29,7 @@ RSpec.describe Modules::Registry do
         api_scopes "read:loyalty" => %w[loyalty.card.read], "write:loyalty" => %w[loyalty.card.manage]
         settings_schema(
           type: "object",
-          properties: { points_per_visit: { type: "integer", minimum: 0, default: 10, "x-levels": %w[company] } }
+          properties: { points_per_visit: { type: "integer", minimum: 0, maximum: 1000, default: 10, "x-levels": %w[company] } }
         )
         settings_levels %i[company branch]
         publishes %w[platform.module_enabled.v1]
@@ -62,7 +62,7 @@ RSpec.describe Modules::Registry do
 
     it "resuelve la ruta del esquema de settings relativa al pack" do
       Dir.mktmpdir do |root|
-        File.write(File.join(root, "settings.schema.json"), { type: "object", properties: { a: { type: "integer", default: 1 } } }.to_json)
+        File.write(File.join(root, "settings.schema.json"), { type: "object", properties: { a: { type: "integer", minimum: 0, maximum: 9, default: 1 } } }.to_json)
 
         manifest = manifests.define(:ruta, root:) do
           name "Ruta"
@@ -174,8 +174,29 @@ RSpec.describe Modules::Registry do
 
       it "rechaza un default que no cumple su propio esquema" do
         expect_invalid(/"max_advance_days".*default.*no cumple/m) do
-          settings_schema(type: "object", properties: { max_advance_days: { type: "integer", minimum: 1, default: 0 } })
+          settings_schema(type: "object", properties: { max_advance_days: { type: "integer", minimum: 1, maximum: 9, default: 0 } })
         end
+      end
+
+      it "EXIGE cotas: un entero sin minimum y maximum es un error (sonda P2b: 10**30)" do
+        expect_invalid(/"a".*integer.*minimum.*maximum/m) { settings_schema(type: "object", properties: { a: { type: "integer", default: 1 } }) }
+        expect_invalid(/"a".*maximum/m) { settings_schema(type: "object", properties: { a: { type: "number", minimum: 0, default: 1 } }) }
+      end
+
+      it "EXIGE cotas: una cadena libre sin maxLength es un error, salvo un enum o un const" do
+        expect_invalid(/"a".*string.*maxLength/m) { settings_schema(type: "object", properties: { a: { type: "string", default: "" } }) }
+        expect { define(:acotado) { settings_schema(type: "object", properties: { a: { type: "string", enum: %w[x y], default: "x" } }) } }.not_to raise_error
+      end
+
+      it "EXIGE cotas: un array sin maxItems es un error (sonda P3: 50 000 recordatorios) y también sus elementos" do
+        expect_invalid(/"a".*array.*maxItems/m) { settings_schema(type: "object", properties: { a: { type: "array", items: { type: "boolean" }, default: [] } }) }
+        expect_invalid(/"a\[\]\.n".*integer.*minimum.*maximum/m) do
+          settings_schema(type: "object", properties: { a: { type: "array", maxItems: 3, default: [], items: { type: "object", properties: { n: { type: "integer" } } } } })
+        end
+      end
+
+      it "los booleanos no necesitan cota" do
+        expect { define(:boolean) { settings_schema(type: "object", properties: { a: { type: "boolean", default: true } }) } }.not_to raise_error
       end
 
       it "rechaza un esquema que no es un objeto con propiedades" do

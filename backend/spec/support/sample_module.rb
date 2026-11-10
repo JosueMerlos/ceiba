@@ -7,9 +7,9 @@ module SampleModule
   SCHEMA = {
     type: "object",
     properties: {
-      min_lead_time_minutes: { type: "integer", minimum: 0, default: 120 },
-      max_advance_days: { type: "integer", minimum: 1, default: 60 },
-      cancellation_window_hours: { type: "integer", minimum: 0, default: 4, "x-levels": %w[company] },
+      min_lead_time_minutes: { type: "integer", minimum: 0, maximum: 525_600, default: 120 },
+      max_advance_days: { type: "integer", minimum: 1, maximum: 730, default: 60 },
+      cancellation_window_hours: { type: "integer", minimum: 0, maximum: 720, default: 4, "x-levels": %w[company] },
       public_booking_enabled: { type: "boolean", default: true }
     }
   }.freeze

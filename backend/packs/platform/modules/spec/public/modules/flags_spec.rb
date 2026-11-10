@@ -19,6 +19,12 @@ RSpec.describe "Feature flags (Flipper)" do
     expect([ flipper.enabled?(:persistido, Modules::FlagActor.new(organization.id)), flipper.enabled?(:persistido, Modules::FlagActor.new(other.id)) ]).to eq([ true, false ])
   end
 
+  it "Flipper no precarga todos los flags en cada request (ni en /api/health) mientras no existan flags" do
+    memoizer = Rails.application.middleware.find { |middleware| middleware.klass == Flipper::Middleware::Memoizer }
+
+    expect(memoizer.args.first[:preload]).to be(false)
+  end
+
   it "no hay flags definidos todavía" do
     expect(Flipper.features).to be_empty
   end
