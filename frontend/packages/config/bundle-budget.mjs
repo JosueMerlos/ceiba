@@ -4,7 +4,7 @@
 //
 //   node packages/config/bundle-budget.mjs apps/booking/dist 150
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { gzipSync } from "node:zlib";
 
 /** @returns {{ bytes: number, files: string[] }} */
@@ -38,13 +38,26 @@ export function checkBudget({ bytes, files }, limitKiB) {
   return { ok, message: ok ? `OK ${detail}` : `SUPERA EL PRESUPUESTO: ${detail}` };
 }
 
+/**
+ * Evalúa varios presupuestos: `{ app: { dist, limitKiB } }` (las rutas de `dist` son relativas a `root`).
+ * @returns {{ name: string, ok: boolean, message: string }[]}
+ */
+export function checkBudgets(config, root) {
+  return Object.entries(config).map(([name, { dist, limitKiB }]) => {
+    const result = checkBudget(criticalJs(resolve(root, dist)), limitKiB);
+    return { name, ...result, message: `${name}: ${result.message}` };
+  });
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const [distDir, limit] = process.argv.slice(2);
-  if (!distDir || !limit) {
-    console.error("uso: bundle-budget.mjs <dist> <límite en KiB>");
+  // Uso: bundle-budget.mjs <bundle-budgets.json>   (las rutas son relativas al archivo)
+  const [file] = process.argv.slice(2);
+  if (!file) {
+    console.error("uso: bundle-budget.mjs <bundle-budgets.json>");
     process.exit(2);
   }
-  const result = checkBudget(criticalJs(distDir), Number(limit));
-  (result.ok ? console.warn : console.error)(result.message);
-  process.exit(result.ok ? 0 : 1);
+  const config = JSON.parse(readFileSync(file, "utf8"));
+  const results = checkBudgets(config, resolve(file, ".."));
+  for (const result of results) (result.ok ? console.warn : console.error)(result.message);
+  process.exit(results.every((result) => result.ok) ? 0 : 1);
 }

@@ -2,12 +2,6 @@ import { useLogoutAllMutation, useLogoutMutation } from "@ceiba/api-client";
 import { useTranslation } from "@ceiba/i18n";
 import {
   Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -16,9 +10,12 @@ import {
   DropdownMenuTrigger,
 } from "@ceiba/ui";
 import { LogOut, ShieldOff } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useNavigate } from "react-router";
 import { useMe } from "../me/me-provider";
+
+// El diálogo se carga la primera vez que se pide (no pesa en el arranque del panel).
+const LogoutAllDialog = lazy(() => import("./logout-all-dialog"));
 
 const initials = (name: string) =>
   name
@@ -68,26 +65,15 @@ export function UserMenu() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent closeLabel={t("common:close")}>
-          <DialogHeader>
-            <DialogTitle>{t("auth:logoutAllDialog.title")}</DialogTitle>
-            <DialogDescription>{t("auth:logoutAllDialog.description")}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
-              {t("common:cancel")}
-            </Button>
-            <Button
-              variant="destructive"
-              loading={logoutAll.isPending}
-              onClick={() => logoutAll.mutate(undefined, { onSuccess: goToLogin })}
-            >
-              {t("auth:logoutAllDialog.confirm")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {confirmOpen ? (
+        <Suspense fallback={null}>
+          <LogoutAllDialog
+            onOpenChange={setConfirmOpen}
+            loading={logoutAll.isPending}
+            onConfirm={() => logoutAll.mutate(undefined, { onSuccess: goToLogin })}
+          />
+        </Suspense>
+      ) : null}
     </>
   );
 }

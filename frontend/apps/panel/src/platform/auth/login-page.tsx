@@ -1,5 +1,5 @@
 import { useLoginMutation, useSessionQuery } from "@ceiba/api-client";
-import { useTranslation, type AnyTranslate, translator } from "@ceiba/i18n";
+import { useTranslation } from "@ceiba/i18n";
 import {
   Button,
   CeibaMark,
@@ -12,27 +12,16 @@ import {
   Input,
   LoadingState,
 } from "@ceiba/ui";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Navigate, useSearchParams } from "react-router";
-import { z } from "zod";
 import { describeError } from "../errors/global-errors";
 import { safeReturnPath } from "./return-path";
 
-// Los mensajes de validación se traducen al construir el esquema (zod no conoce i18n).
-const loginSchema = (translate: AnyTranslate) => {
-  const t = translator(translate);
-  return z.object({
-    email: z
-      .string()
-      .trim()
-      .min(1, t("auth:login.emailRequired"))
-      .pipe(z.email(t("auth:login.emailInvalid"))),
-    password: z.string().min(1, t("auth:login.passwordRequired")),
-  });
-};
+// Validación nativa de react-hook-form (sin zod ni resolver: pesan en el arranque del panel y para dos campos no hacen falta).
+// Algo con forma de nombre@dominio.tld; la API valida el correo de verdad.
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginPage() {
   const { t } = useTranslation(["auth", "common", "errors"]);
@@ -98,13 +87,17 @@ function LoginForm() {
   const login = useLoginMutation();
   const [reveal, setReveal] = useState(false);
   const form = useForm({
-    resolver: zodResolver(loginSchema(t)),
     defaultValues: { email: "", password: "" },
   });
 
   // Al terminar bien, el login deja la sesión en la caché y LoginPage navega sola a la ruta de retorno.
   const onSubmit = form.handleSubmit((values) =>
-    login.mutateAsync(values, { onError: () => form.setFocus("password") }).catch(() => undefined),
+    login
+      .mutateAsync(
+        { ...values, email: values.email.trim() },
+        { onError: () => form.setFocus("password") },
+      )
+      .catch(() => undefined),
   );
 
   return (
@@ -113,6 +106,12 @@ function LoginForm() {
         <FormField
           control={form.control}
           name="email"
+          rules={{
+            validate: (value) =>
+              value.trim() === ""
+                ? t("auth:login.emailRequired")
+                : EMAIL_SHAPE.test(value.trim()) || t("auth:login.emailInvalid"),
+          }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t("auth:login.email")}</FormLabel>
@@ -133,6 +132,7 @@ function LoginForm() {
         <FormField
           control={form.control}
           name="password"
+          rules={{ required: t("auth:login.passwordRequired") }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t("auth:login.password")}</FormLabel>

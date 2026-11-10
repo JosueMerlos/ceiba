@@ -16,6 +16,7 @@ export default defineConfig({
     hmr: { clientPort: publicPort },
   },
   build: {
+    manifest: true,
     rollupOptions: {
       output: {
         // Un chunk por módulo de negocio: modules/<clave>/... -> assets/module-<clave>-<hash>.js
