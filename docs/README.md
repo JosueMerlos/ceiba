@@ -40,6 +40,7 @@
 | **Decisiones** | [30 ADRs](adr/README.md) |
 | **Hoja de ruta** | [roadmap](roadmap/README.md): 5 fases y 33 hitos detallados (F0–F4) |
 | **Plantillas** | [hito](templates/milestone.md) · [ADR](templates/adr.md) |
+| **Agentes de IA** | [reglas para agentes](harness/README.md) (entrada: [`AGENTS.md`](../AGENTS.md)) |
 
 ## Decisiones de la sesión del 2026-11-07
 

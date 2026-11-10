@@ -32,3 +32,6 @@ coverage/
 
 # Rails: clave maestra de credentials
 /backend/config/*.key
+
+# ticket-harness: planes, estado de PRs y evidencia locales
+.harness/
