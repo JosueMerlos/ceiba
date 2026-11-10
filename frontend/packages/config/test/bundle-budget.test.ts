@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
-import { checkBudget, criticalJs } from "../bundle-budget.mjs";
+import { checkBudget, checkBudgets, criticalJs } from "../bundle-budget.mjs";
 
 // Presupuesto de booking (ADR-0015): el JS CRÍTICO (entrada + lo que importa estáticamente) debe pesar < 150 KiB gzip.
 const dirs: string[] = [];
@@ -88,5 +88,29 @@ describe("checkBudget", () => {
 
   it("el límite exacto pasa", () => {
     expect(checkBudget({ bytes: 150 * 1024, files: [] }, 150).ok).toBe(true);
+  });
+});
+
+describe("checkBudgets (un presupuesto por app, en un solo archivo)", () => {
+  it("evalúa cada app contra su límite y reporta todas", () => {
+    const small = fakeDist(
+      { "assets/index.js": "a".repeat(100) },
+      { "index.html": { file: "assets/index.js", isEntry: true } },
+    );
+    const big = fakeDist(
+      { "assets/index.js": noise(60_000) },
+      { "index.html": { file: "assets/index.js", isEntry: true } },
+    );
+
+    const results = checkBudgets(
+      { booking: { dist: small, limitKiB: 1 }, panel: { dist: big, limitKiB: 1 } },
+      "/",
+    );
+
+    expect(results.map((result) => [result.name, result.ok])).toEqual([
+      ["booking", true],
+      ["panel", false],
+    ]);
+    expect(results[1]!.message).toMatch(/SUPERA/);
   });
 });
