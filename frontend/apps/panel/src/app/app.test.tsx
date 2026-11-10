@@ -422,7 +422,8 @@ describe("revisión de M0.12", () => {
     );
     const { app } = await renderApp({ route: "/agenda" });
 
-    expect((await screen.findByRole("status")).textContent).toMatch(/sesión venció/);
+    await screen.findByRole("heading", { name: "Iniciar sesión" });
+    expect(screen.getByRole("status").textContent).toMatch(/sesión venció/);
     expect(new URLSearchParams(app.router.state.location.search).get("expired")).toBe("1");
   });
 

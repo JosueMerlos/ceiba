@@ -37,7 +37,8 @@ export async function createApp({
       if (location.pathname === "/login") return;
       // La sesión terminó: nada de lo cacheado debe verlo quien inicie sesión después en este navegador.
       if (!fromSession) queryClient.clear();
-      void router.navigate(loginPathFor(location), { replace: true });
+      // Una 401 de la sesión misma es un enlace en frío; cualquier otra es una sesión que venció en uso.
+      void router.navigate(loginPathFor(location, { expired: !fromSession }), { replace: true });
     },
     notify: (error) => {
       const message = describeError(error, i18n.t);

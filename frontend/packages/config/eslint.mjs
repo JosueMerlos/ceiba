@@ -17,24 +17,41 @@ const TEXT_ATTRIBUTES = [
 ];
 
 // `no-literal-string` no revisa template literals ni los avisos (toast): se cubren con selectores.
+const TEXT_ATTRIBUTE_NAMES = `${TEXT_PROPS}|aria-(label|description|placeholder|roledescription|valuetext)`;
+const TEMPLATE_MESSAGE = "Texto de UI fuera de i18n: use t(...) en vez de un template literal.";
+const TOAST_CALL = "CallExpression:matches([callee.name='toast'], [callee.object.name='toast'])";
 const UI_TEXT_SELECTORS = [
+  // Template literal como hijo del JSX, directo o dentro de un ternario / && / ||.
+  { selector: "JSXElement > JSXExpressionContainer > TemplateLiteral", message: TEMPLATE_MESSAGE },
   {
-    selector: "JSXElement > JSXExpressionContainer > TemplateLiteral",
-    message: "Texto de UI fuera de i18n: use t(...) en vez de un template literal.",
+    selector: "JSXElement > JSXExpressionContainer > ConditionalExpression > TemplateLiteral",
+    message: TEMPLATE_MESSAGE,
   },
   {
-    selector: `JSXAttribute[name.name=/^(${TEXT_PROPS})$/] > JSXExpressionContainer > TemplateLiteral`,
-    message: "Texto de UI fuera de i18n: use t(...) en vez de un template literal.",
+    selector: "JSXElement > JSXExpressionContainer > LogicalExpression > TemplateLiteral",
+    message: TEMPLATE_MESSAGE,
+  },
+  // ... y en los atributos de texto (incluidos los aria-*).
+  {
+    selector: `JSXAttribute[name.name=/^(${TEXT_ATTRIBUTE_NAMES})$/] > JSXExpressionContainer > TemplateLiteral`,
+    message: TEMPLATE_MESSAGE,
   },
   {
-    selector:
-      "CallExpression[callee.name='toast'] > :matches(Literal, TemplateLiteral).arguments:first-child",
-    message: "Aviso con texto fuera de i18n: use toast(t(...)).",
+    selector: `JSXAttribute[name.name=/^(${TEXT_ATTRIBUTE_NAMES})$/] > JSXExpressionContainer > ConditionalExpression > TemplateLiteral`,
+    message: TEMPLATE_MESSAGE,
+  },
+  // Avisos: ni literales, ni template literals, ni concatenaciones, ni ternarios con literales.
+  {
+    selector: `${TOAST_CALL} > :matches(Literal, TemplateLiteral).arguments:first-child`,
+    message: "Aviso con texto fuera de i18n: use toast(t(...)) o toast.<tipo>(t(...)).",
   },
   {
-    selector:
-      "CallExpression[callee.object.name='toast'] > :matches(Literal, TemplateLiteral).arguments:first-child",
-    message: "Aviso con texto fuera de i18n: use toast.<tipo>(t(...)).",
+    selector: `${TOAST_CALL} > BinaryExpression.arguments:first-child`,
+    message: "Aviso con texto concatenado: use una clave de i18n con interpolación.",
+  },
+  {
+    selector: `${TOAST_CALL} > ConditionalExpression.arguments:first-child > :matches(Literal, TemplateLiteral)`,
+    message: "Aviso con texto fuera de i18n: use t(...) en cada rama.",
   },
 ];
 

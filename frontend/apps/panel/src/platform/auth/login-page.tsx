@@ -27,7 +27,7 @@ export function LoginPage() {
   const { t } = useTranslation(["auth", "common", "errors"]);
   const [params] = useSearchParams();
   const next = safeReturnPath(params.get("next"));
-  const cameFromRedirect = params.has("next");
+  const sessionExpired = params.get("expired") === "1";
   const session = useSessionQuery();
 
   // Con sesión vigente (o recién iniciada: el login la deja en la caché) no hay nada que hacer aquí.
@@ -67,7 +67,7 @@ export function LoginPage() {
           </div>
           <h1 className="font-display text-3xl font-semibold">{t("auth:login.title")}</h1>
           <p className="mt-2 mb-6 text-muted-foreground">{t("auth:login.intro")}</p>
-          {cameFromRedirect ? (
+          {sessionExpired ? (
             <p
               role="status"
               className="mb-6 rounded-lg border bg-secondary px-3.5 py-2.5 text-sm text-secondary-foreground"
