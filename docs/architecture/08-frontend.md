@@ -59,7 +59,7 @@ apps/panel/src/
 
 ## Implementación (M0.12)
 
-Versiones fijadas: React Router 8.5.1, TanStack Query 5.107.1, Tailwind 4.3.5, `radix-ui` 1.8.1 (paquete unificado de Radix), i18next 27.1.0 + react-i18next 18.0.1, react-hook-form 7.91.0 + zod 4.6.7, sonner 2.0.8 (el "toast" de shadcn/ui), lucide-react 1.70.0, MSW 3.0.4 y Playwright 1.65.0. TypeScript 7.0.2 en apps y en `ui`/`i18n`/`e2e`; 6.0.3 solo donde ya estaba (`config`, `api-client`; ver [07](07-api-contract.md)).
+Versiones fijadas: React Router 8.5.1, TanStack Query 5.107.1, Tailwind 4.3.5, `radix-ui` 1.8.1 (paquete unificado de Radix), i18next 27.1.0 + react-i18next 18.0.1, react-hook-form 7.91.0 (con su validación nativa; zod + `@hookform/resolvers` se añaden cuando haya esquemas compartidos con los `422`, no antes: pesaban en el arranque), sonner 2.0.8 (el "toast" de shadcn/ui), lucide-react 1.70.0, MSW 3.0.4 y Playwright 1.65.0. TypeScript 7.0.2 en apps y en `ui`/`i18n`/`e2e`; 6.0.3 solo donde ya estaba (`config`, `api-client`; ver [07](07-api-contract.md)).
 
 ### Router: decisión de M0.12
 
@@ -105,6 +105,10 @@ apps/panel/src/
 | `400`/`422` en una mutación | Lo muestra el formulario (`errors[]`); sin aviso global |
 | Reintentos | Nunca en `4xx`; hasta 2 en `5xx`/red |
 
+**Modo híbrido de rutas.** El router de datos define las rutas estáticas (`/login`, la zona privada y las páginas de inicio) y las rutas de los módulos activos se resuelven **dentro** de la ruta comodín `*` con `useRoutes` (`ModuleRoutes`), porque dependen de `/me` y no se conocen al crear el router. No se migró a `patchRoutesOnNavigation` porque obligaría a conocer `/me` antes de la primera navegación y a duplicar la lógica de permisos en el router; se revisa si los módulos ganan loaders. Hay **dos límites de error**: el de la zona privada (`RouteError withLogout`: un fallo de la sesión o de `/me` no deja layout y solo cabe salir) y uno **dentro del layout** (un `403`/`404`/error de una página sustituye a la página y deja visibles la navegación y el selector). El selector de contexto va en su propio límite silencioso: si fallan sus listas, desaparece sin tirar la cabecera.
+
+**Convención de datos.** Toda query de negocio vive bajo `MeGate` (dentro de `Workspace`) o lleva el contexto en su `queryKey`. Cambiar de contexto descarta TODA la caché que no sea la sesión; una query con una clave global que se montara fuera de `Workspace` sobreviviría al cambio y mostraría datos de la organización anterior.
+
 El mensaje sale de `errors:code.<code>` (i18n); si el `code` no está traducido, del estado HTTP. Nunca del `message` del servidor.
 
 ### packages/ui y tokens
@@ -122,8 +126,8 @@ Tailwind 4 + componentes de shadcn/ui copiados al repo, **solo los que usa el hi
 ### Presupuesto de bundle y E2E
 
 - `apps/booking`: JS crítico (entrada + imports estáticos) **< 150 KiB gzip**, medido por `frontend/bin/ci-bundle` (etapa `frontend-bundle` de `bin/ci`, job de CI y `src/build.test.ts`). Hoy: **85.3 KiB** (React + i18next + la página base). `packages/config/bundle-budget.mjs` lee el manifest de Vite; los imports dinámicos no cuentan. Subir el umbral exige cambiar el ADR-0015.
-- Panel (sin presupuesto): entrada ≈ 225 KiB gzip, chunk de `appointments` 0.46 KiB. Pendiente de optimizar cuando haya más módulos (p. ej. importar `radix-ui` por primitiva y partir `zod`).
-- **E2E** (`frontend/e2e`, Playwright 1.65.0): el servicio `e2e` de `compose.yaml` (perfil `e2e`, imagen `infra/docker/e2e.Dockerfile` con la misma versión de Playwright, comprobado por `check-versions.sh`) comparte la red del proxy (`network_mode: service:proxy`) y entra por `http://localhost:8080`, igual que un navegador. Corre contra los seeds de demo. `make e2e` o `bin/ci e2e`; en GitHub, el job `e2e` solo en `main` (sube el reporte y las capturas como artefacto). Los tests no escriben datos y cada uno inicia su propia sesión.
+- Panel: presupuesto de **220 KiB** gzip de JS crítico (medido **198.5 KiB** + ~10 % de margen; antes de la revisión eran ≈ 225 KiB). Se logró difiriendo Sentry (chunk propio, solo con DSN), quitando zod y el resolver del login (validación nativa de RHF) y cargando perezosamente el diálogo de «cerrar todas las sesiones». Los límites de ambas apps viven en `frontend/bundle-budgets.json` (una sola fuente; `bin/ci-bundle` los comprueba). **Ambos presupuestos miden solo JS** (ni CSS ni fuentes). Booking carga hoy el catálogo i18n completo (unos pocos KiB de texto): se separará por namespace cuando crezca el catálogo.
+- **E2E** (`frontend/e2e`, Playwright 1.65.0): el servicio `e2e` de `compose.yaml` (perfil `e2e`, imagen `infra/docker/e2e.Dockerfile` con la misma versión de Playwright, comprobado por `check-versions.sh`) comparte la red del proxy (`network_mode: service:proxy`) y entra por `http://localhost:8080`, igual que un navegador. Corre contra los seeds de demo. `make e2e` o `bin/ci e2e`; en GitHub, el job `e2e` solo en `main` (sube el reporte y las capturas como artefacto). Los tests no escriben datos y cada uno inicia su propia sesión. Funciona con cualquier `PROXY_PORT` (Caddy escucha y publica en el mismo puerto; verificado con 38080) y la imagen no lleva etiqueta fija, así que varios entornos pueden convivir. Dependen de los **límites de Rack::Attack de desarrollo** (1000 logins por IP/15 min, `backend/config/middleware/rate_limiting.rb`): una corrida inicia ≈ 10 sesiones. Sin reintentos por defecto (`E2E_RETRIES`; el job de `main` usa 1). Seeds: `ana@multi-org.ceiba.test` está en dos organizaciones (cambio de organización), `luis@` en dos empresas, `rosa@` y `recepcion@barberia-guegu` en una sola.
 
 ## `AgendaView`: calendario detrás de un adaptador
 

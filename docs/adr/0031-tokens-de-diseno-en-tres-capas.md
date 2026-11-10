@@ -29,6 +29,12 @@ Reglas:
 4. Variables de marca: `--brand-primary`, `--brand-secondary`, `--brand-accent` (cada una con su `-foreground`) y `--brand-font`, que corresponden a las columnas de `companies` ([ADR-0025](0025-branding-en-companies.md)).
 5. Un test (`packages/ui/test/tokens.test.ts`) verifica la estructura (toda variable de marca tiene default de paleta; la semántica lee de la marca) y el contraste WCAG AA (4.5:1) de los pares por defecto.
 
+### Actualización (revisión de M0.12)
+
+- **Alcance re-aprovechable:** la capa semántica y la de componente se declaran en `:root, [data-brand-scope]`. Un contenedor con `data-brand-scope` y sus propios `--brand-*` (la vista previa de M2.04) vuelve a calcular `--primary`, `--ring`, etc. dentro de sí. Las primitivas y los defaults de marca siguen solo en `:root` (se heredan).
+- **`--ring` sigue a la marca** (`var(--brand-primary)`): el anillo de foco cambia con la empresa y cumple 3:1 porque la marca ya debe cumplir 4.5:1 con su texto.
+- **Contraste no textual (WCAG 1.4.11):** `--input` (borde de los campos) ≥ 3:1 contra `--card` y `--background`, y el indicador del ítem activo del menú usa `--primary` (el dorado de la marca no llega a 3:1 sobre blanco). `test/tokens.test.ts` verifica estos pares además de los de texto.
+
 ## Consecuencias
 
 - **Positivas:** M2.04 cambia el tema de una empresa escribiendo ~7 variables, sin tocar componentes; los componentes de shadcn/ui se actualizan sin parches de nombres; panel y booking comparten la fuente de verdad.
