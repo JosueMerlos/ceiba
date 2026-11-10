@@ -7,7 +7,8 @@ export default defineConfig({
   outputDir: "./test-results",
   fullyParallel: false,
   workers: 1,
-  retries: process.env.CI ? 1 : 0,
+  // Sin reintentos por defecto (la imagen fija CI=true y eso no debe esconder tests inestables en local).
+  retries: Number(process.env.E2E_RETRIES ?? 0),
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:8080",

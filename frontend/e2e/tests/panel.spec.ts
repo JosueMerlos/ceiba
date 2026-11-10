@@ -129,4 +129,50 @@ test.describe("panel: login, contexto y navegación", () => {
     await expect(page.getByRole("heading", { name: "Agenda" })).toBeVisible();
     await shot(page, testInfo, "10-movil-agenda");
   });
+
+  test("en 360 px con selector de contexto (Luis) nada se desborda: avatar y menú de cuenta quedan a la vista", async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    await signIn(page, "luis@salud-estilo.ceiba.test");
+
+    const selector = page.getByRole("button", { name: /Cambiar el contexto de trabajo/ });
+    await expect(selector).toBeVisible();
+    const account = page.getByRole("button", { name: "Cuenta de Luis Ortega" });
+    await expect(account).toBeVisible();
+    await shot(page, testInfo, "11-movil-luis-360");
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+    const box = await account.boundingBox();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(360);
+    // El selector sigue teniendo nombre accesible con la empresa aunque solo se vea el icono.
+    await expect(selector).toHaveAccessibleName(/Clínica Dental Sonrisa/);
+  });
+
+  test("dos organizaciones (Ana): al cambiar de organización no queda ningún nombre de la anterior (criterio 2)", async ({
+    page,
+  }, testInfo) => {
+    await signIn(page, "ana@multi-org.ceiba.test");
+
+    const selector = page.getByRole("button", { name: /Cambiar el contexto de trabajo/ });
+    await expect(selector).toBeVisible();
+    const current = (await selector.textContent()) ?? "";
+    const [from, to] = current.includes("Barbería")
+      ? ["Barbería", "Café Volcán"]
+      : ["Café Volcán", "Barbería"];
+    await shot(page, testInfo, "12-ana-organizacion-a");
+
+    await selector.click();
+    await page
+      .getByRole("menuitemradio", { name: new RegExp(to) })
+      .first()
+      .click();
+
+    await expect(selector).toContainText(to);
+    await expect(page.locator("body")).not.toContainText(from);
+    await shot(page, testInfo, "13-ana-organizacion-b");
+  });
 });
