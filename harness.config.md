@@ -19,6 +19,7 @@ plan_dir: .harness/plans
 plan_language: Spanish
 
 # --- Git ----------------------------------------------------------------------------------
+# main está protegida: un PR por hito, integrado con squash (ver AGENTS.md).
 base_branch: main
 # Rama en minúsculas: feat/m0.14-<slug> (ver AGENTS.md); fix/<slug> sin hito.
 branch_pattern: 'feat/{TICKET}-{slug}'
