@@ -34,6 +34,7 @@ Genera `package.yml` (capa `modules`, privacidad activa, `visible_to: []`), un `
 - [ ] **Navegación** `{ key:, path:, permission: }` con un permiso del módulo; `/me` solo la entrega si el usuario tiene ese permiso y el módulo está activo.
 - [ ] Hooks `on_enable "Loyalty::Lifecycle::OnEnable"` (sembrar datos por defecto; se ejecuta **una vez por activación**) y `on_disable` (detener envíos o jobs; **conservar** los datos). Son cadenas; cada uno es un objeto con `call(company:)`, corre dentro de la transacción de Enable/Disable y, si lanza, no queda activado/desactivado.
 - [ ] Controladores del módulo: nunca `skip_before_action :ensure_required_module_enabled!` (lo frena el cop `Ceiba/ModuleGateSkips` y la suite de cobertura de módulos).
+- [ ] Si el módulo tiene rutas de miembro (`:id`...), registra en `spec/support` un fabricante de recurso real con `ModuleCoverageFactories.register` para cada parámetro: la suite de cobertura de módulos usa ids reales y falla si falta.
 - [ ] Spec del manifiesto (modelo: `packs/modules/appointments/spec/manifest_spec.rb`): permisos, concesiones según la matriz de 04, scopes, defaults y niveles de los settings, navegación.
 - [ ] Si debe activarse al provisionar una organización, añade su key a `Modules.default_keys` (hoy una lista fija; en F6 saldrá del plan). Es la única edición en `platform/modules`, y es temporal.
 

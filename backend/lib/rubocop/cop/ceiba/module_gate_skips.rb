@@ -20,7 +20,7 @@ module RuboCop
         def on_send(node)
           if node.method?(:required_module=)
             add_offense(node) if node.first_argument&.nil_type?
-          elsif node.each_descendant(:sym).any? { |sym| sym.value == GATE }
+          elsif node.each_descendant(:sym, :str).any? { |literal| literal.value.to_s == GATE.to_s }
             add_offense(node)
           end
         end
