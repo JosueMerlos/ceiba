@@ -37,9 +37,9 @@ Se omite solo en código 100 % nuevo sin consumidores previos.
 - Borra los comentarios que repiten el código, narran el cambio o el proceso ("añadido por la revisión", "antes era X"),
   separan secciones o son TODOs genéricos.
 - Desempate: si al borrarlo un revisor preguntaría "¿por qué está así?", se queda; si solo parafrasea el código, se va.
-- **En inglés**, siempre (los nuevos y los que modifiques). Los comentarios en español heredados se migran en una pasada de
-  limpieza dedicada: no traduzcas los de líneas que no tocas. Puede citar un ADR o un hito si el comentario se entiende sin
-  abrirlo.
+- **En inglés**, siempre.
+- Sin referencias a hitos, ADRs, fases ni rutas de `docs/` (`M0.11`, `ADR-0013`, `F0`): el comentario se entiende solo y la
+  trazabilidad vive en `docs/` y en el historial de git.
 - Los comentarios de los tests siguen la misma regla y no repiten los del código de producción.
 
 ## Autocorrect y codemods

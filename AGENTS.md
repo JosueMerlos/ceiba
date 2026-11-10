@@ -61,11 +61,9 @@ Reglas de git y PR que no se copiaron (las skills `commit` y `watch-pr` las trae
 
 - **Idioma:** planes, documentación, contextos de RSpec (`con`, `sin`, `cuando`) y asunto de commits/PR en **español**.
   Identificadores y **comentarios de código en inglés** (regla del harness).
-- **Comentarios en español heredados:** el código actual todavía tiene comentarios en español; se migrarán en una pasada de
-  limpieza dedicada. Mientras tanto, todo comentario NUEVO o que MODIFIQUES va en inglés, pero NO traduzcas comentarios de
-  líneas que no tocas (sería ruido fuera de alcance en el diff).
-- **Referencias en comentarios:** se permite citar ADRs e hitos (`ADR-0013`, `M0.11`) cuando aportan trazabilidad, siempre
-  que el comentario se entienda sin abrirlos. Anula la regla "sin claves de ticket en el código".
+- **Referencias en comentarios:** prohibido citar hitos, ADRs, fases ni rutas de `docs/` (`M0.11`, `ADR-0013`, `F0`) en
+  comentarios de código. El comentario explica el porqué por sí solo; la trazabilidad vive en `docs/` y en el historial de
+  git.
 - **Commits y títulos de PR:** conventional commits, `tipo(ámbito): asunto` (tipos: feat, fix, docs, style, refactor, perf,
   test, build, ci, chore, revert). Lo valida `infra/scripts/check-pr-title.sh`. Sin `Co-Authored-By` ni atribución a IA.
   Patrón TDD del historial: un commit `test(...)` con el rojo (`(rojo: ...)`) y luego el `feat`/`fix` que lo pone en verde.
