@@ -29,6 +29,13 @@ RSpec.describe "Cobertura de módulos: rutas de un módulo inactivo => 404" do
     end
   end
 
+  # ¿Corre el gate en TODAS las acciones? Un before_action con `only:`/`except:`/`if:` lleva condiciones; uno saltado con
+  # skip_before_action (sin opciones) desaparece, y con `only:` gana una condición `unless`. Exigimos el callback sin condiciones.
+  def gate_everywhere?(klass)
+    callback = klass._process_action_callbacks.find { |candidate| candidate.kind == :before && candidate.filter == :ensure_required_module_enabled! }
+    callback.present? && callback.instance_variable_get(:@if).blank? && callback.instance_variable_get(:@unless).blank?
+  end
+
   def url_for_route(spec, company)
     spec.gsub(":organization_id", company.organization_id).gsub(":company_id", company.id).gsub(/:\w+/, SampleModule::UNKNOWN_ID)
   end
@@ -44,11 +51,25 @@ RSpec.describe "Cobertura de módulos: rutas de un módulo inactivo => 404" do
       expect(wrong.keys).to be_empty, "controladores sin `requires_module :<key>` de su pack: #{wrong.keys.map(&:name).join(', ')}"
     end
 
+    it "el gate (ensure_required_module_enabled!) está en los callbacks efectivos de CADA acción: sin skip, ni only ni except" do
+      leaking = module_controllers.keys.select { |klass| !gate_everywhere?(klass) }
+
+      expect(leaking).to be_empty, "el gate no corre en todas las acciones de: #{leaking.map(&:name).join(', ')}"
+    end
+
     it "la comprobación detecta un controlador que no lo declara (no es vacía)" do
       leaky = Class.new(Api::BaseController)
       declared = Class.new(Api::BaseController) { include Modules::RequiresModule; requires_module :sample }
 
       expect([ leaky, declared ].reject { |klass| klass.respond_to?(:required_module) && klass.required_module == "sample" }).to eq([ leaky ])
+    end
+
+    it "detecta un controlador que declara el módulo pero se salta el gate (sonda C1)" do
+      skipping = Class.new(Api::BaseController) { include Modules::RequiresModule; requires_module :sample; skip_before_action :ensure_required_module_enabled! }
+      partial = Class.new(Api::BaseController) { include Modules::RequiresModule; requires_module :sample; skip_before_action :ensure_required_module_enabled!, only: :show }
+      only_on_some = Class.new(Api::BaseController) { include Modules::RequiresModule; requires_module :sample }
+
+      expect([ gate_everywhere?(skipping), gate_everywhere?(partial), gate_everywhere?(only_on_some) ]).to eq([ false, false, true ])
     end
   end
 
@@ -57,14 +78,23 @@ RSpec.describe "Cobertura de módulos: rutas de un módulo inactivo => 404" do
       expect(module_routes.pluck(:module)).to include("sample")
     end
 
-    it "con el módulo inactivo, TODAS responden 404 problem+json" do
+    # Un id desconocido da 404 POR SÍ SOLO en una ruta de miembro (:id): el status no prueba nada. Lo que se comprueba es que el
+    # GATE emitió el 404: Modules::RequiresModule instrumenta "denied.requires_module" cada vez que lo deniega.
+    def denials_during
+      denials = []
+      subscriber = ->(*, payload) { denials << payload }
+      ActiveSupport::Notifications.subscribed(subscriber, "denied.requires_module") { yield }
+      denials
+    end
+
+    it "con el módulo inactivo, TODAS responden 404 problem+json y el 404 lo emite el gate (no un id desconocido)" do
       manager
-      statuses = module_routes.map do |route|
-        process(route[:verb].downcase.to_sym, url_for_route(route[:spec], company), headers: manager.csrf_headers, as: :json)
-        [ route[:spec], response.status, response.parsed_body["code"] ]
+      results = module_routes.map do |route|
+        denials = denials_during { process(route[:verb].downcase.to_sym, url_for_route(route[:spec], company), headers: manager.csrf_headers, as: :json) }
+        [ route[:spec], response.status, response.parsed_body["code"], denials.pluck(:module) ]
       end
 
-      expect(statuses).to all(satisfy { |_spec, status, code| status == 404 && code == "resource.not_found" })
+      expect(results).to all(satisfy { |spec, status, code, denied| status == 404 && code == "resource.not_found" && denied == [ module_routes.find { |r| r[:spec] == spec }[:module] ] })
     end
 
     it "con el módulo activo dejan de ser 404 (la comprobación de arriba no es vacía)" do
