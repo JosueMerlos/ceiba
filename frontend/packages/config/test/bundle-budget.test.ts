@@ -103,7 +103,7 @@ describe("checkBudgets (un presupuesto por app, en un solo archivo)", () => {
     );
 
     const results = checkBudgets(
-      { booking: { dist: small, limitKiB: 1 }, panel: { dist: big, limitKiB: 1 } },
+      { booking: { dist: small, limitKiB: 1 }, panel: { dist: big, limitKiB: 0.001 } },
       "/",
     );
 
