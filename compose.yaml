@@ -16,7 +16,8 @@ x-backend: &backend
     # The API connects as app_user; migrations run as app_owner.
     APP_OWNER_PASSWORD: ${APP_OWNER_PASSWORD:-ceiba_owner_dev_password}
     APP_USER_PASSWORD: ${APP_USER_PASSWORD:-ceiba_user_dev_password}
-    REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    # Fixed like DB_HOST: an exported host REDIS_URL (CI sets redis://localhost) must not leak into the containers.
+    REDIS_URL: redis://redis:6379/0
     SMTP_HOST: mailpit
     SMTP_PORT: "1025"
     PUBLIC_PORT: ${PROXY_PORT:-8080}
