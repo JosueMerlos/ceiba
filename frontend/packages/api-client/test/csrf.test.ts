@@ -96,4 +96,34 @@ describe("token CSRF (07-api-contract, 11-security)", () => {
 
     expect(csrf.get()).toBeUndefined();
   });
+
+  test("un 401 en cualquier otra mutación (sesión vencida) sí olvida el token", async () => {
+    const client = createApiClient({ baseUrl: BASE, csrf });
+    csrf.set("abc");
+    record(
+      "delete",
+      "/api/v1/auth/sessions",
+      { type: "urn:x", title: "x", status: 401, code: "auth.unauthenticated" },
+      401,
+    );
+
+    await client.DELETE("/api/v1/auth/sessions", { params: { header: { "X-CSRF-Token": "" } } });
+
+    expect(csrf.get()).toBeUndefined();
+  });
+
+  test("un 401 del login (credenciales inválidas) no toca un token existente", async () => {
+    const client = createApiClient({ baseUrl: BASE, csrf });
+    csrf.set("abc");
+    record(
+      "post",
+      "/api/v1/auth/login",
+      { type: "urn:x", title: "x", status: 401, code: "auth.invalid_credentials" },
+      401,
+    );
+
+    await client.POST("/api/v1/auth/login", { body: { email: "a@b.test", password: "mala" } });
+
+    expect(csrf.get()).toBe("abc");
+  });
 });

@@ -1,4 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
+import { useQuery } from "@tanstack/react-query";
+import { ApiError } from "@ceiba/api-client";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import {
@@ -346,5 +348,101 @@ describe("cuenta", () => {
 
     expect(await screen.findByRole("heading", { name: "Iniciar sesión" })).toBeTruthy();
     expect(called).toBe(true);
+  });
+});
+
+describe("revisión de M0.12", () => {
+  it("un 403 de una consulta de la página no tira el layout: navegación y selector siguen visibles", async () => {
+    signedInBackend({ me: meFixture({ role: "receptionist" }) });
+    server.use(http.get(`${API}/api/v1/probe`, respondWith(403, problem(403, "access.denied"))));
+    function Failing() {
+      useQuery({
+        queryKey: ["probe"],
+        queryFn: async () => {
+          const response = await fetch(`${API}/api/v1/probe`);
+          if (!response.ok) throw new ApiError(response.status, "access.denied", "x");
+          return {};
+        },
+      });
+      return <p>no se muestra</p>;
+    }
+    await renderApp({ workspaceChildren: [{ index: true, element: <Failing /> }] });
+
+    expect(
+      await screen.findByRole("heading", { name: "No tiene permiso para ver esto" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("navigation", { name: "Navegación principal" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Cerrar sesión" })).toBeNull();
+  });
+
+  it("arrancar sin sesión pide GET /auth/session UNA sola vez (el login no la repite)", async () => {
+    let calls = 0;
+    server.use(
+      http.get(`${API}/api/v1/auth/session`, () => {
+        calls += 1;
+        return HttpResponse.json(problem(401, "auth.unauthenticated"), { status: 401 });
+      }),
+    );
+    await renderApp({ route: "/" });
+
+    await screen.findByRole("heading", { name: "Iniciar sesión" });
+
+    expect(calls).toBe(1);
+  });
+
+  it("el login con ?next explica que la sesión venció", async () => {
+    signedOutBackend();
+    await renderApp({ route: "/login?next=%2Fagenda" });
+
+    expect((await screen.findByRole("status")).textContent).toMatch(/sesión venció/);
+  });
+
+  it("el login sin ?next no muestra ese aviso", async () => {
+    signedOutBackend();
+    await renderApp({ route: "/login" });
+
+    await screen.findByRole("heading", { name: "Iniciar sesión" });
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("el botón de ver contraseña cambia su nombre y no usa aria-pressed (uno solo de los dos)", async () => {
+    signedOutBackend();
+    const { user } = await renderApp({ route: "/login" });
+
+    const show = await screen.findByRole("button", { name: "Mostrar contraseña" });
+    expect(show.getAttribute("aria-pressed")).toBeNull();
+    await user.click(show);
+
+    expect(
+      screen.getByRole("button", { name: "Ocultar contraseña" }).getAttribute("aria-pressed"),
+    ).toBeNull();
+  });
+
+  it("la marca lleva a Inicio", async () => {
+    signedInBackend({ me: meFixture({ role: "receptionist" }) });
+    const { user, app } = await renderApp({ route: "/agenda" });
+    await screen.findByRole("heading", { name: "Agenda" });
+
+    await user.click(screen.getByRole("link", { name: /Ir al inicio/ }));
+
+    expect(app.router.state.location.pathname).toBe("/");
+  });
+
+  it("mientras cargan las opciones del selector se ve un marcador (sin parpadeo)", async () => {
+    signedInBackend();
+    server.use(
+      http.get(`${API}/api/v1/organizations`, async () => {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        return HttpResponse.json({ data: [], page: { has_more: false, next_cursor: null } });
+      }),
+    );
+    const { container } = await renderApp();
+
+    await mainNav();
+
+    expect(container.querySelector('[data-slot="context-skeleton"]')).toBeTruthy();
+    await waitFor(() =>
+      expect(container.querySelector('[data-slot="context-skeleton"]')).toBeNull(),
+    );
   });
 });
