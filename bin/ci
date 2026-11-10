@@ -10,8 +10,8 @@
 # La etapa e2e (M0.12) levanta el entorno completo de Compose con los seeds de demo y corre Playwright en su
 # contenedor; en GitHub corre solo en `main` (job e2e de ci.yml).
 #
-# Etapas locales adicionales: repo-checks (consistencia de versiones, SHAs de las acciones y validador de títulos de PR,
-# que en CI corren dentro de backend-lint) y workflows (actionlint, imagen Docker fijada).
+# Extra local stages: repo-checks (version consistency, action SHA pins, PR title validator and large-file guard, which
+# run inside backend-lint in CI) and workflows (actionlint, pinned Docker image).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -24,7 +24,10 @@ db_roles() { docker compose exec -T db /docker-entrypoint-initdb.d/10-roles.sh; 
 backend_with_services() { docker compose run --rm -T -e RUN_SETUP=false -e RAILS_ENV=test api "$@"; }
 frontend() { docker compose run --rm --no-deps -T --entrypoint "" -w /app/frontend panel "$@"; }
 
-stage_repo_checks()      { infra/scripts/check-versions.sh && infra/scripts/check-action-pins.sh && infra/scripts/check-pr-title_test.sh; }
+stage_repo_checks() {
+  infra/scripts/check-versions.sh && infra/scripts/check-action-pins.sh && infra/scripts/check-pr-title_test.sh \
+    && infra/scripts/check-large-files_test.sh && infra/scripts/check-large-files.sh
+}
 stage_workflows()        { docker run --rm -v "$PWD":/repo -w /repo "$ACTIONLINT_IMAGE"; }
 stage_backend_lint()     { backend bin/ci-lint; }
 stage_backend_packs()    { infra/scripts/check-package-todo-growth_test.sh && infra/scripts/check-package-todo-growth.sh && backend bin/ci-packs; }

@@ -1,0 +1,2 @@
+# Exceptions for infra/scripts/check-large-files.sh: one "<glob> | <reason>" per line; the reason is mandatory.
+# Adding a line here is a reviewed decision: prefer keeping the file out of git (PR attachment, CDN, generated at build).
