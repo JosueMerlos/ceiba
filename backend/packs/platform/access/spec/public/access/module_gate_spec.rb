@@ -123,6 +123,23 @@ RSpec.describe "Access.module_gate (permisos de un módulo inactivo no aplican)"
     end
   end
 
+  describe "el principal que se reactiva en otra organización (sonda P9)" do
+    it "no arrastra los módulos activos de la organización anterior" do
+      other_org = create(:organization)
+      gate = gate_with("sample" => Set[company_a.id])
+      grant(role_with(read, "organization"))
+      with_tenant(other_org) { create(:membership, user_id: user.id, role: Access::Role.find_by!(key: "org_admin")) }
+      subject_principal = principal
+      subject_principal.can?(read, company_scope(company_a)) # memoiza los módulos activos de la organización A
+
+      with_tenant(other_org) { subject_principal.activate!(other_org.id) }
+
+      with_tenant(other_org) { subject_principal.module_active?("sample", company_a.id) }
+
+      expect(gate.loads).to eq(2) # se volvió a preguntar: el memo no sobrevive a activate!
+    end
+  end
+
   describe "#module_active?" do
     before { gate_with("sample" => Set[company_a.id]) }
 
