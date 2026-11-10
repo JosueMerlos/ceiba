@@ -7,7 +7,8 @@
   "exports": {
     "./eslint": "./eslint.mjs",
     "./prettier": "./prettier.mjs",
-    "./tsconfig.base.json": "./tsconfig.base.json"
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./bundle-budget": "./bundle-budget.mjs"
   },
   "scripts": {
     "test": "vitest run",

@@ -22,7 +22,9 @@ function fakeDist(files: Record<string, string>, manifest: Record<string, object
 
 // Texto pseudoaleatorio: se comprime poco, así el tamaño gzip es previsible.
 const noise = (length: number) =>
-  Array.from({ length }, (_, i) => String.fromCharCode(33 + ((i * 7919 + (i >> 3) * 104729) % 90))).join("");
+  Array.from({ length }, (_, i) =>
+    String.fromCharCode(33 + ((i * 7919 + (i >> 3) * 104729) % 90)),
+  ).join("");
 
 describe("criticalJs", () => {
   it("suma el gzip de la entrada y de sus imports estáticos", () => {
@@ -56,7 +58,11 @@ describe("criticalJs", () => {
 
   it("cuenta cada archivo una sola vez aunque varios lo importen", () => {
     const dist = fakeDist(
-      { "assets/index.js": "x".repeat(100), "assets/a.js": "y".repeat(100), "assets/shared.js": "z".repeat(100) },
+      {
+        "assets/index.js": "x".repeat(100),
+        "assets/a.js": "y".repeat(100),
+        "assets/shared.js": "z".repeat(100),
+      },
       {
         "index.html": { file: "assets/index.js", isEntry: true, imports: ["a.js", "shared.js"] },
         "a.js": { file: "assets/a.js", imports: ["shared.js"] },
