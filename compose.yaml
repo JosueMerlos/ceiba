@@ -133,6 +133,30 @@ services:
       retries: 30
       start_period: 60s
 
+  # E2E con Playwright (M0.12). Perfil "e2e": no arranca con `make up`; lo ejecuta `bin/ci e2e` o `make e2e`.
+  # Comparte la red del proxy (network_mode) para entrar por http://localhost:8080 como un navegador real: así el
+  # Host y el Origin son los del entorno de desarrollo y no hace falta tocar `config.hosts` de Rails.
+  e2e:
+    profiles: ["e2e"]
+    build:
+      context: .
+      dockerfile: infra/docker/e2e.Dockerfile
+      args:
+        HOST_UID: ${HOST_UID:-1000}
+        HOST_GID: ${HOST_GID:-1000}
+    image: ceiba-e2e:dev
+    network_mode: "service:proxy"
+    depends_on:
+      proxy: { condition: service_healthy }
+    environment:
+      PLAYWRIGHT_BASE_URL: http://localhost:${PROXY_PORT:-8080}
+      E2E_PASSWORD: ${E2E_PASSWORD:-ceiba-demo-2026}
+    volumes:
+      - ./frontend:/app/frontend
+      - frontend_node_modules:/app/frontend/node_modules
+      - e2e_node_modules:/app/frontend/e2e/node_modules
+    command: ["pnpm", "e2e"]
+
   mailpit:
     image: axllent/mailpit:v1.33.1
     ports:

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Presupuesto de bundle de la reserva pública (M0.12, ADR-0015): construye apps/booking y exige que el JS CRÍTICO
+# (entrada + imports estáticos, sin lo cargado bajo demanda) pese menos de BOOKING_BUDGET_KIB KiB en gzip.
+# Se ejecuta desde frontend/. Umbral: 150 KiB (docs/architecture/08-frontend.md); subirlo exige cambiar el ADR-0015.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+BOOKING_BUDGET_KIB="${BOOKING_BUDGET_KIB:-150}"
+
+pnpm install --frozen-lockfile --prefer-offline
+pnpm --filter @ceiba/booking build
+node packages/config/bundle-budget.mjs apps/booking/dist "$BOOKING_BUDGET_KIB"

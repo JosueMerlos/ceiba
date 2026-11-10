@@ -1,0 +1,17 @@
+{
+  "name": "@ceiba/e2e",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "E2E del panel con Playwright, sobre el entorno de Docker Compose (login, contexto, navegación).",
+  "scripts": {
+    "e2e": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@ceiba/config": "workspace:*",
+    "@playwright/test": "1.65.0",
+    "@types/node": "26.6.6",
+    "typescript": "7.0.2"
+  }
+}
