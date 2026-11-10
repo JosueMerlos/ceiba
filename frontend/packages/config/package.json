@@ -16,6 +16,7 @@
   "dependencies": {
     "@eslint/js": "10.0.1",
     "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-i18next": "6.1.5",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.14.0",
     "typescript": "6.0.3",
