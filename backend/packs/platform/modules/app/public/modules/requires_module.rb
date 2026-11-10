@@ -32,7 +32,12 @@ module Modules
       raise Error, "#{self.class.name} incluye Modules::RequiresModule pero no declara `requires_module :clave`" if required_module.nil?
 
       company = Current.context&.company
-      raise ActiveRecord::RecordNotFound, "No se encontró el recurso" unless company && module_enabled_in?(company)
+      return if company && module_enabled_in?(company)
+
+      # Marca interna (no sale en la respuesta): la suite de cobertura de módulos comprueba que el 404 lo emitió ESTE gate y no un
+      # id desconocido de la ruta.
+      ActiveSupport::Notifications.instrument("denied.requires_module", module: required_module, controller: self.class.name, action: action_name)
+      raise ActiveRecord::RecordNotFound, "No se encontró el recurso"
     end
 
     def module_enabled_in?(company)
