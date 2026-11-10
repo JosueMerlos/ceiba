@@ -92,8 +92,7 @@ module Modules
       levels = declared.settings_levels.map(&:to_s)
       (levels - Manifest::LEVELS).each { |level| problem("nivel desconocido #{level.inspect} en settings_levels (niveles: #{Manifest::LEVELS.join(', ')})") }
       schema = load_schema
-      return [ empty_schema, nil ] if schema.nil?
-      return [ empty_schema, nil ] unless check_schema_shape(schema)
+      return [ empty_schema, JSONSchemer.schema(empty_schema) ] if schema.nil? || !check_schema_shape(schema)
 
       check_properties(schema, levels)
       [ schema.merge("additionalProperties" => false), JSONSchemer.schema(schema.merge("additionalProperties" => false)) ]
@@ -137,11 +136,32 @@ module Modules
         end
         problem("la propiedad #{name.inspect} tiene un default que no cumple su propio esquema") unless JSONSchemer.schema(property).valid?(property["default"])
         check_auditable_name(name)
+        check_bounds(property, name)
         Array(property["x-levels"]).each do |level|
           problem("la propiedad #{name.inspect} usa x-levels #{level.inspect}, que no está en settings_levels (#{levels.join(', ')})") unless levels.include?(level)
         end
       end
     end
+
+    # COTAS: los settings viajan en cada /me y se guardan en jsonb; sin cotas un valor gigante (50 000 recordatorios, 10**30) los
+    # infla o rompe. Todo array lleva maxItems, toda cadena libre (no enum/const) maxLength y todo número minimum y maximum, también
+    # dentro de objetos y elementos de arrays (`a[].n`).
+    def check_bounds(node, path)
+      return unless node.is_a?(Hash)
+
+      types = Array(node["type"])
+      problem("la propiedad #{path.inspect} (array) necesita maxItems") if types.include?("array") && !node.key?("maxItems")
+      if types.include?("string") && !node.key?("maxLength") && !node.key?("enum") && !node.key?("const")
+        problem("la propiedad #{path.inspect} (string) necesita maxLength (o ser un enum)")
+      end
+      if (types & %w[integer number]).any? && !(bounded?(node, "minimum", "exclusiveMinimum") && bounded?(node, "maximum", "exclusiveMaximum"))
+        problem("la propiedad #{path.inspect} (#{(types & %w[integer number]).first}) necesita minimum y maximum")
+      end
+      check_bounds(node["items"], "#{path}[]")
+      node["properties"]&.each { |name, child| check_bounds(child, "#{path}.#{name}") }
+    end
+
+    def bounded?(node, *keywords) = keywords.any? { |keyword| node.key?(keyword) } || node.key?("enum") || node.key?("const")
 
     # La auditoría de settings guarda el diff con el mismo enmascarado que los logs (filter_parameters, más digest/csrf/ciphertext).
     # Una propiedad con un nombre sensible perdería su valor en la auditoría: los settings no son un lugar para secretos.

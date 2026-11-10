@@ -86,12 +86,10 @@ RSpec.describe "Settings de módulo" do
   end
 
   describe "cotas del esquema de appointments (sondas P3 y P2b)" do
-    let(:appointments_company) { create_in(organization, :company) }
-
     def update_appointments(settings)
       with_tenant(organization) do
-        Modules::Enable.call(company: appointments_company, key: "appointments")
-        Modules::UpdateSettings.call(company: appointments_company, key: "appointments", settings:)
+        Modules::Enable.call(company:, key: "appointments")
+        Modules::UpdateSettings.call(company:, key: "appointments", settings:)
       end
     end
 

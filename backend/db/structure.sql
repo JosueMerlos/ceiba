@@ -118,7 +118,8 @@ CREATE TABLE public.branch_module_settings (
     settings jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT chk_branch_module_settings_settings_object CHECK ((jsonb_typeof(settings) = 'object'::text))
+    CONSTRAINT chk_branch_module_settings_settings_object CHECK ((jsonb_typeof(settings) = 'object'::text)),
+    CONSTRAINT chk_branch_module_settings_settings_size CHECK ((pg_column_size(settings) < 16384))
 );
 
 
@@ -178,7 +179,8 @@ CREATE TABLE public.company_modules (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_company_modules_module_key CHECK (((module_key)::text ~ '^[a-z][a-z0-9_]*$'::text)),
-    CONSTRAINT chk_company_modules_settings_object CHECK ((jsonb_typeof(settings) = 'object'::text))
+    CONSTRAINT chk_company_modules_settings_object CHECK ((jsonb_typeof(settings) = 'object'::text)),
+    CONSTRAINT chk_company_modules_settings_size CHECK ((pg_column_size(settings) < 16384))
 );
 
 
@@ -661,7 +663,7 @@ CREATE INDEX idx_auth_audit_events_user ON public.auth_audit_events USING btree 
 -- Name: idx_company_modules_active; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_company_modules_active ON public.company_modules USING btree (module_key, company_id) WHERE (disabled_at IS NULL);
+CREATE INDEX idx_company_modules_active ON public.company_modules USING btree (organization_id, module_key, company_id) WHERE (disabled_at IS NULL);
 
 
 --
@@ -1084,6 +1086,7 @@ CREATE POLICY tenant_isolation ON public.processed_events USING ((organization_i
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261110100300'),
 ('20261110100200'),
 ('20261110100100'),
 ('20261110100000'),

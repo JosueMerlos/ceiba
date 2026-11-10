@@ -10,8 +10,9 @@ module Api
         skip_authorization! reason: "devuelve el contexto y los permisos del propio principal; el contexto se valida con Access.with_context", only: :show
 
         def show
-          payload, selection = ::Modules::Me.call(principal: Current.principal, requested: requested_selection, remembered: ::Modules::ContextCookie.read(cookies))
-          ::Modules::ContextCookie.write(cookies, selection) if selection
+          user_id = Current.principal.id
+          payload, selection = ::Modules::Me.call(principal: Current.principal, requested: requested_selection, remembered: ::Modules::ContextCookie.read(cookies, user_id:))
+          ::Modules::ContextCookie.write(cookies, selection, user_id:) if selection
           render json: { data: payload }
         end
 

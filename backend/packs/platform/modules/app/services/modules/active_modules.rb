@@ -4,6 +4,17 @@ module Modules
   module ActiveModules
     Entry = Data.define(:manifest, :settings)
 
+    # Lo guardado puede dejar de cumplir el esquema (un cambio incompatible, un dato corrupto). /me no debe romperse por UN módulo:
+    # se degrada a los defaults del esquema (el módulo sigue activo) y se REPORTA para corregir el dato.
+    def resolve(manifest, row, branch_row)
+      SettingsResolver.call!(manifest, row.settings, branch_row&.settings)
+    rescue InvalidSettings => error
+      Rails.error.report(error, handled: true, severity: :error, context: { module: manifest.key, company_id: row.company_id })
+      manifest.defaults.deep_dup
+    end
+    module_function :resolve
+    private_class_method :resolve
+
     module_function
 
     def call(company:, branch: nil)
@@ -14,7 +25,7 @@ module Modules
         next unless Modules.registry.key?(row.module_key)
 
         manifest = Modules.registry.fetch(row.module_key)
-        Entry.new(manifest:, settings: SettingsResolver.call!(manifest, row.settings, branch_settings[row.module_key]&.settings))
+        Entry.new(manifest:, settings: resolve(manifest, row, branch_settings[row.module_key]))
       end.sort_by { |entry| entry.manifest.key }
     end
   end

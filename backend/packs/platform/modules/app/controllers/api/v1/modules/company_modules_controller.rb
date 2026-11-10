@@ -7,7 +7,10 @@ module Api
         # PUT .../modules/:key  { "enabled": true|false }
         def update
           authorize company, :update?, policy_class: ::Modules::CompanyModulePolicy
-          enabled = ActiveModel::Type::Boolean.new.cast(params.expect(:enabled))
+          enabled = params.expect(:enabled)
+          # Solo true/false literales de JSON: "abc" o "no" no se interpretan (ActiveModel los volvería true).
+          raise ActionController::BadRequest, "enabled debe ser true o false" unless [ true, false ].include?(enabled)
+
           result = (enabled ? ::Modules::Enable : ::Modules::Disable).call(company:, key: params[:key])
           render json: { data: { key: result.key, enabled:, changed: result.changed } }
         end
