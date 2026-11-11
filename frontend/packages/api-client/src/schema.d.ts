@@ -545,6 +545,1432 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/professionals/{professional_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                /** @description Sucursal desde la que se mira el perfil */
+                branch_id: string;
+                /** @description ID del profesional */
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Obtiene un profesional desde una sucursal
+         * @description Es la ruta del perfil propio del `professional`: exige `appointments.professional.read` en la sucursal, o bien `appointments.professional.read_own` en la sucursal cuando el registro está vinculado a su usuario y asignado a esa sucursal.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description Sucursal desde la que se mira el perfil */
+                    branch_id: string;
+                    /** @description ID del profesional */
+                    professional_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el branch_manager lee cualquier profesional de la empresa desde su sucursal */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Professional"];
+                        };
+                    };
+                };
+                /** @description el profesional no lee su perfil desde una sucursal donde NO está asignado */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/professionals/{professional_id}/assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                /** @description Sucursal a la que se asigna */
+                branch_id: string;
+                /** @description ID del profesional */
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Asigna un profesional a la sucursal
+         * @description Exige `appointments.professional.assign` en la sucursal de la ruta. Idempotente: si ya está asignado responde 200 sin cambios. El profesional debe ser de la empresa de la ruta y no estar archivado; devuelve el profesional con sus `branch_ids`.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description Sucursal a la que se asigna */
+                    branch_id: string;
+                    /** @description ID del profesional */
+                    professional_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el company_manager asigna a un profesional que solo trabaja en otra sucursal */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Professional"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el professional no asigna */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un profesional archivado no admite asignaciones nuevas (`base: archived`) */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /**
+         * Quita a un profesional de la sucursal
+         * @description Exige `appointments.professional.assign` en la sucursal de la ruta. Sin asignación a esa sucursal responde 404.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description Sucursal a la que se asigna */
+                    branch_id: string;
+                    /** @description ID del profesional */
+                    professional_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el branch_manager quita de SU sucursal */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el receptionist no quita asignaciones */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un profesional de otra empresa */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/professionals/{professional_id}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                /** @description ID del profesional, asignado a la sucursal de la ruta */
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Horario semanal de un profesional en la sucursal
+         * @description Exige `appointments.schedule.read` en la sucursal, o `appointments.schedule.read_own` si el registro es del propio usuario y está asignado a la sucursal. Devuelve solo las franjas de ESA sucursal. El profesional debe estar asignado a la sucursal de la ruta (si no, 404).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID del profesional, asignado a la sucursal de la ruta */
+                    professional_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el profesional lee su PROPIO horario con schedule.read_own */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WeeklyScheduleSlot"][];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el profesional NO lee el horario de otro profesional */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        /**
+         * Reemplaza el horario semanal de un profesional en la sucursal
+         * @description Exige `appointments.schedule.manage` en la sucursal. Reemplaza TODAS las franjas del profesional en esa sucursal en una transacción: lo que no viene se quita y una lista vacía quita todo. Las horas son locales de la sucursal (`HH:MM`, minutos enteros, sin cruzar la medianoche); `weekday` va de 0 (domingo) a 6. Franjas que se solapan (también con las del profesional en otras sucursales) dan 422 con `slots: overlap`.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID del profesional, asignado a la sucursal de la ruta */
+                    professional_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WeeklyScheduleInput"];
+                };
+            };
+            responses: {
+                /** @description una lista vacía quita todas las franjas de la sucursal y deja las de las otras */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WeeklyScheduleSlot"][];
+                        };
+                    };
+                };
+                /** @description demasiadas franjas */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el profesional ve su horario pero no lo edita */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description una sucursal hermana a la que el branch_manager no pertenece */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un profesional archivado no admite horario (`base: archived`) */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/professionals/{professional_id}/time_offs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                /** @description ID del profesional, asignado a la sucursal de la ruta */
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Lista las ausencias de un profesional
+         * @description Exige `appointments.time_off.read` en la sucursal, o `appointments.time_off.manage_own` si el registro es del propio usuario y está asignado a la sucursal. El profesional debe estar asignado a la sucursal de la ruta (si no, 404). Paginado por cursor.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    after?: string;
+                };
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID del profesional, asignado a la sucursal de la ruta */
+                    professional_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el profesional lee sus PROPIAS ausencias */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["TimeOff"][];
+                            page: components["schemas"]["PageInfo"];
+                        };
+                    };
+                };
+                /** @description el profesional NO lee las ausencias de otro profesional */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un profesional de otra empresa */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Crea una ausencia de un profesional
+         * @description Exige `appointments.time_off.manage` en la sucursal (sobre un profesional asignado a ella), o `appointments.time_off.manage_own` para el propio profesional. `starts_at` y `ends_at` son instantes (ISO 8601) con `starts_at < ends_at` y hasta 366 días. `reason` es texto libre opcional (hasta 200 caracteres): NO escribas datos de salud; no se registra en logs ni en la auditoría. Ausencias solapadas del mismo dueño están permitidas. Acepta `Idempotency-Key`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID del profesional, asignado a la sucursal de la ruta */
+                    professional_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TimeOffInput"];
+                };
+            };
+            responses: {
+                /** @description un desfase explícito (-06:00) se guarda como el instante UTC correcto */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["TimeOff"];
+                        };
+                    };
+                };
+                /** @description un campo con el tipo equivocado */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el receptionist lee pero no escribe ausencias */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un profesional que no está asignado a la sucursal de la ruta */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un profesional archivado no admite ausencias (`base: archived`) */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/professionals/{professional_id}/time_offs/{professional_time_off_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                professional_id: string;
+                /** @description ID de una ausencia DE ESE profesional */
+                professional_time_off_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Borra una ausencia de un profesional
+         * @description Mismos permisos que crearla. La ausencia se busca SOLO entre las del profesional de la ruta: la de otro profesional es 404 aunque exista. Borrado real (una ausencia no tiene historial que preservar), auditado por id sin el motivo.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    professional_id: string;
+                    /** @description ID de una ausencia DE ESE profesional */
+                    professional_time_off_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el branch_manager borra la de un profesional de su sucursal */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description el receptionist no borra ausencias */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un id que no existe */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Lista los recursos no archivados de la sucursal
+         * @description Exige `appointments.resource.read` en la sucursal. Devuelve los recursos no archivados (activos y pausados) de ESA sucursal, en orden de creación (el cursor es el id). Paginado por cursor.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    after?: string;
+                };
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description paginado por cursor */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Resource"][];
+                            page: components["schemas"]["PageInfo"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un rol de organización no tiene permiso de recursos */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Crea un recurso en la sucursal
+         * @description Exige `appointments.resource.manage` en la sucursal. `kind` es `chair`, `room` o `equipment`. Acepta `Idempotency-Key`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ResourceInput"];
+                };
+            };
+            responses: {
+                /** @description el branch_manager lo crea en SU sucursal */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Resource"];
+                        };
+                    };
+                };
+                /** @description un campo con el tipo equivocado */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el professional no crea recursos */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description una sucursal de otra empresa en la ruta */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un tipo desconocido y un nombre en blanco */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/resources/{resource_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                /** @description ID del recurso */
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Obtiene un recurso de la sucursal
+         * @description Exige `appointments.resource.read` en la sucursal. Un recurso de otra sucursal responde 404.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID del recurso */
+                    resource_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el recurso */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Resource"];
+                        };
+                    };
+                };
+                /** @description un id que no existe */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Archiva un recurso
+         * @description Exige `appointments.resource.manage` en la sucursal. No borra: lo archiva (`archived_at`) y deja de listarse. Es idempotente.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID del recurso */
+                    resource_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el recurso queda archivado (no borrado) y auditado */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description el receptionist no archiva recursos */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un recurso de otra sucursal */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Edita un recurso
+         * @description Exige `appointments.resource.manage` en la sucursal. Solo cambian los campos enviados. Un archivado no se edita (422).
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID del recurso */
+                    resource_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ResourcePatch"];
+                };
+            };
+            responses: {
+                /** @description el recurso editado, auditado con antes y después */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Resource"];
+                        };
+                    };
+                };
+                /** @description el receptionist no edita recursos */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un recurso de otra sucursal: ni el company_manager lo alcanza por esta ruta */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un nombre en blanco */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/resources/{resource_id}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                /** @description ID de un recurso de la sucursal de la ruta */
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Horario semanal de un recurso
+         * @description Exige `appointments.schedule.read` en la sucursal. El recurso debe ser de la sucursal de la ruta.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID de un recurso de la sucursal de la ruta */
+                    resource_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description las franjas del recurso */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WeeklyScheduleSlot"][];
+                        };
+                    };
+                };
+                /** @description un recurso de otra sucursal */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        /**
+         * Reemplaza el horario semanal de un recurso
+         * @description Exige `appointments.schedule.manage` en la sucursal. Mismas reglas que el horario de un profesional.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID de un recurso de la sucursal de la ruta */
+                    resource_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WeeklyScheduleInput"];
+                };
+            };
+            responses: {
+                /** @description el branch_manager reemplaza el horario del recurso */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WeeklyScheduleSlot"][];
+                        };
+                    };
+                };
+                /** @description el receptionist no escribe */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un recurso de otra sucursal: ni el company_manager lo alcanza por esta ruta */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description franjas del recurso que se solapan */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/resources/{resource_id}/time_offs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                /** @description ID de un recurso de la sucursal de la ruta */
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Lista las ausencias de un recurso
+         * @description Exige `appointments.time_off.read` en la sucursal. El recurso debe ser de la sucursal de la ruta. Paginado por cursor.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID de un recurso de la sucursal de la ruta */
+                    resource_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description las ausencias del recurso */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["TimeOff"][];
+                            page: components["schemas"]["PageInfo"];
+                        };
+                    };
+                };
+                /** @description el profesional no lee las ausencias de los recursos */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un recurso de otra sucursal */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Crea una ausencia de un recurso
+         * @description Exige `appointments.time_off.manage` en la sucursal. Mismas reglas de intervalo que la ausencia de un profesional. Acepta `Idempotency-Key`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID de un recurso de la sucursal de la ruta */
+                    resource_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TimeOffInput"];
+                };
+            };
+            responses: {
+                /** @description el branch_manager bloquea un recurso de su sucursal */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["TimeOff"];
+                        };
+                    };
+                };
+                /** @description el professional no crea ausencias de recursos */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un recurso de otra sucursal: ni el company_manager lo alcanza por esta ruta */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description fin anterior al inicio */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/resources/{resource_id}/time_offs/{resource_time_off_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                resource_id: string;
+                /** @description ID de una ausencia DE ESE recurso */
+                resource_time_off_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Borra una ausencia de un recurso
+         * @description Exige `appointments.time_off.manage` en la sucursal. La ausencia se busca SOLO entre las del recurso de la ruta.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    resource_id: string;
+                    /** @description ID de una ausencia DE ESE recurso */
+                    resource_time_off_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el branch_manager borra la ausencia del recurso */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description el receptionist no borra */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description la ausencia de OTRO recurso por la URL de este: la fila sobrevive */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Horario semanal de la sucursal
+         * @description Exige `appointments.schedule.read` en la sucursal. Una sucursal sin franjas está cerrada.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description las franjas de la sucursal, sin las de otra */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WeeklyScheduleSlot"][];
+                        };
+                    };
+                };
+                /** @description el profesional no lee el horario de la sucursal (solo el suyo) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description una sucursal hermana a la que el receptionist no pertenece */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        /**
+         * Reemplaza el horario semanal de la sucursal
+         * @description Exige `appointments.schedule.manage` en la sucursal. Reemplaza TODAS las franjas de la sucursal; mismas reglas que el horario de un profesional.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WeeklyScheduleInput"];
+                };
+            };
+            responses: {
+                /** @description el branch_manager reemplaza el horario de SU sucursal */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["WeeklyScheduleSlot"][];
+                        };
+                    };
+                };
+                /** @description el receptionist no escribe el horario de la sucursal */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description una sucursal hermana a la que el branch_manager no pertenece */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description franjas de la sucursal que se solapan */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/services/{service_id}/override": {
         parameters: {
             query?: never;
@@ -705,6 +2131,449 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/professionals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Lista los profesionales no archivados de la empresa
+         * @description Exige `appointments.professional.read` en la empresa (los roles de sucursal con ese permiso lo tienen por `from_descendants`). Devuelve los profesionales no archivados, con las sucursales a las que están asignados y los servicios que prestan; no trae datos de la persona vinculada (solo su `user_id`). Va en orden de creación (el cursor es el id). Paginado por cursor.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    after?: string;
+                };
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description paginado por cursor */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Professional"][];
+                            page: components["schemas"]["PageInfo"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un rol de organización no tiene permiso de profesionales */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Crea un profesional
+         * @description Exige `appointments.professional.manage`. `user_id` vincula al profesional con una persona y debe tener una membresía en la organización (si no, 422); una persona tiene a lo sumo un registro por empresa. Acepta `Idempotency-Key`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ProfessionalInput"];
+                };
+            };
+            responses: {
+                /** @description vinculado a una persona que es miembro de la organización */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Professional"];
+                        };
+                    };
+                };
+                /** @description un campo con el tipo equivocado */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el professional no crea profesionales */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin nombre (`display_name: blank`) */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/professionals/{professional_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                /** @description ID del profesional */
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Obtiene un profesional
+         * @description Exige `appointments.professional.read` en la empresa. Un profesional de otra empresa responde 404. Un archivado se puede ver, con `archived_at`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description ID del profesional */
+                    professional_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description uno archivado se puede ver */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Professional"];
+                        };
+                    };
+                };
+                /** @description el profesional no lee fichas por la ruta de empresa (solo la suya por la de sucursal) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un id que no existe */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Archiva un profesional
+         * @description Exige `appointments.professional.manage`. No borra: archiva (`archived_at`), conserva sus asignaciones y servicios y deja de aparecer en el listado.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description ID del profesional */
+                    professional_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description archivado: la fila sigue y ya no está en el listado */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description el branch_manager no archiva */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un profesional de otra empresa */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Edita un profesional
+         * @description Exige `appointments.professional.manage`. Solo cambian los campos enviados; `user_id` solo se puede fijar una vez: si ya está vinculado no cambia ni se quita (422 `immutable`; para cambiar de persona se archiva y se crea otro profesional). Un archivado no se edita (422).
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description ID del profesional */
+                    professional_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ProfessionalPatch"];
+                };
+            };
+            responses: {
+                /** @description reenviar el mismo `user_id` no es un cambio */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Professional"];
+                        };
+                    };
+                };
+                /** @description el recepcionista no edita */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un profesional de otra empresa no se edita */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un profesional archivado (`base: archived`) */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/professionals/{professional_id}/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                /** @description ID del profesional */
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Fija los servicios que presta un profesional
+         * @description Exige `appointments.professional.manage`. Reemplaza el conjunto completo: lo que no viene se quita y una lista vacía quita todos. Un servicio de otra empresa, inexistente o archivado (que aún no estaba vinculado) responde 422 y no cambia nada.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description ID del profesional */
+                    professional_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ProfessionalServicesInput"];
+                };
+            };
+            responses: {
+                /** @description un UUID válido en mayúsculas se reconoce como el mismo servicio */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Professional"];
+                        };
+                    };
+                };
+                /** @description service_ids es obligatorio */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el professional no define los servicios de un profesional */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un servicio archivado que no estaba vinculado (`service_id: archived`) */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1067,6 +2936,109 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services/{service_id}/resource_requirements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                /** @description ID del servicio */
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Reemplaza los tipos de recurso que necesita el servicio
+         * @description Exige `appointments.service.manage` en la empresa. Reemplaza el conjunto completo de `kinds` (`chair`, `room`, `equipment`): lo que no viene se quita y una lista vacía quita todo. El servicio debe ser de la empresa de la ruta.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description ID del servicio */
+                    service_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ServiceResourceRequirementsInput"];
+                };
+            };
+            responses: {
+                /** @description una lista vacía quita todos */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ServiceResourceRequirements"];
+                        };
+                    };
+                };
+                /** @description sin la lista o con elementos que no son texto */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el professional no define los requisitos de un servicio */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un tipo con byte NUL es inválido, no un 500 */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/organizations/{organization_id}/companies/{company_id}/branches": {
@@ -2197,6 +4169,97 @@ export interface components {
              */
             type: string;
         };
+        /** @description Profesional de una empresa. Una misma persona (`user_id`) puede tener un registro en cada empresa del grupo, con su propio horario. No trae datos de la persona vinculada: solo su identificador. */
+        Professional: {
+            active: boolean;
+            /**
+             * Format: date-time
+             * @description UTC; null si no está archivado
+             */
+            archived_at: string | null;
+            /** @description Sucursales de la empresa donde está asignado */
+            branch_ids: string[];
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            created_at: string;
+            display_name: string;
+            /** Format: uuid */
+            id: string;
+            /** @description Servicios que presta */
+            service_ids: string[];
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            updated_at: string;
+            /**
+             * Format: uuid
+             * @description Persona vinculada; null si el profesional no tiene usuario
+             */
+            user_id: string | null;
+        };
+        /** @description Alta de un profesional. `user_id` debe tener una membresía en la organización y no estar ya vinculado a otro profesional de la empresa. */
+        ProfessionalInput: {
+            /** @default true */
+            active: boolean;
+            display_name: string;
+            /** Format: uuid */
+            user_id?: string | null;
+        };
+        /** @description Edición parcial de un profesional: solo cambian los campos enviados; `user_id: null` desvincula a la persona */
+        ProfessionalPatch: {
+            active?: boolean;
+            display_name?: string;
+            /** Format: uuid */
+            user_id?: string | null;
+        };
+        /** @description El conjunto completo de servicios que presta el profesional; lo que no viene se quita */
+        ProfessionalServicesInput: {
+            service_ids: string[];
+        };
+        /** @description Recurso físico de una sucursal (sillón, sala, equipo). */
+        Resource: {
+            active: boolean;
+            /**
+             * Format: date-time
+             * @description UTC; null si no está archivado
+             */
+            archived_at: string | null;
+            /** Format: uuid */
+            branch_id: string;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            created_at: string;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "chair" | "room" | "equipment";
+            name: string;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            updated_at: string;
+        };
+        /** @description Alta de un recurso en la sucursal de la ruta. */
+        ResourceInput: {
+            /** @default true */
+            active: boolean;
+            /** @enum {string} */
+            kind: "chair" | "room" | "equipment";
+            name: string;
+        };
+        /** @description Edición parcial de un recurso: solo cambian los campos enviados */
+        ResourcePatch: {
+            active?: boolean;
+            /** @enum {string} */
+            kind?: "chair" | "room" | "equipment";
+            name?: string;
+        };
         /** @description Servicio del catálogo de una empresa. El precio es un entero en unidades menores (`price_minor`) en la moneda de la empresa. */
         Service: {
             active: boolean;
@@ -2301,6 +4364,51 @@ export interface components {
             /** Format: int64 */
             price_minor?: number;
         };
+        /** @description Los tipos de recurso que necesita un servicio: el hueco de agenda exige un recurso compatible de cada tipo en la sucursal. */
+        ServiceResourceRequirements: {
+            kinds: ("chair" | "room" | "equipment")[];
+            /** Format: uuid */
+            service_id: string;
+        };
+        /** @description El conjunto completo de tipos de recurso que necesita el servicio; lo que no viene se quita */
+        ServiceResourceRequirementsInput: {
+            kinds: ("chair" | "room" | "equipment")[];
+        };
+        /** @description Ausencia de un profesional o de un recurso (exactamente uno de `professional_id` y `resource_id`). */
+        TimeOff: {
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            ends_at: string;
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            professional_id: string | null;
+            /** @description Texto libre opcional; sin datos de salud */
+            reason: string | null;
+            /** Format: uuid */
+            resource_id: string | null;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            starts_at: string;
+        };
+        /** @description Alta de una ausencia: `starts_at` antes que `ends_at`, hasta 366 días. El dueño es el de la ruta. */
+        TimeOffInput: {
+            /** Format: date-time */
+            ends_at: string;
+            /** @description Texto libre opcional; sin datos de salud. No se registra en logs ni en la auditoría */
+            reason?: string | null;
+            /** Format: date-time */
+            starts_at: string;
+        };
         /** @description Persona autenticada. Global: no pertenece a una organización (ADR-0028) */
         User: {
             /**
@@ -2344,6 +4452,27 @@ export interface components {
              * @example urn:ceiba:error:resource.not_found
              */
             type: string;
+        };
+        /** @description El horario completo del dueño en la sucursal: reemplaza todas sus franjas. Horas `HH:MM` (minutos enteros), inicio antes que fin, sin cruzar la medianoche. */
+        WeeklyScheduleInput: {
+            slots: {
+                /** @example 13:00 */
+                ends_at_local: string;
+                /** @example 09:00 */
+                starts_at_local: string;
+                weekday: number;
+            }[];
+        };
+        /** @description Una franja semanal en hora LOCAL de la sucursal (sin zona; la zona es de la sucursal). */
+        WeeklyScheduleSlot: {
+            /** @example 13:00 */
+            ends_at_local: string;
+            /** Format: uuid */
+            id: string;
+            /** @example 09:00 */
+            starts_at_local: string;
+            /** @description 0 = domingo, como `Date#wday` */
+            weekday: number;
         };
     };
     responses: {

@@ -164,6 +164,7 @@ RSpec.describe "Modules::Enable y Modules::Disable" do
       expect(rows).to contain_exactly(have_attributes(id: original.id, disabled_at: nil))
       expect(rows.first.enabled_at).to be >= original.enabled_at
       expect(SampleModule.calls.map(&:first)).to eq(%i[enable disable enable])
+      expect(SampleModule.first_activations).to eq([ true, false ])
       expect(events("platform.module_enabled.v1").size).to eq(2)
     end
 

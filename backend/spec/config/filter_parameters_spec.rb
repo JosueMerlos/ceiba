@@ -12,7 +12,8 @@ RSpec.describe "config.filter_parameters" do
     "correo" => %w[email correo correo_electronico],
     "otp" => %w[otp otp_code],
     "notas de clientes" => %w[notes customer_notes],
-    "nombre de clientes" => %w[full_name customer_full_name name_prefix]
+    "nombre de clientes" => %w[full_name customer_full_name name_prefix],
+    "motivo de ausencias" => %w[reason absence_reason]
   }.each do |category, keys|
     it "filtra los parámetros de #{category}" do
       keys.each do |key|

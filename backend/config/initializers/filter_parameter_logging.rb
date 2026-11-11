@@ -18,6 +18,8 @@ Rails.application.config.filter_parameters += [
   # A customer's name, in the body and in the name search of the listing. Never a bare :name or :q: they match every
   # unrelated parameter of that name, services and branches included.
   :full_name, :name_prefix,
+  # Why someone is absent: free text that may reveal health or personal matters
+  :reason,
   # Session and CSRF
   :csrf, :authorization, :cookie
 ]

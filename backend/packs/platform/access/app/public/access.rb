@@ -42,6 +42,10 @@ module Access
 
     def permission_keys = registry.keys
 
+    # Does the user hold any membership in the organization? Reads inside the ACTIVE tenant (it never crosses
+    # organizations), so asking about another organization than the active one answers false.
+    def member?(user_id:, organization_id:) = Membership.exists?(user_id:, organization_id:)
+
     def registered?(key) = registry.registered?(key)
 
     # Writes the registry to the database: permissions, system roles and role_permissions. Idempotent; runs on every

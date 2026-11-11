@@ -12,4 +12,34 @@ es-NI:
           attributes:
             base:
               archived: "el servicio está archivado y no admite overrides"
+        appointments/professional:
+          attributes:
+            base:
+              archived: "el profesional está archivado y no admite cambios"
+            user_id:
+              immutable: "la persona vinculada no se puede cambiar ni quitar: archive el profesional y cree otro"
+        appointments/professional_branch_assignment:
+          attributes:
+            base:
+              archived: "el profesional está archivado y no admite asignaciones nuevas"
+        appointments/professional_service:
+          attributes:
+            service_id:
+              archived: "el servicio está archivado y no se puede vincular"
+        appointments/resource:
+          attributes:
+            base:
+              archived: "el recurso está archivado y no admite cambios"
+        appointments/weekly_schedule:
+          attributes:
+            base:
+              overlap: "la franja se solapa con otra del mismo dueño"
+  activemodel:
+    errors:
+      models:
+        appointments/staff/replace_schedule/rejection:
+          attributes:
+            slots:
+              overlap: "hay franjas que se solapan"
+              invalid: "hay franjas inválidas (día de 0 a 6, horas de HH:MM con el fin después del inicio y asignadas a la sucursal)"
   appointments: {}

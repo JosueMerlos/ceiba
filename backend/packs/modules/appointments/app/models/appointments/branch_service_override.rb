@@ -3,6 +3,8 @@ module Appointments
   # branch and the service to belong to this company, the model reports it as a field error first. The currency is the
   # service's, so it is not stored. At least one of the two values must be present.
   class BranchServiceOverride < ApplicationRecord
+    include BranchInCompany
+
     EDITABLE = %w[duration_minutes price_minor].freeze
 
     acts_as_tenant :organization, class_name: "Tenancy::Organization"
@@ -21,10 +23,6 @@ module Appointments
 
     def overrides_something
       errors.add(:base, :empty) if duration_minutes.nil? && price_minor.nil?
-    end
-
-    def branch_in_company
-      errors.add(:branch_id, :invalid) if branch_id.blank? || Tenancy::Directory.branch_company_id(branch_id) != company_id
     end
 
     def service_in_company

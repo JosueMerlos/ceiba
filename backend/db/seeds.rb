@@ -147,13 +147,21 @@ DEMO_CUSTOMERS = [
 # The module's demo hook is loaded by path: the root pack cannot see the module's constants.
 load Rails.root.join("packs/modules/appointments/db/seeds.rb")
 
+# The demo users the module's staff seeds link to (professionals): email => user id. Empty without a demo password, in which
+# case the professionals are seeded without a linked user. ProvisionUser is idempotent by email.
+def demo_people
+  DEMO_GROUPS.flat_map { |group| group.fetch(:staff) }.select { it[:role] == "professional" }
+             .filter_map { |member| (user = seed_user(member.fetch(:user))) && [ member.dig(:user, :email), user.id ] }.to_h
+end
+
 # Runs AFTER all groups: seed_group opens no tenancy context and skips a group that already exists, while these steps must
 # also complete a group seeded earlier. All are idempotent (the module hook by company, customers by phone).
 organization_ids = owners.flat_map { |owner| Access::Principal::User.new(owner).organization_ids }.uniq
+people = demo_people
 Tenancy::Directory.organizations_for(organization_ids).order(:name).each do |organization|
   Tenancy.with_context(organization:) do
     Tenancy::Directory.companies.order(:slug).each do |company|
-      AppointmentsDemoSeeds.seed_company(company)
+      AppointmentsDemoSeeds.seed_company(company, people:)
       DEMO_CUSTOMERS.each { |customer| Customers::FindOrCreate.call(company_id: company.id, **customer) }
       puts "Clientes listos: #{company.name} (#{DEMO_CUSTOMERS.size})"
     end
