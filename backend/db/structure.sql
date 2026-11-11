@@ -355,6 +355,54 @@ CREATE TABLE public.processed_events (
 
 
 --
+-- Name: professional_branch_assignments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.professional_branch_assignments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    professional_id uuid NOT NULL,
+    branch_id uuid NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: professional_services; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.professional_services (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    professional_id uuid NOT NULL,
+    service_id uuid NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: professionals; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.professionals (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    user_id uuid,
+    display_name character varying NOT NULL,
+    active boolean DEFAULT true NOT NULL,
+    archived_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_professionals_name_present CHECK ((length(btrim((display_name)::text)) > 0))
+);
+
+
+--
 -- Name: role_permissions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -587,6 +635,30 @@ ALTER TABLE ONLY public.processed_events
 
 
 --
+-- Name: professional_branch_assignments professional_branch_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_branch_assignments
+    ADD CONSTRAINT professional_branch_assignments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: professional_services professional_services_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_services
+    ADD CONSTRAINT professional_services_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: professionals professionals_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professionals
+    ADD CONSTRAINT professionals_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: role_permissions role_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -731,6 +803,30 @@ ALTER TABLE ONLY public.processed_events
 
 
 --
+-- Name: professional_branch_assignments uq_professional_branch_assignments_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_branch_assignments
+    ADD CONSTRAINT uq_professional_branch_assignments_organization_id_id UNIQUE (organization_id, id);
+
+
+--
+-- Name: professional_services uq_professional_services_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_services
+    ADD CONSTRAINT uq_professional_services_organization_id_id UNIQUE (organization_id, id);
+
+
+--
+-- Name: professionals uq_professionals_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professionals
+    ADD CONSTRAINT uq_professionals_organization_id_id UNIQUE (organization_id, id);
+
+
+--
 -- Name: services uq_services_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -824,10 +920,38 @@ CREATE INDEX idx_outbox_events_published_at ON public.outbox_events USING btree 
 
 
 --
+-- Name: idx_pba_branch; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_pba_branch ON public.professional_branch_assignments USING btree (organization_id, company_id, branch_id);
+
+
+--
 -- Name: idx_processed_events_processed_at; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_processed_events_processed_at ON public.processed_events USING btree (processed_at);
+
+
+--
+-- Name: idx_professionals_company_unarchived_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_professionals_company_unarchived_id ON public.professionals USING btree (organization_id, company_id, id) WHERE (archived_at IS NULL);
+
+
+--
+-- Name: idx_professionals_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_professionals_user ON public.professionals USING btree (user_id) WHERE (user_id IS NOT NULL);
+
+
+--
+-- Name: idx_ps_service; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ps_service ON public.professional_services USING btree (organization_id, company_id, service_id);
 
 
 --
@@ -971,10 +1095,45 @@ CREATE UNIQUE INDEX uq_memberships_user_role_scope ON public.memberships USING b
 
 
 --
+-- Name: uq_pba_org_company_professional_branch; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_pba_org_company_professional_branch ON public.professional_branch_assignments USING btree (organization_id, company_id, professional_id, branch_id);
+
+
+--
+-- Name: uq_pba_professional_branch; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_pba_professional_branch ON public.professional_branch_assignments USING btree (professional_id, branch_id);
+
+
+--
 -- Name: uq_processed_events_event_subscriber; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX uq_processed_events_event_subscriber ON public.processed_events USING btree (event_id, subscriber);
+
+
+--
+-- Name: uq_professionals_company_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_professionals_company_user ON public.professionals USING btree (company_id, user_id) WHERE (user_id IS NOT NULL);
+
+
+--
+-- Name: uq_professionals_org_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_professionals_org_company_id ON public.professionals USING btree (organization_id, company_id, id);
+
+
+--
+-- Name: uq_ps_professional_service; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_ps_professional_service ON public.professional_services USING btree (professional_id, service_id);
 
 
 --
@@ -1197,11 +1356,99 @@ ALTER TABLE ONLY public.outbox_events
 
 
 --
+-- Name: professional_branch_assignments fk_pba_branch; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_branch_assignments
+    ADD CONSTRAINT fk_pba_branch FOREIGN KEY (organization_id, company_id, branch_id) REFERENCES public.branches(organization_id, company_id, id);
+
+
+--
+-- Name: professional_branch_assignments fk_pba_professional; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_branch_assignments
+    ADD CONSTRAINT fk_pba_professional FOREIGN KEY (organization_id, company_id, professional_id) REFERENCES public.professionals(organization_id, company_id, id);
+
+
+--
 -- Name: processed_events fk_processed_events_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.processed_events
     ADD CONSTRAINT fk_processed_events_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: professional_branch_assignments fk_professional_branch_assignments_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_branch_assignments
+    ADD CONSTRAINT fk_professional_branch_assignments_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: professional_branch_assignments fk_professional_branch_assignments_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_branch_assignments
+    ADD CONSTRAINT fk_professional_branch_assignments_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: professional_services fk_professional_services_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_services
+    ADD CONSTRAINT fk_professional_services_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: professional_services fk_professional_services_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_services
+    ADD CONSTRAINT fk_professional_services_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: professionals fk_professionals_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professionals
+    ADD CONSTRAINT fk_professionals_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: professionals fk_professionals_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professionals
+    ADD CONSTRAINT fk_professionals_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: professionals fk_professionals_user; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professionals
+    ADD CONSTRAINT fk_professionals_user FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: professional_services fk_ps_professional; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_services
+    ADD CONSTRAINT fk_ps_professional FOREIGN KEY (organization_id, company_id, professional_id) REFERENCES public.professionals(organization_id, company_id, id);
+
+
+--
+-- Name: professional_services fk_ps_service; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.professional_services
+    ADD CONSTRAINT fk_ps_service FOREIGN KEY (organization_id, company_id, service_id) REFERENCES public.services(organization_id, company_id, id);
 
 
 --
@@ -1322,6 +1569,27 @@ CREATE POLICY tenant_isolation ON public.processed_events USING ((organization_i
 
 
 --
+-- Name: professional_branch_assignments tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.professional_branch_assignments USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
+-- Name: professional_services tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.professional_services USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
+-- Name: professionals tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.professionals USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
 -- Name: services tenant_isolation; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -1335,6 +1603,9 @@ CREATE POLICY tenant_isolation ON public.services USING ((organization_id = (NUL
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261111171200'),
+('20261111171100'),
+('20261111171000'),
 ('20261111030100'),
 ('20261111030000'),
 ('20261111024137'),

@@ -12,4 +12,16 @@ es-NI:
           attributes:
             base:
               archived: "el servicio está archivado y no admite overrides"
+        appointments/professional:
+          attributes:
+            base:
+              archived: "el profesional está archivado y no admite cambios"
+        appointments/professional_branch_assignment:
+          attributes:
+            base:
+              archived: "el profesional está archivado y no admite asignaciones nuevas"
+        appointments/professional_service:
+          attributes:
+            service_id:
+              archived: "el servicio está archivado y no se puede vincular"
   appointments: {}
