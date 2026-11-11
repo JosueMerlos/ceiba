@@ -48,6 +48,33 @@ RSpec.describe Modules::Registry do
       expect(manifest).to be_frozen
     end
 
+    it "conserva `from_descendants` de un permiso de lectura y lo deja en falso por defecto" do
+      manifest = define(:loyalty) do
+        permissions do
+          permission "loyalty.card.read", description: "Ver tarjetas", from_descendants: true
+          permission "loyalty.card.manage", description: "Gestionar tarjetas"
+        end
+      end
+
+      expect(manifest.permissions.to_h { |permission| [ permission.key, permission.from_descendants ] })
+        .to eq("loyalty.card.read" => true, "loyalty.card.manage" => false)
+    end
+
+    it "AccessRegistration lo entrega a access: llega a `upward_keys` (el flag no se pierde entre el DSL y el registro)" do
+      upward = Access::PermissionRegistry.new
+      allow(Access).to receive(:registry).and_return(upward)
+      manifest = define(:loyalty) do
+        permissions do
+          permission "loyalty.card.read", description: "Ver tarjetas", from_descendants: true
+          permission "loyalty.card.list", description: "Listar tarjetas"
+        end
+      end
+
+      Modules::AccessRegistration.call(manifest)
+
+      expect(upward.upward_keys).to eq([ "loyalty.card.read" ])
+    end
+
     it "expande `all: true` a todos los permisos del módulo" do
       expect(manifest.role_grants).to eq("company_manager" => %w[loyalty.card.read loyalty.card.manage], "receptionist" => %w[loyalty.card.read])
     end
@@ -87,6 +114,20 @@ RSpec.describe Modules::Registry do
     it "rechaza un permiso que no empieza por la key del módulo, con un mensaje que lo nombra" do
       expect_invalid(/loyalty.*"billing\.invoice\.read".*debe empezar por "loyalty\."/m) do
         permissions { permission "billing.invoice.read", description: "Ajeno" }
+      end
+    end
+
+    it "rechaza `from_descendants` en un permiso que no es de lectura (leer hacia arriba nunca da escritura)" do
+      expect_invalid(/"loyalty\.card\.manage".*from_descendants.*lectura/m) do
+        permissions { permission "loyalty.card.manage", description: "Gestionar", from_descendants: true }
+      end
+    end
+
+    it "rechaza un `from_descendants` que no es exactamente true o false (un valor truthy no se interpreta)", :aggregate_failures do
+      [ "true", "yes", 1, :true, [] ].each do |value| # rubocop:disable Lint/BooleanSymbol
+        expect_invalid(/"loyalty\.card\.read".*from_descendants.*true o false/m) do
+          permissions { permission "loyalty.card.read", description: "Ver tarjetas", from_descendants: value }
+        end
       end
     end
 

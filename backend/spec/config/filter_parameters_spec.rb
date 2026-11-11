@@ -10,7 +10,9 @@ RSpec.describe "config.filter_parameters" do
     "token" => %w[token csrf_token reset_token api_token],
     "teléfono" => %w[phone phone_number teléfono telefono celular mobile whatsapp],
     "correo" => %w[email correo correo_electronico],
-    "otp" => %w[otp otp_code]
+    "otp" => %w[otp otp_code],
+    "notas de clientes" => %w[notes customer_notes],
+    "nombre de clientes" => %w[full_name customer_full_name name_prefix]
   }.each do |category, keys|
     it "filtra los parámetros de #{category}" do
       keys.each do |key|
@@ -26,6 +28,7 @@ RSpec.describe "config.filter_parameters" do
   end
 
   it "no filtra parámetros que no son sensibles" do
-    expect(filter.filter("slug" => "clinica-sol", "limit" => "20")).to eq("slug" => "clinica-sol", "limit" => "20")
+    expect(filter.filter("slug" => "clinica-sol", "limit" => "20", "name" => "Corte", "q" => "x"))
+      .to eq("slug" => "clinica-sol", "limit" => "20", "name" => "Corte", "q" => "x")
   end
 end

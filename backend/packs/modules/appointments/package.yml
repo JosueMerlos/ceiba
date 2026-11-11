@@ -12,3 +12,13 @@ visible_to: []
 # A module depends on platform/ packs, never on another module.
 dependencies:
   - "."
+  # The company's currency and branches (Tenancy::Directory) and the active context (Tenancy.with_context).
+  - "packs/platform/tenancy"
+  # Policies extend Access::BasePolicy and ask the principal for permissions.
+  - "packs/platform/access"
+  # Every catalog write is audited with before/after in the caller's transaction (Audit.record).
+  - "packs/platform/audit"
+  # Controllers declare Modules::RequiresModule (the module gate).
+  - "packs/platform/modules"
+  # Creating a service accepts an Idempotency-Key.
+  - "packs/platform/idempotency"

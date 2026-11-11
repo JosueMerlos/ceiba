@@ -73,6 +73,7 @@ Cada solicitud queda registrada (`data_subject_requests`) con la fecha de recepc
 - **Sin datos de salud en `appointments`.** Las notas de la cita son operativas. El historial clínico será un módulo aparte con cifrado, consentimiento específico y acceso restringido.
 - Los reportes consolidados de la organización muestran solo conteos.
 - Los logs no contienen PII (`filter_parameters`, sin cuerpos de request).
+- **Excepción acotada en las respuestas de la API:** solo los endpoints del recurso cliente devuelven teléfono, correo y notas, y únicamente a quien tiene `platform.customer.read`. Ningún otro endpoint, log, mensaje de error ni auditoría los incluye (la auditoría del cliente es por id). Ver [ADR-0033](../adr/0033-autorizacion-y-pii-de-clientes-y-servicios.md).
 
 ### Menores de edad
 

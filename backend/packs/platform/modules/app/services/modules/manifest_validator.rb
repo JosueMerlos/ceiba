@@ -62,8 +62,12 @@ module Modules
           problem("el permiso #{key.inspect} está repetido")
         elsif permission[:description].empty?
           problem("el permiso #{key.inspect} necesita una descripción (description:)")
+        elsif ![ true, false ].include?(permission[:from_descendants])
+          problem("el permiso #{key.inspect}: from_descendants debe ser exactamente true o false (recibió #{permission[:from_descendants].inspect})")
+        elsif permission[:from_descendants] && !Access.read_permission?(key)
+          problem("el permiso #{key.inspect}: from_descendants solo se acepta en permisos de lectura (acciones #{Access::READ_ACTIONS.join(', ')})")
         else
-          accepted << Manifest::Permission.new(key:, description: permission[:description])
+          accepted << Manifest::Permission.new(key:, description: permission[:description], from_descendants: permission[:from_descendants])
         end
       end
     end

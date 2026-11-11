@@ -163,6 +163,91 @@ components:
       - created_at
       - updated_at
       type: object
+    Customer:
+      additionalProperties: false
+      description: Cliente de una empresa. El teléfono, el correo y las notas solo salen por los endpoints de clientes (`platform.customer.read`).
+      properties:
+        archived_at:
+          description: UTC; null si está activo
+          format: date-time
+          nullable: true
+          type: string
+        created_at:
+          description: UTC
+          format: date-time
+          type: string
+        email:
+          nullable: true
+          type: string
+        full_name:
+          type: string
+        id:
+          format: uuid
+          type: string
+        notes:
+          nullable: true
+          type: string
+        phone_e164:
+          description: Teléfono en E.164, único por empresa
+          example: "+50588887777"
+          type: string
+        updated_at:
+          description: UTC
+          format: date-time
+          type: string
+      required:
+      - id
+      - full_name
+      - phone_e164
+      - email
+      - notes
+      - archived_at
+      - created_at
+      - updated_at
+      type: object
+    CustomerInput:
+      additionalProperties: false
+      description: Alta de un cliente
+      properties:
+        email:
+          maxLength: 254
+          nullable: true
+          type: string
+        full_name:
+          maxLength: 200
+          type: string
+        notes:
+          maxLength: 2000
+          nullable: true
+          type: string
+        phone_e164:
+          description: En cualquier formato; se normaliza a E.164 con el país de la organización
+          example: 8888-7777
+          type: string
+      required:
+      - full_name
+      - phone_e164
+      type: object
+    CustomerPatch:
+      additionalProperties: false
+      description: 'Edición parcial de un cliente: solo cambian los campos enviados'
+      properties:
+        email:
+          maxLength: 254
+          nullable: true
+          type: string
+        full_name:
+          maxLength: 200
+          type: string
+        notes:
+          maxLength: 2000
+          nullable: true
+          type: string
+        phone_e164:
+          description: En cualquier formato; se normaliza a E.164
+          example: 8888-7777
+          type: string
+      type: object
     FieldError:
       additionalProperties: false
       properties:
@@ -424,6 +509,214 @@ components:
       - code
       - instance
       - request_id
+      type: object
+    Service:
+      additionalProperties: false
+      description: Servicio del catálogo de una empresa. El precio es un entero en unidades menores (`price_minor`) en la moneda de la empresa.
+      properties:
+        active:
+          type: boolean
+        archived_at:
+          description: UTC; null si no está archivado
+          format: date-time
+          nullable: true
+          type: string
+        buffer_after_minutes:
+          maximum: 1440
+          minimum: 0
+          type: integer
+        buffer_before_minutes:
+          maximum: 1440
+          minimum: 0
+          type: integer
+        created_at:
+          description: UTC
+          format: date-time
+          type: string
+        currency:
+          description: Siempre la moneda de la empresa
+          enum:
+          - NIO
+          - USD
+          type: string
+        duration_minutes:
+          maximum: 1440
+          minimum: 1
+          type: integer
+        id:
+          format: uuid
+          type: string
+        name:
+          type: string
+        position:
+          description: Orden en el catálogo (menor primero)
+          minimum: 0
+          type: integer
+        price_minor:
+          description: Precio en unidades menores (centavos)
+          example: 20000
+          format: int64
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+        updated_at:
+          description: UTC
+          format: date-time
+          type: string
+      required:
+      - id
+      - name
+      - duration_minutes
+      - buffer_before_minutes
+      - buffer_after_minutes
+      - price_minor
+      - currency
+      - active
+      - position
+      - archived_at
+      - created_at
+      - updated_at
+      type: object
+    ServiceInput:
+      additionalProperties: false
+      description: Alta de un servicio. Sin `currency` toma la de la empresa; si se envía debe ser la de la empresa (si no, 422).
+      properties:
+        active:
+          default: true
+          type: boolean
+        buffer_after_minutes:
+          default: 0
+          maximum: 1440
+          minimum: 0
+          type: integer
+        buffer_before_minutes:
+          default: 0
+          maximum: 1440
+          minimum: 0
+          type: integer
+        currency:
+          enum:
+          - NIO
+          - USD
+          type: string
+        duration_minutes:
+          maximum: 1440
+          minimum: 1
+          type: integer
+        name:
+          maxLength: 200
+          type: string
+        position:
+          default: 0
+          minimum: 0
+          type: integer
+        price_minor:
+          example: 20000
+          format: int64
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+      required:
+      - name
+      - duration_minutes
+      - price_minor
+      type: object
+    ServiceOverride:
+      additionalProperties: false
+      description: Duración y/o precio propios de una sucursal para un servicio. Un valor null significa que la sucursal usa el del servicio.
+      properties:
+        branch_id:
+          format: uuid
+          type: string
+        created_at:
+          description: UTC
+          format: date-time
+          type: string
+        currency:
+          description: 'La del servicio: el override no tiene moneda propia'
+          enum:
+          - NIO
+          - USD
+          type: string
+        duration_minutes:
+          maximum: 1440
+          minimum: 1
+          nullable: true
+          type: integer
+        id:
+          format: uuid
+          type: string
+        price_minor:
+          format: int64
+          minimum: 0
+          nullable: true
+          type: integer
+        service_id:
+          format: uuid
+          type: string
+        updated_at:
+          description: UTC
+          format: date-time
+          type: string
+      required:
+      - id
+      - branch_id
+      - service_id
+      - duration_minutes
+      - price_minor
+      - currency
+      - created_at
+      - updated_at
+      type: object
+    ServiceOverrideInput:
+      additionalProperties: false
+      description: Cambio de un override. Cambia SOLO los campos enviados; lo que no viene se conserva. Un `null` explícito quita ese valor. El resultado debe tener al menos uno de los dos (para quitarlo todo, `DELETE`).
+      properties:
+        duration_minutes:
+          maximum: 1440
+          minimum: 1
+          nullable: true
+          type: integer
+        price_minor:
+          format: int64
+          minimum: 0
+          nullable: true
+          type: integer
+      type: object
+    ServicePatch:
+      additionalProperties: false
+      description: 'Edición parcial de un servicio: solo cambian los campos enviados'
+      properties:
+        active:
+          type: boolean
+        buffer_after_minutes:
+          maximum: 1440
+          minimum: 0
+          type: integer
+        buffer_before_minutes:
+          maximum: 1440
+          minimum: 0
+          type: integer
+        currency:
+          enum:
+          - NIO
+          - USD
+          type: string
+        duration_minutes:
+          maximum: 1440
+          minimum: 1
+          type: integer
+        name:
+          maxLength: 200
+          type: string
+        position:
+          minimum: 0
+          type: integer
+        price_minor:
+          format: int64
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
       type: object
     User:
       additionalProperties: false
@@ -868,6 +1161,416 @@ paths:
       schema:
         format: uuid
         type: string
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/services/{service_id}/override":
+    delete:
+      description: Exige `appointments.service.override_price` si el override tiene precio y `appointments.service.override_duration` si tiene duración (quitarlo es cambiar ambos valores). La sucursal vuelve a usar los del servicio. Sin override responde 404.
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: quitar el override de una sucursal no toca el de otra
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el professional no puede quitar overrides
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+      security:
+      - cookieAuth: []
+      summary: Quita el override de un servicio en una sucursal
+      tags:
+      - Servicios
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: Sucursal que tiene el override
+      in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID del servicio de la empresa
+      in: path
+      name: service_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    put:
+      description: 'Crea el override o lo cambia. MEZCLA: solo cambian los campos enviados, lo que no viene se conserva y un `null` explícito quita ese valor. El resultado debe conservar duración o precio (si no, 422; para quitarlo todo, `DELETE`). Se autoriza por CAMBIO EFECTIVO respecto de la fila actual en el alcance de la sucursal: cambiar la duración exige `appointments.service.override_duration` y cambiar el precio `appointments.service.override_price`. Si el cambio incluye algo que el usuario no puede tocar, responde 403 para TODA la petición y no se aplica nada. Reenviar el valor que ya tiene no es un cambio. El override hereda la moneda del servicio.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ServiceOverrideInput"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/ServiceOverride"
+                required:
+                - data
+                type: object
+          description: 'el branch_manager reenvía el MISMO precio que ya tiene: no es un cambio, solo cambia la duración'
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un valor que no es entero
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: una petición vacía sin permisos de override tampoco pasa (no revela nada)
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: una duración no positiva
+      security:
+      - cookieAuth: []
+      summary: Fija o cambia el override de un servicio en una sucursal
+      tags:
+      - Servicios
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services":
+    get:
+      description: Exige `appointments.service.read` en la empresa (los roles de sucursal la tienen por `from_descendants`). Devuelve los servicios no archivados, activos e inactivos; el filtro opcional `active` (`true` o `false`) deja solo los de ese estado. Los archivados no aparecen. Va en orden de creación (el cursor es el id); `position` es el orden de presentación que el cliente aplica. Paginado por cursor.
+      parameters:
+      - in: query
+        name: active
+        required: false
+        schema:
+          type: boolean
+      - in: query
+        name: limit
+        required: false
+        schema:
+          maximum: 100
+          minimum: 1
+          type: integer
+      - in: query
+        name: after
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/Service"
+                    type: array
+                  page:
+                    "$ref": "#/components/schemas/PageInfo"
+                required:
+                - data
+                - page
+                type: object
+          description: paginado por cursor
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: active debe ser true o false
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un rol de organización no tiene permiso de servicios (`access.forbidden`)
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+      security:
+      - cookieAuth: []
+      summary: Lista los servicios no archivados de la empresa
+      tags:
+      - Servicios
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: 'Exige `appointments.service.manage`. `price_minor` es un entero en unidades menores. Sin `currency` toma la de la empresa; una moneda distinta responde 422 (`currency: mismatch`). Acepta `Idempotency-Key`.'
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ServiceInput"
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Service"
+                required:
+                - data
+                type: object
+          description: con la moneda de la empresa enviada de forma explícita
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el professional lee el catálogo pero no lo gestiona
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: sin nombre ni duración
+      security:
+      - cookieAuth: []
+      summary: Crea un servicio
+      tags:
+      - Servicios
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services/{id}":
+    delete:
+      description: 'Exige `appointments.service.manage`. No borra la fila: fija `archived_at` y lo saca del catálogo. Repetirlo no cambia nada.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: archivarlo otra vez no cambia la fecha ni duplica la auditoría
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el professional no puede archivar y el servicio sigue en el catálogo
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un servicio de otra empresa no se archiva
+      security:
+      - cookieAuth: []
+      summary: Archiva un servicio
+      tags:
+      - Servicios
+    get:
+      description: Exige `appointments.service.read`. Un servicio de otra empresa responde 404. Un archivado se puede ver, con `archived_at`.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Service"
+                required:
+                - data
+                type: object
+          description: un servicio archivado se puede ver
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un rol de organización no tiene permiso
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+      security:
+      - cookieAuth: []
+      summary: Obtiene un servicio
+      tags:
+      - Servicios
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID del servicio
+      in: path
+      name: id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    patch:
+      description: Exige `appointments.service.manage`. Solo cambia los campos enviados; la empresa y el archivado no se editan por aquí.
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ServicePatch"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Service"
+                required:
+                - data
+                type: object
+          description: el servicio editado
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el branch_manager no gestiona el catálogo y el servicio queda intacto
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un servicio de otra empresa no se edita y queda intacto
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: cambiar la moneda a una que no es la de la empresa
+      security:
+      - cookieAuth: []
+      summary: Edita un servicio
+      tags:
+      - Servicios
   "/api/v1/organizations/{organization_id}/companies/{company_id}/branches":
     get:
       description: 'Solo las sucursales donde el usuario tiene `platform.branch.read`: un company_manager ve todas las de su empresa; un branch_manager, la suya.'
@@ -932,6 +1635,308 @@ paths:
       schema:
         format: uuid
         type: string
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/customers":
+    get:
+      description: 'Exige `platform.customer.read` en la sucursal. Paginado por cursor. Filtros: `phone` (exacto, en cualquier formato) y `name_prefix` (prefijo del nombre, sin distinguir mayúsculas). Los archivados no aparecen.'
+      parameters:
+      - in: query
+        name: phone
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: name_prefix
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: limit
+        required: false
+        schema:
+          maximum: 100
+          minimum: 1
+          type: integer
+      - in: query
+        name: after
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/Customer"
+                    type: array
+                  page:
+                    "$ref": "#/components/schemas/PageInfo"
+                required:
+                - data
+                - page
+                type: object
+          description: el company_manager lista desde cualquier sucursal de su empresa (regla hacia abajo)
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: org_admin no tiene permiso de clientes (`access.forbidden`)
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: una sucursal hermana a la que el recepcionista no pertenece
+      security:
+      - cookieAuth: []
+      summary: Lista los clientes activos de la empresa de la sucursal
+      tags:
+      - Clientes
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: Sucursal desde la que se actúa; los clientes son de su empresa
+      in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: 'Exige `platform.customer.create`. El teléfono se guarda en E.164 con el país de la organización. Si la empresa ya tiene un cliente ACTIVO con ese teléfono responde 422 (`phone_e164: taken`); si lo tiene ARCHIVADO, lo restaura con ese mismo id: el nombre sale de la petición y el correo y las notas quedan vacíos salvo que se envíen (el número pudo pasar a otra persona). Acepta `Idempotency-Key`.'
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CustomerInput"
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Customer"
+                required:
+                - data
+                type: object
+          description: el mismo teléfono en la otra empresa del grupo es otro cliente
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el profesional no puede crear clientes
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: una sucursal de otra empresa en la ruta
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: 'sin nombre (`full_name: blank`)'
+      security:
+      - cookieAuth: []
+      summary: Crea un cliente
+      tags:
+      - Clientes
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/customers/{id}":
+    delete:
+      description: 'Exige `platform.customer.archive`. No borra la fila: fija `archived_at` y lo saca del listado. Repetirlo no cambia nada.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: archivado
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el profesional no puede archivar
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un cliente de otra empresa no se archiva
+      security:
+      - cookieAuth: []
+      summary: Archiva un cliente
+      tags:
+      - Clientes
+    get:
+      description: Exige `platform.customer.read`. Un cliente de otra empresa responde 404.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Customer"
+                required:
+                - data
+                type: object
+          description: un cliente archivado se puede ver, con su fecha de archivado
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el profesional no tiene permiso
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un id que no existe
+      security:
+      - cookieAuth: []
+      summary: Obtiene un cliente
+      tags:
+      - Clientes
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID del cliente
+      in: path
+      name: id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    patch:
+      description: 'Exige `platform.customer.update`. Solo cambia los campos enviados; la empresa y el archivado no se editan por aquí. Un cliente archivado no admite cambios (422 `base: archived`): solo se recupera con el alta (restaurar).'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CustomerPatch"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Customer"
+                required:
+                - data
+                type: object
+          description: el cliente editado
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el profesional no puede editar
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un cliente de otra empresa no se edita y queda intacto
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: 'el teléfono de otro cliente de la empresa (`phone_e164: taken`)'
+      security:
+      - cookieAuth: []
+      summary: Edita un cliente
+      tags:
+      - Clientes
   "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/modules/{key}/settings":
     parameters:
     - in: path

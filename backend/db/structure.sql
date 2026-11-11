@@ -124,6 +124,26 @@ CREATE TABLE public.branch_module_settings (
 
 
 --
+-- Name: branch_service_overrides; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.branch_service_overrides (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    branch_id uuid NOT NULL,
+    service_id uuid NOT NULL,
+    duration_minutes integer,
+    price_minor bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_bso_duration_positive CHECK ((duration_minutes > 0)),
+    CONSTRAINT chk_bso_overrides_something CHECK (((duration_minutes IS NOT NULL) OR (price_minor IS NOT NULL))),
+    CONSTRAINT chk_bso_price_non_negative CHECK ((price_minor >= 0))
+);
+
+
+--
 -- Name: branches; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -181,6 +201,25 @@ CREATE TABLE public.company_modules (
     CONSTRAINT chk_company_modules_module_key CHECK (((module_key)::text ~ '^[a-z][a-z0-9_]*$'::text)),
     CONSTRAINT chk_company_modules_settings_object CHECK ((jsonb_typeof(settings) = 'object'::text)),
     CONSTRAINT chk_company_modules_settings_size CHECK ((pg_column_size(settings) < 16384))
+);
+
+
+--
+-- Name: customers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.customers (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    full_name character varying NOT NULL,
+    phone_e164 character varying NOT NULL,
+    email character varying,
+    notes text,
+    archived_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_customers_full_name_present CHECK ((length(btrim((full_name)::text)) > 0))
 );
 
 
@@ -352,6 +391,34 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: services; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.services (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    name character varying NOT NULL,
+    duration_minutes integer NOT NULL,
+    buffer_before_minutes integer DEFAULT 0 NOT NULL,
+    buffer_after_minutes integer DEFAULT 0 NOT NULL,
+    price_minor bigint NOT NULL,
+    currency character varying NOT NULL,
+    active boolean DEFAULT true NOT NULL,
+    "position" integer DEFAULT 0 NOT NULL,
+    archived_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_services_buffer_after CHECK ((buffer_after_minutes >= 0)),
+    CONSTRAINT chk_services_buffer_before CHECK ((buffer_before_minutes >= 0)),
+    CONSTRAINT chk_services_currency CHECK ((((currency)::text = 'NIO'::text) OR ((currency)::text = 'USD'::text))),
+    CONSTRAINT chk_services_duration_positive CHECK ((duration_minutes > 0)),
+    CONSTRAINT chk_services_name_present CHECK ((length(btrim((name)::text)) > 0)),
+    CONSTRAINT chk_services_price_non_negative CHECK ((price_minor >= 0))
+);
+
+
+--
 -- Name: sessions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -416,6 +483,14 @@ ALTER TABLE ONLY public.branch_module_settings
 
 
 --
+-- Name: branch_service_overrides branch_service_overrides_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branch_service_overrides
+    ADD CONSTRAINT branch_service_overrides_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: branches branches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -437,6 +512,14 @@ ALTER TABLE ONLY public.companies
 
 ALTER TABLE ONLY public.company_modules
     ADD CONSTRAINT company_modules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: customers customers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customers
+    ADD CONSTRAINT customers_pkey PRIMARY KEY (id);
 
 
 --
@@ -528,6 +611,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: services services_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.services
+    ADD CONSTRAINT services_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -557,6 +648,14 @@ ALTER TABLE ONLY public.branch_module_settings
 
 ALTER TABLE ONLY public.branch_module_settings
     ADD CONSTRAINT uq_branch_module_settings_organization_id_id UNIQUE (organization_id, id);
+
+
+--
+-- Name: branch_service_overrides uq_branch_service_overrides_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branch_service_overrides
+    ADD CONSTRAINT uq_branch_service_overrides_organization_id_id UNIQUE (organization_id, id);
 
 
 --
@@ -592,6 +691,14 @@ ALTER TABLE ONLY public.company_modules
 
 
 --
+-- Name: customers uq_customers_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customers
+    ADD CONSTRAINT uq_customers_organization_id_id UNIQUE (organization_id, id);
+
+
+--
 -- Name: idempotency_keys uq_idempotency_keys_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -621,6 +728,14 @@ ALTER TABLE ONLY public.outbox_events
 
 ALTER TABLE ONLY public.processed_events
     ADD CONSTRAINT uq_processed_events_organization_id_id UNIQUE (organization_id, id);
+
+
+--
+-- Name: services uq_services_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.services
+    ADD CONSTRAINT uq_services_organization_id_id UNIQUE (organization_id, id);
 
 
 --
@@ -660,10 +775,31 @@ CREATE INDEX idx_auth_audit_events_user ON public.auth_audit_events USING btree 
 
 
 --
+-- Name: idx_bso_service; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_bso_service ON public.branch_service_overrides USING btree (organization_id, company_id, service_id);
+
+
+--
 -- Name: idx_company_modules_active; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_company_modules_active ON public.company_modules USING btree (organization_id, module_key, company_id) WHERE (disabled_at IS NULL);
+
+
+--
+-- Name: idx_customers_company_active_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_customers_company_active_id ON public.customers USING btree (organization_id, company_id, id) WHERE (archived_at IS NULL);
+
+
+--
+-- Name: idx_customers_company_name_prefix; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_customers_company_name_prefix ON public.customers USING btree (organization_id, company_id, lower((full_name)::text) text_pattern_ops);
 
 
 --
@@ -692,6 +828,13 @@ CREATE INDEX idx_outbox_events_published_at ON public.outbox_events USING btree 
 --
 
 CREATE INDEX idx_processed_events_processed_at ON public.processed_events USING btree (processed_at);
+
+
+--
+-- Name: idx_services_company_unarchived_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_services_company_unarchived_id ON public.services USING btree (organization_id, company_id, id) WHERE (archived_at IS NULL);
 
 
 --
@@ -793,10 +936,24 @@ CREATE UNIQUE INDEX uq_branches_organization_id_company_id_id ON public.branches
 
 
 --
+-- Name: uq_bso_branch_service; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_bso_branch_service ON public.branch_service_overrides USING btree (branch_id, service_id);
+
+
+--
 -- Name: uq_companies_slug; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX uq_companies_slug ON public.companies USING btree (slug);
+
+
+--
+-- Name: uq_customers_company_phone; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_customers_company_phone ON public.customers USING btree (company_id, phone_e164);
 
 
 --
@@ -832,6 +989,13 @@ CREATE UNIQUE INDEX uq_roles_id_scope_level ON public.roles USING btree (id, sco
 --
 
 CREATE UNIQUE INDEX uq_roles_key ON public.roles USING btree (key);
+
+
+--
+-- Name: uq_services_organization_id_company_id_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_services_organization_id_company_id_id ON public.services USING btree (organization_id, company_id, id);
 
 
 --
@@ -889,6 +1053,22 @@ ALTER TABLE ONLY public.branch_module_settings
 
 
 --
+-- Name: branch_service_overrides fk_branch_service_overrides_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branch_service_overrides
+    ADD CONSTRAINT fk_branch_service_overrides_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: branch_service_overrides fk_branch_service_overrides_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branch_service_overrides
+    ADD CONSTRAINT fk_branch_service_overrides_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: branches fk_branches_company; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -902,6 +1082,22 @@ ALTER TABLE ONLY public.branches
 
 ALTER TABLE ONLY public.branches
     ADD CONSTRAINT fk_branches_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: branch_service_overrides fk_bso_branch; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branch_service_overrides
+    ADD CONSTRAINT fk_bso_branch FOREIGN KEY (organization_id, company_id, branch_id) REFERENCES public.branches(organization_id, company_id, id);
+
+
+--
+-- Name: branch_service_overrides fk_bso_service; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.branch_service_overrides
+    ADD CONSTRAINT fk_bso_service FOREIGN KEY (organization_id, company_id, service_id) REFERENCES public.services(organization_id, company_id, id);
 
 
 --
@@ -926,6 +1122,22 @@ ALTER TABLE ONLY public.company_modules
 
 ALTER TABLE ONLY public.company_modules
     ADD CONSTRAINT fk_company_modules_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: customers fk_customers_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customers
+    ADD CONSTRAINT fk_customers_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: customers fk_customers_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.customers
+    ADD CONSTRAINT fk_customers_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
 
 
 --
@@ -1017,6 +1229,22 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
+-- Name: services fk_services_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.services
+    ADD CONSTRAINT fk_services_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: services fk_services_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.services
+    ADD CONSTRAINT fk_services_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: audit_events tenant_isolation; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -1028,6 +1256,13 @@ CREATE POLICY tenant_isolation ON public.audit_events USING ((organization_id = 
 --
 
 CREATE POLICY tenant_isolation ON public.branch_module_settings USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
+-- Name: branch_service_overrides tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.branch_service_overrides USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
 
 
 --
@@ -1049,6 +1284,13 @@ CREATE POLICY tenant_isolation ON public.companies USING ((organization_id = (NU
 --
 
 CREATE POLICY tenant_isolation ON public.company_modules USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
+-- Name: customers tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.customers USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
 
 
 --
@@ -1080,12 +1322,22 @@ CREATE POLICY tenant_isolation ON public.processed_events USING ((organization_i
 
 
 --
+-- Name: services tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.services USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
 -- PostgreSQL database dump complete
 --
 
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261111030100'),
+('20261111030000'),
+('20261111024137'),
 ('20261110100300'),
 ('20261110100200'),
 ('20261110100100'),

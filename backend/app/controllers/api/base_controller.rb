@@ -7,5 +7,6 @@ module Api
     include Authentication
     include Access::Authorization
     include Paginated
+    include TypedParams
   end
 end

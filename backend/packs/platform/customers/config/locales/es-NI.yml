@@ -1,0 +1,9 @@
+es-NI:
+  activerecord:
+    errors:
+      models:
+        customers/customer:
+          attributes:
+            base:
+              archived: "el cliente está archivado y no admite cambios"
+  customers: {}

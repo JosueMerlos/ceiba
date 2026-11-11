@@ -2,7 +2,7 @@
 # API keys and consolidated reports. The matrix is DATA: each permission lists the system roles that receive it.
 # Each business module's permissions (appointments, services...) are declared by its own pack.
 #
-# Only the organization, company and branch (read) permissions have an endpoint so far. The rest are declared already so
+# Only the organization, company, branch (read) and customer permissions have an endpoint so far. The rest are declared already so
 # the matrix is complete and verifiable.
 Rails.application.config.to_prepare do
   Access.register_permissions(
@@ -27,6 +27,12 @@ Rails.application.config.to_prepare do
     # Which roles each inviter may grant (e.g. org_admin cannot invite org_admin) is decided by the invitation, not the permission.
     "platform.user.invite" => { description: "Invitar usuarios", roles: %w[org_owner org_admin company_manager branch_manager] },
     "platform.api_key.manage" => { description: "Gestionar API keys", roles: %w[org_owner org_admin] },
-    "platform.reports.consolidated" => { description: "Ver reportes consolidados (solo conteos)", roles: %w[org_owner org_admin] }
+    "platform.reports.consolidated" => { description: "Ver reportes consolidados (solo conteos)", roles: %w[org_owner org_admin] },
+    # Customers belong to a company but are managed from a branch (the customer routes carry the branch the staff acts
+    # from), so these are checked at branch scope and a company_manager passes through the downward rule.
+    "platform.customer.read" => { description: "Ver clientes", roles: %w[company_manager branch_manager receptionist] },
+    "platform.customer.create" => { description: "Crear clientes", roles: %w[company_manager branch_manager receptionist] },
+    "platform.customer.update" => { description: "Editar clientes", roles: %w[company_manager branch_manager receptionist] },
+    "platform.customer.archive" => { description: "Archivar clientes", roles: %w[company_manager branch_manager receptionist] }
   )
 end

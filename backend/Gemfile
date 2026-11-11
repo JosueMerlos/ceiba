@@ -34,6 +34,9 @@ gem "acts_as_tenant", "2.2.2"
 gem "alba", "4.0.3"
 gem "rswag-api", "2.17.0"
 gem "rswag-ui", "2.17.0"
+
+# Phone parsing and E.164 normalization (customers). Pinned version.
+gem "phonelib", "0.10.28"
 # rswag-ui still uses ostruct, which stops being a default gem in Ruby 4.0 (warns on every boot).
 gem "ostruct", "0.6.3"
 

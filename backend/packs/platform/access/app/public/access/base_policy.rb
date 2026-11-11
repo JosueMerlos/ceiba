@@ -30,6 +30,9 @@ module Access
     # An unregistered permission raises Access::UnknownPermission (a code bug, never a silent denial).
     def can?(permission_key, scope) = principal.can?(permission_key, scope)
 
+    # The scope of the current request's context (:company or :branch), for policies whose permissions are asked there.
+    def context_scope(level) = Access::Scope.from_context(Current.context, level:)
+
     class Scope
       attr_reader :principal, :scope
 
@@ -44,6 +47,8 @@ module Access
 
       # What a permission reaches (Access::Reach), to filter the listing with a condition.
       def reach(permission_key) = principal.reach(permission_key)
+
+      def context_scope(level) = Access::Scope.from_context(Current.context, level:)
     end
   end
 end

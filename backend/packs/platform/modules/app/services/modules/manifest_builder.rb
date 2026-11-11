@@ -75,7 +75,9 @@ module Modules
       def initialize = @declared = []
       attr_reader :declared
 
-      def permission(key, description: nil) = @declared << { key: key.to_s, description: description.to_s.strip }
+      def permission(key, description: nil, from_descendants: false)
+        @declared << { key: key.to_s, description: description.to_s.strip, from_descendants: }
+      end
     end
 
     class GrantsBlock

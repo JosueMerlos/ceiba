@@ -1,0 +1,18 @@
+# Pack platform/customers (namespace Customers).
+layer: platform
+enforce_dependencies: true
+enforce_privacy: true
+enforce_layers: true
+
+# Declare ONLY what the pack uses here. "." is the root pack (ApplicationRecord, ApplicationController...).
+# A platform pack depends on no module.
+dependencies:
+  - "."
+  # The active context: the organization's country decides the region of local phone numbers (Current.context).
+  - "packs/platform/tenancy"
+  # Policies extend Access::BasePolicy and ask the principal for permissions.
+  - "packs/platform/access"
+  # Every write is audited by id in the caller's transaction (Audit.record).
+  - "packs/platform/audit"
+  # Creating a customer accepts an Idempotency-Key.
+  - "packs/platform/idempotency"

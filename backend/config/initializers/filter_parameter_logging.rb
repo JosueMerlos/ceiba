@@ -13,6 +13,11 @@ Rails.application.config.filter_parameters += [
   :email, :correo,
   # Phone
   :phone, :telefono, :teléfono, :celular, :mobile, :whatsapp,
+  # Free-text notes about a customer
+  :notes,
+  # A customer's name, in the body and in the name search of the listing. Never a bare :name or :q: they match every
+  # unrelated parameter of that name, services and branches included.
+  :full_name, :name_prefix,
   # Session and CSRF
   :csrf, :authorization, :cookie
 ]

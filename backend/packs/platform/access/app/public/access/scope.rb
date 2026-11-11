@@ -10,6 +10,16 @@ module Access
     def self.company(organization_id:, company_id:) = new(organization_id:, company_id:, branch_id: nil)
     def self.branch(organization_id:, company_id:, branch_id:) = new(organization_id:, company_id:, branch_id:)
 
+    # The scope the request is acting in (Tenancy::Context), at the given level: :company or :branch.
+    def self.from_context(context, level:)
+      organization_id = context.organization.id
+      case level
+      when :company then company(organization_id:, company_id: context.company.id)
+      when :branch then branch(organization_id:, company_id: context.company.id, branch_id: context.branch.id)
+      else raise ArgumentError, "Nivel de alcance desconocido: #{level.inspect}"
+      end
+    end
+
     def initialize(organization_id:, company_id: nil, branch_id: nil)
       raise ArgumentError, "Un alcance requiere organization_id" if organization_id.blank?
       raise ArgumentError, "Un alcance de sucursal requiere company_id" if branch_id.present? && company_id.blank?

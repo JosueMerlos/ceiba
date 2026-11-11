@@ -10,17 +10,32 @@ RSpec.describe "Manifiesto de appointments" do
   it "declara los permisos de la matriz de 04 con el prefijo del módulo" do
     expect(manifest.permission_keys).to contain_exactly(
       "appointments.appointment.read", "appointments.appointment.create", "appointments.appointment.update",
-      "appointments.appointment.update_own", "appointments.appointment.count", "appointments.service.read", "appointments.service.manage"
+      "appointments.appointment.update_own", "appointments.appointment.count", "appointments.service.read", "appointments.service.manage",
+      "appointments.service.override_duration", "appointments.service.override_price"
     )
   end
 
   it "concede según la matriz: el personal opera citas, el profesional solo las suyas, solo company_manager gestiona servicios" do
     expect(manifest.role_grants).to include(
-      "company_manager" => include("appointments.service.manage", "appointments.appointment.update"),
-      "branch_manager" => include("appointments.appointment.create").and(satisfy { |keys| keys.exclude?("appointments.service.manage") }),
+      "company_manager" => include("appointments.service.manage", "appointments.appointment.update",
+                                   "appointments.service.override_duration", "appointments.service.override_price"),
+      "branch_manager" => include("appointments.appointment.create", "appointments.service.override_duration")
+        .and(satisfy { |keys| keys.exclude?("appointments.service.manage") && keys.exclude?("appointments.service.override_price") }),
       "receptionist" => include("appointments.appointment.create", "appointments.service.read"),
       "professional" => contain_exactly("appointments.appointment.read", "appointments.appointment.update_own", "appointments.service.read")
     )
+  end
+
+  it "solo company_manager y branch_manager tocan overrides: la duración los dos, el precio solo company_manager (04)" do
+    holders = ->(key) { manifest.role_grants.select { |_role, keys| keys.include?(key) }.keys }
+
+    expect(holders.call("appointments.service.override_duration")).to contain_exactly("company_manager", "branch_manager")
+    expect(holders.call("appointments.service.override_price")).to contain_exactly("company_manager")
+  end
+
+  it "la lectura de servicios se ejerce también desde la sucursal (from_descendants); la gestión no" do
+    expect(Access.registry.upward_keys).to include("appointments.service.read")
+    expect(Access.registry.upward_keys).not_to include("appointments.service.manage", "appointments.service.override_price")
   end
 
   it "org_owner y org_admin solo ven CONTEOS de citas (04: citas = conteos), nunca el detalle" do

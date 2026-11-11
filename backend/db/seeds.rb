@@ -130,6 +130,32 @@ def seed_group(group)
     seeded = true
   end
   puts(seeded ? "Sembrada: #{group.dig(:organization, :name)}" : "Ya existe: #{group.dig(:organization, :name)}")
+  owner
 end
 
-DEMO_GROUPS.each { |group| seed_group(group) }
+# Demo owners: the only public way to reach the demo organizations afterwards.
+owners = DEMO_GROUPS.filter_map { |group| seed_group(group) }
+
+# Demo customers, seeded into EVERY company of the demo organizations (not only the ones with appointments). The same phones
+# in every company are different customers (one per company and phone). Fake numbers on purpose (+505 8800 00xx).
+DEMO_CUSTOMERS = [
+  { full_name: "Marlon Gutiérrez", phone: "+50588000001" },
+  { full_name: "Yahaira Ruiz", phone: "+50588000002" },
+  { full_name: "Carmen Altamirano", phone: "+50588000003" }
+].freeze
+
+# The module's demo hook is loaded by path: the root pack cannot see the module's constants.
+load Rails.root.join("packs/modules/appointments/db/seeds.rb")
+
+# Runs AFTER all groups: seed_group opens no tenancy context and skips a group that already exists, while these steps must
+# also complete a group seeded earlier. All are idempotent (the module hook by company, customers by phone).
+organization_ids = owners.flat_map { |owner| Access::Principal::User.new(owner).organization_ids }.uniq
+Tenancy::Directory.organizations_for(organization_ids).order(:name).each do |organization|
+  Tenancy.with_context(organization:) do
+    Tenancy::Directory.companies.order(:slug).each do |company|
+      AppointmentsDemoSeeds.seed_company(company)
+      DEMO_CUSTOMERS.each { |customer| Customers::FindOrCreate.call(company_id: company.id, **customer) }
+      puts "Clientes listos: #{company.name} (#{DEMO_CUSTOMERS.size})"
+    end
+  end
+end

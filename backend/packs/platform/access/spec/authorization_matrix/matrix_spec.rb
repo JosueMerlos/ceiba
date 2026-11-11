@@ -26,7 +26,12 @@ module AuthorizationMatrix
     "platform.branding.update" => %w[org_admin company_manager],
     "platform.user.invite" => %w[org_owner org_admin company_manager branch_manager],
     "platform.api_key.manage" => %w[org_owner org_admin],
-    "platform.reports.consolidated" => %w[org_owner org_admin]
+    "platform.reports.consolidated" => %w[org_owner org_admin],
+    # Customers belong to a company but are managed from a branch; professionals get no access until they have appointments.
+    "platform.customer.read" => %w[company_manager branch_manager receptionist],
+    "platform.customer.create" => %w[company_manager branch_manager receptionist],
+    "platform.customer.update" => %w[company_manager branch_manager receptionist],
+    "platform.customer.archive" => %w[company_manager branch_manager receptionist]
   }.freeze
   # Scopes each role COVERS in the test world: org_* the whole organization; company_manager of A, A and its branches;
   # branch roles only A1 (org > company > branch).

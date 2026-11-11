@@ -24,3 +24,16 @@ end
 
 # sample: its "things" are the company's branches.
 ModuleCoverageFactories.register("sample", :id) { |branch:, **| branch.id }
+
+# appointments: :id is a service of the company; :service_id is a service WITH an override in the branch, so the override
+# routes find a real row (an absent override is a 404 of its own, not of the gate).
+ModuleCoverageFactories.register("appointments", :id) do |company:, **|
+  Tenancy.with_context(organization: company.organization) { FactoryBot.create(:service, company:).id }
+end
+ModuleCoverageFactories.register("appointments", :service_id) do |company:, branch:|
+  Tenancy.with_context(organization: company.organization) do
+    service = FactoryBot.create(:service, company:)
+    FactoryBot.create(:branch_service_override, service:, branch:)
+    service.id
+  end
+end

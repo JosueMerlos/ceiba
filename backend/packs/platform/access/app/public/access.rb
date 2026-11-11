@@ -13,7 +13,15 @@ module Access
     "professional" => "branch"
   }.freeze
 
+  # READ actions: the only ones `from_descendants` applies to (upward reading never grants writing). Public so callers can
+  # list them in their error messages.
+  READ_ACTIONS = %w[read list show view].freeze
+
   class << self
+    # Whether a <module>.<resource>.<action> key names a READ action. One predicate, so the manifest validator rejects the
+    # same declarations the permission registry does.
+    def read_permission?(key) = READ_ACTIONS.include?(key.split(".").last)
+
     # Declares a module's permissions and which system roles receive them (the role matrix as DATA). Call it from
     # `config.to_prepare` in the pack's initializer so it survives code reloading in development:
     #

@@ -13,9 +13,10 @@
 ```
 services                      (empresa)
   id, organization_id, company_id, name, duration_minutes, buffer_before_minutes, buffer_after_minutes,
-  price_minor, currency, active, archived_at, position
+  price_minor, currency, active, position, archived_at, created_at, updated_at
 branch_service_overrides      (sucursal: solo duración y/o precio)
-  branch_id, service_id, duration_minutes NULL, price_minor NULL
+  id, organization_id, company_id, branch_id, service_id, duration_minutes NULL, price_minor NULL,
+  created_at, updated_at                              -- UNIQUE(branch_id, service_id); al menos un valor no nulo
 
 professionals                 (empresa)
   id, organization_id, company_id, user_id NULL, display_name, active, archived_at

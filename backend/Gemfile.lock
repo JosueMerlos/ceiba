@@ -230,6 +230,7 @@ GEM
     pg (1.7.0-x86_64-darwin)
     pg (1.7.0-x86_64-linux)
     pg (1.7.0-x86_64-linux-musl)
+    phonelib (0.10.28)
     pp (0.6.4)
       prettyprint
     prettyprint (0.2.1)
@@ -440,6 +441,7 @@ DEPENDENCIES
   packwerk (= 3.3.1)
   packwerk-extensions (= 0.4.0)
   pg (~> 1.1)
+  phonelib (= 0.10.28)
   puma (>= 5.0)
   pundit (= 2.5.2)
   rack-attack (= 6.8.0)
