@@ -35,3 +35,4 @@ Cada decisión relevante tiene su ADR ([plantilla](../templates/adr.md)). Un ADR
 | [0029](0029-citas-multi-servicio.md) | Citas con varios servicios y precios congelados | aceptada |
 | [0030](0030-nombre-del-producto-ceiba.md) | El producto se llama Ceiba | aceptada |
 | [0031](0031-tokens-de-diseno-en-tres-capas.md) | Tokens de diseño en tres capas con los nombres semánticos de shadcn/ui | aceptada |
+| [0032](0032-lenguaje-visual-marco-y-hoja.md) | Lenguaje visual: marco suave con hoja blanca en el panel, reserva toda blanca | aceptada |
