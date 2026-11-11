@@ -6,7 +6,7 @@ module Appointments
 
       def call(company_id:, attributes:)
         professional = Professional.new(attributes.with_indifferent_access.slice(*Professional::EDITABLE).merge(company_id:))
-        Catalog::SaveAudited.call(professional, action: "professional.created", fields: PROFESSIONAL_FIELDS)
+        SaveAudited.call(professional, action: "professional.created", fields: PROFESSIONAL_FIELDS)
       end
     end
   end

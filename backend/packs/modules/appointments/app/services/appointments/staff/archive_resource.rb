@@ -9,7 +9,7 @@ module Appointments
         return resource if resource.archived?
 
         resource.archived_at = Time.current
-        Catalog::SaveAudited.call(resource, action: "resource.archived", fields: %w[archived_at], metadata: { branch_id: resource.branch_id })
+        SaveAudited.call(resource, action: "resource.archived", fields: %w[archived_at], metadata: { branch_id: resource.branch_id })
       end
     end
   end

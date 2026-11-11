@@ -6,13 +6,9 @@ module Appointments
       module_function
 
       def call(professional:, attributes:)
-        if professional.archived?
-          professional.errors.add(:base, :archived)
-          raise ActiveRecord::RecordInvalid, professional
-        end
-
+        Staff.reject_archived!(professional)
         professional.assign_attributes(attributes.with_indifferent_access.slice(*Professional::EDITABLE))
-        Catalog::SaveAudited.call(professional, action: "professional.updated", fields: PROFESSIONAL_FIELDS)
+        SaveAudited.call(professional, action: "professional.updated", fields: PROFESSIONAL_FIELDS)
       end
     end
   end

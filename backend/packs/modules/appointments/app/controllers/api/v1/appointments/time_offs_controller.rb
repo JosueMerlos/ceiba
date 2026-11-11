@@ -17,7 +17,7 @@ module Api
         idempotent :create, required: false
 
         def index
-          authorize probe, :index?, policy_class: ::Appointments::TimeOffPolicy
+          authorize owner, :index?, policy_class: ::Appointments::TimeOffPolicy
           render_page(owner_time_offs, serializer: ::Appointments::TimeOffSerializer)
         end
 
@@ -28,23 +28,16 @@ module Api
 
         def destroy
           time_off = owner_time_offs.find(params[:"#{owner_kind}_time_off_id"])
-          authorize time_off, :destroy?, policy_class: ::Appointments::TimeOffPolicy
+          authorize owner, :destroy?, policy_class: ::Appointments::TimeOffPolicy
           ::Appointments::Staff::DeleteTimeOff.call(time_off:)
           head :no_content
         end
 
         private
 
-        def authorize_creation = authorize(probe, :create?, policy_class: ::Appointments::TimeOffPolicy)
+        def authorize_creation = authorize(owner, :create?, policy_class: ::Appointments::TimeOffPolicy)
 
-        # Describes the owner to the policy: no row is read or written through it.
-        def probe
-          time_off = ::Appointments::TimeOff.new(owner_type: owner_kind, company_id:)
-          time_off.professional = owner if owner_kind == "professional"
-          time_off
-        end
-
-        def owner_time_offs = ::Appointments::TimeOff.where(company_id:, **owner_columns)
+        def owner_time_offs = ::Appointments::TimeOff.where(company_id:).owned_by(owner)
 
         def time_off_params = typed_params(starts_at: String, ends_at: String, reason: String)
       end

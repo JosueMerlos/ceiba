@@ -9,7 +9,7 @@ module Appointments
         return professional if professional.archived?
 
         professional.archived_at = Time.current
-        Catalog::SaveAudited.call(professional, action: "professional.archived", fields: %w[archived_at])
+        SaveAudited.call(professional, action: "professional.archived", fields: %w[archived_at])
       end
     end
   end

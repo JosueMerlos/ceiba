@@ -9,14 +9,24 @@ module Appointments
       # Optional: a missing owner is reported as a field error by the including model, not as "must exist".
       belongs_to :professional, class_name: "Appointments::Professional", optional: true
       belongs_to :resource, class_name: "Appointments::Resource", optional: true
+
+      scope :owned_by, ->(owner) { where(owner_attributes(owner)) }
+    end
+
+    class_methods do
+      # The owner columns that identify the rows of an owner: a professional, a resource, or (anything else) the branch itself.
+      def owner_attributes(owner)
+        case owner
+        when Professional then { owner_type: "professional", professional_id: owner.id }
+        when Resource then { owner_type: "resource", resource_id: owner.id }
+        else { owner_type: "branch" }
+        end
+      end
     end
 
     def professional_owner? = owner_type == "professional"
     def resource_owner? = owner_type == "resource"
     def branch_owner? = owner_type == "branch"
-
-    # Is this the given user's OWN professional record, attending in the branch? Only a professional owner can be a person's own.
-    def own_for?(user_id:, branch_id:) = professional_owner? && professional&.own_in_branch?(user_id:, branch_id:)
 
     private
 

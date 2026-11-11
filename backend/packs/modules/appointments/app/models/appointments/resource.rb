@@ -2,6 +2,8 @@ module Appointments
   # A physical resource of ONE branch (chair, room, equipment). TENANT table; only ids are stored (no association to the
   # private Tenancy models). Never destroyed: it is archived (`archived_at`) so bookings can keep referencing it.
   class Resource < ApplicationRecord
+    include BranchInCompany
+
     KINDS = %w[chair room equipment].freeze
     MAX_NAME_LENGTH = 120
     # What a client may write; the audit trail records these plus `archived_at`.
@@ -27,10 +29,6 @@ module Appointments
 
     def normalize_fields
       self.name = name.strip if name
-    end
-
-    def branch_in_company
-      errors.add(:branch_id, :invalid) if branch_id.blank? || Tenancy::Directory.branch_company_id(branch_id) != company_id
     end
   end
 end

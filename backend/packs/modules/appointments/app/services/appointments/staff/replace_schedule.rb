@@ -24,26 +24,27 @@ module Appointments
 
       module_function
 
-      def call(owner:, branch_id:, slots:)
-        ApplicationRecord.transaction(requires_new: true) { replace(owner, branch_id, slots) }
+      def call(owner:, branch_id:, slots:, action: "schedule.replaced")
+        ApplicationRecord.transaction(requires_new: true) { replace(owner, branch_id, slots, action) }
       rescue ActiveRecord::StatementInvalid => error
         raise unless error.cause.is_a?(PG::ExclusionViolation)
 
         raise ActiveRecord::RecordInvalid, Rejection.new(:overlap)
       end
 
-      def replace(owner, branch_id, slots)
+      def replace(owner, branch_id, slots, action)
         Staff.reject_archived!(owner)
         lock(owner)
-        ownership = ownership_of(owner)
-        current = WeeklySchedule.where(branch_id:, **ownership.fetch(:scope))
+        owner_attributes = WeeklySchedule.owner_attributes(owner)
+        current = WeeklySchedule.where(branch_id:).owned_by(owner)
         before = describe(current)
         current.delete_all
 
-        rows = slots.map { |slot| save!(slot, ownership.fetch(:attributes).merge(branch_id:, company_id: owner.company_id)) }
+        rows = slots.map { |slot| save!(slot, owner_attributes.merge(branch_id:, company_id: owner.company_id)) }
 
         after = describe(rows)
-        Audit.record(action: "schedule.replaced", subject: owner, before: { "slots" => before }, after: { "slots" => after }, metadata: { branch_id:, owner_type: ownership.dig(:attributes, :owner_type) }) if before != after
+        Audit.record(action:, subject: owner, before: { "slots" => before }, after: { "slots" => after },
+                     metadata: { branch_id:, company_id: owner.company_id, owner_type: owner_attributes.fetch(:owner_type) }) if before != after
         rows
       end
       private_class_method :replace
@@ -58,15 +59,6 @@ module Appointments
         raise ActiveRecord::RecordInvalid, Rejection.new(error.record.errors.of_kind?(:base, :overlap) ? :overlap : :invalid)
       end
       private_class_method :save!
-
-      def ownership_of(owner)
-        case owner
-        when Professional then { scope: { professional_id: owner.id }, attributes: { owner_type: "professional", professional_id: owner.id } }
-        when Resource then { scope: { resource_id: owner.id }, attributes: { owner_type: "resource", resource_id: owner.id } }
-        else { scope: { owner_type: "branch" }, attributes: { owner_type: "branch" } }
-        end
-      end
-      private_class_method :ownership_of
 
       # By owner and not by owner and branch: a professional's exclusion constraint spans all their branches.
       def lock(owner)

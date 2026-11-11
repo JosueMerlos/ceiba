@@ -14,25 +14,18 @@ module Api
         private_constant :MAX_SLOTS, :SLOT_KEYS
 
         def show
-          authorize probe, :show?, policy_class: ::Appointments::SchedulePolicy
+          authorize owner, :show?, policy_class: ::Appointments::SchedulePolicy
           render_slots(branch_slots)
         end
 
         def update
-          authorize probe, :update?, policy_class: ::Appointments::SchedulePolicy
+          authorize owner, :update?, policy_class: ::Appointments::SchedulePolicy
           render_slots(::Appointments::Staff::ReplaceSchedule.call(owner:, branch_id:, slots: slots_param))
         end
 
         private
 
-        # Describes the owner to the policy: no row is read or written through it.
-        def probe
-          schedule = ::Appointments::WeeklySchedule.new(owner_type: owner_kind, company_id:, branch_id:)
-          schedule.professional = owner if owner_kind == "professional"
-          schedule
-        end
-
-        def branch_slots = ::Appointments::WeeklySchedule.where(branch_id:, **owner_columns).order(:weekday, :starts_at_local)
+        def branch_slots = ::Appointments::WeeklySchedule.where(branch_id:).owned_by(owner).order(:weekday, :starts_at_local)
 
         def render_slots(slots) = render json: { data: ::Appointments::WeeklyScheduleSerializer.new(slots).serializable_hash }
 

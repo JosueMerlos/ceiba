@@ -14,8 +14,8 @@ module Appointments
     private
 
     def own_profile?
-      can?("appointments.professional.read_own", context_scope(:branch)) && record.user_id.present? && record.user_id == principal.id &&
-        record.branch_ids.include?(Current.context.branch.id)
+      can?("appointments.professional.read_own", context_scope(:branch)) &&
+        record.own_in_branch?(user_id: principal.id, branch_id: Current.context.branch.id)
     end
 
     class Scope < Access::BasePolicy::Scope

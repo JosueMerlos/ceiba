@@ -8,9 +8,10 @@ module Appointments
     RESOURCE_FIELDS = (Resource::EDITABLE + %w[archived_at]).freeze
     TIME_OFF_AUDITED_FIELDS = %w[owner_type professional_id resource_id starts_at ends_at].freeze
 
-    # An archived professional or resource is read-only history: it takes no new hours or absences (base: archived).
+    # An archived professional or resource is read-only history: it takes no new hours or absences (base: archived). Owners
+    # that cannot be archived (a branch) pass.
     def self.reject_archived!(owner)
-      return unless (owner.is_a?(Professional) || owner.is_a?(Resource)) && owner.archived?
+      return unless owner.try(:archived?)
 
       owner.errors.add(:base, :archived)
       raise ActiveRecord::RecordInvalid, owner

@@ -20,7 +20,7 @@ module Appointments
 
       def assign(professional, branch_id)
         assignment = ProfessionalBranchAssignment.new(professional_id: professional.id, branch_id:, company_id: professional.company_id)
-        Catalog::SaveAudited.call(assignment, action: "professional.assigned", fields: %w[professional_id branch_id])
+        SaveAudited.call(assignment, action: "professional.assigned", fields: %w[professional_id branch_id])
       end
       private_class_method :assign
     end

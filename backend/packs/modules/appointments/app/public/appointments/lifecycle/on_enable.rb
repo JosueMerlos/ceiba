@@ -16,14 +16,12 @@ module Appointments
 
       def call(company:)
         with_hours = WeeklySchedule.where(company_id: company.id, owner_type: "branch").distinct.pluck(:branch_id)
-        Tenancy::Directory.branches.where(company_id: company.id).where.not(id: with_hours).order(:id).each { give_default_hours(it, company) }
+        Tenancy::Directory.branches.where(company_id: company.id).where.not(id: with_hours).order(:id).each { give_default_hours(it) }
       end
 
-      def give_default_hours(branch, company)
+      def give_default_hours(branch)
         slots = DEFAULT_WEEKDAYS.map { { weekday: it, starts_at_local: DEFAULT_OPENS, ends_at_local: DEFAULT_CLOSES } }
-        slots.each { WeeklySchedule.create!(**it, owner_type: "branch", branch_id: branch.id, company_id: company.id) }
-        Audit.record(action: "schedule.defaults_created", subject: branch, after: { "slots" => slots.map(&:stringify_keys) },
-                     metadata: { "branch_id" => branch.id, "company_id" => company.id })
+        Staff::ReplaceSchedule.call(owner: branch, branch_id: branch.id, slots:, action: "schedule.defaults_created")
       end
       private_class_method :give_default_hours
     end

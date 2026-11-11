@@ -5,6 +5,7 @@ module Appointments
   # midnight.
   class WeeklySchedule < ApplicationRecord
     include OwnerScoped
+    include BranchInCompany
 
     OWNER_TYPES = %w[branch professional resource].freeze
     WEEKDAYS = (0..6)
@@ -42,10 +43,6 @@ module Appointments
       errors.add(:ends_at_local, :invalid) unless starts_at_local < ends_at_local
     end
 
-    def branch_in_company
-      errors.add(:branch_id, :invalid) if branch_id.blank? || Tenancy::Directory.branch_company_id(branch_id) != company_id
-    end
-
     # A professional only has hours where they are assigned; a resource only in its own branch.
     def owner_belongs_to_branch
       if professional_owner? && professional_id.present? &&
@@ -57,19 +54,17 @@ module Appointments
 
     # Same owner, same weekday, minute ranges that intersect ([start, end) like the exclusion constraints).
     def no_overlap
-      return if errors.any? || owner_slots.none?
+      return if errors.any?
 
       errors.add(:base, :overlap) if owner_slots.where.not(id:).exists?(
         [ "starts_at_local < ?::time AND ends_at_local > ?::time", ends_at_local.strftime("%H:%M"), starts_at_local.strftime("%H:%M") ]
       )
     end
 
+    # A branch's slots are per branch; a professional's span all their branches (the exclusion constraint does too).
     def owner_slots
-      scope = self.class.where(weekday:)
-      if professional_owner? then scope.where(professional_id:)
-      elsif resource_owner? then scope.where(resource_id:)
-      else scope.where(owner_type: "branch", branch_id:)
-      end
+      slots = self.class.where(weekday:, owner_type:, professional_id:, resource_id:)
+      branch_owner? ? slots.where(branch_id:) : slots
     end
   end
 end

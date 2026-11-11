@@ -28,15 +28,6 @@ module Api
         end
 
         def branch_resources = ::Appointments::Resource.where(company_id:, branch_id:)
-
-        # The rows of the owner, as a condition on the owner columns.
-        def owner_columns
-          case owner_kind
-          when "professional" then { professional_id: owner.id }
-          when "resource" then { resource_id: owner.id }
-          else { owner_type: "branch" }
-          end
-        end
       end
     end
   end
