@@ -37,3 +37,4 @@ Cada decisión relevante tiene su ADR ([plantilla](../templates/adr.md)). Un ADR
 | [0031](0031-tokens-de-diseno-en-tres-capas.md) | Tokens de diseño en tres capas con los nombres semánticos de shadcn/ui | aceptada |
 | [0032](0032-lenguaje-visual-marco-y-hoja.md) | Lenguaje visual: marco suave con hoja blanca en el panel, reserva toda blanca | aceptada |
 | [0033](0033-autorizacion-y-pii-de-clientes-y-servicios.md) | Autorización desde la sucursal, PII del cliente en su propio recurso y overrides por cambio efectivo | aceptada |
+| [0034](0034-horarios-ausencias-y-permisos-de-profesionales-y-recursos.md) | Horarios por defecto solo al activar, permisos de profesionales y recursos, ausencias con motivo libre y dueño explícito | aceptada |

@@ -37,3 +37,38 @@ ModuleCoverageFactories.register("appointments", :service_id) do |company:, bran
     service.id
   end
 end
+
+# The owners the branch routes name. Find-or-create, so every route of one run sees the SAME professional (assigned to the
+# suite's branch: the branch routes need the assignment to answer by themselves) and the SAME resource (of that branch); the
+# absence builders create the absence of THAT same owner (an absence of another owner would be a 404 on a DELETE, even with
+# the module active). An archived one (the suite visits the DELETE routes) is replaced by a fresh one. Call inside Tenancy.with_context.
+module AppointmentsCoverageOwners
+  module_function
+
+  def professional(company:, branch:)
+    professional = Appointments::Professional.unarchived.find_by(company_id: company.id, display_name: "Cobertura") ||
+                   FactoryBot.create(:professional, company:, display_name: "Cobertura")
+    FactoryBot.create(:professional_branch_assignment, professional:, branch:) unless
+      Appointments::ProfessionalBranchAssignment.exists?(professional_id: professional.id, branch_id: branch.id)
+    professional
+  end
+
+  def resource(branch:)
+    Appointments::Resource.unarchived.find_by(branch_id: branch.id, name: "Cobertura") || FactoryBot.create(:resource, branch:, name: "Cobertura")
+  end
+end
+
+ModuleCoverageFactories.register("appointments", :professional_id) do |company:, branch:|
+  Tenancy.with_context(organization: company.organization) { AppointmentsCoverageOwners.professional(company:, branch:).id }
+end
+ModuleCoverageFactories.register("appointments", :resource_id) do |branch:, company:|
+  Tenancy.with_context(organization: company.organization) { AppointmentsCoverageOwners.resource(branch:).id }
+end
+ModuleCoverageFactories.register("appointments", :professional_time_off_id) do |company:, branch:|
+  Tenancy.with_context(organization: company.organization) do
+    FactoryBot.create(:time_off, professional: AppointmentsCoverageOwners.professional(company:, branch:)).id
+  end
+end
+ModuleCoverageFactories.register("appointments", :resource_time_off_id) do |company:, branch:|
+  Tenancy.with_context(organization: company.organization) { FactoryBot.create(:time_off, resource: AppointmentsCoverageOwners.resource(branch:)).id }
+end

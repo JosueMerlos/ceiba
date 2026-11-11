@@ -16,11 +16,16 @@ module SampleModule
 
   class << self
     def calls = @calls ||= []
-    def reset! = @calls = []
+    # What each on_enable run was told about being the company's first activation of the module.
+    def first_activations = @first_activations ||= []
+    def reset! = (@calls = []; @first_activations = [])
   end
 
   class OnEnable
-    def self.call(company:) = SampleModule.calls << [ :enable, company.id ]
+    def self.call(company:, first_activation:)
+      SampleModule.calls << [ :enable, company.id ]
+      SampleModule.first_activations << first_activation
+    end
   end
 
   class OnDisable

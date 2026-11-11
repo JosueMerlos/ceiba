@@ -1,6 +1,6 @@
 # Dominio: módulo de citas (`appointments`)
 
-> Migrado desde `plans/plan-ecosistema-modular-modulo-citas.md` §4–§5 y Fase 1. Decisiones: [ADR-0018](../adr/0018-integridad-de-agenda-en-bd.md), [ADR-0019](../adr/0019-reprogramar-crea-cita-nueva.md), [ADR-0020](../adr/0020-persona-separada-de-profesional.md), [ADR-0029](../adr/0029-citas-multi-servicio.md). Hitos: F1–F3.
+> Migrado desde `plans/plan-ecosistema-modular-modulo-citas.md` §4–§5 y Fase 1. Decisiones: [ADR-0018](../adr/0018-integridad-de-agenda-en-bd.md), [ADR-0019](../adr/0019-reprogramar-crea-cita-nueva.md), [ADR-0020](../adr/0020-persona-separada-de-profesional.md), [ADR-0029](../adr/0029-citas-multi-servicio.md), [ADR-0034](../adr/0034-horarios-ausencias-y-permisos-de-profesionales-y-recursos.md). Hitos: F1–F3.
 
 ## Alcance del MVP
 
@@ -19,21 +19,27 @@ branch_service_overrides      (sucursal: solo duración y/o precio)
   created_at, updated_at                              -- UNIQUE(branch_id, service_id); al menos un valor no nulo
 
 professionals                 (empresa)
-  id, organization_id, company_id, user_id NULL, display_name, active, archived_at
+  id, organization_id, company_id, user_id NULL, display_name, active, archived_at, created_at, updated_at
+                                                      -- UNIQUE parcial (company_id, user_id) WHERE user_id IS NOT NULL
 professional_branch_assignments
-  professional_id, branch_id
+  id, organization_id, company_id, professional_id, branch_id, created_at, updated_at
+                                                      -- FKs triples a professionals y branches; UNIQUE(professional_id, branch_id)
 professional_services         (qué servicios presta)
-  professional_id, service_id
+  id, organization_id, company_id, professional_id, service_id, created_at, updated_at
 
 resources                     (sucursal)
-  id, organization_id, company_id, branch_id, name, kind ('chair'|'room'|'equipment'), active
-service_resource_requirements (qué tipo/recurso requiere un servicio, opcional)
+  id, organization_id, company_id, branch_id, name, kind ('chair'|'room'|'equipment'), active, archived_at,
+  created_at, updated_at
+service_resource_requirements (qué TIPO de recurso necesita un servicio)
+  id, organization_id, company_id, service_id, kind, created_at, updated_at   -- UNIQUE(service_id, kind)
 
 weekly_schedules              (horario semanal local)
-  owner_type ('branch'|'professional'|'resource'), owner_id, branch_id, weekday (0-6),
-  starts_at_local (time), ends_at_local (time)
+  id, organization_id, company_id, branch_id, owner_type ('branch'|'professional'|'resource'),
+  professional_id NULL, resource_id NULL, weekday (0-6, 0 = domingo), starts_at_local (time), ends_at_local (time),
+  created_at, updated_at
 time_offs
-  owner_type, owner_id, starts_at (timestamptz), ends_at, reason
+  id, organization_id, company_id, owner_type ('professional'|'resource'), professional_id NULL, resource_id NULL,
+  starts_at (timestamptz), ends_at, reason NULL (texto libre, hasta 200, sin datos de salud), created_at, updated_at
 
 appointments
   id, organization_id, company_id, branch_id, customer_id, professional_id, resource_id NULL,
@@ -44,6 +50,16 @@ appointment_services
 ```
 
 Todas son tablas tenant (`create_tenant_table`) con FKs compuestas hacia sus padres.
+
+### Cómo quedó implementado (M1.02)
+
+- **Dueño explícito, no polimórfico.** `weekly_schedules` y `time_offs` llevan `professional_id` y `resource_id` anulables más `owner_type`, con un CHECK de coherencia (solo la columna del tipo de dueño está llena) y una clave foránea compuesta por columna: un horario de profesional exige una asignación a esa sucursal `(organization_id, company_id, professional_id, branch_id)` y uno de recurso exige que el recurso sea de esa sucursal. Un `owner_id` polimórfico no admite FK ([ADR-0034](../adr/0034-horarios-ausencias-y-permisos-de-profesionales-y-recursos.md)).
+- **Requisitos por `kind`.** `service_resource_requirements` pide un tipo de recurso (`chair`, `room`, `equipment`) y no un recurso concreto: el motor exige un recurso compatible libre en la sucursal ([M1.04](../milestones/F1-citas-dominio/M1.04-disponibilidad-completa.md)).
+- **Franjas de minuto entero y sin cruzar la medianoche.** CHECKs: `weekday` entre 0 y 6, `starts_at_local < ends_at_local` y precisión de minuto (sin ella, una franja de menos de un minuto da un rango vacío y escapa a la exclusión).
+- **Sin solapes, garantizado por la BD.** Tres exclusion constraints parciales sobre `int4range` de minutos del día, semiabierto `[)` (9–13 y 13–15 no solapan): por sucursal (`owner_type = 'branch'`), por profesional (en **todas** sus sucursales: una persona no está en dos sitios a la vez) y por recurso. El modelo da el mismo error como `slots: overlap` (`422`) antes de llegar a la BD.
+- **El `PUT` del horario reemplaza todas las franjas del dueño en esa sucursal** en una transacción, serializada por dueño con un candado consultivo.
+- **Ausencias solapadas del mismo dueño se permiten**: el motor resta la unión.
+- **Sucursal sin horario = cerrada.** `on_enable` del módulo (`Appointments::Lifecycle::OnEnable`) da lunes a sábado de 08:00 a 18:00 a las sucursales que existen **al activar** y que no tienen horario; una sucursal creada después empieza sin horario (cerrada para el motor) hasta que el gerente lo configura (M2.01).
 
 ## Restricciones críticas
 

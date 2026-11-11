@@ -7,25 +7,72 @@ RSpec.describe "db/seeds.rb" do
   let(:demo_customers) do
     [ [ "Carmen Altamirano", "+50588000003" ], [ "Marlon Gutiérrez", "+50588000001" ], [ "Yahaira Ruiz", "+50588000002" ] ]
   end
-
   let(:expected_census) do
     [
       [ "Barbería El Güegüense", [
         [ "NIO", "barbershop", 1,
           [ [ "Corte clásico", 30, 20_000, "NIO" ], [ "Corte y barba", 45, 30_000, "NIO" ], [ "Afeitado clásico", 30, 15_000, "NIO" ] ],
-          [], demo_customers ]
+          [], demo_customers, barbershop_staff ]
       ] ],
-      [ "Café Volcán", [ [ "NIO", "cafe", 1, [], [], demo_customers ] ] ],
+      [ "Café Volcán", [ [ "NIO", "cafe", 1, [], [], demo_customers, empty_staff ] ] ],
       [ "Grupo Salud & Estilo", [
         [ "USD", "dental", 1,
           [ [ "Limpieza dental", 45, 4_000, "USD" ], [ "Consulta de valoración", 30, 2_500, "USD" ], [ "Blanqueamiento dental", 60, 12_000, "USD" ] ],
-          [], demo_customers ],
+          [], demo_customers, dental_staff ],
         [ "NIO", "salon", 2,
           [ [ "Corte de dama", 45, 25_000, "NIO" ], [ "Tinte completo", 120, 80_000, "NIO" ], [ "Manicure", 40, 18_000, "NIO" ], [ "Peinado de evento", 60, 35_000, "NIO" ] ],
-          [ [ "Estilo Altamira", "Corte de dama", nil, 28_000 ] ], demo_customers ]
+          [ [ "Estilo Altamira", "Corte de dama", nil, 28_000 ] ], demo_customers, salon_staff ]
       ] ]
     ]
   end
+
+  # A company without a catalog (the café) gets no professionals and no resources; its branch still gets the default hours.
+  def empty_staff
+    { "professionals" => [], "resources" => [], "requirements" => [], "branch_slots" => [ [ "Sede Granada", 6 ] ], "professional_slots" => [], "resource_slots" => [], "time_offs" => 0 }
+  end
+  def barbershop_staff
+    {
+      "professionals" => [
+        [ "Don Efraín Blandón", true, [ "Sucursal Centro" ], [ "Afeitado clásico", "Corte clásico", "Corte y barba" ] ],
+        [ "Ramiro Salinas", false, [ "Sucursal Centro" ], [ "Afeitado clásico", "Corte clásico" ] ]
+      ],
+      "resources" => [ [ "Sucursal Centro", "Silla 1", "chair" ], [ "Sucursal Centro", "Silla 2", "chair" ] ],
+      "requirements" => [ [ "Corte clásico", "chair" ], [ "Corte y barba", "chair" ] ],
+      "branch_slots" => [ [ "Sucursal Centro", 6 ] ],
+      "professional_slots" => [ [ "Don Efraín Blandón", "Sucursal Centro", [ 1, 2, 3, 4, 5, 6 ] ], [ "Ramiro Salinas", "Sucursal Centro", [ 2, 3, 4, 5, 6 ] ] ],
+      "resource_slots" => [],
+      "time_offs" => 1
+    }
+  end
+  def dental_staff
+    {
+      "professionals" => [
+        [ "Dr. Pablo Quintana", false, [ "Clínica Sonrisa Central" ], [ "Blanqueamiento dental", "Consulta de valoración", "Limpieza dental" ] ],
+        [ "Sandra Gómez", true, [ "Clínica Sonrisa Central" ], [ "Consulta de valoración", "Limpieza dental" ] ]
+      ],
+      "resources" => [ [ "Clínica Sonrisa Central", "Sala de blanqueamiento", "room" ], [ "Clínica Sonrisa Central", "Sillón 1", "chair" ] ],
+      "requirements" => [ [ "Blanqueamiento dental", "room" ], [ "Limpieza dental", "chair" ] ],
+      "branch_slots" => [ [ "Clínica Sonrisa Central", 6 ] ],
+      "professional_slots" => [ [ "Dr. Pablo Quintana", "Clínica Sonrisa Central", [ 1, 2, 3, 4, 5 ] ], [ "Sandra Gómez", "Clínica Sonrisa Central", [ 2, 4 ] ] ],
+      "resource_slots" => [ [ "Sala de blanqueamiento", 5 ] ],
+      "time_offs" => 1
+    }
+  end
+  def salon_staff
+    {
+      "professionals" => [
+        [ "Karla Mendieta", false, [ "Estilo Altamira" ], [ "Corte de dama", "Manicure", "Peinado de evento", "Tinte completo" ] ],
+        [ "Sandra Gómez", true, [ "Estilo Centro" ], [ "Corte de dama", "Manicure", "Peinado de evento" ] ]
+      ],
+      "resources" => [ [ "Estilo Altamira", "Sillón 1", "chair" ], [ "Estilo Centro", "Sillón 1", "chair" ], [ "Estilo Centro", "Sillón 2", "chair" ] ],
+      "requirements" => [ [ "Corte de dama", "chair" ], [ "Tinte completo", "chair" ] ],
+      "branch_slots" => [ [ "Estilo Altamira", 6 ], [ "Estilo Centro", 6 ] ],
+      "professional_slots" => [ [ "Karla Mendieta", "Estilo Altamira", [ 2, 4, 6 ] ], [ "Sandra Gómez", "Estilo Centro", [ 1, 3, 5 ] ] ],
+      "resource_slots" => [],
+      "time_offs" => 1
+    }
+  end
+
 
   before { app.db!("db:create", "db:migrate") }
 
@@ -41,7 +88,26 @@ RSpec.describe "db/seeds.rb" do
               [ Tenancy::Branch.find(o.branch_id).name, Appointments::Service.find(o.service_id).name, o.duration_minutes, o.price_minor ]
             end
             customers = Customers::Customer.where(company_id: c.id).order(:full_name).pluck(:full_name, :phone_e164)
-            [ c.currency, c.business_type, Tenancy::Branch.where(company_id: c.id).count, services, overrides, customers ]
+            branch_names = Tenancy::Branch.where(company_id: c.id).pluck(:id, :name).to_h
+            professionals = Appointments::Professional.where(company_id: c.id).order(:display_name).map do |p|
+              [ p.display_name, !p.user_id.nil?, p.branch_assignments.map { branch_names.fetch(it.branch_id) }.sort,
+                Appointments::Service.where(id: p.professional_services.map(&:service_id)).pluck(:name).sort ]
+            end
+            resources = Appointments::Resource.where(company_id: c.id).map { [ branch_names.fetch(it.branch_id), it.name, it.kind ] }.sort
+            requirements = Appointments::ServiceResourceRequirement.where(company_id: c.id).map { [ Appointments::Service.find(it.service_id).name, it.kind ] }.sort
+            slots = Appointments::WeeklySchedule.where(company_id: c.id)
+            branch_slots = slots.where(owner_type: "branch").group(:branch_id).count.map { |id, n| [ branch_names.fetch(id), n ] }.sort
+            professional_slots = Appointments::Professional.where(company_id: c.id).order(:display_name).map do |p|
+              mine = slots.where(professional_id: p.id)
+              [ p.display_name, branch_names.fetch(mine.first.branch_id), mine.map(&:weekday).uniq.sort ]
+            end
+            resource_slots = Appointments::Resource.where(company_id: c.id).order(:name).filter_map do |r|
+              count = slots.where(resource_id: r.id).count
+              [ r.name, count ] if count.positive?
+            end
+            staff = { professionals:, resources:, requirements:, branch_slots:, professional_slots:, resource_slots:,
+                      time_offs: Appointments::TimeOff.where(company_id: c.id).count }.deep_stringify_keys
+            [ c.currency, c.business_type, Tenancy::Branch.where(company_id: c.id).count, services, overrides, customers, staff ]
           end
           [ organization.name, companies ]
         end
@@ -57,6 +123,25 @@ RSpec.describe "db/seeds.rb" do
 
     expect(census).to eq(first)
     expect(JSON.parse(first)).to eq(expected_census)
+  end
+
+  it "Sandra Gómez es la misma persona en dos empresas del grupo: un registro por empresa, con horarios independientes", :aggregate_failures do
+    app.run!("bin/rails", "db:seed")
+    app.run!("bin/rails", "db:seed")
+
+    report = JSON.parse(app.rails_runner(<<~RUBY))
+      sandra = Identity::User.find_by!(email: "profesional@salud-estilo.ceiba.test")
+      org = Tenancy::Organization.find_by!(name: "Grupo Salud & Estilo")
+      rows = Tenancy.with_context(organization: org) do
+        Appointments::Professional.where(user_id: sandra.id).map do |p|
+          weekdays = Appointments::WeeklySchedule.where(professional_id: p.id).pluck(:weekday).uniq.sort
+          [ Tenancy::Directory.companies.find(p.company_id).slug, p.display_name, weekdays ]
+        end.sort
+      end
+      puts rows.to_json
+    RUBY
+
+    expect(report).to eq([ [ "clinica-sonrisa", "Sandra Gómez", [ 2, 4 ] ], [ "salon-estilo", "Sandra Gómez", [ 1, 3, 5 ] ] ])
   end
 
   describe "usuarios de demo (M0.07)" do
