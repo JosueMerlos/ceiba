@@ -101,9 +101,28 @@ RSpec.describe "API v1: recursos que necesita un servicio" do
         schema "$ref" => "#/components/schemas/ValidationProblem"
 
         run_test! do |response|
-          expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "kind", "code" => "inclusion"))
+          expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "kinds", "code" => "invalid"))
           expect(kinds_of(service.id)).to eq([ "chair" ])
         end
+      end
+
+      response "422", "un tipo con byte NUL es inválido, no un 500" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:body) { { kinds: [ "\u0000" ] } }
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! do |response|
+          expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "kinds", "code" => "invalid"))
+          expect(kinds_of(service.id)).to be_empty
+        end
+      end
+
+      response "400", "más tipos que los que existen" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:body) { { kinds: %w[chair room equipment chair] } }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! { expect(kinds_of(service.id)).to be_empty }
       end
 
       response "400", "sin la lista o con elementos que no son texto" do

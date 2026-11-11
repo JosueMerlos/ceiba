@@ -196,6 +196,17 @@ RSpec.describe "API v1: profesionales" do
         end
       end
 
+      response "422", "un `user_id` que no es un UUID (`user_id: invalid`)" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:body) { { display_name: "Sandra", user_id: "no-es-un-uuid" } }
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! do |response|
+          expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "user_id", "code" => "invalid"))
+          expect(professional_count).to eq(0)
+        end
+      end
+
       response "422", "la misma persona dos veces en la empresa (`user_id: taken`)" do
         let!(:signed_in) { sign_in(manager) }
         let!(:membership) { user_with_role("receptionist", world, branch: world.branch_a1, user: person) }
@@ -286,7 +297,7 @@ RSpec.describe "API v1: profesionales" do
 
     patch "Edita un profesional" do
       tags "Profesionales"
-      description "Exige `appointments.professional.manage`. Solo cambian los campos enviados; `user_id: null` desvincula a la persona. Un archivado no se edita (422)."
+      description "Exige `appointments.professional.manage`. Solo cambian los campos enviados; `user_id` solo se puede fijar una vez: si ya está vinculado no cambia ni se quita (422 `immutable`; para cambiar de persona se archiva y se crea otro profesional). Un archivado no se edita (422)."
       consumes "application/json"
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
@@ -329,6 +340,73 @@ RSpec.describe "API v1: profesionales" do
         run_test! do |response|
           expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "display_name", "code" => "blank"))
           expect(stored(professional.id).display_name).to eq("Ana")
+        end
+      end
+
+      response "422", "un `user_id` que no es un UUID en un profesional sin vincular (`user_id: invalid`)" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:body) { { user_id: "no-es-un-uuid" } }
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! do |response|
+          expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "user_id", "code" => "invalid"))
+          expect(stored(professional.id).user_id).to be_nil
+        end
+      end
+
+      [ "", "  " ].each do |blank|
+        response "422", "un `user_id` en blanco (#{blank.inspect}) en un profesional sin vincular (`user_id: invalid`)" do
+          let!(:signed_in) { sign_in(manager) }
+          let(:body) { { user_id: blank } }
+          schema "$ref" => "#/components/schemas/ValidationProblem"
+
+          run_test! { |response| expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "user_id", "code" => "invalid")) }
+        end
+      end
+
+      response "200", "un profesional sin vincular se vincula una vez a una persona con membresía" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:person) { create(:user) }
+        let!(:membership) { user_with_role("receptionist", world, branch: world.branch_a1, user: person) }
+        let(:body) { { user_id: person.id } }
+        schema single_schema
+
+        run_test! { expect(stored(professional.id).user_id).to eq(person.id) }
+      end
+
+      context "con un profesional ya vinculado" do
+        let(:person) { create(:user) }
+        let(:other_person) { create(:user) }
+        let!(:professional) do
+          user_with_role("receptionist", world, branch: world.branch_a1, user: person)
+          user_with_role("receptionist", world, branch: world.branch_a1, user: other_person)
+          professional_in(world.company_a, display_name: "Ana", user_id: person.id)
+        end
+
+        {
+          "otra persona" => -> { { user_id: other_person.id } },
+          "null" => -> { { user_id: nil } },
+          "un texto que no es UUID" => -> { { user_id: "no-es-un-uuid" } },
+          "un texto en blanco" => -> { { user_id: "" } }
+        }.each do |label, change|
+          response "422", "cambiar el `user_id` a #{label} es `user_id: immutable` y conserva el vínculo" do
+            let!(:signed_in) { sign_in(manager) }
+            let(:body) { instance_exec(&change) }
+            schema "$ref" => "#/components/schemas/ValidationProblem"
+
+            run_test! do |response|
+              expect(response.parsed_body["errors"].select { it["field"] == "user_id" }.map { it["code"] }).to eq([ "immutable" ])
+              expect(stored(professional.id).user_id).to eq(person.id)
+            end
+          end
+        end
+
+        response "200", "reenviar el mismo `user_id` no es un cambio" do
+          let!(:signed_in) { sign_in(manager) }
+          let(:body) { { user_id: person.id, display_name: "Ana María" } }
+          schema single_schema
+
+          run_test! { expect(stored(professional.id)).to have_attributes(user_id: person.id, display_name: "Ana María") }
         end
       end
 

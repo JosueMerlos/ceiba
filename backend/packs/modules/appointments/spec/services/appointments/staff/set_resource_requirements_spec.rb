@@ -71,4 +71,15 @@ RSpec.describe Appointments::Staff::SetResourceRequirements do
       expect(kinds_of(other)).to eq([ "chair" ])
     end
   end
+
+  it "un servicio archivado es historia de solo lectura (base: archived) y conserva sus requisitos", :aggregate_failures do
+    with_tenant(organization) do
+      create(:service_resource_requirement, service:, kind: "chair")
+      service.update!(archived_at: Time.current)
+
+      expect { described_class.call(service:, kinds: %w[room]) }
+        .to raise_error(ActiveRecord::RecordInvalid) { |error| expect(error.record.errors.where(:base).map(&:type)).to eq([ :archived ]) }
+      expect(kinds_of(service)).to eq([ "chair" ])
+    end
+  end
 end

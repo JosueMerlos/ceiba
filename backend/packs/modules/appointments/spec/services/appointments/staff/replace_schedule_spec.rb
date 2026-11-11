@@ -166,4 +166,29 @@ RSpec.describe Appointments::Staff::ReplaceSchedule do
       expect(hours(professional_id: professional.id).size).to eq(1)
     end
   end
+
+  it "solo admite HH:MM estricto de 00:00 a 23:59: 24:00, desfases y formatos sueltos son slots: invalid y no cambian nada", :aggregate_failures do
+    with_tenant(organization) do
+      create(:weekly_schedule, branch:, professional:)
+
+      [ slot(1, "09:00", "24:00"), slot(1, "09:00-06:00", "18:00"), slot(1, "9:00", "18:00"), slot(1, "09:00", "18:00 "), slot(1, "09:60", "18:00") ].each do |bad|
+        expect { described_class.call(owner: professional, branch_id: branch.id, slots: [ bad ]) }
+          .to raise_error(ActiveRecord::RecordInvalid) { |error| expect(error.record.errors.where(:slots).map(&:type)).to eq([ :invalid ]) }
+      end
+      expect(hours(professional_id: professional.id).size).to eq(1)
+    end
+  end
+
+  it "una violación de CHECK de la base se traduce a slots: invalid (red de seguridad)", :aggregate_failures do
+    with_tenant(organization) do
+      create(:weekly_schedule, branch:, professional:)
+      row = Appointments::WeeklySchedule.new
+      allow(row).to receive(:save!).and_raise(ActiveRecord::CheckViolation.new("chk_ws_range"))
+      allow(Appointments::WeeklySchedule).to receive(:new).and_return(row)
+
+      expect { described_class.call(owner: professional, branch_id: branch.id, slots: [ slot(1, "09:00", "13:00") ]) }
+        .to raise_error(ActiveRecord::RecordInvalid) { |error| expect(error.record.errors.where(:slots).map(&:type)).to eq([ :invalid ]) }
+      expect(hours(professional_id: professional.id).size).to eq(1)
+    end
+  end
 end

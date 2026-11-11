@@ -126,6 +126,22 @@ RSpec.describe "API v1: servicios que presta un profesional" do
         run_test! { expect(linked_ids).to be_empty }
       end
 
+      response "200", "un UUID válido en mayúsculas se reconoce como el mismo servicio" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:body) { { service_ids: [ corte.id.upcase ] } }
+        schema single_schema
+
+        run_test! { expect(linked_ids).to eq([ corte.id ]) }
+      end
+
+      response "400", "demasiados servicios en la lista" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:body) { { service_ids: Array.new(201) { SecureRandom.uuid } } }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! { expect(linked_ids).to be_empty }
+      end
+
       response "400", "service_ids debe ser una lista de textos" do
         let!(:signed_in) { sign_in(manager) }
         let(:body) { { service_ids: [ 1, 2 ] } }

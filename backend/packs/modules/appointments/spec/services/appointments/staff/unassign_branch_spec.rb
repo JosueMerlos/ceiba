@@ -87,4 +87,18 @@ RSpec.describe Appointments::Staff::UnassignBranch do
       end
     end
   end
+
+  it "un profesional archivado es historia de solo lectura (base: archived) y conserva asignación y horario", :aggregate_failures do
+    with_tenant(organization) do
+      archived = create(:professional, company:)
+      create(:professional_branch_assignment, professional: archived, branch:)
+      create(:weekly_schedule, branch:, professional: archived)
+      archived.update!(archived_at: Time.current)
+
+      expect { described_class.call(professional: archived, branch_id: branch.id) }
+        .to raise_error(ActiveRecord::RecordInvalid) { |error| expect(error.record.errors.where(:base).map(&:type)).to eq([ :archived ]) }
+      expect(Appointments::ProfessionalBranchAssignment.where(professional_id: archived.id).count).to eq(1)
+      expect(Appointments::WeeklySchedule.where(professional_id: archived.id).count).to eq(1)
+    end
+  end
 end

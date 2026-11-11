@@ -205,6 +205,38 @@ RSpec.describe "API v1: ausencias" do
         end
       end
 
+      [ "infinity", "-infinity", "10:00", "2026-11-16T09:00:00", "2026-11-16" ].each do |bad|
+        response "422", "una marca de tiempo que no es ISO-8601 con zona (#{bad.inspect}) es inválida, no un 500" do
+          let!(:signed_in) { sign_in(manager) }
+          let(:body) { absence.merge(starts_at: bad) }
+          schema "$ref" => "#/components/schemas/ValidationProblem"
+
+          run_test! do |response|
+            expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "starts_at", "code" => "invalid"))
+            expect(stored_time_offs).to be_empty
+          end
+        end
+      end
+
+      response "422", "un fin con infinity es inválido, no un 500" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:body) { absence.merge(ends_at: "infinity") }
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! { |response| expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "ends_at", "code" => "invalid")) }
+      end
+
+      response "201", "un desfase explícito (-06:00) se guarda como el instante UTC correcto" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:body) { absence.merge(starts_at: "2026-11-16T09:00:00-06:00", ends_at: "2026-11-16T13:00:00-06:00") }
+        schema single_schema
+
+        run_test! do |response|
+          expect(response.parsed_body["data"]).to include("starts_at" => "2026-11-16T15:00:00.000Z", "ends_at" => "2026-11-16T19:00:00.000Z")
+          expect(stored_time_offs.sole.starts_at.utc).to eq(Time.utc(2026, 11, 16, 15))
+        end
+      end
+
       response "422", "un profesional archivado no admite ausencias (`base: archived`)" do
         let!(:signed_in) { sign_in(manager) }
         let!(:archived) { with_tenant(world.organization) { professional.update!(archived_at: Time.current) } }

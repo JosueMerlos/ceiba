@@ -63,6 +63,18 @@ RSpec.describe Appointments::Lifecycle::OnEnable do
     expect(with_tenant(organization) { Audit::Event.where(action: "schedule.defaults_created").count }).to eq(2)
   end
 
+  it "una sucursal cerrada a propósito (franjas vacías) sigue cerrada tras desactivar y reactivar", :aggregate_failures do
+    branch = create_in(organization, :branch, company:)
+    enable
+    with_tenant(organization) { Appointments::Staff::ReplaceSchedule.call(owner: branch, branch_id: branch.id, slots: []) }
+
+    disable
+    enable
+
+    expect(branch_hours(branch)).to be_empty
+    expect(with_tenant(organization) { Audit::Event.where(action: "schedule.defaults_created").count }).to eq(1)
+  end
+
   it "una sucursal sin horario de sucursal lo recibe aunque tenga horarios de profesionales o recursos" do
     branch = create_in(organization, :branch, company:)
     with_tenant(organization) do

@@ -24,6 +24,49 @@ RSpec.describe Appointments::Professional do
     end
   end
 
+  context "con un user_id que no es un UUID" do
+    it "es user_id: invalid en vez de convertirse en nil (desvincular es solo null explícito)", :aggregate_failures do
+      with_tenant(organization) do
+        malformed = build(:professional, company:, user_id: "no-es-un-uuid")
+
+        expect(malformed).not_to be_valid
+        expect(errors_of(malformed, :user_id)).to eq([ :invalid ])
+        expect(build(:professional, company:, user_id: nil)).to be_valid
+      end
+    end
+  end
+
+  context "con un user_id ya fijado" do
+    it "no cambia a otra persona ni a null (user_id: immutable) y reenviar el mismo no es un cambio", :aggregate_failures do
+      other = create(:user)
+      user_with_role("receptionist", organization, branch: create_in(organization, :branch, company:), user: person)
+      user_with_role("receptionist", organization, branch: create_in(organization, :branch, company:), user: other)
+
+      with_tenant(organization) do
+        linked = create(:professional, company:, user_id: person.id)
+
+        [ other.id, nil, "no-es-un-uuid" ].each do |change|
+          linked.user_id = change
+          expect(linked).not_to be_valid
+          expect(errors_of(linked, :user_id)).to eq([ :immutable ])
+        end
+        linked.user_id = person.id
+        expect(linked).to be_valid
+      end
+    end
+
+    it "uno sin vincular se puede vincular una vez" do
+      user_with_role("receptionist", organization, branch: create_in(organization, :branch, company:), user: person)
+
+      with_tenant(organization) do
+        unlinked = create(:professional, company:, user_id: nil)
+        unlinked.user_id = person.id
+
+        expect(unlinked).to be_valid
+      end
+    end
+  end
+
   context "con la misma persona dos veces en la misma empresa" do
     it "rechaza el segundo registro con user_id: taken" do
       user_with_role("receptionist", organization, branch: create_in(organization, :branch, company:), user: person)
@@ -45,6 +88,18 @@ RSpec.describe Appointments::Professional do
         duplicate = build(:professional, company:, user_id: person.id)
 
         expect { savepoint { duplicate.save!(validate: false) } }.to raise_error(ActiveRecord::RecordNotUnique, /uq_professionals_company_user/)
+      end
+    end
+
+    it "un registro archivado libera a la persona: se puede crear otro con el mismo usuario, también en la base", :aggregate_failures do
+      user_with_role("receptionist", organization, branch: create_in(organization, :branch, company:), user: person)
+
+      with_tenant(organization) do
+        create(:professional, company:, user_id: person.id, archived_at: Time.current)
+        relinked = build(:professional, company:, user_id: person.id)
+
+        expect(relinked).to be_valid
+        expect { savepoint { relinked.save!(validate: false) } }.not_to raise_error
       end
     end
   end

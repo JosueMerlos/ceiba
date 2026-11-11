@@ -243,6 +243,17 @@ RSpec.describe "API v1: horarios semanales" do
         end
       end
 
+      response "422", "una hora fuera de HH:MM estricto (24:00, con desfase) es inválida, no un 500" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:body) { { slots: [ { weekday: 1, starts_at_local: "09:00-06:00", ends_at_local: "24:00" } ] } }
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! do |response|
+          expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "slots", "code" => "invalid"))
+          expect(slots_of(professional_id: professional.id)).to be_empty
+        end
+      end
+
       response "422", "un profesional archivado no admite horario (`base: archived`)" do
         let!(:signed_in) { sign_in(manager) }
         let!(:archived) { with_tenant(world.organization) { professional.update!(archived_at: Time.current) } }

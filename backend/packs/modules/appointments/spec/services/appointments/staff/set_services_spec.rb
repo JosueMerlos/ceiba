@@ -77,4 +77,16 @@ RSpec.describe Appointments::Staff::SetServices do
       expect(service_ids).to contain_exactly(corte.id, barba.id)
     end
   end
+
+  it "un profesional archivado es historia de solo lectura (base: archived) y conserva sus servicios", :aggregate_failures do
+    with_tenant(organization) do
+      service = create(:service, company:)
+      archived = create(:professional, company:, archived_at: Time.current)
+      create(:professional_service, professional: archived, service:)
+
+      expect { described_class.call(professional: archived, service_ids: []) }
+        .to raise_error(ActiveRecord::RecordInvalid) { |error| expect(error.record.errors.where(:base).map(&:type)).to eq([ :archived ]) }
+      expect(Appointments::ProfessionalService.where(professional_id: archived.id).count).to eq(1)
+    end
+  end
 end

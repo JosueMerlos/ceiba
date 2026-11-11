@@ -67,6 +67,33 @@ RSpec.describe "API v1: asignación de profesionales a sucursales" do
         end
       end
 
+      response "200", "el branch_manager asigna a un profesional que ya trabaja en SU sucursal (sin cambios)" do
+        let!(:signed_in) { sign_in(branch_manager) }
+        let!(:existing) { assign(professional, world.branch_a1) }
+        schema single_schema
+
+        run_test! { expect(branch_ids).to eq([ world.branch_a1.id ]) }
+      end
+
+      response "200", "el company_manager asigna a un profesional que solo trabaja en otra sucursal" do
+        let!(:signed_in) { sign_in(manager) }
+        let!(:existing) { assign(professional, world.branch_a2) }
+        schema single_schema
+
+        run_test! { expect(branch_ids).to contain_exactly(world.branch_a1.id, world.branch_a2.id) }
+      end
+
+      response "403", "el branch_manager no asigna a un profesional que solo trabaja en otra sucursal (exige alcance de empresa)" do
+        let!(:signed_in) { sign_in(branch_manager) }
+        let!(:existing) { assign(professional, world.branch_a2) }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! do |response|
+          expect(response.parsed_body["code"]).to eq("access.forbidden")
+          expect(branch_ids).to eq([ world.branch_a2.id ])
+        end
+      end
+
       response "401", "sin sesión válida" do
         let!(:signed_in) { Struct.new(:csrf_token).new("sin-sesion") }
         schema "$ref" => "#/components/schemas/Problem"

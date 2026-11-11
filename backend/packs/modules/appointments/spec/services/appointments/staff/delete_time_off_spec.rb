@@ -40,4 +40,21 @@ RSpec.describe Appointments::Staff::DeleteTimeOff do
       expect(described_class.call(time_off:)).to be_destroyed
     end
   end
+
+  it "la ausencia de un profesional o un recurso archivado no se borra (base: archived)", :aggregate_failures do
+    with_tenant(organization) do
+      branch = create_in(organization, :branch, company:)
+      chair = create(:resource, branch:)
+      owned_ids = [ create(:time_off, professional:).id, create(:time_off, resource: chair).id ]
+      professional.update!(archived_at: Time.current)
+      chair.update!(archived_at: Time.current)
+
+      owned_ids.each do |id|
+        time_off = Appointments::TimeOff.find(id)
+        expect { described_class.call(time_off:) }
+          .to raise_error(ActiveRecord::RecordInvalid) { |error| expect(error.record.errors.where(:base).map(&:type)).to eq([ :archived ]) }
+      end
+      expect(Appointments::TimeOff.count).to eq(2)
+    end
+  end
 end

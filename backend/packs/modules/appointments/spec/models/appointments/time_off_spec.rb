@@ -111,6 +111,20 @@ RSpec.describe Appointments::TimeOff do
       end
     end
 
+    it "starts_at y ends_at deben caer entre los años 2000 y 2100 (UTC): fuera es invalid, no un error de la base", :aggregate_failures do
+      with_tenant(organization) do
+        [ [ Time.utc(1999, 12, 31, 23), Time.utc(2000, 1, 1, 1) ], [ Time.utc(2100, 12, 31, 23), Time.utc(2101, 1, 1, 1) ],
+          [ Time.utc(2026, 1, 1), Time.utc(300_000, 1, 1) ] ].each do |starts_at, ends_at|
+          out_of_range = build(:time_off, professional:, starts_at:, ends_at:)
+
+          expect(out_of_range).not_to be_valid
+          expect(out_of_range.errors.map(&:type)).to all(eq(:invalid))
+        end
+        expect(build(:time_off, professional:, starts_at: Time.utc(2000, 1, 1), ends_at: Time.utc(2000, 6, 1))).to be_valid
+        expect(build(:time_off, professional:, starts_at: Time.utc(2100, 6, 1), ends_at: Time.utc(2100, 12, 31, 23, 59))).to be_valid
+      end
+    end
+
     it "el motivo es opcional y admite hasta 200 caracteres (CHECK en la base)", :aggregate_failures do
       with_tenant(organization) do
         expect(build(:time_off, professional:, reason: nil)).to be_valid
