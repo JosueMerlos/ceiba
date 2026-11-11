@@ -82,4 +82,5 @@ Las tres barreras están descritas en [`03-multi-tenancy`](../architecture/03-mu
 - Las migraciones son compatibles hacia atrás (expand/contract): agregar, rellenar por lotes, luego restringir.
 - Rellenos (backfills) por lotes, idempotentes y reanudables; probados primero contra datos desechables.
 - El borrado o reescritura de datos, los cambios de esquema, de dinero y de contrato **nunca** los decide un plan ni un agente:
-  son decisiones abiertas para el desarrollador.
+  son decisiones abiertas para el desarrollador. Única excepción: los detalles de contrato de endpoints **nuevos y sin
+  publicar** que siguen la convención son delegables (ver [Autonomía de los agentes](../../AGENTS.md#autonomía-de-los-agentes)).
