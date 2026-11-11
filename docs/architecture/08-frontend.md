@@ -157,6 +157,16 @@ interface AgendaViewProps {
 - Envía `Idempotency-Key` generado al iniciar la confirmación (un doble tap no duplica la cita).
 - CSP estricta ([11](11-security.md)).
 
+## Lenguaje visual (F2 en adelante)
+
+Decidido en [ADR-0032](../adr/0032-lenguaje-visual-marco-y-hoja.md), que reemplaza el layout de M0.12 a partir de F2:
+
+- **Panel:** marco con tinte suave (`--sidebar-*`) y cada pantalla sobre una hoja blanca (`--background`). Sin cabecera superior: logo, selector de contexto, menú y usuario viven en el marco.
+- **Barra lateral contraíble** a un riel de íconos, con la preferencia guardada por usuario en `localStorage`. Arranca contraída por debajo de 1280 px.
+- **Panel contextual a la derecha, colapsable y no modal:** "Próximas llegadas" en la agenda y la edición del elemento seleccionado en los catálogos.
+- **Estados de la cita** distinguibles por luminosidad, no solo por tono.
+- **Reserva pública:** toda blanca con líneas finas, un paso por pantalla, avatar del profesional en el resumen y acción principal fija abajo.
+
 ## Branding por empresa
 
 - `packages/branding` convierte la marca de la empresa en variables CSS (`--brand-primary`, `--brand-primary-foreground`, `--brand-accent`, …).
