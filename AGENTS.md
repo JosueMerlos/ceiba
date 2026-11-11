@@ -81,9 +81,21 @@ El objetivo es que un hito avance sin detenerse salvo en lo que de verdad es del
 - **Premisas:** una afirmación de que algo **no existe** (un helper, un manejador, un índice) se verifica con una búsqueda
   antes de usarla para decidir.
 - **Segunda opinión:** en Claude Code, todos los agentes (orquestador, implementadores, revisores) tienen la herramienta
-  `advisor` (configurada con Fable). Consúltala antes de una decisión no obvia o tras dos intentos fallidos. Para una revisión
-  independiente, el orquestador lanza un agente de solo lectura con el modelo `fable`. Un implementador con dudas sobre una
-  decisión no delegable la devuelve en su reporte en vez de adivinar.
+  `advisor` (configurada con Fable). Consúltala antes de una decisión no obvia o tras dos intentos fallidos. Un implementador
+  con dudas sobre una decisión no delegable la devuelve en su reporte en vez de adivinar.
+- **Modelo de cada revisión:** el cupo de uso de Fable es uno solo (lo comparten el `advisor` y las revisiones), así que se
+  reserva para donde un error cuesta más. Todas las revisiones son agentes de solo lectura con contexto limpio.
+
+  | Revisión | Modelo |
+  | --- | --- |
+  | Revisión independiente del plan (`ticket-plan`) | `fable` |
+  | Jueces de `judgment-day` (tenancy, base de datos, autorización, PII, dinero) | `fable` |
+  | `thermo-nuclear-code-quality-review` (estructura) | `opus` |
+  | `adversarial-reviewer` (cambios de rutina) | `opus` |
+
+  **Respaldo:** si Fable no está disponible (límite de uso, error 429), se relanza la misma revisión con `opus` **sin
+  detenerse ni preguntar**, y el respaldo se reporta en el resumen del PR. Un agente cortado por el límite no se espera: se
+  reemplaza.
 - **Revisión antes del merge**, sin pedir permiso para lanzarla: primero `thermo-nuclear-code-quality-review` (estructura),
   después `adversarial-reviewer` (cambios de rutina) o `judgment-day` (tenancy, base de datos, autorización, PII, dinero).
   En `judgment-day`, los hallazgos CRITICAL y WARNING reales confirmados por ambos jueces se corrigen sin preguntar; solo
