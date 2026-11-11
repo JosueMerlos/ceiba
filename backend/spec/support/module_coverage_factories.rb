@@ -37,3 +37,15 @@ ModuleCoverageFactories.register("appointments", :service_id) do |company:, bran
     service.id
   end
 end
+
+# :professional_id is a professional ASSIGNED to the suite's branch: the branch routes (assignment, profile) need the
+# assignment to exist for the route to answer by itself. Find-or-create, so every route of one run sees the SAME professional.
+ModuleCoverageFactories.register("appointments", :professional_id) do |company:, branch:|
+  Tenancy.with_context(organization: company.organization) do
+    professional = Appointments::Professional.find_by(company_id: company.id, display_name: "Cobertura") ||
+                   FactoryBot.create(:professional, company:, display_name: "Cobertura")
+    FactoryBot.create(:professional_branch_assignment, professional:, branch:) unless
+      Appointments::ProfessionalBranchAssignment.exists?(professional_id: professional.id, branch_id: branch.id)
+    professional.id
+  end
+end

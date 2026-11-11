@@ -76,5 +76,53 @@ OpenapiComponents.register(
       price_minor: { type: :integer, format: :int64, nullable: true, minimum: 0 }
     },
     additionalProperties: false
+  },
+  Professional: {
+    type: :object,
+    description: "Profesional de una empresa. Una misma persona (`user_id`) puede tener un registro en cada empresa del grupo, con su propio horario. " \
+                 "No trae datos de la persona vinculada: solo su identificador.",
+    properties: {
+      id: { type: :string, format: :uuid },
+      display_name: { type: :string, maxLength: 120 },
+      user_id: { type: :string, format: :uuid, nullable: true, description: "Persona vinculada; null si el profesional no tiene usuario" },
+      active: { type: :boolean },
+      archived_at: { type: :string, format: "date-time", nullable: true, description: "UTC; null si no está archivado" },
+      branch_ids: { type: :array, items: { type: :string, format: :uuid }, description: "Sucursales de la empresa donde está asignado" },
+      service_ids: { type: :array, items: { type: :string, format: :uuid }, description: "Servicios que presta" },
+      created_at: { type: :string, format: "date-time", description: "UTC" },
+      updated_at: { type: :string, format: "date-time", description: "UTC" }
+    },
+    required: %i[id display_name user_id active archived_at branch_ids service_ids created_at updated_at],
+    additionalProperties: false
+  },
+  ProfessionalInput: {
+    type: :object,
+    description: "Alta de un profesional. `user_id` debe tener una membresía en la organización y no estar ya vinculado a otro profesional de la empresa.",
+    properties: {
+      display_name: { type: :string, minLength: 1, maxLength: 120 },
+      user_id: { type: :string, format: :uuid, nullable: true },
+      active: { type: :boolean, default: true }
+    },
+    required: %i[display_name],
+    additionalProperties: false
+  },
+  ProfessionalPatch: {
+    type: :object,
+    description: "Edición parcial de un profesional: solo cambian los campos enviados; `user_id: null` desvincula a la persona",
+    properties: {
+      display_name: { type: :string, minLength: 1, maxLength: 120 },
+      user_id: { type: :string, format: :uuid, nullable: true },
+      active: { type: :boolean }
+    },
+    additionalProperties: false
+  },
+  ProfessionalServicesInput: {
+    type: :object,
+    description: "El conjunto completo de servicios que presta el profesional; lo que no viene se quita",
+    properties: {
+      service_ids: { type: :array, items: { type: :string, format: :uuid }, uniqueItems: true }
+    },
+    required: %i[service_ids],
+    additionalProperties: false
   }
 )
