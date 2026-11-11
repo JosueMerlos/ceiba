@@ -16,6 +16,8 @@ ticket_url_prefix:
 # --- Planes ---------------------------------------------------------------------------
 # Planes de trabajo locales (gitignorados). Los planes originales del proyecto viven en el tag historico/plans.
 plan_dir: .harness/plans
+# Una carpeta por hito: .harness/plans/M1.01/ guarda su plan, su resumen de PR y su prompt de revisión.
+plan_layout: per-ticket
 plan_language: Spanish
 
 # --- Git ----------------------------------------------------------------------------------
