@@ -9,7 +9,7 @@ module Modules
       manifest.role_grants.each { |role, keys| keys.each { |key| roles[key] << role } }
       Access.register_permissions(
         manifest.key,
-        manifest.permissions.to_h { |permission| [ permission.key, { description: permission.description, roles: roles[permission.key] } ] }
+        manifest.permissions.to_h { |permission| [ permission.key, { description: permission.description, roles: roles[permission.key], from_descendants: permission.from_descendants } ] }
       )
     end
   end

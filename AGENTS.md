@@ -75,6 +75,8 @@ Reglas de git y PR que no se copiaron (las skills `commit` y `watch-pr` las trae
 - **Un PR por hito, directo a `main`.** Sin ramas de release ni merges locales a `main` (la protección exige historial
   lineal). Cada PR se asigna al Milestone de GitHub de su fase (p. ej. "F1"), y el cierre de una fase se marca con un tag
   anotado en `main` (`f1`). Mergear (`gh pr merge --squash`, también con `--auto`) sigue requiriendo aprobación explícita.
+- **Cierre de un hito:** cuando está completo en local (criterios probados y `make ci` en verde), se marca `terminado`
+  (✅ en [`docs/roadmap/README.md`](docs/roadmap/README.md) y en el archivo del hito) en el mismo PR, antes de mergear.
 - **Todo corre en Docker.** El host no tiene Ruby ni Node: los comandos van por `docker compose exec` o `make` (ver
   [`README.md`](README.md#comandos)). Rutas de RSpec relativas a `backend/`.
 - **Test de un archivo:** `docker compose exec -e RAILS_ENV=test api bundle exec rspec <ruta>`;

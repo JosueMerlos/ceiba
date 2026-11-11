@@ -104,12 +104,12 @@ end
 | Sucursales: crear/editar | ✅ | ✅ | ✅ (su empresa) | ver la suya | **ver la suya** (lectura) | **ver la suya** (lectura) |
 | Módulos de la empresa: activar/desactivar | ✅ | ✅ | — | — | — | — |
 | **Branding** | — | **✅** | ✅ | — | — | — |
-| Servicios y precios | — | — | CRUD | ver | ver | ver |
-| Override de duración por sucursal | — | — | ✅ | ✅ | — | — |
-| Override de **precio** por sucursal | — | — | ✅ | **—** | — | — |
+| Servicios y precios (`appointments.service.read` / `.manage`) | — | — | CRUD | ver | ver | ver |
+| Override de duración por sucursal (`appointments.service.override_duration`) | — | — | ✅ | ✅ | — | — |
+| Override de **precio** por sucursal (`appointments.service.override_price`) | — | — | ✅ | **—** | — | — |
 | Profesionales | — | — | CRUD | ver, asignar a su sucursal | ver | ver su perfil |
 | Horarios y ausencias | — | — | ✅ | ✅ | ver | las propias |
-| Clientes | — | — | ver, editar | ver, editar | ver, editar | los de sus citas |
+| Clientes (`platform.customer.read` / `.create` / `.update` / `.archive`; rutas por sucursal, [ADR-0033](../adr/0033-autorizacion-y-pii-de-clientes-y-servicios.md)) | — | — | ver, crear, editar, archivar | ver, crear, editar, archivar | ver, crear, editar, archivar | — hasta que existan las citas (luego, los de sus citas) |
 | Citas | conteos | conteos | CRUD | CRUD | CRUD | ver y editar las propias |
 | Reportes | consolidado (conteos) | consolidado (conteos) | su empresa | su sucursal | — | — |
 | Usuarios: invitar | cualquier rol (incl. `org_admin`) | roles de empresa y sucursal | staff de su empresa | staff de su sucursal | — | — |

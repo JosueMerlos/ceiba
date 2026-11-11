@@ -1,2 +1,15 @@
 es-NI:
+  activerecord:
+    errors:
+      models:
+        appointments/service:
+          attributes:
+            currency:
+              mismatch: "debe ser la moneda de la empresa"
+            base:
+              archived: "el servicio está archivado y no admite cambios"
+        appointments/branch_service_override:
+          attributes:
+            base:
+              archived: "el servicio está archivado y no admite overrides"
   appointments: {}

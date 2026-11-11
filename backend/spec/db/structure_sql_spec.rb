@@ -72,7 +72,7 @@ RSpec.describe "db/structure.sql" do
       puts [extensions.join(","), policies.join(","), composite, c.select_value("SELECT current_user")].join(" ")
     RUBY
 
-    expect(report).to eq("btree_gist,citext audit_events,branch_module_settings,branches,companies,company_modules,idempotency_keys,memberships,outbox_events,probe_slots,processed_events 1 app_user")
+    expect(report).to eq("btree_gist,citext audit_events,branch_module_settings,branch_service_overrides,branches,companies,company_modules,customers,idempotency_keys,memberships,outbox_events,probe_slots,processed_events,services 1 app_user")
   end
 
   it "las tablas cargadas desde structure.sql pertenecen a app_owner y app_user puede usarlas" do

@@ -16,6 +16,8 @@ Rails.application.routes.draw do
       draw(:identity)
       draw(:access)
       draw(:modules)
+      draw(:customers)
+      draw(:appointments)
     end
   end
 end

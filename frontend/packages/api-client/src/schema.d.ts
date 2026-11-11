@@ -545,6 +545,530 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/services/{service_id}/override": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                /** @description Sucursal que tiene el override */
+                branch_id: string;
+                /** @description ID del servicio de la empresa */
+                service_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Fija o cambia el override de un servicio en una sucursal
+         * @description Crea el override o lo cambia. MEZCLA: solo cambian los campos enviados, lo que no viene se conserva y un `null` explícito quita ese valor. El resultado debe conservar duración o precio (si no, 422; para quitarlo todo, `DELETE`). Se autoriza por CAMBIO EFECTIVO respecto de la fila actual en el alcance de la sucursal: cambiar la duración exige `appointments.service.override_duration` y cambiar el precio `appointments.service.override_price`. Si el cambio incluye algo que el usuario no puede tocar, responde 403 para TODA la petición y no se aplica nada. Reenviar el valor que ya tiene no es un cambio. El override hereda la moneda del servicio.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description Sucursal que tiene el override */
+                    branch_id: string;
+                    /** @description ID del servicio de la empresa */
+                    service_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ServiceOverrideInput"];
+                };
+            };
+            responses: {
+                /** @description el branch_manager reenvía el MISMO precio que ya tiene: no es un cambio, solo cambia la duración */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ServiceOverride"];
+                        };
+                    };
+                };
+                /** @description un valor que no es entero */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description una petición vacía sin permisos de override tampoco pasa (no revela nada) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description una duración no positiva */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /**
+         * Quita el override de un servicio en una sucursal
+         * @description Exige `appointments.service.override_price` si el override tiene precio y `appointments.service.override_duration` si tiene duración (quitarlo es cambiar ambos valores). La sucursal vuelve a usar los del servicio. Sin override responde 404.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description Sucursal que tiene el override */
+                    branch_id: string;
+                    /** @description ID del servicio de la empresa */
+                    service_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description quitar el override de una sucursal no toca el de otra */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el professional no puede quitar overrides */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Lista los servicios no archivados de la empresa
+         * @description Exige `appointments.service.read` en la empresa (los roles de sucursal la tienen por `from_descendants`). Devuelve los servicios no archivados, activos e inactivos; el filtro opcional `active` (`true` o `false`) deja solo los de ese estado. Los archivados no aparecen. Va en orden de creación (el cursor es el id); `position` es el orden de presentación que el cliente aplica. Paginado por cursor.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    active?: boolean;
+                    limit?: number;
+                    after?: string;
+                };
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description paginado por cursor */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Service"][];
+                            page: components["schemas"]["PageInfo"];
+                        };
+                    };
+                };
+                /** @description active debe ser true o false */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un rol de organización no tiene permiso de servicios (`access.forbidden`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Crea un servicio
+         * @description Exige `appointments.service.manage`. `price_minor` es un entero en unidades menores. Sin `currency` toma la de la empresa; una moneda distinta responde 422 (`currency: mismatch`). Acepta `Idempotency-Key`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ServiceInput"];
+                };
+            };
+            responses: {
+                /** @description con la moneda de la empresa enviada de forma explícita */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Service"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el professional lee el catálogo pero no lo gestiona */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin nombre ni duración */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                /** @description ID del servicio */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Obtiene un servicio
+         * @description Exige `appointments.service.read`. Un servicio de otra empresa responde 404. Un archivado se puede ver, con `archived_at`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description ID del servicio */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description un servicio archivado se puede ver */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Service"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un rol de organización no tiene permiso */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Archiva un servicio
+         * @description Exige `appointments.service.manage`. No borra la fila: fija `archived_at` y lo saca del catálogo. Repetirlo no cambia nada.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description ID del servicio */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description archivarlo otra vez no cambia la fecha ni duplica la auditoría */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el professional no puede archivar y el servicio sigue en el catálogo */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un servicio de otra empresa no se archiva */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Edita un servicio
+         * @description Exige `appointments.service.manage`. Solo cambia los campos enviados; la empresa y el archivado no se editan por aquí.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description ID del servicio */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ServicePatch"];
+                };
+            };
+            responses: {
+                /** @description el servicio editado */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Service"];
+                        };
+                    };
+                };
+                /** @description el branch_manager no gestiona el catálogo y el servicio queda intacto */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un servicio de otra empresa no se edita y queda intacto */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description cambiar la moneda a una que no es la de la empresa */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/companies/{company_id}/branches": {
         parameters: {
             query?: never;
@@ -612,6 +1136,376 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/customers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                /** @description Sucursal desde la que se actúa; los clientes son de su empresa */
+                branch_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Lista los clientes activos de la empresa de la sucursal
+         * @description Exige `platform.customer.read` en la sucursal. Paginado por cursor. Filtros: `phone` (exacto, en cualquier formato) y `name_prefix` (prefijo del nombre, sin distinguir mayúsculas). Los archivados no aparecen.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    phone?: string;
+                    name_prefix?: string;
+                    limit?: number;
+                    after?: string;
+                };
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description Sucursal desde la que se actúa; los clientes son de su empresa */
+                    branch_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el company_manager lista desde cualquier sucursal de su empresa (regla hacia abajo) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Customer"][];
+                            page: components["schemas"]["PageInfo"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description org_admin no tiene permiso de clientes (`access.forbidden`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description una sucursal hermana a la que el recepcionista no pertenece */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Crea un cliente
+         * @description Exige `platform.customer.create`. El teléfono se guarda en E.164 con el país de la organización. Si la empresa ya tiene un cliente ACTIVO con ese teléfono responde 422 (`phone_e164: taken`); si lo tiene ARCHIVADO, lo restaura con ese mismo id: el nombre sale de la petición y el correo y las notas quedan vacíos salvo que se envíen (el número pudo pasar a otra persona). Acepta `Idempotency-Key`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description Sucursal desde la que se actúa; los clientes son de su empresa */
+                    branch_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CustomerInput"];
+                };
+            };
+            responses: {
+                /** @description el mismo teléfono en la otra empresa del grupo es otro cliente */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Customer"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el profesional no puede crear clientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description una sucursal de otra empresa en la ruta */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin nombre (`full_name: blank`) */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/customers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                /** @description ID del cliente */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Obtiene un cliente
+         * @description Exige `platform.customer.read`. Un cliente de otra empresa responde 404.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID del cliente */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description un cliente archivado se puede ver, con su fecha de archivado */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Customer"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el profesional no tiene permiso */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un id que no existe */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Archiva un cliente
+         * @description Exige `platform.customer.archive`. No borra la fila: fija `archived_at` y lo saca del listado. Repetirlo no cambia nada.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID del cliente */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description archivado */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el profesional no puede archivar */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un cliente de otra empresa no se archiva */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Edita un cliente
+         * @description Exige `platform.customer.update`. Solo cambia los campos enviados; la empresa y el archivado no se editan por aquí. Un cliente archivado no admite cambios (422 `base: archived`): solo se recupera con el alta (restaurar).
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    /** @description ID del cliente */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CustomerPatch"];
+                };
+            };
+            responses: {
+                /** @description el cliente editado */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Customer"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el profesional no puede editar */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un cliente de otra empresa no se edita y queda intacto */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el teléfono de otro cliente de la empresa (`phone_e164: taken`) */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/modules/{key}/settings": {
@@ -1120,6 +2014,56 @@ export interface components {
              */
             updated_at: string;
         };
+        /** @description Cliente de una empresa. El teléfono, el correo y las notas solo salen por los endpoints de clientes (`platform.customer.read`). */
+        Customer: {
+            /**
+             * Format: date-time
+             * @description UTC; null si está activo
+             */
+            archived_at: string | null;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            created_at: string;
+            email: string | null;
+            full_name: string;
+            /** Format: uuid */
+            id: string;
+            notes: string | null;
+            /**
+             * @description Teléfono en E.164, único por empresa
+             * @example +50588887777
+             */
+            phone_e164: string;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            updated_at: string;
+        };
+        /** @description Alta de un cliente */
+        CustomerInput: {
+            email?: string | null;
+            full_name: string;
+            notes?: string | null;
+            /**
+             * @description En cualquier formato; se normaliza a E.164 con el país de la organización
+             * @example 8888-7777
+             */
+            phone_e164: string;
+        };
+        /** @description Edición parcial de un cliente: solo cambian los campos enviados */
+        CustomerPatch: {
+            email?: string | null;
+            full_name?: string;
+            notes?: string | null;
+            /**
+             * @description En cualquier formato; se normaliza a E.164
+             * @example 8888-7777
+             */
+            phone_e164?: string;
+        };
         FieldError: {
             /**
              * @description Tipo del error (blank, taken, invalid...)
@@ -1252,6 +2196,110 @@ export interface components {
              * @example urn:ceiba:error:resource.not_found
              */
             type: string;
+        };
+        /** @description Servicio del catálogo de una empresa. El precio es un entero en unidades menores (`price_minor`) en la moneda de la empresa. */
+        Service: {
+            active: boolean;
+            /**
+             * Format: date-time
+             * @description UTC; null si no está archivado
+             */
+            archived_at: string | null;
+            buffer_after_minutes: number;
+            buffer_before_minutes: number;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            created_at: string;
+            /**
+             * @description Siempre la moneda de la empresa
+             * @enum {string}
+             */
+            currency: "NIO" | "USD";
+            duration_minutes: number;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @description Orden en el catálogo (menor primero) */
+            position: number;
+            /**
+             * Format: int64
+             * @description Precio en unidades menores (centavos)
+             * @example 20000
+             */
+            price_minor: number;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            updated_at: string;
+        };
+        /** @description Alta de un servicio. Sin `currency` toma la de la empresa; si se envía debe ser la de la empresa (si no, 422). */
+        ServiceInput: {
+            /** @default true */
+            active: boolean;
+            /** @default 0 */
+            buffer_after_minutes: number;
+            /** @default 0 */
+            buffer_before_minutes: number;
+            /** @enum {string} */
+            currency?: "NIO" | "USD";
+            duration_minutes: number;
+            name: string;
+            /** @default 0 */
+            position: number;
+            /**
+             * Format: int64
+             * @example 20000
+             */
+            price_minor: number;
+        };
+        /** @description Duración y/o precio propios de una sucursal para un servicio. Un valor null significa que la sucursal usa el del servicio. */
+        ServiceOverride: {
+            /** Format: uuid */
+            branch_id: string;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            created_at: string;
+            /**
+             * @description La del servicio: el override no tiene moneda propia
+             * @enum {string}
+             */
+            currency: "NIO" | "USD";
+            duration_minutes: number | null;
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            price_minor: number | null;
+            /** Format: uuid */
+            service_id: string;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            updated_at: string;
+        };
+        /** @description Cambio de un override. Cambia SOLO los campos enviados; lo que no viene se conserva. Un `null` explícito quita ese valor. El resultado debe tener al menos uno de los dos (para quitarlo todo, `DELETE`). */
+        ServiceOverrideInput: {
+            duration_minutes?: number | null;
+            /** Format: int64 */
+            price_minor?: number | null;
+        };
+        /** @description Edición parcial de un servicio: solo cambian los campos enviados */
+        ServicePatch: {
+            active?: boolean;
+            buffer_after_minutes?: number;
+            buffer_before_minutes?: number;
+            /** @enum {string} */
+            currency?: "NIO" | "USD";
+            duration_minutes?: number;
+            name?: string;
+            position?: number;
+            /** Format: int64 */
+            price_minor?: number;
         };
         /** @description Persona autenticada. Global: no pertenece a una organización (ADR-0028) */
         User: {

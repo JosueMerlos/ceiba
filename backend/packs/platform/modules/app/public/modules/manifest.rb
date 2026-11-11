@@ -8,7 +8,8 @@ module Modules
     :key, :name, :version, :requires, :platform, :permissions, :role_grants, :api_scopes, :settings_schema, :settings_levels,
     :publishes, :subscribes, :navigation, :on_enable, :on_disable, :schemer
   )
-    Permission = Data.define(:key, :description)
+    # `from_descendants`: a READ permission a branch membership also exercises on its company (see Access.register_permissions).
+    Permission = Data.define(:key, :description, :from_descendants)
     LEVELS = %w[company branch].freeze
 
     def permission_keys = permissions.map(&:key)

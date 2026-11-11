@@ -4,6 +4,28 @@ require "rails_helper"
 # own database (as app_user, the seeds' role) and in new processes.
 RSpec.describe "db/seeds.rb" do
   let(:app) { TemporaryAppCopy.new(database: "ceiba_seeds_probe").create }
+  let(:demo_customers) do
+    [ [ "Carmen Altamirano", "+50588000003" ], [ "Marlon Gutiérrez", "+50588000001" ], [ "Yahaira Ruiz", "+50588000002" ] ]
+  end
+
+  let(:expected_census) do
+    [
+      [ "Barbería El Güegüense", [
+        [ "NIO", "barbershop", 1,
+          [ [ "Corte clásico", 30, 20_000, "NIO" ], [ "Corte y barba", 45, 30_000, "NIO" ], [ "Afeitado clásico", 30, 15_000, "NIO" ] ],
+          [], demo_customers ]
+      ] ],
+      [ "Café Volcán", [ [ "NIO", "cafe", 1, [], [], demo_customers ] ] ],
+      [ "Grupo Salud & Estilo", [
+        [ "USD", "dental", 1,
+          [ [ "Limpieza dental", 45, 4_000, "USD" ], [ "Consulta de valoración", 30, 2_500, "USD" ], [ "Blanqueamiento dental", 60, 12_000, "USD" ] ],
+          [], demo_customers ],
+        [ "NIO", "salon", 2,
+          [ [ "Corte de dama", 45, 25_000, "NIO" ], [ "Tinte completo", 120, 80_000, "NIO" ], [ "Manicure", 40, 18_000, "NIO" ], [ "Peinado de evento", 60, 35_000, "NIO" ] ],
+          [ [ "Estilo Altamira", "Corte de dama", nil, 28_000 ] ], demo_customers ]
+      ] ]
+    ]
+  end
 
   before { app.db!("db:create", "db:migrate") }
 
@@ -13,26 +35,28 @@ RSpec.describe "db/seeds.rb" do
     app.rails_runner(<<~RUBY)
       report = Tenancy::Organization.order(:name).map do |organization|
         Tenancy.with_context(organization:) do
-          [ organization.name, Tenancy::Company.order(:slug).map { |c| [ c.currency, c.business_type, Tenancy::Branch.where(company_id: c.id).count ] } ]
+          companies = Tenancy::Company.order(:slug).map do |c|
+            services = Appointments::Service.where(company_id: c.id).order(:position).pluck(:name, :duration_minutes, :price_minor, :currency)
+            overrides = Appointments::BranchServiceOverride.where(company_id: c.id).map do |o|
+              [ Tenancy::Branch.find(o.branch_id).name, Appointments::Service.find(o.service_id).name, o.duration_minutes, o.price_minor ]
+            end
+            customers = Customers::Customer.where(company_id: c.id).order(:full_name).pluck(:full_name, :phone_e164)
+            [ c.currency, c.business_type, Tenancy::Branch.where(company_id: c.id).count, services, overrides, customers ]
+          end
+          [ organization.name, companies ]
         end
       end
       puts report.to_json
     RUBY
   end
 
-  it "crea las organizaciones de demo y es idempotente (correrlo dos veces no duplica nada)" do
+  it "crea las organizaciones de demo y es idempotente (correrlo dos veces no duplica nada)", :aggregate_failures do
     app.run!("bin/rails", "db:seed")
     first = census
     app.run!("bin/rails", "db:seed")
 
     expect(census).to eq(first)
-    expect(JSON.parse(first)).to eq(
-      [
-        [ "Barbería El Güegüense", [ [ "NIO", "barbershop", 1 ] ] ],
-        [ "Café Volcán", [ [ "NIO", "cafe", 1 ] ] ],
-        [ "Grupo Salud & Estilo", [ [ "USD", "dental", 1 ], [ "NIO", "salon", 2 ] ] ]
-      ]
-    )
+    expect(JSON.parse(first)).to eq(expected_census)
   end
 
   describe "usuarios de demo (M0.07)" do

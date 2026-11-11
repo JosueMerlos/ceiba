@@ -38,8 +38,8 @@ RSpec.describe Audit::Diff do
     end
 
     it "en una creación también enmascara los sensibles" do
-      expect(diff(before: nil, after: { "full_name" => "Ana", "password_digest" => "$2a$secreto" }))
-        .to eq(before: nil, after: { "full_name" => "Ana", "password_digest" => "[FILTERED]" })
+      expect(diff(before: nil, after: { "title" => "Ana", "password_digest" => "$2a$secreto" }))
+        .to eq(before: nil, after: { "title" => "Ana", "password_digest" => "[FILTERED]" })
     end
 
     it "un sensible que NO cambió no aparece" do

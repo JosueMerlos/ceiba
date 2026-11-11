@@ -35,7 +35,7 @@ Si algún día un módulo necesita escalar por separado, los límites ya existen
 | `platform/audit` | `audit_events` (tenant) y `auth_audit_events` (global) append-only, diff sin datos sensibles | `Audit.record`, `Audit.record_auth`, `Audit::Error`, `Audit::NoContext` |
 | `platform/idempotency` | `idempotency_keys`: repetición segura de creaciones con `Idempotency-Key` | `Idempotency::Idempotent` (concern), `Idempotency::KeyReused`, `KeyRequired`, `KeyInvalid`, `MissingContext` |
 | `platform/notifications` | Canales (correo, WhatsApp), plantillas, consentimientos, delivery log | `Notifications.deliver`, `Notifications::Consent` |
-| `platform/customers` | Cliente final, único **por empresa** | `Customers::FindOrCreate`, `Customers::Lookup` |
+| `platform/customers` | Cliente final, único **por empresa** | `Customers::FindOrCreate` |
 | `modules/appointments` | Servicios, profesionales, recursos, horarios, disponibilidad, citas | `Appointments::Book`, `Appointments::Availability` |
 
 > `customers` vive en platform porque **todos** los módulos futuros (facturación, lealtad, historial) lo comparten. Si viviera en `appointments`, facturación tendría que depender de citas.

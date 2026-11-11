@@ -73,5 +73,10 @@ RSpec.describe "Carga de manifiestos" do
 
       expect(definition).to have_attributes(module_key: "appointments", roles: %w[professional])
     end
+
+    it "la lectura de servicios de appointments se ejerce también hacia arriba (from_descendants llega al registro de access)" do
+      expect(Access.registry.upward_keys).to include("appointments.service.read")
+      expect(Access.registry.upward_keys).not_to include("appointments.service.manage")
+    end
   end
 end

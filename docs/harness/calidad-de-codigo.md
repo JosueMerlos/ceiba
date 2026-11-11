@@ -54,7 +54,9 @@ Los formateadores y autocorrectores (`rubocop -A`, `prettier --write`, `eslint -
 ## Errores, datos y secretos en el código
 
 - Los textos visibles para el usuario pasan por i18n (Rails I18n en backend; `packages/i18n` en frontend, también en `aria-*`,
-  regla de ESLint). La PII y los campos cifrados quedan fuera de respuestas, logs, auditoría y mensajes de error.
+  regla de ESLint). La PII y los campos cifrados quedan fuera de respuestas, logs, auditoría y mensajes de error. Única excepción
+  explícita: los endpoints del recurso cliente devuelven teléfono, correo y notas a quien tiene `platform.customer.read`
+  ([ADR-0033](../adr/0033-autorizacion-y-pii-de-clientes-y-servicios.md)); ningún otro endpoint, log, error ni auditoría los incluye.
 - Las cargas externas usan identificadores seguros (UUIDv7, slug o token firmado), nunca ids secuenciales.
 - Nunca credenciales en el código; se leen de variables de entorno que el proceso ya tiene y se falla nombrando la clave que
   falta (ver [`seguridad.md`](seguridad.md)).

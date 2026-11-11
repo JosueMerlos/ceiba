@@ -4,7 +4,7 @@ require "rails_helper"
 #   1. STATIC: every controller in packs/modules/<key>/app/controllers declares `requires_module :<key>` (its own module).
 #   2. DYNAMIC: every route whose controller declares a module answers 404 when that module is inactive in the company,
 #      and stops answering 404 once it is activated (the test is not vacuous).
-# The real modules have no controllers yet; the suite is exercised with the routes of the fictitious `sample` module.
+# The suite is exercised with the routes of the fictitious `sample` module and those of the real modules.
 RSpec.describe "Cobertura de módulos: rutas de un módulo inactivo => 404" do
   include_context "con rutas de sample"
   include_context "con el módulo sample sincronizado"
@@ -120,7 +120,7 @@ RSpec.describe "Cobertura de módulos: rutas de un módulo inactivo => 404" do
 
     it "con el módulo activo dejan de ser 404 (la comprobación de arriba no es vacía)" do
       manager
-      with_tenant(world.organization) { Modules::Enable.call(company:, key: "sample") }
+      with_tenant(world.organization) { module_routes.pluck(:module).uniq.each { |key| Modules::Enable.call(company:, key:) } }
       statuses = module_routes.map do |route|
         process(route[:verb].downcase.to_sym, url_for_route(route, company), headers: manager.csrf_headers, as: :json)
         response.status

@@ -1,4 +1,4 @@
-# Minimal appointments module manifest: permissions, role grants, API scopes and settings only. No models or endpoints yet.
+# Appointments module manifest: permissions, role grants, API scopes, settings and navigation of the module.
 #
 # The module registry loads this file by PATH and validates it at boot, so it holds only strings and data and references no
 # constant from another pack (the file is excluded from Packwerk).
@@ -14,8 +14,11 @@ Modules.define :appointments do
     permission "appointments.appointment.update",     description: "Editar, mover y cancelar citas"
     permission "appointments.appointment.update_own", description: "Editar las propias citas (profesional)"
     permission "appointments.appointment.count",      description: "Ver conteos de citas (sin detalle)"
-    permission "appointments.service.read",           description: "Ver servicios y precios"
+    # from_descendants: services are company records, and branch roles read the catalog they work with.
+    permission "appointments.service.read",           description: "Ver servicios y precios", from_descendants: true
     permission "appointments.service.manage",         description: "Gestionar servicios y precios"
+    permission "appointments.service.override_duration", description: "Cambiar la duración de un servicio en una sucursal"
+    permission "appointments.service.override_price",    description: "Cambiar el precio de un servicio en una sucursal"
   end
 
   # org_owner and org_admin only see appointment COUNTS, never the detail.
@@ -23,9 +26,10 @@ Modules.define :appointments do
     grant :org_owner,       %w[appointments.appointment.count]
     grant :org_admin,       %w[appointments.appointment.count]
     grant :company_manager, %w[appointments.appointment.read appointments.appointment.create appointments.appointment.update
-                               appointments.appointment.count appointments.service.read appointments.service.manage]
+                               appointments.appointment.count appointments.service.read appointments.service.manage
+                               appointments.service.override_duration appointments.service.override_price]
     grant :branch_manager,  %w[appointments.appointment.read appointments.appointment.create appointments.appointment.update
-                               appointments.appointment.count appointments.service.read]
+                               appointments.appointment.count appointments.service.read appointments.service.override_duration]
     grant :receptionist,    %w[appointments.appointment.read appointments.appointment.create appointments.appointment.update
                                appointments.service.read]
     grant :professional,    %w[appointments.appointment.read appointments.appointment.update_own appointments.service.read]
