@@ -17,6 +17,9 @@
 - Lint de los archivos tocados; `pnpm typecheck` (`tsc --noEmit`) para TypeScript tocado; si tocas un endpoint o un
   serializer, `bin/api-generate` y revisa que el diff del contrato sea el esperado; si tocas el bundle de una app, la etapa
   `frontend-bundle` (presupuestos de [`bundle-budgets.json`](../../frontend/bundle-budgets.json)).
+- Cada fase de un plan corre, antes de entregarse, las etapas que puede romper, no solo sus specs: si toca seeds o datos
+  demo, `make ci s=e2e` (los E2E se apoyan en esos fixtures); si toca migraciones, `make ci s=backend-migrations`; si toca
+  packs o dependencias entre ellos, `make ci s=backend-packs`; si toca endpoints, `make ci s=api-contract`.
 
 ## Antes de un push autorizado
 
@@ -51,4 +54,11 @@ cuando un bloqueo o una aprobación necesiten al desarrollador.
   fallar por lo mismo, detente y repórtalo. Recuerda que `structure.sql` está versionado: no lo reescribas como efecto colateral.
 - Antes de reintentar la suite completa, confirma que no hay otro proceso de test activo. Si la corrida enfocada y la completa
   no coinciden, investiga el aislamiento antes de cambiar aserciones.
+- **Un solo dueño de la base de test a la vez.** Los agentes no corren suites en segundo plano ni dos suites en paralelo
+  (comparten `ceiba_test` y se pisan: fallos transitorios que no son del código). Los revisores no corren suites: leen código
+  o usan `bin/rails runner` en `RAILS_ENV=test` con los cambios dentro de una transacción que se revierte.
+- **Tras borrar o renombrar un inicializador o un archivo de configuración**, reinicia el backend antes de verificar
+  (`docker compose restart api worker`): el proceso de desarrollo conserva los bloqueos `to_prepare` viejos y, por ejemplo,
+  responde 500 donde debía responder 401. Si el E2E falla en la primera pantalla con la suite de backend en verde, comprueba
+  primero `curl -s -o /dev/null -w '%{http_code}' localhost:8080/api/v1/me` (debe dar 401).
 - Borra los scripts temporales al terminar.
