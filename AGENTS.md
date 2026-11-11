@@ -66,8 +66,9 @@ Reglas de git y PR que no se copiaron (las skills `commit` y `watch-pr` las trae
 El objetivo es que un hito avance sin detenerse salvo en lo que de verdad es del desarrollador.
 
 - **Decisiones delegables:** el agente las toma siguiendo la convención documentada y las registra en el plan en una sección
-  "Decisiones delegadas (convención)", con el encabezado `**N. <decisión>** - Resuelta (delegada): <opción>, <fecha>` (la
-  compuerta de `apply-plan` las trata como resueltas). Se listan también en el resumen del PR. Son delegables:
+  "Decisiones delegadas (convención)", con el encabezado `**N. <decisión>** - Resuelta: <opción> (delegada), <fecha>`
+  (el token `Resuelta:` es el que la compuerta de `apply-plan` reconoce como decisión resuelta). Se listan también en el
+  resumen del PR. Son delegables:
   - detalles de contrato de endpoints **nuevos y sin publicar**: nombres de parámetros, códigos de error según
     [`07-api-contract`](docs/architecture/07-api-contract.md), semántica de `PUT`/`PATCH`, forma de la respuesta;
   - validaciones y límites razonables (longitudes, rangos, tipos);
@@ -79,8 +80,8 @@ El objetivo es que un hito avance sin detenerse salvo en lo que de verdad es del
   desviación del alcance. Ante la duda entre delegable y no, pregunta.
 - **Premisas:** una afirmación de que algo **no existe** (un helper, un manejador, un índice) se verifica con una búsqueda
   antes de usarla para decidir.
-- **Segunda opinión:** todos los agentes (orquestador, implementadores, revisores) tienen la herramienta `advisor`
-  (configurada con Fable). Consúltala antes de una decisión no obvia o tras dos intentos fallidos. Para una revisión
+- **Segunda opinión:** en Claude Code, todos los agentes (orquestador, implementadores, revisores) tienen la herramienta
+  `advisor` (configurada con Fable). Consúltala antes de una decisión no obvia o tras dos intentos fallidos. Para una revisión
   independiente, el orquestador lanza un agente de solo lectura con el modelo `fable`. Un implementador con dudas sobre una
   decisión no delegable la devuelve en su reporte en vez de adivinar.
 - **Revisión antes del merge**, sin pedir permiso para lanzarla: primero `thermo-nuclear-code-quality-review` (estructura),
