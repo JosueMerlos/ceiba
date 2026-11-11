@@ -33,6 +33,9 @@ module Appointments
     def branch_ids = branch_assignments.map(&:branch_id).sort
     def service_ids = professional_services.map(&:service_id).sort
 
+    # Is this the user's OWN record, and does it attend in the branch? What lets a person see and manage what is theirs.
+    def own_in_branch?(user_id:, branch_id:) = user_id.present? && self.user_id == user_id && branch_assignments.exists?(branch_id:)
+
     private
 
     def normalize_fields

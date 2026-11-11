@@ -20,3 +20,32 @@ scope path: "organizations/:organization_id/companies/:company_id/appointments" 
   put "branches/:branch_id/professionals/:professional_id/assignment", to: "appointments/professional_assignments#upsert"
   delete "branches/:branch_id/professionals/:professional_id/assignment", to: "appointments/professional_assignments#destroy"
 end
+
+# Resources, weekly hours and absences hang from a BRANCH: the permission is asked there and the owner (an assigned
+# professional, the branch's resource) is searched among the branch's. `owner_kind` is a route default (a client cannot send
+# it) that tells the shared controllers which owner the URL names. Member params are named, never :id.
+scope path: "organizations/:organization_id/companies/:company_id/appointments" do
+  put "services/:service_id/resource_requirements", to: "appointments/resource_requirements#update"
+
+  scope path: "branches/:branch_id" do
+    get "resources", to: "appointments/resources#index"
+    post "resources", to: "appointments/resources#create"
+    get "resources/:resource_id", to: "appointments/resources#show"
+    patch "resources/:resource_id", to: "appointments/resources#update"
+    delete "resources/:resource_id", to: "appointments/resources#destroy"
+
+    get "schedule", to: "appointments/schedules#show", defaults: { owner_kind: "branch" }
+    put "schedule", to: "appointments/schedules#update", defaults: { owner_kind: "branch" }
+    get "professionals/:professional_id/schedule", to: "appointments/schedules#show", defaults: { owner_kind: "professional" }
+    put "professionals/:professional_id/schedule", to: "appointments/schedules#update", defaults: { owner_kind: "professional" }
+    get "resources/:resource_id/schedule", to: "appointments/schedules#show", defaults: { owner_kind: "resource" }
+    put "resources/:resource_id/schedule", to: "appointments/schedules#update", defaults: { owner_kind: "resource" }
+
+    get "professionals/:professional_id/time_offs", to: "appointments/time_offs#index", defaults: { owner_kind: "professional" }
+    post "professionals/:professional_id/time_offs", to: "appointments/time_offs#create", defaults: { owner_kind: "professional" }
+    delete "professionals/:professional_id/time_offs/:professional_time_off_id", to: "appointments/time_offs#destroy", defaults: { owner_kind: "professional" }
+    get "resources/:resource_id/time_offs", to: "appointments/time_offs#index", defaults: { owner_kind: "resource" }
+    post "resources/:resource_id/time_offs", to: "appointments/time_offs#create", defaults: { owner_kind: "resource" }
+    delete "resources/:resource_id/time_offs/:resource_time_off_id", to: "appointments/time_offs#destroy", defaults: { owner_kind: "resource" }
+  end
+end

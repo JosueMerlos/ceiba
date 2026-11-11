@@ -403,6 +403,26 @@ CREATE TABLE public.professionals (
 
 
 --
+-- Name: resources; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.resources (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    branch_id uuid NOT NULL,
+    name character varying NOT NULL,
+    kind character varying NOT NULL,
+    active boolean DEFAULT true NOT NULL,
+    archived_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_resources_kind CHECK ((((kind)::text = 'chair'::text) OR ((kind)::text = 'room'::text) OR ((kind)::text = 'equipment'::text))),
+    CONSTRAINT chk_resources_name_present CHECK ((length(btrim((name)::text)) > 0))
+);
+
+
+--
 -- Name: role_permissions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -435,6 +455,22 @@ CREATE TABLE public.roles (
 
 CREATE TABLE public.schema_migrations (
     version character varying NOT NULL
+);
+
+
+--
+-- Name: service_resource_requirements; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.service_resource_requirements (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    service_id uuid NOT NULL,
+    kind character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_srr_kind CHECK ((((kind)::text = 'chair'::text) OR ((kind)::text = 'room'::text) OR ((kind)::text = 'equipment'::text)))
 );
 
 
@@ -485,6 +521,28 @@ CREATE TABLE public.sessions (
 
 
 --
+-- Name: time_offs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.time_offs (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    owner_type character varying NOT NULL,
+    professional_id uuid,
+    resource_id uuid,
+    starts_at timestamp(6) without time zone NOT NULL,
+    ends_at timestamp(6) without time zone NOT NULL,
+    reason character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_time_offs_owner CHECK (((((owner_type)::text = 'professional'::text) AND (professional_id IS NOT NULL) AND (resource_id IS NULL)) OR (((owner_type)::text = 'resource'::text) AND (professional_id IS NULL) AND (resource_id IS NOT NULL)))),
+    CONSTRAINT chk_time_offs_range CHECK ((starts_at < ends_at)),
+    CONSTRAINT chk_time_offs_reason CHECK (((reason IS NULL) OR (char_length((reason)::text) <= 200)))
+);
+
+
+--
 -- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -495,6 +553,31 @@ CREATE TABLE public.users (
     full_name character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: weekly_schedules; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.weekly_schedules (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    branch_id uuid NOT NULL,
+    owner_type character varying NOT NULL,
+    professional_id uuid,
+    resource_id uuid,
+    weekday smallint NOT NULL,
+    starts_at_local time without time zone NOT NULL,
+    ends_at_local time without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_ws_minute_precision CHECK (((date_trunc('minute'::text, (starts_at_local)::interval) = (starts_at_local)::interval) AND (date_trunc('minute'::text, (ends_at_local)::interval) = (ends_at_local)::interval))),
+    CONSTRAINT chk_ws_owner CHECK (((((owner_type)::text = 'branch'::text) AND (professional_id IS NULL) AND (resource_id IS NULL)) OR (((owner_type)::text = 'professional'::text) AND (professional_id IS NOT NULL) AND (resource_id IS NULL)) OR (((owner_type)::text = 'resource'::text) AND (professional_id IS NULL) AND (resource_id IS NOT NULL)))),
+    CONSTRAINT chk_ws_owner_type CHECK ((((owner_type)::text = 'branch'::text) OR ((owner_type)::text = 'professional'::text) OR ((owner_type)::text = 'resource'::text))),
+    CONSTRAINT chk_ws_range CHECK ((starts_at_local < ends_at_local)),
+    CONSTRAINT chk_ws_weekday CHECK (((weekday >= 0) AND (weekday <= 6)))
 );
 
 
@@ -568,6 +651,30 @@ ALTER TABLE ONLY public.company_modules
 
 ALTER TABLE ONLY public.customers
     ADD CONSTRAINT customers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: weekly_schedules ex_ws_branch; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_schedules
+    ADD CONSTRAINT ex_ws_branch EXCLUDE USING gist (branch_id WITH =, weekday WITH =, int4range((((EXTRACT(hour FROM starts_at_local) * (60)::numeric) + EXTRACT(minute FROM starts_at_local)))::integer, (((EXTRACT(hour FROM ends_at_local) * (60)::numeric) + EXTRACT(minute FROM ends_at_local)))::integer, '[)'::text) WITH &&) WHERE (((owner_type)::text = 'branch'::text));
+
+
+--
+-- Name: weekly_schedules ex_ws_professional; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_schedules
+    ADD CONSTRAINT ex_ws_professional EXCLUDE USING gist (professional_id WITH =, weekday WITH =, int4range((((EXTRACT(hour FROM starts_at_local) * (60)::numeric) + EXTRACT(minute FROM starts_at_local)))::integer, (((EXTRACT(hour FROM ends_at_local) * (60)::numeric) + EXTRACT(minute FROM ends_at_local)))::integer, '[)'::text) WITH &&) WHERE ((professional_id IS NOT NULL));
+
+
+--
+-- Name: weekly_schedules ex_ws_resource; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_schedules
+    ADD CONSTRAINT ex_ws_resource EXCLUDE USING gist (resource_id WITH =, weekday WITH =, int4range((((EXTRACT(hour FROM starts_at_local) * (60)::numeric) + EXTRACT(minute FROM starts_at_local)))::integer, (((EXTRACT(hour FROM ends_at_local) * (60)::numeric) + EXTRACT(minute FROM ends_at_local)))::integer, '[)'::text) WITH &&) WHERE ((resource_id IS NOT NULL));
 
 
 --
@@ -659,6 +766,14 @@ ALTER TABLE ONLY public.professionals
 
 
 --
+-- Name: resources resources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.resources
+    ADD CONSTRAINT resources_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: role_permissions role_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -683,6 +798,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: service_resource_requirements service_resource_requirements_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_resource_requirements
+    ADD CONSTRAINT service_resource_requirements_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: services services_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -696,6 +819,14 @@ ALTER TABLE ONLY public.services
 
 ALTER TABLE ONLY public.sessions
     ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: time_offs time_offs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.time_offs
+    ADD CONSTRAINT time_offs_pkey PRIMARY KEY (id);
 
 
 --
@@ -827,6 +958,22 @@ ALTER TABLE ONLY public.professionals
 
 
 --
+-- Name: resources uq_resources_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.resources
+    ADD CONSTRAINT uq_resources_organization_id_id UNIQUE (organization_id, id);
+
+
+--
+-- Name: service_resource_requirements uq_service_resource_requirements_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_resource_requirements
+    ADD CONSTRAINT uq_service_resource_requirements_organization_id_id UNIQUE (organization_id, id);
+
+
+--
 -- Name: services uq_services_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -835,11 +982,35 @@ ALTER TABLE ONLY public.services
 
 
 --
+-- Name: time_offs uq_time_offs_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.time_offs
+    ADD CONSTRAINT uq_time_offs_organization_id_id UNIQUE (organization_id, id);
+
+
+--
+-- Name: weekly_schedules uq_weekly_schedules_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_schedules
+    ADD CONSTRAINT uq_weekly_schedules_organization_id_id UNIQUE (organization_id, id);
+
+
+--
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: weekly_schedules weekly_schedules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_schedules
+    ADD CONSTRAINT weekly_schedules_pkey PRIMARY KEY (id);
 
 
 --
@@ -955,10 +1126,59 @@ CREATE INDEX idx_ps_service ON public.professional_services USING btree (organiz
 
 
 --
+-- Name: idx_resources_branch_unarchived_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_resources_branch_unarchived_id ON public.resources USING btree (organization_id, branch_id, id) WHERE (archived_at IS NULL);
+
+
+--
 -- Name: idx_services_company_unarchived_id; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_services_company_unarchived_id ON public.services USING btree (organization_id, company_id, id) WHERE (archived_at IS NULL);
+
+
+--
+-- Name: idx_srr_service; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_srr_service ON public.service_resource_requirements USING btree (organization_id, company_id, service_id);
+
+
+--
+-- Name: idx_time_offs_professional_starts; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_time_offs_professional_starts ON public.time_offs USING btree (professional_id, starts_at) WHERE (professional_id IS NOT NULL);
+
+
+--
+-- Name: idx_time_offs_resource_starts; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_time_offs_resource_starts ON public.time_offs USING btree (resource_id, starts_at) WHERE (resource_id IS NOT NULL);
+
+
+--
+-- Name: idx_ws_branch_weekday; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ws_branch_weekday ON public.weekly_schedules USING btree (organization_id, branch_id, weekday);
+
+
+--
+-- Name: idx_ws_professional_branch; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ws_professional_branch ON public.weekly_schedules USING btree (professional_id, branch_id) WHERE (professional_id IS NOT NULL);
+
+
+--
+-- Name: idx_ws_resource_branch; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_ws_resource_branch ON public.weekly_schedules USING btree (resource_id, branch_id) WHERE (resource_id IS NOT NULL);
 
 
 --
@@ -1137,6 +1357,20 @@ CREATE UNIQUE INDEX uq_ps_professional_service ON public.professional_services U
 
 
 --
+-- Name: uq_resources_org_company_branch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_resources_org_company_branch_id ON public.resources USING btree (organization_id, company_id, branch_id, id);
+
+
+--
+-- Name: uq_resources_org_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_resources_org_company_id ON public.resources USING btree (organization_id, company_id, id);
+
+
+--
 -- Name: uq_roles_id_scope_level; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1155,6 +1389,13 @@ CREATE UNIQUE INDEX uq_roles_key ON public.roles USING btree (key);
 --
 
 CREATE UNIQUE INDEX uq_services_organization_id_company_id_id ON public.services USING btree (organization_id, company_id, id);
+
+
+--
+-- Name: uq_srr_service_kind; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_srr_service_kind ON public.service_resource_requirements USING btree (service_id, kind);
 
 
 --
@@ -1460,6 +1701,30 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: resources fk_resources_branch; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.resources
+    ADD CONSTRAINT fk_resources_branch FOREIGN KEY (organization_id, company_id, branch_id) REFERENCES public.branches(organization_id, company_id, id);
+
+
+--
+-- Name: resources fk_resources_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.resources
+    ADD CONSTRAINT fk_resources_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: resources fk_resources_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.resources
+    ADD CONSTRAINT fk_resources_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: role_permissions fk_role_permissions_permission; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1476,6 +1741,22 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
+-- Name: service_resource_requirements fk_service_resource_requirements_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_resource_requirements
+    ADD CONSTRAINT fk_service_resource_requirements_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: service_resource_requirements fk_service_resource_requirements_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_resource_requirements
+    ADD CONSTRAINT fk_service_resource_requirements_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: services fk_services_company; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1489,6 +1770,86 @@ ALTER TABLE ONLY public.services
 
 ALTER TABLE ONLY public.services
     ADD CONSTRAINT fk_services_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: service_resource_requirements fk_srr_service; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.service_resource_requirements
+    ADD CONSTRAINT fk_srr_service FOREIGN KEY (organization_id, company_id, service_id) REFERENCES public.services(organization_id, company_id, id);
+
+
+--
+-- Name: time_offs fk_time_offs_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.time_offs
+    ADD CONSTRAINT fk_time_offs_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: time_offs fk_time_offs_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.time_offs
+    ADD CONSTRAINT fk_time_offs_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: time_offs fk_time_offs_professional; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.time_offs
+    ADD CONSTRAINT fk_time_offs_professional FOREIGN KEY (organization_id, company_id, professional_id) REFERENCES public.professionals(organization_id, company_id, id);
+
+
+--
+-- Name: time_offs fk_time_offs_resource; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.time_offs
+    ADD CONSTRAINT fk_time_offs_resource FOREIGN KEY (organization_id, company_id, resource_id) REFERENCES public.resources(organization_id, company_id, id);
+
+
+--
+-- Name: weekly_schedules fk_weekly_schedules_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_schedules
+    ADD CONSTRAINT fk_weekly_schedules_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: weekly_schedules fk_weekly_schedules_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_schedules
+    ADD CONSTRAINT fk_weekly_schedules_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: weekly_schedules fk_ws_assignment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_schedules
+    ADD CONSTRAINT fk_ws_assignment FOREIGN KEY (organization_id, company_id, professional_id, branch_id) REFERENCES public.professional_branch_assignments(organization_id, company_id, professional_id, branch_id);
+
+
+--
+-- Name: weekly_schedules fk_ws_branch; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_schedules
+    ADD CONSTRAINT fk_ws_branch FOREIGN KEY (organization_id, company_id, branch_id) REFERENCES public.branches(organization_id, company_id, id);
+
+
+--
+-- Name: weekly_schedules fk_ws_resource; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.weekly_schedules
+    ADD CONSTRAINT fk_ws_resource FOREIGN KEY (organization_id, company_id, branch_id, resource_id) REFERENCES public.resources(organization_id, company_id, branch_id, id);
 
 
 --
@@ -1590,10 +1951,38 @@ CREATE POLICY tenant_isolation ON public.professionals USING ((organization_id =
 
 
 --
+-- Name: resources tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.resources USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
+-- Name: service_resource_requirements tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.service_resource_requirements USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
 -- Name: services tenant_isolation; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY tenant_isolation ON public.services USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
+-- Name: time_offs tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.time_offs USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
+-- Name: weekly_schedules tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.weekly_schedules USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
 
 
 --
@@ -1603,6 +1992,10 @@ CREATE POLICY tenant_isolation ON public.services USING ((organization_id = (NUL
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261111180300'),
+('20261111180200'),
+('20261111180100'),
+('20261111180000'),
 ('20261111171200'),
 ('20261111171100'),
 ('20261111171000'),
