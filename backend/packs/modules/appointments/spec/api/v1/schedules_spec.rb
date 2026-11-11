@@ -298,6 +298,9 @@ RSpec.describe "API v1: horarios semanales" do
     parameter name: :company_id, in: :path, schema: { type: :string, format: :uuid }, required: true
     parameter name: :branch_id, in: :path, schema: { type: :string, format: :uuid }, required: true
 
+    # Enabling the module gave every branch the default week: these examples start from branches without hours.
+    before { with_tenant(world.organization) { Appointments::WeeklySchedule.where(owner_type: "branch").delete_all } }
+
     get "Horario semanal de la sucursal" do
       tags "Horarios"
       description "Exige `appointments.schedule.read` en la sucursal. Una sucursal sin franjas está cerrada."

@@ -510,6 +510,187 @@ components:
       - instance
       - request_id
       type: object
+    Professional:
+      additionalProperties: false
+      description: 'Profesional de una empresa. Una misma persona (`user_id`) puede tener un registro en cada empresa del grupo, con su propio horario. No trae datos de la persona vinculada: solo su identificador.'
+      properties:
+        active:
+          type: boolean
+        archived_at:
+          description: UTC; null si no está archivado
+          format: date-time
+          nullable: true
+          type: string
+        branch_ids:
+          description: Sucursales de la empresa donde está asignado
+          items:
+            format: uuid
+            type: string
+          type: array
+        created_at:
+          description: UTC
+          format: date-time
+          type: string
+        display_name:
+          maxLength: 120
+          type: string
+        id:
+          format: uuid
+          type: string
+        service_ids:
+          description: Servicios que presta
+          items:
+            format: uuid
+            type: string
+          type: array
+        updated_at:
+          description: UTC
+          format: date-time
+          type: string
+        user_id:
+          description: Persona vinculada; null si el profesional no tiene usuario
+          format: uuid
+          nullable: true
+          type: string
+      required:
+      - id
+      - display_name
+      - user_id
+      - active
+      - archived_at
+      - branch_ids
+      - service_ids
+      - created_at
+      - updated_at
+      type: object
+    ProfessionalInput:
+      additionalProperties: false
+      description: Alta de un profesional. `user_id` debe tener una membresía en la organización y no estar ya vinculado a otro profesional de la empresa.
+      properties:
+        active:
+          default: true
+          type: boolean
+        display_name:
+          maxLength: 120
+          minLength: 1
+          type: string
+        user_id:
+          format: uuid
+          nullable: true
+          type: string
+      required:
+      - display_name
+      type: object
+    ProfessionalPatch:
+      additionalProperties: false
+      description: 'Edición parcial de un profesional: solo cambian los campos enviados; `user_id: null` desvincula a la persona'
+      properties:
+        active:
+          type: boolean
+        display_name:
+          maxLength: 120
+          minLength: 1
+          type: string
+        user_id:
+          format: uuid
+          nullable: true
+          type: string
+      type: object
+    ProfessionalServicesInput:
+      additionalProperties: false
+      description: El conjunto completo de servicios que presta el profesional; lo que no viene se quita
+      properties:
+        service_ids:
+          items:
+            format: uuid
+            type: string
+          type: array
+          uniqueItems: true
+      required:
+      - service_ids
+      type: object
+    Resource:
+      additionalProperties: false
+      description: Recurso físico de una sucursal (sillón, sala, equipo).
+      properties:
+        active:
+          type: boolean
+        archived_at:
+          description: UTC; null si no está archivado
+          format: date-time
+          nullable: true
+          type: string
+        branch_id:
+          format: uuid
+          type: string
+        created_at:
+          description: UTC
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        kind:
+          enum:
+          - chair
+          - room
+          - equipment
+          type: string
+        name:
+          maxLength: 120
+          type: string
+        updated_at:
+          description: UTC
+          format: date-time
+          type: string
+      required:
+      - id
+      - branch_id
+      - name
+      - kind
+      - active
+      - archived_at
+      - created_at
+      - updated_at
+      type: object
+    ResourceInput:
+      additionalProperties: false
+      description: Alta de un recurso en la sucursal de la ruta.
+      properties:
+        active:
+          default: true
+          type: boolean
+        kind:
+          enum:
+          - chair
+          - room
+          - equipment
+          type: string
+        name:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+      - name
+      - kind
+      type: object
+    ResourcePatch:
+      additionalProperties: false
+      description: 'Edición parcial de un recurso: solo cambian los campos enviados'
+      properties:
+        active:
+          type: boolean
+        kind:
+          enum:
+          - chair
+          - room
+          - equipment
+          type: string
+        name:
+          maxLength: 120
+          minLength: 1
+          type: string
+      type: object
     Service:
       additionalProperties: false
       description: Servicio del catálogo de una empresa. El precio es un entero en unidades menores (`price_minor`) en la moneda de la empresa.
@@ -718,6 +899,102 @@ components:
           minimum: 0
           type: integer
       type: object
+    ServiceResourceRequirements:
+      additionalProperties: false
+      description: 'Los tipos de recurso que necesita un servicio: el hueco de agenda exige un recurso compatible de cada tipo en la sucursal.'
+      properties:
+        kinds:
+          items:
+            enum:
+            - chair
+            - room
+            - equipment
+            type: string
+          type: array
+          uniqueItems: true
+        service_id:
+          format: uuid
+          type: string
+      required:
+      - service_id
+      - kinds
+      type: object
+    ServiceResourceRequirementsInput:
+      additionalProperties: false
+      description: El conjunto completo de tipos de recurso que necesita el servicio; lo que no viene se quita
+      properties:
+        kinds:
+          items:
+            enum:
+            - chair
+            - room
+            - equipment
+            type: string
+          type: array
+          uniqueItems: true
+      required:
+      - kinds
+      type: object
+    TimeOff:
+      additionalProperties: false
+      description: Ausencia de un profesional o de un recurso (exactamente uno de `professional_id` y `resource_id`).
+      properties:
+        created_at:
+          description: UTC
+          format: date-time
+          type: string
+        ends_at:
+          description: UTC
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        professional_id:
+          format: uuid
+          nullable: true
+          type: string
+        reason:
+          description: Texto libre opcional; sin datos de salud
+          maxLength: 200
+          nullable: true
+          type: string
+        resource_id:
+          format: uuid
+          nullable: true
+          type: string
+        starts_at:
+          description: UTC
+          format: date-time
+          type: string
+      required:
+      - id
+      - professional_id
+      - resource_id
+      - starts_at
+      - ends_at
+      - reason
+      - created_at
+      type: object
+    TimeOffInput:
+      additionalProperties: false
+      description: 'Alta de una ausencia: `starts_at` antes que `ends_at`, hasta 366 días. El dueño es el de la ruta.'
+      properties:
+        ends_at:
+          format: date-time
+          type: string
+        reason:
+          description: Texto libre opcional; sin datos de salud. No se registra en logs ni en la auditoría
+          maxLength: 200
+          nullable: true
+          type: string
+        starts_at:
+          format: date-time
+          type: string
+      required:
+      - starts_at
+      - ends_at
+      type: object
     User:
       additionalProperties: false
       description: 'Persona autenticada. Global: no pertenece a una organización (ADR-0028)'
@@ -778,6 +1055,60 @@ components:
       - instance
       - request_id
       - errors
+      type: object
+    WeeklyScheduleInput:
+      additionalProperties: false
+      description: 'El horario completo del dueño en la sucursal: reemplaza todas sus franjas. Horas `HH:MM` (minutos enteros), inicio antes que fin, sin cruzar la medianoche.'
+      properties:
+        slots:
+          items:
+            additionalProperties: false
+            properties:
+              ends_at_local:
+                example: '13:00'
+                type: string
+              starts_at_local:
+                example: '09:00'
+                type: string
+              weekday:
+                maximum: 6
+                minimum: 0
+                type: integer
+            required:
+            - weekday
+            - starts_at_local
+            - ends_at_local
+            type: object
+          maxItems: 100
+          type: array
+      required:
+      - slots
+      type: object
+    WeeklyScheduleSlot:
+      additionalProperties: false
+      description: Una franja semanal en hora LOCAL de la sucursal (sin zona; la zona es de la sucursal).
+      properties:
+        ends_at_local:
+          example: '13:00'
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          type: string
+        id:
+          format: uuid
+          type: string
+        starts_at_local:
+          example: '09:00'
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+          type: string
+        weekday:
+          description: 0 = domingo, como `Date#wday`
+          maximum: 6
+          minimum: 0
+          type: integer
+      required:
+      - id
+      - weekday
+      - starts_at_local
+      - ends_at_local
       type: object
   securitySchemes:
     cookieAuth:
@@ -1161,6 +1492,1181 @@ paths:
       schema:
         format: uuid
         type: string
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/professionals/{professional_id}":
+    get:
+      description: 'Es la ruta del perfil propio del `professional`: exige `appointments.professional.read` en la sucursal, o bien `appointments.professional.read_own` en la sucursal cuando el registro está vinculado a su usuario y asignado a esa sucursal.'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Professional"
+                required:
+                - data
+                type: object
+          description: el branch_manager lee cualquier profesional de la empresa desde su sucursal
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el profesional no lee su perfil desde una sucursal donde NO está asignado
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+      security:
+      - cookieAuth: []
+      summary: Obtiene un profesional desde una sucursal
+      tags:
+      - Profesionales
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: Sucursal desde la que se mira el perfil
+      in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID del profesional
+      in: path
+      name: professional_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/professionals/{professional_id}/assignment"
+  : delete:
+      description: Exige `appointments.professional.assign` en la sucursal de la ruta. Sin asignación a esa sucursal responde 404.
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: el branch_manager quita de SU sucursal
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el receptionist no quita asignaciones
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un profesional de otra empresa
+      security:
+      - cookieAuth: []
+      summary: Quita a un profesional de la sucursal
+      tags:
+      - Profesionales
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: Sucursal a la que se asigna
+      in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID del profesional
+      in: path
+      name: professional_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    put:
+      description: 'Exige `appointments.professional.assign` en la sucursal de la ruta. Idempotente: si ya está asignado responde 200 sin cambios. El profesional debe ser de la empresa de la ruta y no estar archivado; devuelve el profesional con sus `branch_ids`.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Professional"
+                required:
+                - data
+                type: object
+          description: asignar de nuevo no duplica ni audita otra vez
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el professional no asigna
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: 'un profesional archivado no admite asignaciones nuevas (`base: archived`)'
+      security:
+      - cookieAuth: []
+      summary: Asigna un profesional a la sucursal
+      tags:
+      - Profesionales
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/professionals/{professional_id}/schedule"
+  : get:
+      description: Exige `appointments.schedule.read` en la sucursal, o `appointments.schedule.read_own` si el registro es del propio usuario y está asignado a la sucursal. Devuelve solo las franjas de ESA sucursal. El profesional debe estar asignado a la sucursal de la ruta (si no, 404).
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/WeeklyScheduleSlot"
+                    type: array
+                required:
+                - data
+                type: object
+          description: el profesional lee su PROPIO horario con schedule.read_own
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el profesional NO lee el horario de otro profesional
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+      security:
+      - cookieAuth: []
+      summary: Horario semanal de un profesional en la sucursal
+      tags:
+      - Horarios
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID del profesional, asignado a la sucursal de la ruta
+      in: path
+      name: professional_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    put:
+      description: 'Exige `appointments.schedule.manage` en la sucursal. Reemplaza TODAS las franjas del profesional en esa sucursal en una transacción: lo que no viene se quita y una lista vacía quita todo. Las horas son locales de la sucursal (`HH:MM`, minutos enteros, sin cruzar la medianoche); `weekday` va de 0 (domingo) a 6. Franjas que se solapan (también con las del profesional en otras sucursales) dan 422 con `slots: overlap`.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/WeeklyScheduleInput"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/WeeklyScheduleSlot"
+                    type: array
+                required:
+                - data
+                type: object
+          description: una lista vacía quita todas las franjas de la sucursal y deja las de las otras
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: demasiadas franjas
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el profesional ve su horario pero no lo edita
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: una sucursal hermana a la que el branch_manager no pertenece
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: 'un profesional archivado no admite horario (`base: archived`)'
+      security:
+      - cookieAuth: []
+      summary: Reemplaza el horario semanal de un profesional en la sucursal
+      tags:
+      - Horarios
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/professionals/{professional_id}/time_offs"
+  : get:
+      description: Exige `appointments.time_off.read` en la sucursal, o `appointments.time_off.manage_own` si el registro es del propio usuario y está asignado a la sucursal. El profesional debe estar asignado a la sucursal de la ruta (si no, 404). Paginado por cursor.
+      parameters:
+      - in: query
+        name: limit
+        required: false
+        schema:
+          maximum: 100
+          minimum: 1
+          type: integer
+      - in: query
+        name: after
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/TimeOff"
+                    type: array
+                  page:
+                    "$ref": "#/components/schemas/PageInfo"
+                required:
+                - data
+                - page
+                type: object
+          description: el profesional lee sus PROPIAS ausencias
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el profesional NO lee las ausencias de otro profesional
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un profesional de otra empresa
+      security:
+      - cookieAuth: []
+      summary: Lista las ausencias de un profesional
+      tags:
+      - Ausencias
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID del profesional, asignado a la sucursal de la ruta
+      in: path
+      name: professional_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: 'Exige `appointments.time_off.manage` en la sucursal (sobre un profesional asignado a ella), o `appointments.time_off.manage_own` para el propio profesional. `starts_at` y `ends_at` son instantes (ISO 8601) con `starts_at < ends_at` y hasta 366 días. `reason` es texto libre opcional (hasta 200 caracteres): NO escribas datos de salud; no se registra en logs ni en la auditoría. Ausencias solapadas del mismo dueño están permitidas. Acepta `Idempotency-Key`.'
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/TimeOffInput"
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/TimeOff"
+                required:
+                - data
+                type: object
+          description: el branch_manager crea la ausencia de un profesional asignado a SU sucursal
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un campo con el tipo equivocado
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el receptionist lee pero no escribe ausencias
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un profesional que no está asignado a la sucursal de la ruta
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: 'un profesional archivado no admite ausencias (`base: archived`)'
+      security:
+      - cookieAuth: []
+      summary: Crea una ausencia de un profesional
+      tags:
+      - Ausencias
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/professionals/{professional_id}/time_offs/{professional_time_off_id}"
+  : delete:
+      description: 'Mismos permisos que crearla. La ausencia se busca SOLO entre las del profesional de la ruta: la de otro profesional es 404 aunque exista. Borrado real (una ausencia no tiene historial que preservar), auditado por id sin el motivo.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: el branch_manager borra la de un profesional de su sucursal
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el receptionist no borra ausencias
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un id que no existe
+      security:
+      - cookieAuth: []
+      summary: Borra una ausencia de un profesional
+      tags:
+      - Ausencias
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: professional_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID de una ausencia DE ESE profesional
+      in: path
+      name: professional_time_off_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/resources":
+    get:
+      description: Exige `appointments.resource.read` en la sucursal. Devuelve los recursos no archivados (activos y pausados) de ESA sucursal, en orden de creación (el cursor es el id). Paginado por cursor.
+      parameters:
+      - in: query
+        name: limit
+        required: false
+        schema:
+          maximum: 100
+          minimum: 1
+          type: integer
+      - in: query
+        name: after
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/Resource"
+                    type: array
+                  page:
+                    "$ref": "#/components/schemas/PageInfo"
+                required:
+                - data
+                - page
+                type: object
+          description: paginado por cursor
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un rol de organización no tiene permiso de recursos
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+      security:
+      - cookieAuth: []
+      summary: Lista los recursos no archivados de la sucursal
+      tags:
+      - Recursos
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: Exige `appointments.resource.manage` en la sucursal. `kind` es `chair`, `room` o `equipment`. Acepta `Idempotency-Key`.
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ResourceInput"
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Resource"
+                required:
+                - data
+                type: object
+          description: el branch_manager lo crea en SU sucursal
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un campo con el tipo equivocado
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el professional no crea recursos
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: una sucursal de otra empresa en la ruta
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: un tipo desconocido y un nombre en blanco
+      security:
+      - cookieAuth: []
+      summary: Crea un recurso en la sucursal
+      tags:
+      - Recursos
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/resources/{resource_id}":
+    delete:
+      description: 'Exige `appointments.resource.manage` en la sucursal. No borra: lo archiva (`archived_at`) y deja de listarse. Es idempotente.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: el recurso queda archivado (no borrado) y auditado
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el receptionist no archiva recursos
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un recurso de otra sucursal
+      security:
+      - cookieAuth: []
+      summary: Archiva un recurso
+      tags:
+      - Recursos
+    get:
+      description: Exige `appointments.resource.read` en la sucursal. Un recurso de otra sucursal responde 404.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Resource"
+                required:
+                - data
+                type: object
+          description: el recurso
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un id que no existe
+      security:
+      - cookieAuth: []
+      summary: Obtiene un recurso de la sucursal
+      tags:
+      - Recursos
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID del recurso
+      in: path
+      name: resource_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    patch:
+      description: Exige `appointments.resource.manage` en la sucursal. Solo cambian los campos enviados. Un archivado no se edita (422).
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ResourcePatch"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Resource"
+                required:
+                - data
+                type: object
+          description: el recurso editado, auditado con antes y después
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el receptionist no edita recursos
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: 'un recurso de otra sucursal: ni el company_manager lo alcanza por esta ruta'
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: un nombre en blanco
+      security:
+      - cookieAuth: []
+      summary: Edita un recurso
+      tags:
+      - Recursos
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/resources/{resource_id}/schedule"
+  : get:
+      description: Exige `appointments.schedule.read` en la sucursal. El recurso debe ser de la sucursal de la ruta.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/WeeklyScheduleSlot"
+                    type: array
+                required:
+                - data
+                type: object
+          description: las franjas del recurso
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un recurso de otra sucursal
+      security:
+      - cookieAuth: []
+      summary: Horario semanal de un recurso
+      tags:
+      - Horarios
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID de un recurso de la sucursal de la ruta
+      in: path
+      name: resource_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    put:
+      description: Exige `appointments.schedule.manage` en la sucursal. Mismas reglas que el horario de un profesional.
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/WeeklyScheduleInput"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/WeeklyScheduleSlot"
+                    type: array
+                required:
+                - data
+                type: object
+          description: el branch_manager reemplaza el horario del recurso
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el receptionist no escribe
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: 'un recurso de otra sucursal: ni el company_manager lo alcanza por esta ruta'
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: franjas del recurso que se solapan
+      security:
+      - cookieAuth: []
+      summary: Reemplaza el horario semanal de un recurso
+      tags:
+      - Horarios
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/resources/{resource_id}/time_offs"
+  : get:
+      description: Exige `appointments.time_off.read` en la sucursal. El recurso debe ser de la sucursal de la ruta. Paginado por cursor.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/TimeOff"
+                    type: array
+                  page:
+                    "$ref": "#/components/schemas/PageInfo"
+                required:
+                - data
+                - page
+                type: object
+          description: las ausencias del recurso
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el profesional no lee las ausencias de los recursos
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un recurso de otra sucursal
+      security:
+      - cookieAuth: []
+      summary: Lista las ausencias de un recurso
+      tags:
+      - Ausencias
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID de un recurso de la sucursal de la ruta
+      in: path
+      name: resource_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: Exige `appointments.time_off.manage` en la sucursal. Mismas reglas de intervalo que la ausencia de un profesional. Acepta `Idempotency-Key`.
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/TimeOffInput"
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/TimeOff"
+                required:
+                - data
+                type: object
+          description: el branch_manager bloquea un recurso de su sucursal
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el professional no crea ausencias de recursos
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: 'un recurso de otra sucursal: ni el company_manager lo alcanza por esta ruta'
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: fin anterior al inicio
+      security:
+      - cookieAuth: []
+      summary: Crea una ausencia de un recurso
+      tags:
+      - Ausencias
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/resources/{resource_id}/time_offs/{resource_time_off_id}"
+  : delete:
+      description: Exige `appointments.time_off.manage` en la sucursal. La ausencia se busca SOLO entre las del recurso de la ruta.
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: el branch_manager borra la ausencia del recurso
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el receptionist no borra
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: 'la ausencia de OTRO recurso por la URL de este: la fila sobrevive'
+      security:
+      - cookieAuth: []
+      summary: Borra una ausencia de un recurso
+      tags:
+      - Ausencias
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: resource_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID de una ausencia DE ESE recurso
+      in: path
+      name: resource_time_off_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/schedule":
+    get:
+      description: Exige `appointments.schedule.read` en la sucursal. Una sucursal sin franjas está cerrada.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/WeeklyScheduleSlot"
+                    type: array
+                required:
+                - data
+                type: object
+          description: las franjas de la sucursal, sin las de otra
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el profesional no lee el horario de la sucursal (solo el suyo)
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: una sucursal hermana a la que el receptionist no pertenece
+      security:
+      - cookieAuth: []
+      summary: Horario semanal de la sucursal
+      tags:
+      - Horarios
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    put:
+      description: Exige `appointments.schedule.manage` en la sucursal. Reemplaza TODAS las franjas de la sucursal; mismas reglas que el horario de un profesional.
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/WeeklyScheduleInput"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/WeeklyScheduleSlot"
+                    type: array
+                required:
+                - data
+                type: object
+          description: el branch_manager reemplaza el horario de SU sucursal
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el receptionist no escribe el horario de la sucursal
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: una sucursal hermana a la que el branch_manager no pertenece
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: franjas de la sucursal que se solapan
+      security:
+      - cookieAuth: []
+      summary: Reemplaza el horario semanal de la sucursal
+      tags:
+      - Horarios
   "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/services/{service_id}/override":
     delete:
       description: Exige `appointments.service.override_price` si el override tiene precio y `appointments.service.override_duration` si tiene duración (quitarlo es cambiar ambos valores). La sucursal vuelve a usar los del servicio. Sin override responde 404.
@@ -1287,6 +2793,357 @@ paths:
       summary: Fija o cambia el override de un servicio en una sucursal
       tags:
       - Servicios
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/professionals":
+    get:
+      description: Exige `appointments.professional.read` en la empresa (los roles de sucursal con ese permiso lo tienen por `from_descendants`). Devuelve los profesionales no archivados, con las sucursales a las que están asignados y los servicios que prestan; no trae datos de la persona vinculada (solo su `user_id`). Va en orden de creación (el cursor es el id). Paginado por cursor.
+      parameters:
+      - in: query
+        name: limit
+        required: false
+        schema:
+          maximum: 100
+          minimum: 1
+          type: integer
+      - in: query
+        name: after
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/Professional"
+                    type: array
+                  page:
+                    "$ref": "#/components/schemas/PageInfo"
+                required:
+                - data
+                - page
+                type: object
+          description: paginado por cursor
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un rol de organización no tiene permiso de profesionales
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+      security:
+      - cookieAuth: []
+      summary: Lista los profesionales no archivados de la empresa
+      tags:
+      - Profesionales
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: Exige `appointments.professional.manage`. `user_id` vincula al profesional con una persona y debe tener una membresía en la organización (si no, 422); una persona tiene a lo sumo un registro por empresa. Acepta `Idempotency-Key`.
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProfessionalInput"
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Professional"
+                required:
+                - data
+                type: object
+          description: vinculado a una persona que es miembro de la organización
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un campo con el tipo equivocado
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el professional no crea profesionales
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: 'sin nombre (`display_name: blank`)'
+      security:
+      - cookieAuth: []
+      summary: Crea un profesional
+      tags:
+      - Profesionales
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/professionals/{professional_id}":
+    delete:
+      description: 'Exige `appointments.professional.manage`. No borra: archiva (`archived_at`), conserva sus asignaciones y servicios y deja de aparecer en el listado.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: 'archivado: la fila sigue y ya no está en el listado'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el branch_manager no archiva
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un profesional de otra empresa
+      security:
+      - cookieAuth: []
+      summary: Archiva un profesional
+      tags:
+      - Profesionales
+    get:
+      description: Exige `appointments.professional.read` en la empresa. Un profesional de otra empresa responde 404. Un archivado se puede ver, con `archived_at`.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Professional"
+                required:
+                - data
+                type: object
+          description: uno archivado se puede ver
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el profesional no lee fichas por la ruta de empresa (solo la suya por la de sucursal)
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un id que no existe
+      security:
+      - cookieAuth: []
+      summary: Obtiene un profesional
+      tags:
+      - Profesionales
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID del profesional
+      in: path
+      name: professional_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    patch:
+      description: 'Exige `appointments.professional.manage`. Solo cambian los campos enviados; `user_id: null` desvincula a la persona. Un archivado no se edita (422).'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProfessionalPatch"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Professional"
+                required:
+                - data
+                type: object
+          description: el profesional editado, auditado con antes y después
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el recepcionista no edita
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un profesional de otra empresa no se edita
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: 'un profesional archivado (`base: archived`)'
+      security:
+      - cookieAuth: []
+      summary: Edita un profesional
+      tags:
+      - Profesionales
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/professionals/{professional_id}/services":
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID del profesional
+      in: path
+      name: professional_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    put:
+      description: 'Exige `appointments.professional.manage`. Reemplaza el conjunto completo: lo que no viene se quita y una lista vacía quita todos. Un servicio de otra empresa, inexistente o archivado (que aún no estaba vinculado) responde 422 y no cambia nada.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProfessionalServicesInput"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Professional"
+                required:
+                - data
+                type: object
+          description: una lista vacía quita todos
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: service_ids es obligatorio
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el professional no define los servicios de un profesional
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: 'un servicio archivado que no estaba vinculado (`service_id: archived`)'
+      security:
+      - cookieAuth: []
+      summary: Fija los servicios que presta un profesional
+      tags:
+      - Profesionales
   "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services":
     get:
       description: Exige `appointments.service.read` en la empresa (los roles de sucursal la tienen por `from_descendants`). Devuelve los servicios no archivados, activos e inactivos; el filtro opcional `active` (`true` o `false`) deja solo los de ese estado. Los archivados no aparecen. Va en orden de creación (el cursor es el id); `position` es el orden de presentación que el cliente aplica. Paginado por cursor.
@@ -1569,6 +3426,90 @@ paths:
       security:
       - cookieAuth: []
       summary: Edita un servicio
+      tags:
+      - Servicios
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services/{service_id}/resource_requirements":
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - description: ID del servicio
+      in: path
+      name: service_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    put:
+      description: 'Exige `appointments.service.manage` en la empresa. Reemplaza el conjunto completo de `kinds` (`chair`, `room`, `equipment`): lo que no viene se quita y una lista vacía quita todo. El servicio debe ser de la empresa de la ruta.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ServiceResourceRequirementsInput"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/ServiceResourceRequirements"
+                required:
+                - data
+                type: object
+          description: una lista vacía quita todos
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin la lista o con elementos que no son texto
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el professional no define los requisitos de un servicio
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: un tipo desconocido no cambia nada
+      security:
+      - cookieAuth: []
+      summary: Reemplaza los tipos de recurso que necesita el servicio
       tags:
       - Servicios
   "/api/v1/organizations/{organization_id}/companies/{company_id}/branches":

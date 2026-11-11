@@ -61,6 +61,9 @@ Modules.define :appointments do
   api_scopes "read:appointments"  => %w[appointments.appointment.read appointments.service.read],
              "write:appointments" => %w[appointments.appointment.create appointments.appointment.update]
 
+  # Branches that exist when the module is enabled get the default opening hours.
+  on_enable "Appointments::Lifecycle::OnEnable"
+
   settings_schema "config/settings.schema.json"
   settings_levels %i[company branch]
 
