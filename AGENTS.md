@@ -47,15 +47,49 @@ Adaptadas del harness a ceiba. Si una regla del harness o de una skill contradic
 Reglas de git y PR que no se copiaron (las skills `commit` y `watch-pr` las traen):
 `~/projects/ticket-harness/core/rules/git-and-pr.md`, con los overrides de abajo.
 
-## Compuertas que nunca se relajan
+## Compuertas
 
-1. Sin `git commit` sin mostrar el diff y recibir el OK; sin push, merge, force-push ni despliegue sin aprobación explícita
-   en la sesión actual (cada vez).
-2. Primero el plan, revisado; las decisiones abiertas las resuelve el desarrollador, nunca el agente.
+1. **Git.** Merge a `main`, force-push, despliegue y borrado de ramas remotas: nunca sin aprobación explícita del
+   desarrollador, cada vez. Cuando el desarrollador lanza un hito o un bug en la sesión, quedan autorizados para ese trabajo,
+   sin pedir OK ni mostrar el diff, el commit, el push de su propia rama (`feat/m<fase>.<nn>-*`, `fix/*`) y abrir su PR:
+   la revisión del código la hace el desarrollador en el PR. Si se retoma en otra sesión, el desarrollador lo vuelve a lanzar.
+   Anula la confirmación previa al commit de las skills `commit` y `watch-pr` y de `git-and-pr.md`.
+2. Primero el plan, revisado. Las decisiones abiertas las resuelve el desarrollador; las delegables (ver
+   [Autonomía de los agentes](#autonomía-de-los-agentes)) las resuelve el agente siguiendo la convención y las reporta.
 3. Un cambio de comportamiento empieza con un test que corriste y viste fallar (TDD estricto, ver
    [`12-testing-strategy`](docs/architecture/12-testing-strategy.md)).
 4. Evidencia antes de afirmar: reporta los comandos exactos y su resultado.
 5. Nunca leer, imprimir ni versionar secretos (`.env`, `backend/config/*.key`).
+
+## Autonomía de los agentes
+
+El objetivo es que un hito avance sin detenerse salvo en lo que de verdad es del desarrollador.
+
+- **Decisiones delegables:** el agente las toma siguiendo la convención documentada y las registra en el plan en una sección
+  "Decisiones delegadas (convención)", con el encabezado `**N. <decisión>** - Resuelta: <opción> (delegada), <fecha>`
+  (el token `Resuelta:` es el que la compuerta de `apply-plan` reconoce como decisión resuelta). Se listan también en el
+  resumen del PR. Son delegables:
+  - detalles de contrato de endpoints **nuevos y sin publicar**: nombres de parámetros, códigos de error según
+    [`07-api-contract`](docs/architecture/07-api-contract.md), semántica de `PUT`/`PATCH`, forma de la respuesta;
+  - validaciones y límites razonables (longitudes, rangos, tipos);
+  - datos demo de los seeds, sin alterar los fixtures en los que se apoyan los E2E;
+  - todo lo que ya fija un ADR o un patrón existente (por ejemplo, el de [ADR-0033](docs/adr/0033-autorizacion-y-pii-de-clientes-y-servicios.md)).
+- **Siempre del desarrollador:** cambios al modelo de autorización (motor, alcance o matriz de
+  [`04-access-control`](docs/architecture/04-access-control.md)), PII y privacidad, dinero, esquema de tablas existentes,
+  borrado o reescritura de datos, contratos ya publicados, nuevas dependencias no previstas por el hito y cualquier
+  desviación del alcance. Ante la duda entre delegable y no, pregunta.
+- **Premisas:** una afirmación de que algo **no existe** (un helper, un manejador, un índice) se verifica con una búsqueda
+  antes de usarla para decidir.
+- **Segunda opinión:** en Claude Code, todos los agentes (orquestador, implementadores, revisores) tienen la herramienta
+  `advisor` (configurada con Fable). Consúltala antes de una decisión no obvia o tras dos intentos fallidos. Para una revisión
+  independiente, el orquestador lanza un agente de solo lectura con el modelo `fable`. Un implementador con dudas sobre una
+  decisión no delegable la devuelve en su reporte en vez de adivinar.
+- **Revisión antes del merge**, sin pedir permiso para lanzarla: primero `thermo-nuclear-code-quality-review` (estructura),
+  después `adversarial-reviewer` (cambios de rutina) o `judgment-day` (tenancy, base de datos, autorización, PII, dinero).
+  En `judgment-day`, los hallazgos CRITICAL y WARNING reales confirmados por ambos jueces se corrigen sin preguntar; solo
+  las sospechas, las contradicciones y las decisiones de producto vuelven al desarrollador.
+- **Verificación por fase y entorno:** ver [`verificacion.md`](docs/harness/verificacion.md) (suites que cada fase debe
+  correr, reinicio del entorno, un solo dueño de la base de test).
 
 ## Overrides de ceiba sobre el harness
 
