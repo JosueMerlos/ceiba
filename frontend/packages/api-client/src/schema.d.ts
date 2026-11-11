@@ -656,7 +656,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description asignar de nuevo no duplica ni audita otra vez */
+                /** @description el company_manager asigna a un profesional que solo trabaja en otra sucursal */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1029,7 +1029,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description el branch_manager crea la ausencia de un profesional asignado a SU sucursal */
+                /** @description un desfase explícito (-06:00) se guarda como el instante UTC correcto */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -2411,7 +2411,7 @@ export interface paths {
         head?: never;
         /**
          * Edita un profesional
-         * @description Exige `appointments.professional.manage`. Solo cambian los campos enviados; `user_id: null` desvincula a la persona. Un archivado no se edita (422).
+         * @description Exige `appointments.professional.manage`. Solo cambian los campos enviados; `user_id` solo se puede fijar una vez: si ya está vinculado no cambia ni se quita (422 `immutable`; para cambiar de persona se archiva y se crea otro profesional). Un archivado no se edita (422).
          */
         patch: {
             parameters: {
@@ -2434,7 +2434,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description el profesional editado, auditado con antes y después */
+                /** @description reenviar el mismo `user_id` no es un cambio */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2514,7 +2514,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description una lista vacía quita todos */
+                /** @description un UUID válido en mayúsculas se reconoce como el mismo servicio */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -3023,7 +3023,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description un tipo desconocido no cambia nada */
+                /** @description un tipo con byte NUL es inválido, no un 500 */
                 422: {
                     headers: {
                         [name: string]: unknown;
