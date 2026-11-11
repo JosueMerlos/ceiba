@@ -107,7 +107,7 @@ end
 | Servicios y precios (`appointments.service.read` / `.manage`) | — | — | CRUD | ver | ver | ver |
 | Override de duración por sucursal (`appointments.service.override_duration`) | — | — | ✅ | ✅ | — | — |
 | Override de **precio** por sucursal (`appointments.service.override_price`) | — | — | ✅ | **—** | — | — |
-| Profesionales (`appointments.professional.read` / `.manage` / `.assign` / `.read_own`, [ADR-0034](../adr/0034-horarios-ausencias-y-permisos-de-profesionales-y-recursos.md)) | — | — | CRUD | ver, asignar a su sucursal | ver | ver su perfil |
+| Profesionales (`appointments.professional.read` / `.manage` / `.assign` / `.read_own`, [ADR-0034](../adr/0034-horarios-ausencias-y-permisos-de-profesionales-y-recursos.md)) | — | — | CRUD | ver, asignar a su sucursal (solo profesionales sin sucursal o ya en la suya) | ver | ver su perfil |
 | Recursos (`appointments.resource.read` / `.manage`) | — | — | CRUD | CRUD de su sucursal | ver | ver |
 | Horarios (`appointments.schedule.read` / `.manage` / `.read_own`) | — | — | ✅ | ✅ | ver | ver el propio |
 | Ausencias (`appointments.time_off.read` / `.manage` / `.manage_own`) | — | — | ✅ | ✅ (de los asignados a su sucursal) | ver | las propias |
