@@ -55,7 +55,7 @@ Verificables por cualquiera, sin interpretación. Formato Dado / Cuando / Entonc
 - [ ] CI en verde (lint, tests, Packwerk, seguridad).
 - [ ] Docs de arquitectura actualizados si el diseño cambió; ADR nuevo si se tomó una decisión.
 - [ ] Demo breve (captura, GIF o comando reproducible) registrada en la sección "Notas de cierre".
-- [ ] Estado actualizado en [`roadmap/README.md`](../../roadmap/README.md).
+- [ ] Estado `terminado` en este archivo y en [`roadmap/README.md`](../../roadmap/README.md), dentro del mismo PR del hito y antes de mergear.
 
 ## Riesgos y notas
 

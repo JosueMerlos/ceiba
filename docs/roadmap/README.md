@@ -9,7 +9,7 @@
 2. **Una fase no empieza hasta que la anterior cumple su DoD**, salvo los hitos marcados como _adelantables_.
 3. **TDD estricto:** cada criterio de aceptación nace como un test que falla.
 4. **Toda decisión nueva genera un ADR** en [`../adr/`](../adr/); toda desviación del diseño actualiza [`../architecture/`](../architecture/).
-5. Al cerrar un hito: actualizar su estado aquí y completar sus "Notas de cierre".
+5. Al cerrar un hito: marcarlo ✅ `terminado` aquí y en su archivo, y completar sus "Notas de cierre", **en el mismo PR del hito** y en cuanto esté completo en local (criterios de aceptación probados y `make ci` en verde), antes de mergear: el merge publica el cierre. Con `main` protegida, hacerlo después del merge exigiría otro PR solo para el estado.
 
 ## Resumen por fase
 
@@ -56,7 +56,7 @@ _Paralelo, no técnico:_ abrir la cuenta de Meta Business y solicitar la aprobac
 
 | Hito | Título | h | Depende de | Estado |
 | --- | --- | --- | --- | --- |
-| [M1.01](../milestones/F1-citas-dominio/M1.01-clientes-y-servicios.md) | Clientes (pack `customers`) y catálogo de servicios | 12 | M0.09, M0.11 | 🟦 |
+| [M1.01](../milestones/F1-citas-dominio/M1.01-clientes-y-servicios.md) | Clientes (pack `customers`) y catálogo de servicios | 12 | M0.09, M0.11 | ✅ |
 | [M1.02](../milestones/F1-citas-dominio/M1.02-profesionales-recursos-y-horarios.md) | Profesionales, recursos, asignaciones y horarios | 14 | [M1.01](../milestones/F1-citas-dominio/M1.01-clientes-y-servicios.md) | ⬜ |
 | [M1.03](../milestones/F1-citas-dominio/M1.03-disponibilidad-caso-base.md) | Motor de disponibilidad: caso base | 13 | [M1.02](../milestones/F1-citas-dominio/M1.02-profesionales-recursos-y-horarios.md) | ⬜ |
 | [M1.04](../milestones/F1-citas-dominio/M1.04-disponibilidad-completa.md) | Motor de disponibilidad: multi-servicio, buffers, `:any`, recursos | 14 | [M1.03](../milestones/F1-citas-dominio/M1.03-disponibilidad-caso-base.md) | ⬜ |
