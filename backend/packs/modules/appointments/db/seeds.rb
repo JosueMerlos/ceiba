@@ -115,7 +115,7 @@ module AppointmentsDemoSeeds
     professionals = PROFESSIONALS[company.business_type] or return
     return if Appointments::Professional.exists?(company_id: company.id)
 
-    Appointments::Lifecycle::OnEnable.call(company:)
+    Appointments::Lifecycle::OnEnable.call(company:, first_activation: true)
     services = Appointments::Service.where(company_id: company.id).index_by(&:name)
     branches = Tenancy::Directory.branches.where(company_id: company.id).index_by(&:name)
 

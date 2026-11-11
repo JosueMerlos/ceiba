@@ -1,7 +1,9 @@
 module Modules
   # Enables a module for a company in one transaction: checks entitlement and `requires`, creates or reactivates the row,
   # runs `on_enable` and emits platform.module_enabled.v1. Idempotent: if already active nothing changes (no hook, no event)
-  # and it returns `changed: false`. Re-enabling reuses the row with its settings.
+  # and it returns `changed: false`. Re-enabling reuses the row with its settings. `on_enable` is called with
+  # `first_activation:` (true only when this call created the row), so a module can seed defaults once and then respect
+  # whatever the company did with them across a disable and a re-enable.
   #
   #   Tenancy.with_context(organization:) { Modules::Enable.call(company:, key: "appointments") }
   #
@@ -16,10 +18,11 @@ module Modules
         next result(false) if row&.active?
 
         ensure_requirements!
+        first_activation = row.nil?
         row = activate(row)
         next result(false) unless row
 
-        run_hook(:on_enable, manifest.on_enable)
+        run_hook(:on_enable, manifest.on_enable, first_activation:)
         publish("platform.module_enabled.v1")
         audit("module.enabled", row, before: false, after: true)
         result(true)

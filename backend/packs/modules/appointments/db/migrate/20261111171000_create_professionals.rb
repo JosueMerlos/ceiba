@@ -19,8 +19,9 @@ class CreateProfessionals < ActiveRecord::Migration[8.1]
       t.check_constraint "length(btrim(display_name)) > 0", name: "chk_professionals_name_present"
 
       t.index %i[organization_id company_id id], unique: true, name: "uq_professionals_org_company_id"
-      # One record per person in a company; records without a linked person are unlimited.
-      t.index %i[company_id user_id], unique: true, where: "user_id IS NOT NULL", name: "uq_professionals_company_user"
+      # One ACTIVE record per person in a company (archiving frees the person to be linked again); records without a linked
+      # person are unlimited.
+      t.index %i[company_id user_id], unique: true, where: "user_id IS NOT NULL AND archived_at IS NULL", name: "uq_professionals_company_user"
       # The listing: non-archived professionals of a company, paginated by id.
       t.index %i[organization_id company_id id], where: "archived_at IS NULL", name: "idx_professionals_company_unarchived_id"
       # "Which professional records does this person have?"

@@ -7,9 +7,10 @@ module Appointments
       module_function
 
       def call(professional:, service_ids:)
+        Staff.reject_archived!(professional)
         ApplicationRecord.transaction(requires_new: true) do
           professional.lock!
-          wanted = service_ids.uniq
+          wanted = service_ids.map(&:downcase).uniq
           reject_unknown(professional, wanted)
           current = ProfessionalService.where(professional_id: professional.id).to_a
           before = current.map(&:service_id).sort

@@ -38,13 +38,13 @@ module Modules
     def active_keys = CompanyModule.active.where(company_id: company.id).pluck(:module_key)
 
     # Hooks are strings (the platform does not know module constants), so they are resolved here.
-    def run_hook(hook, constant_name)
+    def run_hook(hook, constant_name, **context)
       return if constant_name.nil?
 
       callable = constant_name.safe_constantize
       raise Error, "El hook #{hook} del módulo #{key.inspect} apunta a #{constant_name}, que no existe" unless callable.respond_to?(:call)
 
-      callable.call(company:)
+      callable.call(company:, **context)
     end
 
     def publish(event_name) = Events.publish(event_name, company_id: company.id, module: key)

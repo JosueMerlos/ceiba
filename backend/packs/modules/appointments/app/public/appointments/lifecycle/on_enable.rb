@@ -1,12 +1,12 @@
 module Appointments
   module Lifecycle
     # Module hook run by Modules::Enable inside its transaction and the company's tenancy context (it opens none of its
-    # own). Gives every branch of the company that has no opening hours yet the default week, Monday to Saturday from 08:00
-    # to 18:00, so a company that just got the module has something to book against.
+    # own). On the FIRST activation only, gives every branch of the company that has no opening hours yet the default week,
+    # Monday to Saturday from 08:00 to 18:00, so a company that just got the module has something to book against.
     #
-    # Only the branches that exist NOW are covered: one added later starts without hours, which the availability rules read
-    # as closed until someone configures it. A branch that already has hours (re-enabling after a disable) is left alone,
-    # so an edited week is never overwritten and nothing is duplicated.
+    # A re-activation does nothing: "no hours" then may be a branch closed on purpose, which must stay closed. Only the
+    # branches that exist NOW are covered: one added later starts without hours, which the availability rules read as closed
+    # until someone configures it.
     module OnEnable
       DEFAULT_WEEKDAYS = (1..6).freeze
       DEFAULT_OPENS = "08:00".freeze
@@ -14,7 +14,9 @@ module Appointments
 
       module_function
 
-      def call(company:)
+      def call(company:, first_activation:)
+        return unless first_activation
+
         with_hours = WeeklySchedule.where(company_id: company.id, owner_type: "branch").distinct.pluck(:branch_id)
         Tenancy::Directory.branches.where(company_id: company.id).where.not(id: with_hours).order(:id).each { give_default_hours(it) }
       end

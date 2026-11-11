@@ -15,12 +15,16 @@ module Api
           render json: { data: ::Appointments::ProfessionalSerializer.new(professional.reload).serializable_hash }
         end
 
+        MAX_SERVICE_IDS = 200
+        private_constant :MAX_SERVICE_IDS
+
         private
 
         # Required, and every element a string: typed_params only checks the container.
         def service_ids
           ids = typed_params(service_ids: Array)[:service_ids]
           raise ActionController::BadRequest, "service_ids debe ser una lista de textos" unless ids&.all?(String)
+          raise ActionController::BadRequest, "service_ids admite hasta #{MAX_SERVICE_IDS} servicios" if ids.size > MAX_SERVICE_IDS
 
           ids
         end

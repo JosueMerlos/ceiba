@@ -4,9 +4,23 @@ module Appointments
     # unknown kind is a validation error on `kind` and nothing changes. The service row is locked so two concurrent
     # replacements apply one after the other, never merged.
     module SetResourceRequirements
+      # Carries `kinds: invalid`: the service has no `kinds` attribute to blame.
+      class Rejection
+        include ActiveModel::Model
+
+        attr_reader :kinds
+
+        def initialize
+          @kinds = nil
+          errors.add(:kinds, :invalid)
+        end
+      end
+
       module_function
 
       def call(service:, kinds:)
+        Staff.reject_archived!(service)
+        reject_unknown_kinds(kinds)
         ApplicationRecord.transaction(requires_new: true) do
           service.lock!
           wanted = kinds.uniq
@@ -21,6 +35,15 @@ module Appointments
         end
         service
       end
+
+      # Up front, before any query: a kind outside the list (or one the database cannot even store, like a NUL byte) is the
+      # caller's mistake, not something for the uniqueness check to trip over.
+      def reject_unknown_kinds(kinds)
+        return if kinds.all? { Resource::KINDS.include?(it) }
+
+        raise ActiveRecord::RecordInvalid, Rejection.new
+      end
+      private_class_method :reject_unknown_kinds
     end
   end
 end

@@ -7,6 +7,7 @@ module Appointments
       module_function
 
       def call(professional:, branch_id:)
+        Staff.reject_archived!(professional)
         ApplicationRecord.transaction(requires_new: true) do
           assignment = ProfessionalBranchAssignment.find_by!(professional_id: professional.id, branch_id:)
           assignment.lock!

@@ -21,6 +21,7 @@ module Api
         def kinds
           kinds = typed_params(kinds: Array)[:kinds]
           raise ActionController::BadRequest, "kinds debe ser una lista de textos" unless kinds&.all?(String)
+          raise ActionController::BadRequest, "kinds admite hasta #{::Appointments::Resource::KINDS.size} tipos" if kinds.size > ::Appointments::Resource::KINDS.size
 
           kinds
         end

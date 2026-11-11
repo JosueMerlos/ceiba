@@ -9,6 +9,8 @@ module Appointments
     # concurrent replacements: without it two simultaneous PUTs could both pass the check and leave the union of both sets.
     module ReplaceSchedule
       SLOT_FIELDS = %w[weekday starts_at_local ends_at_local].freeze
+      # Strict wall-clock minute: anything else ("24:00", "09:00-06:00") is cast by Rails onto another date or offset.
+      CLOCK = /\A([01]\d|2[0-3]):[0-5]\d\z/
 
       # Carries the validation error of the whole replacement: there is no single row to blame.
       class Rejection
@@ -27,9 +29,10 @@ module Appointments
       def call(owner:, branch_id:, slots:, action: "schedule.replaced")
         ApplicationRecord.transaction(requires_new: true) { replace(owner, branch_id, slots, action) }
       rescue ActiveRecord::StatementInvalid => error
-        raise unless error.cause.is_a?(PG::ExclusionViolation)
+        raise ActiveRecord::RecordInvalid, Rejection.new(:overlap) if error.cause.is_a?(PG::ExclusionViolation)
+        raise ActiveRecord::RecordInvalid, Rejection.new(:invalid) if error.is_a?(ActiveRecord::CheckViolation) || error.cause.is_a?(PG::CheckViolation)
 
-        raise ActiveRecord::RecordInvalid, Rejection.new(:overlap)
+        raise
       end
 
       def replace(owner, branch_id, slots, action)
@@ -50,6 +53,8 @@ module Appointments
       private_class_method :replace
 
       def save!(slot, attributes)
+        raise ActiveRecord::RecordInvalid, Rejection.new(:invalid) unless clock_slot?(slot)
+
         row = WeeklySchedule.new(slot.with_indifferent_access.slice(*SLOT_FIELDS).merge(attributes))
         row.save!
         row
@@ -59,6 +64,11 @@ module Appointments
         raise ActiveRecord::RecordInvalid, Rejection.new(error.record.errors.of_kind?(:base, :overlap) ? :overlap : :invalid)
       end
       private_class_method :save!
+
+      def clock_slot?(slot)
+        slot.with_indifferent_access.values_at("starts_at_local", "ends_at_local").all? { it.is_a?(String) && CLOCK.match?(it) }
+      end
+      private_class_method :clock_slot?
 
       # By owner and not by owner and branch: a professional's exclusion constraint spans all their branches.
       def lock(owner)

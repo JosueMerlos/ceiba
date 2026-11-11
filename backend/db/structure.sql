@@ -1339,7 +1339,7 @@ CREATE UNIQUE INDEX uq_processed_events_event_subscriber ON public.processed_eve
 -- Name: uq_professionals_company_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_professionals_company_user ON public.professionals USING btree (company_id, user_id) WHERE (user_id IS NOT NULL);
+CREATE UNIQUE INDEX uq_professionals_company_user ON public.professionals USING btree (company_id, user_id) WHERE ((user_id IS NOT NULL) AND (archived_at IS NULL));
 
 
 --

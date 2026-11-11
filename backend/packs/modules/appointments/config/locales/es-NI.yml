@@ -16,6 +16,8 @@ es-NI:
           attributes:
             base:
               archived: "el profesional está archivado y no admite cambios"
+            user_id:
+              immutable: "la persona vinculada no se puede cambiar ni quitar: archive el profesional y cree otro"
         appointments/professional_branch_assignment:
           attributes:
             base:
