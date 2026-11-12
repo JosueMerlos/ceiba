@@ -55,6 +55,29 @@ RSpec.describe RuboCop::Cop::Ceiba::PackNamespace, :config do
       RUBY
     end
 
+    it "acepta Api::Public::V1::Pack en los controladores (la superficie pública)" do
+      expect_no_offenses(<<~RUBY, "packs/modules/appointments/app/controllers/api/public/v1/appointments/availability_controller.rb")
+        module Api
+          module Public
+            module V1
+              module Appointments
+                class AvailabilityController < ApplicationController; end
+              end
+            end
+          end
+        end
+      RUBY
+    end
+
+    it "rechaza Api::Public::V1::Pack fuera de los controladores" do
+      expect_offense(<<~RUBY, "packs/modules/appointments/app/models/api/public/v1/appointments/booking.rb")
+        module Api
+               ^^^ El namespace debe empezar por `Appointments` (pack packs/modules/appointments).
+          module Public; end
+        end
+      RUBY
+    end
+
     it "rechaza el namespace de otro pack" do
       expect_offense(<<~RUBY, "packs/modules/appointments/app/models/appointments/booking.rb")
         module Billing
