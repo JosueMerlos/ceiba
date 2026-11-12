@@ -206,6 +206,28 @@ RSpec.describe Appointments::Availability do
       expect(errors_of).to eq([ { field: :branch_id, code: :inactive } ])
     end
 
+    context "con datos de una empresa hermana de la misma organización" do
+      let(:sibling) { create_in(organization, :company) }
+
+      it "un profesional de otra empresa se rechaza sin consultar nada más" do
+        foreign = create_in(organization, :professional, company: sibling)
+
+        expect(errors_of(professional: foreign)).to eq([ { field: :professional_id, code: :wrong_company } ])
+      end
+
+      it "un servicio de otra empresa se rechaza" do
+        foreign = create_in(organization, :service, company: sibling)
+
+        expect(errors_of(service: foreign)).to eq([ { field: :service_id, code: :wrong_company } ])
+      end
+
+      it "una sucursal de otra empresa se rechaza" do
+        foreign = create_in(organization, :branch, company: sibling)
+
+        expect(errors_of(branch: foreign)).to eq([ { field: :branch_id, code: :wrong_company } ])
+      end
+    end
+
     it "un profesional pausado es inactivo" do
       professional.update!(active: false)
 
