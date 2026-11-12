@@ -49,6 +49,8 @@ es-NI:
   appointments:
     availability:
       errors:
+        branch_id:
+          inactive: "la sucursal está inactiva"
         professional_id:
           inactive: "el profesional está pausado o archivado"
           not_assigned: "el profesional no está asignado a la sucursal"

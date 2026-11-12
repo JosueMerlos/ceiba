@@ -20,9 +20,12 @@ module Appointments
     # Shared eligibility check for non-HTTP callers such as booking. Raises InvalidRequest with every reason the request
     # cannot be answered.
     def ensure_eligible!(branch:, service:, professional:, from_date:, to_date:, now: Time.current)
-      errors = professional_errors(branch, professional) + service_errors(service, professional) + range_errors(branch, from_date, to_date, now)
+      errors = branch_errors(branch) + professional_errors(branch, professional) + service_errors(service, professional) + range_errors(branch, from_date, to_date, now)
       raise InvalidRequest, errors if errors.any?
     end
+
+    # A closed branch offers nothing, whatever its hours say.
+    def branch_errors(branch) = branch.inactive? ? [ { field: :branch_id, code: :inactive } ] : []
 
     def professional_errors(branch, professional)
       errors = []
@@ -46,6 +49,6 @@ module Appointments
       errors
     end
 
-    private_class_method :professional_errors, :service_errors, :range_errors
+    private_class_method :branch_errors, :professional_errors, :service_errors, :range_errors
   end
 end
