@@ -48,7 +48,6 @@ RSpec.describe Appointments::Availability::DataLoader do
     one_day = sql_statements { run(1) }
     two_weeks = sql_statements { run(14) }
 
-    puts "availability queries: 1 day=#{one_day.size}, 14 days=#{two_weeks.size}"
     expect(two_weeks.size).to eq(one_day.size)
     expect(two_weeks.size).to be <= query_cap
     expect(run(14)).not_to be_empty

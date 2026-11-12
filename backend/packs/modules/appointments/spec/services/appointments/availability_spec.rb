@@ -1,6 +1,8 @@
 require "rails_helper"
 
 RSpec.describe Appointments::Availability do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:organization) { create(:organization) }
   let(:company) { create_in(organization, :company) }
   let(:branch) { create_in(organization, :branch, company:) }
@@ -140,11 +142,7 @@ RSpec.describe Appointments::Availability do
   end
 
   describe "aislamiento (adversarial)" do
-    it "los datos de otra empresa y de otra organización no influyen", :aggregate_failures do
-      open_hours
-      book(16)
-      baseline = availability
-
+    def populate_other_company
       other_company = create(:company)
       other_branch = create(:branch, company: other_company)
       other_pro = create(:professional, company: other_company)
@@ -152,17 +150,26 @@ RSpec.describe Appointments::Availability do
       create(:professional_branch_assignment, professional: other_pro, branch: other_branch)
       create(:time_off, professional: other_pro, starts_at: Time.utc(2026, 11, 16, 6), ends_at: Time.utc(2026, 11, 17, 6))
       create(:appointment, professional: other_pro, branch: other_branch, starts_at: Time.utc(2026, 11, 16, 15), ends_at: Time.utc(2026, 11, 16, 19))
+    end
 
-      foreign_organization = create(:organization)
-      with_tenant(foreign_organization) do
+    def populate_other_organization
+      with_tenant(create(:organization)) do
         foreign_company = create(:company)
-        foreign_pro = create(:professional, company: foreign_company)
-        foreign_branch = create(:branch, company: foreign_company)
-        create(:appointment, professional: foreign_pro, branch: foreign_branch, starts_at: Time.utc(2026, 11, 16, 15), ends_at: Time.utc(2026, 11, 16, 19))
+        create(:appointment, professional: create(:professional, company: foreign_company), branch: create(:branch, company: foreign_company),
+                             starts_at: Time.utc(2026, 11, 16, 15), ends_at: Time.utc(2026, 11, 16, 19))
       end
+    end
 
-      expect(availability).to eq(baseline)
+    it "los datos de otra empresa y de otra organización no influyen", :aggregate_failures do
+      open_hours
+      book(16)
+      baseline = availability
+
+      populate_other_company
+      populate_other_organization
+
       expect(baseline).not_to be_empty
+      expect(availability).to eq(baseline)
     end
   end
 
@@ -215,12 +222,12 @@ RSpec.describe Appointments::Availability do
       expect(errors_of(from_date: monday, to_date: monday + 30)).to be_nil
     end
 
-    it "acumula todos los errores y no consulta el calendario", :aggregate_failures do
+    it "acumula todos los errores a la vez", :aggregate_failures do
       professional.update!(active: false)
       service.update!(active: false)
 
-      expect(errors_of(from_date: monday, to_date: monday - 1)).to match_array(
-        [ { field: :professional_id, code: :inactive }, { field: :service_id, code: :inactive }, { field: :to, code: :invalid_range } ]
+      expect(errors_of(from_date: monday, to_date: monday - 1)).to contain_exactly(
+        { field: :professional_id, code: :inactive }, { field: :service_id, code: :inactive }, { field: :to, code: :invalid_range }
       )
     end
   end
