@@ -3,10 +3,10 @@ require "rails_helper"
 RSpec.describe Appointments::Availability::SlotFinder do
   let(:managua) { "America/Managua" }
   let(:new_york) { "America/New_York" }
-  let(:long_ago) { Time.utc(2025, 1, 1) }
+  let(:long_ago) { Time.utc(2026, 1, 1) }
 
   # Local Managua wall-clock (UTC-6, no DST) of 2026-01-05 as a UTC instant.
-  def managua_time(hour, minute = 0, day: 5) = Time.utc(2026, 1, day, hour + 6, minute)
+  def managua_time(hour, minute = 0, day: 5) = Time.utc(2026, 1, day) + (((hour + 6) * 60) + minute) * 60
 
   def interval(from, to) = Appointments::Availability::Interval.new(starts_at: from, ends_at: to)
 

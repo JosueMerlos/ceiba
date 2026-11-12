@@ -9,7 +9,7 @@ RSpec.describe Appointments::Availability::Calculator do
   def interval(from, to) = Appointments::Availability::Interval.new(starts_at: from, ends_at: to)
 
   # Managua wall-clock (UTC-6, no DST) as a UTC instant. Monday is 2026-01-05.
-  def managua_time(hour, minute = 0, day: 5) = Time.utc(2026, 1, day, hour + 6, minute)
+  def managua_time(hour, minute = 0, day: 5) = Time.utc(2026, 1, day) + (((hour + 6) * 60) + minute) * 60
 
   def calculate(overrides = {})
     described_class.call(
