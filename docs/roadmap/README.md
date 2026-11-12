@@ -59,7 +59,7 @@ _Paralelo, no técnico:_ abrir la cuenta de Meta Business y solicitar la aprobac
 | [M1.01](../milestones/F1-citas-dominio/M1.01-clientes-y-servicios.md) | Clientes (pack `customers`) y catálogo de servicios | 12 | M0.09, M0.11 | ✅ |
 | [M1.02](../milestones/F1-citas-dominio/M1.02-profesionales-recursos-y-horarios.md) | Profesionales, recursos, asignaciones y horarios | 14 | [M1.01](../milestones/F1-citas-dominio/M1.01-clientes-y-servicios.md) | ✅ |
 | [M1.03](../milestones/F1-citas-dominio/M1.03-disponibilidad-caso-base.md) | Motor de disponibilidad: caso base | 13 | [M1.02](../milestones/F1-citas-dominio/M1.02-profesionales-recursos-y-horarios.md) | ✅ |
-| [M1.04](../milestones/F1-citas-dominio/M1.04-disponibilidad-completa.md) | Motor de disponibilidad: multi-servicio, buffers, `:any`, recursos | 14 | [M1.03](../milestones/F1-citas-dominio/M1.03-disponibilidad-caso-base.md) | ⬜ |
+| [M1.04](../milestones/F1-citas-dominio/M1.04-disponibilidad-completa.md) | Motor de disponibilidad: multi-servicio, buffers, `:any`, recursos | 14 | [M1.03](../milestones/F1-citas-dominio/M1.03-disponibilidad-caso-base.md) | ✅ |
 | [M1.05](../milestones/F1-citas-dominio/M1.05-reserva-atomica.md) | Reserva atómica (`Appointments::Book`, exclusion constraints, 409) | 12 | M1.04, M0.10 | ⬜ |
 | [M1.06](../milestones/F1-citas-dominio/M1.06-ciclo-de-vida-de-la-cita.md) | Ciclo de vida de la cita (estados, reprogramar, cancelar) | 12 | [M1.05](../milestones/F1-citas-dominio/M1.05-reserva-atomica.md) | ⬜ |
 

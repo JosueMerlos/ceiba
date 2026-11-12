@@ -155,6 +155,8 @@ Ceiba/TenantBypass:
     - "packs/platform/events/app/services/events/cross_tenant.rb"
     # Context selector: reads a user's memberships across all organizations.
     - "packs/platform/access/app/services/access/membership_directory.rb"
+    # Anonymous lookup of a company by its public slug, before any tenant exists (one company and its organization, readonly).
+    - "packs/platform/tenancy/app/public/tenancy/public_directory.rb"
     # Purges expired idempotency_keys across all organizations.
     - "packs/platform/idempotency/app/services/idempotency/cross_tenant.rb"
 

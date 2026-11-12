@@ -3,6 +3,7 @@
 #   catch-all per IP                       600 / 5 min   (the /api/health and /api/ready probes do not count)
 #   login per IP                             5 / 15 min
 #   login per normalized email              10 / 15 min  (the key is a SHA-256 digest, never the email)
+#   public availability per IP + slug      60 / 1 min    (the slug is lowercased and the path decoded: variants share the counter)
 #   404/405 on a NONEXISTENT ROUTE          10 / 5 min -> 1 h block (business 404s do not count)
 #   login with a body > 4 KB                413 (closes the padding that would dodge the per-email rule)
 #   The per-IP key groups IPv6 by /64.
@@ -43,6 +44,11 @@ end
 
 Rack::Attack.throttle("login/email", limit: ->(_request) { RateLimiting.limit(:login_email) }, period: RateLimiting.period(:login_email)) do |request|
   RateLimiting.login_email_digest(request)
+end
+
+Rack::Attack.throttle("public-availability/ip-slug", limit: ->(_request) { RateLimiting.limit(:public_availability) }, period: RateLimiting.period(:public_availability)) do |request|
+  slug = RateLimiting.public_availability_slug(request)
+  "#{RateLimiting.client_key(request)}/#{slug}" if slug
 end
 
 Rack::Attack.throttled_responder = ->(request) { RateLimiting.throttled_response(request) }

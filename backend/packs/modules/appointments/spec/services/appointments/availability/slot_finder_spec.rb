@@ -12,8 +12,9 @@ RSpec.describe Appointments::Availability::SlotFinder do
 
   def free_set(*pairs) = Appointments::Availability::IntervalSet.new(pairs.map { |from, to| interval(from, to) })
 
-  def find(free, zone: managua, duration: 30, step: 15, now: long_ago, lead: 0, max_days: 365)
-    described_class.call(free:, duration_minutes: duration, step_minutes: step, time_zone: zone, now:, min_lead_minutes: lead, max_advance_days: max_days)
+  def find(free, zone: managua, duration: 30, step: 15, now: long_ago, lead: 0, max_days: 365, **buffers)
+    described_class.call(free:, duration_minutes: duration, step_minutes: step, time_zone: zone, now:, min_lead_minutes: lead, max_advance_days: max_days,
+                         **buffers)
   end
 
   def starts(slots) = slots.map { |slot| slot.starts_at.utc.iso8601 }
@@ -121,6 +122,37 @@ RSpec.describe Appointments::Availability::SlotFinder do
       expect(slots.map(&:starts_at)).to all(be >= managua_time(12, 5))
     end
 
+    it "con anticipación 0 y 10 min de margen previo ningún bloque empieza antes de now: el primer inicio es 10:15", :aggregate_failures do
+      slots = find(free_set([ managua_time(9), managua_time(13) ]), now: managua_time(10), buffer_before_minutes: 10)
+
+      expect(managua_starts(slots).first).to eq("10:15")
+      expect(slots.map { it.starts_at - 10.minutes }).to all(be >= managua_time(10))
+    end
+
+    it "el bloque que empieza exactamente en now entra: inicio 10:15 con now 10:05 y 10 min de margen previo" do
+      slots = find(free_set([ managua_time(9), managua_time(13) ]), now: managua_time(10, 5), buffer_before_minutes: 10)
+
+      expect(managua_starts(slots).first).to eq("10:15")
+    end
+
+    it "los segundos fraccionarios del margen redondean hacia arriba: now 10:05:00.5 con 10 min de margen previo no ofrece las 10:15" do
+      slots = find(free_set([ managua_time(9), managua_time(13) ]), now: managua_time(10, 5) + 0.5, buffer_before_minutes: 10)
+
+      expect(managua_starts(slots).first).to eq("10:30")
+    end
+
+    it "la anticipación mayor que el margen manda: el inicio sigue midiéndose desde now + anticipación" do
+      slots = find(free_set([ managua_time(9), managua_time(13) ]), now: managua_time(10), lead: 30, buffer_before_minutes: 10)
+
+      expect(managua_starts(slots).first).to eq("10:30")
+    end
+
+    it "sin margen previo la anticipación 0 sigue ofreciendo el inicio en now" do
+      slots = find(free_set([ managua_time(9), managua_time(13) ]), now: managua_time(10))
+
+      expect(managua_starts(slots).first).to eq("10:00")
+    end
+
     it "una anticipación que supera todo el tramo no deja huecos" do
       expect(find(free_set([ managua_time(9), managua_time(13) ]), now: managua_time(9), lead: 600)).to be_empty
     end
@@ -139,6 +171,55 @@ RSpec.describe Appointments::Availability::SlotFinder do
 
     it "con 0 días solo cabe el inicio de ahora mismo si está en la rejilla" do
       expect(find(free, now:, max_days: 0).map(&:starts_at)).to eq([ now ])
+    end
+  end
+
+  describe "buffers" do
+    it "buffer previo de 10 con apertura a las 09:00: el primer inicio es 09:15 (rejilla de 15) y no 09:00" do
+      free = free_set([ managua_time(9), managua_time(10) ])
+
+      expect(managua_starts(find(free, buffer_before_minutes: 10))).to eq(%w[09:15 09:30])
+    end
+
+    it "buffer posterior que no cabe antes del cierre descarta el último inicio (10:00-11:00, 30 + 10 de limpieza)" do
+      free = free_set([ managua_time(10), managua_time(11) ])
+
+      expect(managua_starts(find(free, buffer_after_minutes: 10))).to eq(%w[10:00 10:15])
+    end
+
+    it "con los dos buffers el bloque entero cabe: 09:00-10:30, 30 min con 15 antes y 15 después" do
+      free = free_set([ managua_time(9), managua_time(10, 30) ])
+
+      slots = find(free, buffer_before_minutes: 15, buffer_after_minutes: 15)
+
+      expect(managua_starts(slots)).to eq(%w[09:15 09:30 09:45])
+    end
+
+    it "el hueco sigue durando solo la duración, sin los buffers", :aggregate_failures do
+      slots = find(free_set([ managua_time(9), managua_time(13) ]), buffer_before_minutes: 10, buffer_after_minutes: 10)
+
+      expect(slots.map(&:duration).uniq).to eq([ 1800.0 ])
+      expect(slots.first.starts_at).to eq(managua_time(9, 15))
+    end
+
+    it "sin buffers (por defecto) el comportamiento es el de siempre", :aggregate_failures do
+      free = free_set([ managua_time(9), managua_time(10) ])
+
+      expect(managua_starts(find(free))).to eq(%w[09:00 09:15 09:30])
+      expect(managua_starts(find(free, buffer_before_minutes: 0, buffer_after_minutes: 0))).to eq(%w[09:00 09:15 09:30])
+    end
+
+    it "adversarial: el buffer posterior que termina justo en el borde de la ausencia (semiabierto) se acepta, un minuto más no", :aggregate_failures do
+      free = free_set([ managua_time(9), managua_time(10) ])
+
+      expect(managua_starts(find(free, step: 5, buffer_after_minutes: 10)).last).to eq("09:20")
+      expect(managua_starts(find(free, step: 5, buffer_after_minutes: 11)).last).to eq("09:15")
+    end
+
+    it "adversarial: el buffer previo no puede meterse en una ausencia que acaba a las 10:00 (primer inicio 10:15 con 10 antes)" do
+      free = free_set([ managua_time(10), managua_time(12) ])
+
+      expect(managua_starts(find(free, buffer_before_minutes: 10)).first).to eq("10:15")
     end
   end
 end

@@ -24,7 +24,7 @@ module Api
         end
 
         def assigned_professionals
-          ::Appointments::Professional.where(company_id:, id: ::Appointments::ProfessionalBranchAssignment.where(branch_id:).select(:professional_id))
+          ::Appointments::Professional.assigned_to(Current.context.branch)
         end
 
         def branch_resources = ::Appointments::Resource.where(company_id:, branch_id:)

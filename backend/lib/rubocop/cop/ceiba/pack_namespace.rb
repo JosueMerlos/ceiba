@@ -9,7 +9,8 @@ module RuboCop
       # Zeitwerk already requires the file path to match the constant; this cop requires the constant to start with the
       # pack the file belongs to, so a file cannot "sneak" into another pack's namespace or sit without one.
       #
-      # Controllers may hang from `Api::V1::<Pack>` (routes under /api/v1).
+      # Controllers may hang from `Api::V1::<Pack>` (routes under /api/v1) or `Api::Public::V1::<Pack>` (the anonymous
+      # surface under /api/public/v1).
       #
       # @example
       #   # bad (packs/modules/appointments/app/models/appointments/booking.rb)
@@ -20,6 +21,8 @@ module RuboCop
       #     class Booking < ApplicationRecord; end
       #   end
       class PackNamespace < Base
+        # Controllers may also live under the API namespaces; each is followed by the pack's own.
+        API_PREFIXES = %w[Api::V1 Api::Public::V1].freeze
         PACK_PATH = %r{\A(?<root>.*?packs/[^/]+/(?<name>[^/]+))/app/(?<kind>[^/]+)/}
 
         def on_new_investigation
@@ -37,7 +40,7 @@ module RuboCop
 
         def allowed_namespaces(pack_name, kind)
           namespace = pack_name.split("_").map(&:capitalize).join
-          kind == "controllers" ? [ namespace, "Api::V1::#{namespace}" ] : [ namespace ]
+          kind == "controllers" ? [ namespace, *API_PREFIXES.map { "#{it}::#{namespace}" } ] : [ namespace ]
         end
 
         def top_level_nodes
@@ -48,8 +51,8 @@ module RuboCop
         end
 
         # Walks ALL definitions. Each is resolved against its enclosing namespace (`::X` is absolute) and must end up
-        # inside the pack; the only outsiders admitted are modules on the way to it (`Api`, `Api::V1` for
-        # `Api::V1::Pack` in controllers).
+        # inside the pack; the only outsiders admitted are modules on the way to it (`Api`, `Api::V1`,
+        # `Api::Public`, `Api::Public::V1` for controllers).
         def check_definitions(nodes, parent)
           nodes.each do |node|
             next unless node.is_a?(RuboCop::AST::Node)

@@ -242,12 +242,25 @@ OpenapiComponents.register(
   },
   AvailabilitySlot: {
     type: :object,
-    description: "Un inicio posible para el servicio y su fin (inicio + duración efectiva en la sucursal). Instantes UTC.",
+    description: "Un inicio posible para los servicios y su fin (inicio + duración efectiva total). Instantes UTC. `professional_id` es quien atiende " \
+                  "(el asignado si se pidió `any`) y `resource_id` el recurso reservado, o nulo si los servicios no piden recurso.",
     properties: {
       starts_at: { type: :string, format: "date-time", description: "UTC" },
-      ends_at: { type: :string, format: "date-time", description: "UTC" }
+      ends_at: { type: :string, format: "date-time", description: "UTC" },
+      professional_id: { type: :string, format: :uuid },
+      resource_id: { type: :string, format: :uuid, nullable: true }
     },
-    required: %i[starts_at ends_at],
+    required: %i[starts_at ends_at professional_id resource_id],
+    additionalProperties: false
+  },
+  AvailabilityPrice: {
+    type: :object,
+    description: "Precio total de los servicios pedidos en la sucursal (con sus overrides): entero en unidades menores y moneda.",
+    properties: {
+      amount_minor: { type: :integer, format: :int64, minimum: 0, example: 25_000 },
+      currency: { type: :string, example: "NIO" }
+    },
+    required: %i[amount_minor currency],
     additionalProperties: false
   }
 )

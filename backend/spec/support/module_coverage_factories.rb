@@ -38,6 +38,9 @@ ModuleCoverageFactories.register("appointments", :service_id) do |company:, bran
   end
 end
 
+# The public routes name the company by its slug.
+ModuleCoverageFactories.register("appointments", :slug) { |company:, **| company.slug }
+
 # The owners the branch routes name. Find-or-create, so every route of one run sees the SAME professional (assigned to the
 # suite's branch: the branch routes need the assignment to answer by themselves) and the SAME resource (of that branch); the
 # absence builders create the absence of THAT same owner (an absence of another owner would be a 404 on a DELETE, even with

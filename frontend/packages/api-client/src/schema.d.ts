@@ -4,6 +4,116 @@
  */
 
 export interface paths {
+    "/api/public/v1/c/{slug}/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Slug público de la empresa */
+                slug: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Consulta los horarios libres de una empresa sin sesión
+         * @description Superficie ANÓNIMA: sin sesión ni CSRF. Devuelve los inicios libres (UTC) de uno o varios servicios con un profesional o con `any`, con `professional_id` y `resource_id` asignados y el precio total. No expone nombres ni citas. Rango de hasta 14 días (`from` no anterior a ayer en la hora local de la sucursal). Un slug desconocido, el módulo de citas apagado, la reserva pública apagada (empresa o sucursal), la empresa inactiva, la organización suspendida, una sucursal ajena o inactiva, y un servicio o profesional inexistente, inactivo o que no aplica responden todos el MISMO 404 `resource.not_found`. Las puertas (módulo, empresa, sucursal, reserva pública) se comprueban en cada petición; la respuesta se guarda en caché hasta 30 s, así que un servicio o profesional recién desactivado puede seguir apareciendo ese tiempo y la reserva lo revalida. Está limitada a 60 peticiones por minuto por IP y empresa (429 `rate_limit.exceeded`).
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Sucursal de la empresa */
+                    branch_id: string;
+                    /** @description Servicios, UUID separados por comas (1 a 5, sin repetir); el orden es la secuencia */
+                    service_ids: string;
+                    /** @description UUID de un profesional de la sucursal o el literal `any` */
+                    professional_id: string;
+                    /** @description Primer día local (`YYYY-MM-DD`) */
+                    from: string;
+                    /** @description Último día local, inclusivo (`YYYY-MM-DD`) */
+                    to: string;
+                };
+                header?: never;
+                path: {
+                    /** @description Slug público de la empresa */
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description un rango de exactamente 14 días */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["AvailabilitySlot"][];
+                            meta: {
+                                buffer_after_minutes: number;
+                                buffer_before_minutes: number;
+                                duration_minutes: number;
+                                price: components["schemas"]["AvailabilityPrice"];
+                                step_minutes: number;
+                                time_zone: string;
+                            };
+                        };
+                    };
+                };
+                /** @description sin `from` */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+                /** @description slug desconocido, puerta cerrada o recurso que no aplica: siempre el mismo cuerpo */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un `from` anterior a ayer */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+                /** @description más de 60 peticiones por minuto desde la misma IP para la misma empresa (rate_limit.exceeded) */
+                429: {
+                    headers: {
+                        /** @description Peticiones permitidas por ventana */
+                        "RateLimit-Limit"?: number;
+                        /** @description Peticiones restantes en la ventana (0) */
+                        "RateLimit-Remaining"?: number;
+                        /** @description Segundos hasta el reinicio de la ventana */
+                        "RateLimit-Reset"?: number;
+                        /** @description Segundos hasta que se abre la ventana siguiente */
+                        "Retry-After"?: number;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -557,14 +667,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Consulta los horarios libres de un profesional para un servicio
-         * @description Exige `appointments.appointment.create` en la sucursal (company_manager, branch_manager y receptionist); se comprueba ANTES de validar. `from` y `to` son fechas locales de la sucursal (`YYYY-MM-DD`, inclusivas, `from <= to`, hasta 31 días). El profesional debe estar asignado a la sucursal y el servicio ser de la empresa (si no, 404). Devuelve los inicios posibles en la rejilla del reloj local (múltiplos del paso `slot_step_minutes` desde la medianoche local) con la duración efectiva del servicio en la sucursal; los instantes son UTC. La agenda del profesional es única: sus citas y ausencias de otras sucursales también restan, y solo se expone libre/ocupado. Parámetro ausente: 400 `request.invalid`; mal formado: 400 `request.bad_request`; pedido no atendible: 422 `appointments.availability_invalid`.
+         * Consulta los horarios libres de uno o varios servicios, con un profesional o con cualquiera
+         * @description Exige `appointments.appointment.create` en la sucursal (company_manager, branch_manager y receptionist); se comprueba ANTES de validar. `from` y `to` son fechas locales de la sucursal (`YYYY-MM-DD`, inclusivas, `from <= to`, hasta 31 días). `service_ids` son de 1 a 5 servicios de la empresa (404 si alguno no existe), en orden de secuencia; `professional_id` es un profesional asignado a la sucursal o el literal `any`. Devuelve los inicios posibles en la rejilla del reloj local (múltiplos del paso `slot_step_minutes` desde la medianoche local) con la duración efectiva del servicio en la sucursal; los instantes son UTC. La agenda del profesional es única: sus citas y ausencias de otras sucursales también restan, y solo se expone libre/ocupado. Parámetro ausente: 400 `request.invalid`; mal formado: 400 `request.bad_request`; pedido no atendible: 422 `appointments.availability_invalid`.
          */
         get: {
             parameters: {
                 query: {
-                    /** @description Servicio de la empresa */
-                    service_id: string;
+                    /** @description Servicios de la empresa, UUID separados por comas (1 a 5, sin repetir); el orden es la secuencia */
+                    service_ids: string;
                     /** @description Profesional asignado a la sucursal */
                     professional_id: string;
                     /** @description Primer día local (`YYYY-MM-DD`) */
@@ -591,7 +701,10 @@ export interface paths {
                         "application/json": {
                             data: components["schemas"]["AvailabilitySlot"][];
                             meta: {
+                                buffer_after_minutes: number;
+                                buffer_before_minutes: number;
                                 duration_minutes: number;
+                                price: components["schemas"]["AvailabilityPrice"];
                                 step_minutes: number;
                                 time_zone: string;
                             };
@@ -4037,13 +4150,27 @@ export interface components {
             expires_at: string;
             user: components["schemas"]["User"];
         };
-        /** @description Un inicio posible para el servicio y su fin (inicio + duración efectiva en la sucursal). Instantes UTC. */
+        /** @description Precio total de los servicios pedidos en la sucursal (con sus overrides): entero en unidades menores y moneda. */
+        AvailabilityPrice: {
+            /**
+             * Format: int64
+             * @example 25000
+             */
+            amount_minor: number;
+            /** @example NIO */
+            currency: string;
+        };
+        /** @description Un inicio posible para los servicios y su fin (inicio + duración efectiva total). Instantes UTC. `professional_id` es quien atiende (el asignado si se pidió `any`) y `resource_id` el recurso reservado, o nulo si los servicios no piden recurso. */
         AvailabilitySlot: {
             /**
              * Format: date-time
              * @description UTC
              */
             ends_at: string;
+            /** Format: uuid */
+            professional_id: string;
+            /** Format: uuid */
+            resource_id: string | null;
             /**
              * Format: date-time
              * @description UTC

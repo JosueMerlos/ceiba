@@ -72,6 +72,13 @@ Todas son tablas tenant (`create_tenant_table`) con FKs compuestas hacia sus pad
 - **Una sucursal inactiva está cerrada:** `ensure_eligible!` responde `422` con `branch_id` `inactive`. También se rechaza un `from` anterior a ayer en la hora local de la sucursal (`from` `too_early`) y, para los llamadores que no pasan por el controlador, un registro de otra empresa (`wrong_company`).
 - **Aislamiento por empresa:** las consultas del cargador filtran por `company_id` además de por organización. Los límites inferiores se redondean hacia arriba al segundo, así que un hueco no invade por una fracción una ausencia que termina en `hh:mm:ss.5`.
 
+### Cómo quedó implementado (M1.04)
+
+- **Varios servicios:** duración = Σ duraciones con override; bloque = buffer previo del primero + duración + buffer posterior del último, y el bloque entero cabe en el horario; precio = Σ precios con override, en la moneda de la empresa ([ADR-0036](../adr/0036-motor-de-disponibilidad-completo-y-superficie-publica.md)).
+- **`:any`:** elegibles = asignados a la sucursal, activos y que prestan todos los servicios; para cada inicio gana el de menos citas que bloquean ese día local (en todas sus sucursales), con desempate por `id`.
+- **Recursos:** un solo tipo por petición (`multiple_resource_kinds` si se piden más); el recurso libre de menor `id`; un recurso sin franjas sigue el horario de la sucursal. `appointments.resource_id` existe desde este hito (sin `no_overlap_resource`, que llega con `Book`).
+- **Superficie pública** `GET /api/public/v1/c/:slug/availability`: sin datos personales, `404` uniforme, hasta 14 días, caché de 30 s y regla 5 de Rack::Attack.
+
 ## Restricciones críticas
 
 ```sql
@@ -120,7 +127,7 @@ stateDiagram-v2
 
 | Servicio | Responsabilidad |
 | --- | --- |
-| `Appointments::Availability.call(company:, branch:, service:, professional:, from_date:, to_date:, now:)` (M1.03: un servicio y un profesional; M1.04 lo extiende a `services:` y `:any`) | Devuelve un `Result(slots:, duration_minutes:, step_minutes:)`; `slots` son intervalos UTC `[{ starts_at, ends_at }]` de la duración efectiva. Con precio, `price_minor`, `currency` y `professional_id` llega en M1.04 |
+| `Appointments::Availability.call(company:, branch:, services:, professional:, from_date:, to_date:, now:)` (`professional` es un profesional o `:any`) | Devuelve un `Result(slots:, duration_minutes:, buffer_before_minutes:, buffer_after_minutes:, price_minor:, currency:, step_minutes:)`; cada hueco es `Slot(starts_at, ends_at, professional_id, resource_id)` en UTC, con `ends_at = starts_at + duración` (sin buffers) |
 | `Appointments::Book.call(context:, customer:, services:, professional:, starts_at:, source:, idempotency_key:)` | **Único** creador de citas. Calcula el snapshot, valida la persona entre empresas, inserta y traduce la violación de la constraint en `SlotUnavailable` |
 | `Appointments::Reschedule.call(appointment:, starts_at:, professional:)` | Bloquea, marca `rescheduled` y llama a `Book` con `rescheduled_from_id` |
 | `Appointments::Transition.call(appointment:, to:, actor:)` | Confirmar, check-in, completar, no-show, cancelar |
@@ -132,7 +139,7 @@ stateDiagram-v2
 
 Algoritmo (por profesional elegible):
 
-1. Servicios → duración total = Σ duraciones (con override de sucursal) + buffer previo del primero + buffer posterior del último. El precio total = Σ precios (con override).
+1. Servicios → duración = Σ duraciones (con override de sucursal); bloque = buffer previo del primero + duración + buffer posterior del último (los buffers son preparación y limpieza de la cita, no de cada servicio). El precio total = Σ precios (con override), en la moneda de la empresa.
 2. Profesionales elegibles: asignados a la sucursal, activos y que prestan **todos** los servicios.
 3. Ventanas abiertas = horario de la sucursal ∩ horario del profesional, convertido de hora local a UTC **día por día** (correcto ante DST).
 4. Restar ausencias del profesional y citas que bloquean (`blocks_from/blocks_to`).

@@ -261,6 +261,86 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
     end
   end
 
+  describe "regla 5: disponibilidad pública por IP y empresa (60 / 1 min)" do
+    def availability(slug: "mi-barberia", from: ip, suffix: "")
+      get "/api/public/v1/c/#{slug}/availability#{suffix}", params: { branch_id: "x" }, headers: { "REMOTE_ADDR" => from }
+    end
+
+    it "la petición 61 del mismo IP y la misma empresa responde 429 con Retry-After y RateLimit-*" do
+      60.times { availability }
+      expect(response).to have_http_status(:not_found)
+
+      availability
+
+      expect_rate_limited(retry_after: 59, limit: 60)
+    end
+
+    it "otra empresa desde la misma IP no se ve afectada" do
+      61.times { availability }
+
+      availability(slug: "otra-barberia")
+
+      expect(response).not_to have_http_status(:too_many_requests)
+    end
+
+    it "otra IP sobre la misma empresa no se ve afectada" do
+      61.times { availability }
+
+      availability(from: "203.0.113.11")
+
+      expect(response).not_to have_http_status(:too_many_requests)
+    end
+
+    it "las variantes de la ruta (mayúsculas, barra final, codificada en porcentaje) comparten el contador: no abren otro" do
+      slugs = [ "mi-barberia", "MI-Barberia", "mi%2Dbarberia", "%6Di-barberia" ]
+      60.times { |n| availability(slug: slugs[n % 4], suffix: n.even? ? "" : "/") }
+
+      availability(slug: "Mi-BARBERIA", suffix: "/")
+
+      expect_rate_limited(retry_after: 59, limit: 60)
+    end
+
+    it "los espacios alrededor del slug (%20, %09) comparten el contador: el directorio los recorta y llegan a la misma empresa" do
+      slugs = [ "mi-barberia", "%20mi-barberia", "mi-barberia%20", "mi-barberia%09", "%20Mi-Barberia%20" ]
+      60.times { |n| availability(slug: slugs[n % slugs.size]) }
+
+      availability(slug: "mi-barberia%09%20")
+
+      expect_rate_limited(retry_after: 59, limit: 60)
+    end
+
+    it "HEAD cuenta en el mismo contador que GET: Rails lo enruta al mismo endpoint" do
+      30.times { availability }
+      30.times { head "/api/public/v1/c/mi-barberia/availability", params: { branch_id: "x" }, headers: { "REMOTE_ADDR" => ip } }
+
+      availability
+
+      expect_rate_limited(retry_after: 59, limit: 60)
+    end
+
+    it "la ventana siguiente vuelve a permitir peticiones" do
+      61.times { availability }
+      travel_to(now + 1.minute)
+
+      availability
+
+      expect(response).not_to have_http_status(:too_many_requests)
+    end
+
+    it "RATE_LIMIT_PUBLIC_AVAILABILITY sustituye el valor por defecto" do
+      stub_const("ENV", ENV.to_h.merge("RATE_LIMIT_PUBLIC_AVAILABILITY" => "3"))
+      3.times { availability }
+
+      availability
+
+      expect_rate_limited(retry_after: 59, limit: 3)
+    end
+
+    it "toda regla tiene límite en desarrollo (si no, `limit` lanza KeyError)" do
+      expect(RateLimiting::DEVELOPMENT_LIMITS.keys).to match_array(RateLimiting::RULES.keys)
+    end
+  end
+
   describe "límites por variable de entorno" do
     it "RATE_LIMIT_LOGIN_IP sustituye el valor por defecto" do
       stub_const("ENV", ENV.to_h.merge("RATE_LIMIT_LOGIN_IP" => "2"))

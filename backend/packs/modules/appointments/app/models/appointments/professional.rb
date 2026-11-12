@@ -29,6 +29,11 @@ module Appointments
     scope :unarchived, -> { where(archived_at: nil) }
     # What can be offered for booking: not archived and not paused.
     scope :active, -> { unarchived.where(active: true) }
+    # Who works at the branch, among the branch's company's professionals.
+    scope :assigned_to, ->(branch) {
+      where(company_id: branch.company_id,
+            id: ProfessionalBranchAssignment.where(company_id: branch.company_id, branch_id: branch.id).select(:professional_id))
+    }
 
     def archived? = !archived_at.nil?
 

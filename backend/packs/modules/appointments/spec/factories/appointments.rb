@@ -129,11 +129,13 @@ FactoryBot.define do
   factory :appointment, class: "Appointments::Appointment" do
     transient do
       professional { association(:professional, strategy: :create) }
+      resource { nil }
       branch { association(:branch, company: Tenancy::Directory.company!(professional.company_id), strategy: :create) }
     end
 
     professional_id { professional.id }
     branch_id { branch.id }
+    resource_id { resource&.id }
     company_id { professional.company_id }
     organization { professional.organization }
     starts_at { Time.utc(2026, 11, 16, 15) }

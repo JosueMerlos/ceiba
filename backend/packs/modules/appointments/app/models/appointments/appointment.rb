@@ -7,6 +7,8 @@ module Appointments
 
     acts_as_tenant :organization, class_name: "Tenancy::Organization"
 
+    belongs_to :resource, class_name: "Appointments::Resource", optional: true
+
     scope :blocking, -> { where.not(status: RELEASING_STATUSES) }
     # Half-open: a blocking interval that ends exactly at `from`, or starts exactly at `to`, does not overlap.
     scope :overlapping, ->(from, to) { where("blocks_from < ? AND blocks_to > ?", to, from) }

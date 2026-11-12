@@ -1,4 +1,5 @@
 require "active_support/core_ext/integer/time"
+require Rails.root.join("config/redis_settings").to_s
 
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
@@ -42,8 +43,8 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
-  # Replace the default in-process memory cache store with a durable alternative.
-  # config.cache_store = :mem_cache_store
+  # Shared cache (the public availability answer lives here for 30 s). It fails open: see RedisSettings.
+  config.cache_store = :redis_cache_store, RedisSettings.cache_store_options
 
   # Replace the default in-process and non-durable queuing backend for Active Job.
   # config.active_job.queue_adapter = :resque
