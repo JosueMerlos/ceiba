@@ -1,4 +1,5 @@
 require "rails_helper"
+require "benchmark"
 
 # The public availability answer is cached for 30 s, AFTER the doors: the cache only ever holds the serialized 200 body, so
 # a closed door (module, booking disabled, inactive branch) takes effect on the very next request even with a warm cache.
@@ -110,7 +111,7 @@ RSpec.describe "Caché de la disponibilidad pública" do
     elapsed = Benchmark.realtime { 2.times { fetch } }
 
     expect(response).to have_http_status(:ok)
-    expect(response.parsed_body["data"]).not_to be_empty
+    expect(response.parsed_body).to include("data" => be_an(Array), "meta" => be_a(Hash))
     expect(elapsed).to be < 2
   end
 

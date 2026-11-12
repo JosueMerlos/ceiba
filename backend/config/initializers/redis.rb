@@ -1,5 +1,7 @@
-# Redis URL shared by Sidekiq and /api/ready. No production default: each environment provides REDIS_URL.
-redis_url = ENV.fetch("REDIS_URL", "redis://localhost:6379/0")
+# Redis URL shared by Sidekiq and /api/ready, resolved with the same default as the production cache store (RedisSettings).
+require Rails.root.join("config/redis_settings").to_s
+
+redis_url = RedisSettings.url
 
 # In test ALWAYS use database 15, whatever REDIS_URL says (compose gives database 0 to every container, including the
 # development worker): specs with real Redis run flushdb and wipe the cron, and a development worker would consume the

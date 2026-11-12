@@ -1,4 +1,5 @@
 require "active_support/core_ext/integer/time"
+require Rails.root.join("config/redis_settings").to_s
 
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
@@ -42,15 +43,8 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
-  # Shared cache (the public availability answer lives here for 30 s). It reads REDIS_URL directly: config.x.redis_url is set by an
-  # initializer, which runs AFTER this file. Short timeouts and no reconnects, and it FAILS OPEN: if Redis does not answer the
-  # value is computed without the cache (and a warning is logged) instead of failing the request.
-  config.cache_store = :redis_cache_store, {
-    url: ENV.fetch("REDIS_URL", nil), namespace: "cache", connect_timeout: 1, read_timeout: 0.2, write_timeout: 0.2, reconnect_attempts: 0,
-    error_handler: lambda { |method:, returning:, exception:|
-      Rails.logger.warn({ msg: "cache.store_error", method:, error: exception.class.name }.to_json)
-    }
-  }
+  # Shared cache (the public availability answer lives here for 30 s). It fails open: see RedisSettings.
+  config.cache_store = :redis_cache_store, RedisSettings.cache_store_options
 
   # Replace the default in-process and non-durable queuing backend for Active Job.
   # config.active_job.queue_adapter = :resque
