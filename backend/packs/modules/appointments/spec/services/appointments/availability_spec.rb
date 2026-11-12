@@ -207,7 +207,7 @@ RSpec.describe Appointments::Availability do
     end
 
     context "con datos de una empresa hermana de la misma organización" do
-      let(:sibling) { create_in(organization, :company) }
+      def sibling = @sibling ||= create_in(organization, :company)
 
       it "un profesional de otra empresa se rechaza sin consultar nada más" do
         foreign = create_in(organization, :professional, company: sibling)

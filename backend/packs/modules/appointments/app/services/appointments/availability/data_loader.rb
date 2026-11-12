@@ -36,12 +36,12 @@ module Appointments
       private
 
       def override_duration
-        BranchServiceOverride.where(service_id: @service.id, branch_id: @branch.id).pick(:duration_minutes)
+        BranchServiceOverride.where(company_id: @company.id, service_id: @service.id, branch_id: @branch.id).pick(:duration_minutes)
       end
 
       # Branch hours and this professional's hours at the branch, in one query.
       def weekly_slots
-        rows = WeeklySchedule.where(branch_id: @branch.id)
+        rows = WeeklySchedule.where(company_id: @company.id, branch_id: @branch.id)
                              .where("owner_type = 'branch' OR professional_id = ?", @professional.id)
                              .pluck(:owner_type, :weekday, :starts_at_local, :ends_at_local)
         branch_rows, professional_rows = rows.partition { |owner_type, *| owner_type == "branch" }
@@ -55,12 +55,12 @@ module Appointments
 
       # The absence belongs to the person, so it counts in every branch.
       def time_offs
-        intervals(TimeOff.where(professional_id: @professional.id).overlapping(@range_from, @range_to).pluck(:starts_at, :ends_at))
+        intervals(TimeOff.where(company_id: @company.id, professional_id: @professional.id).overlapping(@range_from, @range_to).pluck(:starts_at, :ends_at))
       end
 
       # One agenda per person: appointments in any branch occupy the professional.
       def busy
-        intervals(Appointment.blocking.where(professional_id: @professional.id).overlapping(@range_from, @range_to)
+        intervals(Appointment.blocking.where(company_id: @company.id, professional_id: @professional.id).overlapping(@range_from, @range_to)
                              .pluck(:blocks_from, :blocks_to))
       end
 

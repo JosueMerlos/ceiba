@@ -51,12 +51,15 @@ es-NI:
       errors:
         branch_id:
           inactive: "la sucursal está inactiva"
+          wrong_company: "la sucursal no es de la empresa"
         professional_id:
           inactive: "el profesional está pausado o archivado"
           not_assigned: "el profesional no está asignado a la sucursal"
+          wrong_company: "el profesional no es de la empresa"
         service_id:
           inactive: "el servicio está inactivo o archivado"
           not_provided: "el profesional no presta este servicio"
+          wrong_company: "el servicio no es de la empresa"
         from:
           too_early: "`from` no puede ser anterior a ayer en la hora local de la sucursal"
         to:
