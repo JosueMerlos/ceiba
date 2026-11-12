@@ -21,8 +21,15 @@ class CreateAppointments < ActiveRecord::Migration[8.1]
       t.foreign_key :professionals, column: %i[organization_id company_id professional_id], primary_key: %i[organization_id company_id id],
         name: "fk_appointments_professional"
 
+      # No (organization_id, company_id) index of its own: the two FK-side indexes below start with that pair.
+      # The sides of the composite FKs (deleting a branch or a professional looks here).
+      t.index %i[organization_id company_id branch_id], name: "idx_appointments_branch"
+      t.index %i[organization_id company_id professional_id], name: "idx_appointments_professional"
+      # The agendas: one branch's day and one professional's day.
+      t.index %i[organization_id branch_id starts_at], name: "idx_appointments_branch_starts"
+      t.index %i[organization_id professional_id starts_at], name: "idx_appointments_professional_starts"
       # What the engine reads: the blocking slots of a professional by range, in every branch.
-      t.index %i[professional_id blocks_from], name: "idx_appointments_professional_blocks"
+      t.index %i[organization_id professional_id blocks_from], name: "idx_appointments_professional_blocks"
     end
   end
 end

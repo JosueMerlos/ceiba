@@ -1050,10 +1050,38 @@ ALTER TABLE ONLY public.weekly_schedules
 
 
 --
+-- Name: idx_appointments_branch; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_appointments_branch ON public.appointments USING btree (organization_id, company_id, branch_id);
+
+
+--
+-- Name: idx_appointments_branch_starts; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_appointments_branch_starts ON public.appointments USING btree (organization_id, branch_id, starts_at);
+
+
+--
+-- Name: idx_appointments_professional; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_appointments_professional ON public.appointments USING btree (organization_id, company_id, professional_id);
+
+
+--
 -- Name: idx_appointments_professional_blocks; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_appointments_professional_blocks ON public.appointments USING btree (professional_id, blocks_from);
+CREATE INDEX idx_appointments_professional_blocks ON public.appointments USING btree (organization_id, professional_id, blocks_from);
+
+
+--
+-- Name: idx_appointments_professional_starts; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_appointments_professional_starts ON public.appointments USING btree (organization_id, professional_id, starts_at);
 
 
 --

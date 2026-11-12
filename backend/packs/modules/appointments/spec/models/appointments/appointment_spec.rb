@@ -9,11 +9,10 @@ RSpec.describe Appointments::Appointment do
   def build_for(**attributes) = build(:appointment, professional:, branch:, **attributes)
 
   describe "índices" do
-    let(:connection) { ActiveRecord::Base.connection }
-    let(:indexed_columns) { connection.indexes(:appointments).map(&:columns) }
+    let(:indexed_columns) { ActiveRecord::Base.connection.indexes(:appointments).map(&:columns) }
 
     it "toda clave foránea tiene un índice que empieza por sus columnas", :aggregate_failures do
-      connection.foreign_keys(:appointments).each do |foreign_key|
+      ActiveRecord::Base.connection.foreign_keys(:appointments).each do |foreign_key|
         columns = Array(foreign_key.column)
 
         expect(indexed_columns).to include(a_collection_starting_with(columns)), "#{foreign_key.name} has no index"
