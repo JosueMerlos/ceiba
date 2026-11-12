@@ -268,7 +268,7 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
 
     it "la petición 61 del mismo IP y la misma empresa responde 429 con Retry-After y RateLimit-*" do
       60.times { availability }
-      expect(response).to have_http_status(:bad_request).or have_http_status(:not_found)
+      expect(response).to have_http_status(:not_found)
 
       availability
 
@@ -296,6 +296,24 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
       60.times { |n| availability(slug: slugs[n % 4], suffix: n.even? ? "" : "/") }
 
       availability(slug: "Mi-BARBERIA", suffix: "/")
+
+      expect_rate_limited(retry_after: 59, limit: 60)
+    end
+
+    it "los espacios alrededor del slug (%20, %09) comparten el contador: el directorio los recorta y llegan a la misma empresa" do
+      slugs = [ "mi-barberia", "%20mi-barberia", "mi-barberia%20", "mi-barberia%09", "%20Mi-Barberia%20" ]
+      60.times { |n| availability(slug: slugs[n % slugs.size]) }
+
+      availability(slug: "mi-barberia%09%20")
+
+      expect_rate_limited(retry_after: 59, limit: 60)
+    end
+
+    it "HEAD cuenta en el mismo contador que GET: Rails lo enruta al mismo endpoint" do
+      30.times { availability }
+      30.times { head "/api/public/v1/c/mi-barberia/availability", params: { branch_id: "x" }, headers: { "REMOTE_ADDR" => ip } }
+
+      availability
 
       expect_rate_limited(retry_after: 59, limit: 60)
     end
