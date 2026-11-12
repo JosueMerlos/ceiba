@@ -13,7 +13,7 @@
 | Prefijo | Consumidor | Credencial |
 | --- | --- | --- |
 | `/api/v1/...` | Panel (SPA) e integradores | Cookie de sesión (M0.07) **o** API key (`Authorization: Bearer`, M4.02) |
-| `/api/public/v1/c/:slug/...` | `apps/booking` (anónimo) | Ninguna; rate limit por IP + slug |
+| `/api/public/v1/c/:slug/...` | `apps/booking` (anónimo) | Ninguna; rate limit por IP + slug. Implementado en M1.04: disponibilidad, con la empresa resuelta por `Tenancy::PublicDirectory` y un `404` uniforme para todo lo que no aplica ([ADR-0036](../adr/0036-motor-de-disponibilidad-completo-y-superficie-publica.md)) |
 | `/api/public/v1/manage/:token/...` | Cliente con enlace firmado | Token de un uso |
 | `/api/platform/...` | Back-office | Sesión de `PlatformStaff` + 2FA |
 | `/api/webhooks/whatsapp` | Meta | HMAC `X-Hub-Signature-256` |

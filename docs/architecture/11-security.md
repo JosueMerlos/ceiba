@@ -172,9 +172,10 @@ api_keys
 | 1 catch-all por IP, 600 / 5 min (las sondas `/api/health` y `/api/ready` no cuentan) | `RATE_LIMIT_CATCH_ALL` | `rate_limit.exceeded` |
 | 2 login por IP, 5 / 15 min | `RATE_LIMIT_LOGIN_IP` | `rate_limit.exceeded` |
 | 3 login por correo normalizado, 10 / 15 min | `RATE_LIMIT_LOGIN_EMAIL` | `rate_limit.exceeded` |
+| 5 disponibilidad pública por IP + slug, 60 / 1 min (M1.04; la ruta se compara decodificada, sin distinguir mayúsculas y con o sin barra final, para que una variante no abra otro contador) | `RATE_LIMIT_PUBLIC_AVAILABILITY` | `rate_limit.exceeded` |
 | 8 cuenta por IP las respuestas de **ruta inexistente** (404/405): a las 10 en 5 min, bloqueo de 1 h | `RATE_LIMIT_NOT_FOUND` | `rate_limit.blocked` |
 
-Las reglas 4, 5, 6, 7 y 9 y la capa 2 llegan con M4.02 y los módulos que las usan.
+Las reglas 4, 6, 7 y 9 y la capa 2 llegan con M4.02 y los módulos que las usan.
 
 - **Store:** Redis, `RedisCacheStore` con namespace `ratelimit` (claves `ratelimit:rack::attack:...`). En test la URL ya fuerza la base 15 (`config/initializers/redis.rb`). **Falla abierto:** si Redis no responde el límite no se aplica (se registra `rate_limit.store_error`); preferimos dejar pasar a cerrar el login.
 - **Posición:** justo después de `ActionDispatch::RemoteIp` (la clave es `request.env["action_dispatch.remote_ip"]`, la IP del cliente tras los proxies de confianza, no `Rack::Request#ip`) y de `RequestId` (el 429 lleva el `request_id`).
