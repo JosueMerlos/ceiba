@@ -17,6 +17,9 @@ module Appointments
 
     acts_as_tenant :organization, class_name: "Tenancy::Organization"
 
+    # Half-open: an absence that ends exactly at `from`, or starts exactly at `to`, does not overlap.
+    scope :overlapping, ->(from, to) { where("starts_at < ? AND ends_at > ?", to, from) }
+
     validates :owner_type, inclusion: { in: OWNER_TYPES }
     validates :starts_at, :ends_at, presence: true
     validates :reason, length: { maximum: MAX_REASON_LENGTH }, allow_nil: true

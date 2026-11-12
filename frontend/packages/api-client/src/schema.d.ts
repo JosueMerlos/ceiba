@@ -545,6 +545,114 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Consulta los horarios libres de un profesional para un servicio
+         * @description Exige `appointments.appointment.create` en la sucursal (company_manager, branch_manager y receptionist); se comprueba ANTES de validar. `from` y `to` son fechas locales de la sucursal (`YYYY-MM-DD`, inclusivas, `from <= to`, hasta 31 días). El profesional debe estar asignado a la sucursal y el servicio ser de la empresa (si no, 404). Devuelve los inicios posibles en la rejilla del reloj local (múltiplos del paso `slot_step_minutes` desde la medianoche local) con la duración efectiva del servicio en la sucursal; los instantes son UTC. La agenda del profesional es única: sus citas y ausencias de otras sucursales también restan, y solo se expone libre/ocupado. Parámetro ausente: 400 `request.invalid`; mal formado: 400 `request.bad_request`; pedido no atendible: 422 `appointments.availability_invalid`.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Servicio de la empresa */
+                    service_id: string;
+                    /** @description Profesional asignado a la sucursal */
+                    professional_id: string;
+                    /** @description Primer día local (`YYYY-MM-DD`) */
+                    from: string;
+                    /** @description Último día local, inclusivo (`YYYY-MM-DD`) */
+                    to: string;
+                };
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el company_manager de la empresa */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["AvailabilitySlot"][];
+                            meta: {
+                                duration_minutes: number;
+                                step_minutes: number;
+                                time_zone: string;
+                            };
+                        };
+                    };
+                };
+                /** @description sin ningún parámetro de consulta */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin permiso, la autorización va ANTES de validar: ni un 400 ni un 404 sobre ids ajenos */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un servicio que el profesional no presta */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/professionals/{professional_id}": {
         parameters: {
             query?: never;
@@ -3928,6 +4036,19 @@ export interface components {
              */
             expires_at: string;
             user: components["schemas"]["User"];
+        };
+        /** @description Un inicio posible para el servicio y su fin (inicio + duración efectiva en la sucursal). Instantes UTC. */
+        AvailabilitySlot: {
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            ends_at: string;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            starts_at: string;
         };
         /** @description Sucursal: una ubicación de una empresa */
         Branch: {

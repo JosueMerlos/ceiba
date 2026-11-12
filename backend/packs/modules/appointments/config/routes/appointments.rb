@@ -28,6 +28,8 @@ scope path: "organizations/:organization_id/companies/:company_id/appointments" 
   put "services/:service_id/resource_requirements", to: "appointments/resource_requirements#update"
 
   scope path: "branches/:branch_id" do
+    get "availability", to: "appointments/availability#show"
+
     get "resources", to: "appointments/resources#index"
     post "resources", to: "appointments/resources#create"
     get "resources/:resource_id", to: "appointments/resources#show"

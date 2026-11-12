@@ -61,6 +61,17 @@ Todas son tablas tenant (`create_tenant_table`) con FKs compuestas hacia sus pad
 - **Ausencias solapadas del mismo dueño se permiten**: el motor resta la unión.
 - **Sucursal sin horario = cerrada.** `on_enable` del módulo (`Appointments::Lifecycle::OnEnable`) da lunes a sábado de 08:00 a 18:00 a las sucursales que existen **al activar** y que no tienen horario; una sucursal creada después empieza sin horario (cerrada para el motor) hasta que el gerente lo configura (M2.01).
 
+### Cómo quedó implementado (M1.03)
+
+- **Núcleo puro y cargador de consultas fijas.** `Appointments::Availability::{Interval, IntervalSet, WeeklyExpander, SlotFinder, Calculator}` no usan ActiveRecord (intervalos UTC semiabiertos); `DataLoader` es lo único que consulta y emite un número fijo de consultas, sea cual sea el rango. `Availability.call` devuelve un `Result` con `slots`, `duration_minutes` y `step_minutes` ([ADR-0035](../adr/0035-motor-de-disponibilidad-caso-base.md)).
+- **Agenda única por persona.** Las citas y ausencias del profesional restan en **todas** sus sucursales; las franjas semanales, solo las de la sucursal pedida. Quien consulta ve libre/ocupado, nunca el detalle de otra sucursal.
+- **Hora local a UTC en un solo lugar** (`WeeklyExpander`): una hora inexistente se recorta a la transición, una ambigua toma su primera ocurrencia y la contención es cronológica. No se usa `TimeZone#local`.
+- **Rejilla del reloj local:** un inicio es válido si su minuto del día local es múltiplo de `slot_step_minutes`. `min_lead_time_minutes` y `max_advance_days` (`now + N × 24 h`) se miden desde `now`.
+- **`appointments` mínima:** `status` (por defecto `scheduled`) y las columnas que lee el motor (`company_id`, `branch_id`, `professional_id`, `starts_at`, `ends_at`, `blocks_from`, `blocks_to`), con claves foráneas compuestas y sin constraints de agenda. M1.05 añade `customer_id`, `resource_id`, `source`, `notes`, `lock_version`, `created_by` y `rescheduled_from_id` junto con las constraints. `Appointment.blocking` excluye `cancelled` y `rescheduled`; `Appointment.overlapping` usa `blocks_*` y es semiabierto.
+- **Endpoint** `GET …/appointments/branches/:branch_id/availability?service_id&professional_id&from&to` con el permiso `appointments.appointment.create` a alcance de sucursal; rango de hasta 31 días; errores `400` (`request.invalid`, `request.bad_request`, también para un parámetro repetido), `403`, `404` y `422 appointments.availability_invalid`.
+- **Una sucursal inactiva está cerrada:** `ensure_eligible!` responde `422` con `branch_id` `inactive`. También se rechaza un `from` anterior a ayer en la hora local de la sucursal (`from` `too_early`) y, para los llamadores que no pasan por el controlador, un registro de otra empresa (`wrong_company`).
+- **Aislamiento por empresa:** las consultas del cargador filtran por `company_id` además de por organización. Los límites inferiores se redondean hacia arriba al segundo, así que un hueco no invade por una fracción una ausencia que termina en `hh:mm:ss.5`.
+
 ## Restricciones críticas
 
 ```sql
@@ -109,7 +120,7 @@ stateDiagram-v2
 
 | Servicio | Responsabilidad |
 | --- | --- |
-| `Appointments::Availability.call(company:, branch:, services:, professional: or :any, from:, to:)` | Devuelve huecos `[{ starts_at_utc, duration_minutes, price_minor, currency, professional_id }]` |
+| `Appointments::Availability.call(company:, branch:, service:, professional:, from_date:, to_date:, now:)` (M1.03: un servicio y un profesional; M1.04 lo extiende a `services:` y `:any`) | Devuelve un `Result(slots:, duration_minutes:, step_minutes:)`; `slots` son intervalos UTC `[{ starts_at, ends_at }]` de la duración efectiva. Con precio, `price_minor`, `currency` y `professional_id` llega en M1.04 |
 | `Appointments::Book.call(context:, customer:, services:, professional:, starts_at:, source:, idempotency_key:)` | **Único** creador de citas. Calcula el snapshot, valida la persona entre empresas, inserta y traduce la violación de la constraint en `SlotUnavailable` |
 | `Appointments::Reschedule.call(appointment:, starts_at:, professional:)` | Bloquea, marca `rescheduled` y llama a `Book` con `rescheduled_from_id` |
 | `Appointments::Transition.call(appointment:, to:, actor:)` | Confirmar, check-in, completar, no-show, cancelar |

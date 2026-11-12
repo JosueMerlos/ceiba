@@ -122,3 +122,24 @@ FactoryBot.define do
     ends_at { Time.utc(2026, 11, 16, 13) }
   end
 end
+
+# A booked slot of a professional at a branch (the table holds only what the availability engine reads). Organization and
+# company come from the professional; the branch must belong to that company. `blocks_*` default to the slot itself.
+FactoryBot.define do
+  factory :appointment, class: "Appointments::Appointment" do
+    transient do
+      professional { association(:professional, strategy: :create) }
+      branch { association(:branch, company: Tenancy::Directory.company!(professional.company_id), strategy: :create) }
+    end
+
+    professional_id { professional.id }
+    branch_id { branch.id }
+    company_id { professional.company_id }
+    organization { professional.organization }
+    starts_at { Time.utc(2026, 11, 16, 15) }
+    ends_at { starts_at + 30.minutes }
+    blocks_from { starts_at }
+    blocks_to { ends_at }
+    status { "scheduled" }
+  end
+end

@@ -135,4 +135,30 @@ RSpec.describe Appointments::TimeOff do
       end
     end
   end
+
+  describe ".overlapping" do
+    let(:base) { Time.utc(2026, 11, 16, 10) }
+
+    def absence = create(:time_off, professional:, starts_at: base, ends_at: base + 1.hour)
+
+    it "es semiabierto: una ausencia que termina donde empieza el rango, o empieza donde termina, no solapa", :aggregate_failures do
+      with_tenant(organization) do
+        time_off = absence
+
+        expect(described_class.overlapping(base + 1.hour, base + 2.hours)).to be_empty
+        expect(described_class.overlapping(base - 1.hour, base)).to be_empty
+        expect(described_class.overlapping(base + 59.minutes, base + 2.hours)).to contain_exactly(time_off)
+        expect(described_class.overlapping(base - 1.hour, base + 1.minute)).to contain_exactly(time_off)
+      end
+    end
+
+    it "encuentra la ausencia que contiene el rango entero y la que lo contiene por dentro", :aggregate_failures do
+      with_tenant(organization) do
+        time_off = absence
+
+        expect(described_class.overlapping(base + 10.minutes, base + 20.minutes)).to contain_exactly(time_off)
+        expect(described_class.overlapping(base - 1.hour, base + 3.hours)).to contain_exactly(time_off)
+      end
+    end
+  end
 end
