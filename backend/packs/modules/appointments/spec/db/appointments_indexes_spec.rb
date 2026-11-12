@@ -34,17 +34,46 @@ RSpec.describe "Índices de citas" do
     statements
   end
 
-  def plan_for(column)
-    statement = loader_statements.find { it.include?("\"#{column}\" IN") || it.include?("\"#{column}\" =") }
-    connection = ActiveRecord::Base.connection
-    connection.execute("SET LOCAL enable_seqscan = off")
-    connection.select_values("EXPLAIN #{statement}").join("\n")
+  def statement_for(column) = loader_statements.find { it.include?("\"#{column}\" IN") || it.include?("\"#{column}\" =") }
+
+  # Six years of history, every owner with appointments all along, a fifth of them cancelled; the owner asked for is one of twenty.
+  def seed_sql(column, owner_id)
+    <<~SQL
+      INSERT INTO {{clone}} (organization_id, company_id, branch_id, professional_id, resource_id, starts_at, ends_at, blocks_from, blocks_to, status, created_at, updated_at)
+      SELECT '#{organization.id}', '#{company.id}', '#{branch.id}',
+             #{column == "professional_id" ? "CASE WHEN i % 20 = 0 THEN '#{owner_id}'::uuid ELSE md5(i::text)::uuid END" : "'#{professional.id}'"},
+             #{column == "resource_id" ? "CASE WHEN i % 20 = 0 THEN '#{owner_id}'::uuid ELSE md5(i::text)::uuid END" : "NULL"},
+             t, t + interval '30 minutes', t, t + interval '30 minutes',
+             CASE WHEN i % 5 = 0 THEN 'cancelled' ELSE 'scheduled' END, t, t
+      FROM (SELECT i, timestamp '2020-01-01' + i * interval '3 hours' AS t FROM generate_series(1, 20000) AS i) AS series
+    SQL
   end
 
-  it "la ocupación de recursos usa el índice por fin de bloque con condición sobre blocks_to", :aggregate_failures do
-    plan = plan_for("resource_id")
+  def plan_for(column, owner_id, index_name)
+    IndexPlanProbe.explain_on_clone(table: "appointments", statement: statement_for(column), index_name:, seed_sql: seed_sql(column, owner_id))
+  end
 
-    expect(plan).to include("idx_appointments_resource_blocks"), plan
-    expect(plan).to match(/Index Cond:.*blocks_to >/)
+  it "la ocupación de recursos emite el dueño y el acotado por blocks_to, y el índice parcial lo cubre", :aggregate_failures do
+    statement = statement_for("resource_id")
+
+    expect(statement).to match(/"organization_id" = '#{organization.id}'/)
+    expect(statement).to match(/"resource_id" = '#{room.id}'/)
+    expect(statement).to include("blocks_to > '")
+    expect(IndexPlanProbe.index_shape("appointments", "idx_appointments_resource_blocks"))
+      .to eq("btree (organization_id, resource_id, blocks_to) WHERE ((resource_id IS NOT NULL) AND ((status)::text <> 'cancelled'::text) AND ((status)::text <> 'rescheduled'::text))")
+  end
+
+  it "la ocupación de recursos usa el índice por fin de bloque con condición sobre blocks_to con historial analizado", :aggregate_failures do
+    plan, cloned = plan_for("resource_id", room.id, "idx_appointments_resource_blocks")
+
+    expect(plan).to match(/Index (Only )?Scan using #{cloned}|Bitmap Index Scan on #{cloned}/), plan
+    expect(plan).to match(/Index Cond:.*blocks_to >/), plan
+  end
+
+  it "la ocupación de profesionales usa el índice por fin de bloque con condición sobre blocks_to con historial analizado", :aggregate_failures do
+    plan, cloned = plan_for("professional_id", professional.id, "idx_appointments_professional_blocks")
+
+    expect(plan).to match(/Index (Only )?Scan using #{cloned}|Bitmap Index Scan on #{cloned}/), plan
+    expect(plan).to match(/Index Cond:.*blocks_to >/), plan
   end
 end
