@@ -56,15 +56,18 @@ RSpec.describe Appointments::Availability::ServicePlan do
     expect(result.price_minor).to eq(8_000)
   end
 
-  it "los tipos de recurso requeridos se unen sin repetir y ordenados" do
+  it "el tipo de recurso requerido es el que piden los servicios, sin repetir" do
     result = plan([ item("a", 30, kinds: %w[room]), item("b", 20), item("c", 10, kinds: %w[room]) ])
 
-    expect(result.required_kinds).to eq(%w[room])
+    expect(result.required_kind).to eq("room")
   end
 
-  it "un servicio sin requisitos no añade tipos, y dos tipos distintos se conservan", :aggregate_failures do
-    expect(plan([ item("a", 30), item("b", 20) ]).required_kinds).to eq([])
-    expect(plan([ item("a", 30, kinds: %w[room]), item("b", 20, kinds: %w[chair]) ]).required_kinds).to eq(%w[chair room])
+  it "sin requisitos el tipo requerido es nulo" do
+    expect(plan([ item("a", 30), item("b", 20) ]).required_kind).to be_nil
+  end
+
+  it "dos tipos distintos no se pueden asignar: es un error de quien llama, la elegibilidad ya los rechaza" do
+    expect { plan([ item("a", 30, kinds: %w[room]), item("b", 20, kinds: %w[chair]) ]) }.to raise_error(ArgumentError, /one resource kind/)
   end
 
   it "con un solo servicio el plan es el propio servicio", :aggregate_failures do

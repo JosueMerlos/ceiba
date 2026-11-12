@@ -4,9 +4,10 @@ module Appointments
     module_function
 
     def call(result, time_zone:)
+      plan = result.plan
       { data: AvailabilitySlotSerializer.new(result.slots).serializable_hash,
-        meta: { time_zone:, duration_minutes: result.duration_minutes, buffer_before_minutes: result.buffer_before_minutes,
-                buffer_after_minutes: result.buffer_after_minutes, price: { amount_minor: result.price_minor, currency: result.currency },
+        meta: { time_zone:, duration_minutes: plan.duration_minutes, buffer_before_minutes: plan.buffer_before_minutes,
+                buffer_after_minutes: plan.buffer_after_minutes, price: { amount_minor: plan.price_minor, currency: plan.currency },
                 step_minutes: result.step_minutes } }
     end
   end

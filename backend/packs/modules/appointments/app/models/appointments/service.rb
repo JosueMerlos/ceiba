@@ -34,6 +34,13 @@ module Appointments
     # What can be offered for booking: not archived and not paused.
     scope :active, -> { unarchived.where(active: true) }
 
+    # The records of `ids` in the order asked for (a repeated id stays repeated, so a caller can report it); one that is not in
+    # the scope is a 404.
+    def self.in_order(ids)
+      found = where(id: ids.uniq).index_by(&:id)
+      ids.map { found.fetch(it) { raise ActiveRecord::RecordNotFound, "No se encontró el recurso" } }
+    end
+
     def archived? = !archived_at.nil?
 
     # The company's currency, read through the public directory (nil outside the active organization).

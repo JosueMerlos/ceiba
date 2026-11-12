@@ -59,8 +59,10 @@ RSpec.describe Appointments::Availability do
     statements
   end
 
+  def choice(any) = any ? Appointments::Availability::ProfessionalChoice.any : Appointments::Availability::ProfessionalChoice.of(professionals.first)
+
   def run(requested:, days:, any:)
-    described_class.call(company:, branch:, services: services.first(requested), professional: any ? :any : professionals.first,
+    described_class.call(company:, branch:, services: services.first(requested), professional: choice(any),
                          from_date: first_day, to_date: first_day + (days - 1), now: Time.utc(2026, 11, 1)).slots
   end
 

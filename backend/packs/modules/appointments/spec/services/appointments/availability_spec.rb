@@ -27,8 +27,14 @@ RSpec.describe Appointments::Availability do
     create(:weekly_schedule, branch:, professional:, weekday:, starts_at_local: starts, ends_at_local: ends)
   end
 
+  # The use case takes the resolved choice; these specs think in "a professional" or :any.
+  def call_use_case(professional:, **arguments)
+    choice = professional == :any ? Appointments::Availability::ProfessionalChoice.any : Appointments::Availability::ProfessionalChoice.of(professional)
+    described_class.call(professional: choice, **arguments)
+  end
+
   def availability(**overrides)
-    described_class.call(company:, branch:, services: [ service ], professional:, from_date: monday, to_date: monday, now: long_before, **overrides).slots
+    call_use_case(company:, branch:, services: [ service ], professional:, from_date: monday, to_date: monday, now: long_before, **overrides).slots
   end
 
   def local_starts(slots) = slots.map { it.starts_at.in_time_zone(branch.time_zone).strftime("%H:%M") }
@@ -170,7 +176,7 @@ RSpec.describe Appointments::Availability do
       open_hours
 
       travel_to(Time.utc(2026, 11, 16, 16)) do
-        slots = described_class.call(company:, branch:, services: [ service ], professional:, from_date: monday, to_date: monday).slots
+        slots = call_use_case(company:, branch:, services: [ service ], professional:, from_date: monday, to_date: monday).slots
 
         expect(local_starts(slots)).to eq(%w[12:00 12:15 12:30])
       end
@@ -386,7 +392,7 @@ RSpec.describe Appointments::Availability do
 
   describe "varios servicios, precio y buffers" do
     def result(**overrides)
-      described_class.call(company:, branch:, services: [ service ], professional:, from_date: monday, to_date: monday, now: long_before, **overrides)
+      call_use_case(company:, branch:, services: [ service ], professional:, from_date: monday, to_date: monday, now: long_before, **overrides)
     end
 
     # barba 20 min (price 5_000) then corte 30 min with a 10 min cleanup (price 15_000); order is the one asked.
@@ -402,11 +408,11 @@ RSpec.describe Appointments::Availability do
     it "barba + corte: duración 50, buffers de los bordes, precio 20_000 y la moneda de la empresa", :aggregate_failures do
       outcome = result(services: beard_and_cut)
 
-      expect(outcome.duration_minutes).to eq(50)
-      expect(outcome.buffer_before_minutes).to eq(0)
-      expect(outcome.buffer_after_minutes).to eq(10)
-      expect(outcome.price_minor).to eq(20_000)
-      expect(outcome.currency).to eq(company.currency)
+      expect(outcome.plan.duration_minutes).to eq(50)
+      expect(outcome.plan.buffer_before_minutes).to eq(0)
+      expect(outcome.plan.buffer_after_minutes).to eq(10)
+      expect(outcome.plan.price_minor).to eq(20_000)
+      expect(outcome.plan.currency).to eq(company.currency)
       expect(outcome.slots.map { it.ends_at - it.starts_at }.uniq).to eq([ 50.minutes.to_i ])
     end
 
@@ -422,8 +428,8 @@ RSpec.describe Appointments::Availability do
       create(:branch_service_override, service:, branch: other_branch, duration_minutes: nil, price_minor: 12_345)
       Appointments::BranchServiceOverride.find_by!(service_id: service.id, branch_id: branch.id).update!(price_minor: 7_000)
 
-      expect(result.price_minor).to eq(7_000)
-      expect(result(branch: other_branch).price_minor).to eq(12_345)
+      expect(result.plan.price_minor).to eq(7_000)
+      expect(result(branch: other_branch).plan.price_minor).to eq(12_345)
     end
 
     it "sin override de precio ni de duración usa los del servicio", :aggregate_failures do
@@ -431,7 +437,7 @@ RSpec.describe Appointments::Availability do
 
       outcome = result
 
-      expect([ outcome.price_minor, outcome.duration_minutes ]).to eq([ 20_000, 45 ])
+      expect([ outcome.plan.price_minor, outcome.plan.duration_minutes ]).to eq([ 20_000, 45 ])
     end
 
     it "los huecos llevan el id del profesional y resource_id nulo sin requisito de recurso", :aggregate_failures do

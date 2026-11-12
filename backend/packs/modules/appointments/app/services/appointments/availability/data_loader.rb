@@ -1,13 +1,11 @@
 module Appointments
   module Availability
     # The only place that loads the calculation inputs. It issues a FIXED set of queries whatever the number of days, services,
-    # professionals or resources asked for (settings, overrides, resource requirements, eligible professionals, candidate
-    # resources, weekly hours, absences, blocking appointments of the professionals and of the resources) and returns plain values for the pure core. Must run inside a
-    # tenant context.
+    # professionals or resources asked for, and returns plain values for the pure core. Must run inside a tenant context.
     class DataLoader
       # Every field but the plan's own is a Calculator keyword, so a Loaded splats straight into it (the plan too).
       Loaded = Data.define(:step_minutes, :min_lead_minutes, :max_advance_days, :plan, :branch_slots, :professionals, :resources,
-                           :required_kinds, :load_by_day)
+                           :load_by_day)
 
       # The range runs from local midnight of from_date - 1 to that of to_date + 2: to_date + 1 is the exclusive end of the asked
       # dates and the extra day on each side covers the zone offset at the borders.
@@ -16,8 +14,8 @@ module Appointments
 
       def self.call(...) = new(...).call
 
-      # `requirements` is the [[service_id, kind]] list when the caller already read it (eligibility does); nil reads it here.
-      def initialize(company:, branch:, services:, professional:, from_date:, to_date:, requirements: nil)
+      # `requirements` is the [[service_id, kind]] list eligibility already read, so it is not read twice.
+      def initialize(company:, branch:, services:, professional:, from_date:, to_date:, requirements:)
         @company = company
         @branch = branch
         @services = services
@@ -32,8 +30,8 @@ module Appointments
         settings = Modules.settings_for(:appointments, company: @company, branch: @branch)
         plan = service_plan
         professional_ids = eligible_professional_ids
-        resource_rows = plan.required_kinds.any? ? candidate_resources(plan.required_kinds) : []
-        resource_ids = resource_rows.map(&:first)
+        kind_by_resource = resources_for(plan.required_kind)
+        resource_ids = kind_by_resource.keys
         weekly = weekly_slots(professional_ids, resource_ids)
         busy_rows = busy_appointments(:professional_id, professional_ids)
 
@@ -41,8 +39,8 @@ module Appointments
                    max_advance_days: settings.fetch("max_advance_days"), plan:, branch_slots: weekly.fetch(:branch),
                    professionals: owners(professional_ids, weekly[:professional], time_offs(:professional_id, professional_ids), busy_rows),
                    resources: owners(resource_ids, weekly[:resource], time_offs(:resource_id, resource_ids), busy_appointments(:resource_id, resource_ids))
-                                .map { |own| own.merge(kind: resource_rows.to_h.fetch(own[:id])) },
-                   required_kinds: plan.required_kinds, load_by_day: load_by_day(busy_rows))
+                                .map { |own| own.merge(kind: kind_by_resource.fetch(own[:id])) },
+                   load_by_day: load_by_day(busy_rows))
       end
 
       private
@@ -53,8 +51,7 @@ module Appointments
         overrides = BranchServiceOverride.where(company_id: @company.id, branch_id: @branch.id, service_id: service_ids)
                                          .pluck(:service_id, :duration_minutes, :price_minor)
                                          .to_h { |id, duration, price| [ id, { duration_minutes: duration, price_minor: price } ] }
-        kinds = (@requirements || ServiceResourceRequirement.where(company_id: @company.id, service_id: service_ids).pluck(:service_id, :kind))
-                  .group_by(&:first)
+        kinds = @requirements.group_by(&:first)
         items = @services.map do |service|
           ServicePlan::Item.new(id: service.id, duration_minutes: service.duration_minutes, buffer_before_minutes: service.buffer_before_minutes,
                                 buffer_after_minutes: service.buffer_after_minutes, price_minor: service.price_minor,
@@ -63,20 +60,22 @@ module Appointments
         ServicePlan.call(services: items, overrides:, currency: @company.currency)
       end
 
-      # A concrete professional was already checked by the eligibility step; with :any, the active ones assigned to the branch who
+      # A concrete professional was already checked by the eligibility step; with any, the active ones assigned to the branch who
       # provide EVERY requested service (one query).
       def eligible_professional_ids
-        return [ @professional.id ] unless @professional == :any
+        return [ @professional.professional.id ] unless @professional.any?
 
         provided = ProfessionalService.where(company_id: @company.id, service_id: service_ids)
                                       .group(:professional_id).having("COUNT(DISTINCT service_id) = ?", service_ids.uniq.size).select(:professional_id)
-        assigned = ProfessionalBranchAssignment.where(company_id: @company.id, branch_id: @branch.id).select(:professional_id)
-        Professional.active.where(company_id: @company.id, id: assigned).where(id: provided).order(:id).pluck(:id)
+        Professional.active.assigned_to(@branch).where(id: provided).order(:id).pluck(:id)
       end
 
-      # [[id, kind]] of the resources of this branch that can be offered.
-      def candidate_resources(kinds)
-        Resource.active.where(company_id: @company.id, branch_id: @branch.id, kind: kinds).order(:id).pluck(:id, :kind)
+      # { resource id => kind } of the resources of this branch that can be offered for the required kind; none when no kind is
+      # required.
+      def resources_for(kind)
+        return {} unless kind
+
+        Resource.active.where(company_id: @company.id, branch_id: @branch.id, kind:).order(:id).pluck(:id, :kind).to_h
       end
 
       # Branch hours plus the hours of each professional and resource at this branch, in one query, as

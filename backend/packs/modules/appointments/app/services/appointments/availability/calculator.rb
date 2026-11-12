@@ -3,7 +3,7 @@ module Appointments
     # Pure orchestration of the availability core. A professional is open where the branch and their own hours meet, minus
     # their absences and blocking appointments; a resource is open on the branch hours (narrowed by its own, when it has
     # any), minus its absences and occupation. A start is offered when the whole block (buffers included) fits in the
-    # professional's free time and, if a resource kind is required, in some resource's. Everything comes in as values and goes
+    # professional's free time and, if a resource kind is required, in some resource's of that kind. Everything comes in as values and goes
     # out as UTC slots, each start once and ordered.
     #
     # professionals: [{ id:, slots:, time_offs:, busy: }]; resources: [{ id:, kind:, slots:, time_offs:, busy: }];
@@ -11,10 +11,8 @@ module Appointments
     module Calculator
       module_function
 
-      def call(branch_slots:, professionals:, resources:, required_kinds:, plan:, load_by_day:, time_zone:, from_date:, to_date:, step_minutes:,
+      def call(branch_slots:, professionals:, resources:, plan:, load_by_day:, time_zone:, from_date:, to_date:, step_minutes:,
                now:, min_lead_minutes:, max_advance_days:)
-        raise ArgumentError, "a request can ask for at most one resource kind" if required_kinds.size > 1
-
         finder = lambda do |free|
           SlotFinder.call(free:, duration_minutes: plan.duration_minutes, buffer_before_minutes: plan.buffer_before_minutes,
                           buffer_after_minutes: plan.buffer_after_minutes, step_minutes:, time_zone:, now:, min_lead_minutes:, max_advance_days:)
@@ -23,12 +21,12 @@ module Appointments
         branch_open = expand.call(branch_slots)
 
         by_professional = professionals.to_h { |person| [ person[:id], starts_by_epoch(finder, free_time(branch_open.intersect(expand.call(person[:slots])), person)) ] }
-        by_resource = resources.select { required_kinds.include?(it[:kind]) }.to_h do |resource|
+        by_resource = resources.select { it[:kind] == plan.required_kind }.to_h do |resource|
           open = resource[:slots].empty? ? branch_open : branch_open.intersect(expand.call(resource[:slots]))
           [ resource[:id], starts_by_epoch(finder, free_time(open, resource)) ]
         end
 
-        assign(by_professional, by_resource, required: required_kinds.any?, load_by_day:, zone: TZInfo::Timezone.get(time_zone))
+        assign(by_professional, by_resource, required: !plan.required_kind.nil?, load_by_day:, zone: TZInfo::Timezone.get(time_zone))
       end
 
       def free_time(open, owner) = open.subtract(IntervalSet.new(owner[:time_offs])).subtract(IntervalSet.new(owner[:busy]))

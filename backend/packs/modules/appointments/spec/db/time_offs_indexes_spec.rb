@@ -28,8 +28,8 @@ RSpec.describe "Índices de ausencias" do
     callback = ->(*, payload) { statements << payload[:sql] if payload[:sql].match?(/FROM "time_offs"/) }
     ActiveSupport::Notifications.subscribed(callback, "sql.active_record") do
       ActiveRecord::Base.connection.unprepared_statement do
-        Appointments::Availability::DataLoader.call(company:, branch:, services: [ service ], professional:, from_date: Date.new(2026, 11, 16),
-                                                    to_date: Date.new(2026, 11, 29))
+        Appointments::Availability::DataLoader.call(company:, branch:, services: [ service ], professional: Appointments::Availability::ProfessionalChoice.of(professional),
+                                                    from_date: Date.new(2026, 11, 16), to_date: Date.new(2026, 11, 29), requirements: [ [ service.id, "room" ] ])
       end
     end
     statements

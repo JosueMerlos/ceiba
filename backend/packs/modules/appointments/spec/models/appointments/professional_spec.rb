@@ -180,5 +180,20 @@ RSpec.describe Appointments::Professional do
         expect(archived).to be_archived
       end
     end
+
+    it "assigned_to solo trae a quien trabaja en la sucursal, no a los de otra sucursal ni a los sin asignar", :aggregate_failures do
+      with_tenant(organization) do
+        branch = create(:branch, company:)
+        other_branch = create(:branch, company:)
+        here = create(:professional, company:)
+        there = create(:professional, company:)
+        create(:professional, company:)
+        create(:professional_branch_assignment, professional: here, branch:)
+        create(:professional_branch_assignment, professional: there, branch: other_branch)
+
+        expect(described_class.assigned_to(branch)).to contain_exactly(here)
+        expect(described_class.assigned_to(other_branch)).to contain_exactly(there)
+      end
+    end
   end
 end

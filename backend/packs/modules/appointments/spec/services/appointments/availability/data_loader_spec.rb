@@ -13,8 +13,9 @@ RSpec.describe Appointments::Availability::DataLoader do
 
   before { Modules::Enable.call(company:, key: "appointments") }
 
-  def load_for(services: [ service ], professional: :any)
-    described_class.call(company:, branch:, services:, professional:, from_date: monday, to_date: monday + 6)
+  def load_for(services: [ service ], professional: Appointments::Availability::ProfessionalChoice.any)
+    requirements = Appointments::ServiceResourceRequirement.where(service_id: services.map(&:id)).pluck(:service_id, :kind)
+    described_class.call(company:, branch:, services:, professional:, from_date: monday, to_date: monday + 6, requirements:)
   end
 
   def provider_of(*services, assigned: branch)
@@ -52,7 +53,7 @@ RSpec.describe Appointments::Availability::DataLoader do
     it "un profesional concreto se carga tal cual, sin buscar a los demás" do
       provider_of(service)
 
-      expect(ids(load_for(professional:).professionals)).to eq([ professional.id ])
+      expect(ids(load_for(professional: Appointments::Availability::ProfessionalChoice.of(professional)).professionals)).to eq([ professional.id ])
     end
   end
 

@@ -15,16 +15,12 @@ module Api
         def show
           authorize Current.context.branch, :show?, policy_class: ::Appointments::AvailabilityPolicy
           query = availability_query
-          services = services_in_order(company_services, query[:service_ids])
-          professional = query[:professional_id] == :any ? :any : assigned_professionals.find(query[:professional_id])
+          services = ::Appointments::Service.where(company_id:).in_order(query[:service_ids])
+          professional = ::Appointments::Availability::ProfessionalChoice.resolve(query[:professional_id], within: assigned_professionals)
           result = ::Appointments::Availability.call(company: Current.context.company, branch: Current.context.branch, services:, professional:,
                                                      from_date: query[:from], to_date: query[:to])
           render json: ::Appointments::AvailabilityResponse.call(result, time_zone: Current.context.branch.time_zone)
         end
-
-        private
-
-        def company_services = ::Appointments::Service.where(company_id:)
       end
     end
   end

@@ -11,27 +11,21 @@ module Appointments
 
     private
 
-    # { service_ids: [uuid...] in the requested order, professional_id: uuid or :any, from:, to: } (plus branch_id where the
-    # route does not name the branch).
-    def availability_query
-      reject_repeated_query_params
-      values = query_names.index_with { required_query_param(it) }
-      service_ids = uuid_list(values["service_ids"], :service_ids)
-      validate_service_ids!(service_ids)
-      { service_ids:, professional_id: professional_param(values["professional_id"]), from: date(values["from"], :from), to: date(values["to"], :to) }
-        .merge(values.key?("branch_id") ? { branch_id: uuid(values["branch_id"], :branch_id) } : {})
+    # { service_ids: [uuid...] in the requested order, professional_id: uuid or :any, from:, to: } plus each of `extra_uuids`
+    # (further required parameters that are UUIDs, such as the branch where the route does not name it), keyed by symbol.
+    def availability_query(extra_uuids: [])
+      names = QUERY_PARAMS + extra_uuids.map(&:to_s)
+      reject_repeated_query_params(names)
+      values = names.index_with { required_query_param(it) }
+      { service_ids: uuid_list(values["service_ids"], :service_ids), professional_id: professional_param(values["professional_id"]),
+        from: date(values["from"], :from), to: date(values["to"], :to) }
+        .merge(extra_uuids.to_h { |name| [ name, uuid(values[name.to_s], name) ] })
     end
 
-    # The parameters the request must carry; a controller that needs more (the public one names the branch in the query) extends it.
-    def query_names = QUERY_PARAMS
-
-    # Hook: a controller may reject a list that is the wrong shape for it before anything is looked up.
-    def validate_service_ids!(_ids); end
-
     # Rack keeps the last value of a repeated parameter and the rest vanish silently; the raw query string still shows them.
-    def reject_repeated_query_params
+    def reject_repeated_query_params(names)
       raw = Rack::Utils.parse_query(request.query_string)
-      repeated = query_names.find { raw[it].is_a?(Array) }
+      repeated = names.find { raw[it].is_a?(Array) }
       raise ActionController::BadRequest, "#{repeated} must be a single value" if repeated
     end
 
@@ -63,13 +57,6 @@ module Appointments
       Date.strptime(value, "%Y-%m-%d")
     rescue Date::Error
       raise ActionController::BadRequest, "#{name} must be a valid date as YYYY-MM-DD"
-    end
-
-    # The company's services in the order asked for (a repeated id stays repeated, so the use case reports it); one that does
-    # not exist is a 404.
-    def services_in_order(scope, ids)
-      found = scope.where(id: ids.uniq).index_by(&:id)
-      ids.map { found.fetch(it) { raise ActiveRecord::RecordNotFound, "No se encontró el recurso" } }
     end
   end
 end

@@ -11,9 +11,9 @@ RSpec.describe Appointments::Availability::Calculator do
   # Managua wall-clock (UTC-6, no DST) as a UTC instant. Monday is 2026-01-05.
   def managua_time(hour, minute = 0, day: 5) = Time.utc(2026, 1, day) + (((hour + 6) * 60) + minute) * 60
 
-  def plan(duration = 30, before: 0, after: 0)
+  def plan(duration = 30, before: 0, after: 0, kind: nil)
     Appointments::Availability::ServicePlan.new(duration_minutes: duration, buffer_before_minutes: before, buffer_after_minutes: after, price_minor: 0,
-                                                currency: "NIO", required_kinds: [])
+                                                currency: "NIO", required_kind: kind)
   end
 
   def person(id, slots: [ slot(1, 9, 13) ], time_offs: [], busy: []) = { id:, slots:, time_offs:, busy: }
@@ -26,7 +26,7 @@ RSpec.describe Appointments::Availability::Calculator do
     options = overrides.except(*legacy.keys)
     professionals = [ person("p1", slots: legacy.fetch(:professional_slots, [ slot(1, 9, 13) ]), time_offs: legacy.fetch(:time_offs, []), busy: legacy.fetch(:busy, [])) ]
     described_class.call(
-      **{ branch_slots: [ slot(1, 9, 13) ], professionals:, resources: [], required_kinds: [], plan: plan(legacy.fetch(:duration_minutes, 30)),
+      **{ branch_slots: [ slot(1, 9, 13) ], professionals:, resources: [], plan: plan(legacy.fetch(:duration_minutes, 30)),
           load_by_day: {}, time_zone: managua, from_date: Date.new(2026, 1, 5), to_date: Date.new(2026, 1, 5), step_minutes: 15,
           now: Time.utc(2026, 1, 1), min_lead_minutes: 0, max_advance_days: 60 }.merge(options)
     )
@@ -166,7 +166,7 @@ RSpec.describe Appointments::Availability::Calculator do
   end
 
   describe "recursos" do
-    def with_room(resources, **options) = calculate(resources:, required_kinds: %w[room], step_minutes: 30, **options)
+    def with_room(resources, **options) = calculate(resources:, plan: plan(kind: "room"), step_minutes: 30, **options)
 
     def rooms_at(slots) = slots.map { [ it.starts_at.in_time_zone(managua).strftime("%H:%M"), it.resource_id ] }
 
@@ -188,7 +188,7 @@ RSpec.describe Appointments::Availability::Calculator do
     end
 
     it "sin requisito de recurso el resource_id es nulo aunque existan recursos" do
-      slots = calculate(resources: [ room("r1") ], required_kinds: [])
+      slots = calculate(resources: [ room("r1") ])
 
       expect(slots.map(&:resource_id).uniq).to eq([ nil ])
     end
@@ -226,7 +226,7 @@ RSpec.describe Appointments::Availability::Calculator do
     it "el buffer posterior se cuenta también contra la ocupación del recurso (sala ocupada 12:00-12:30)", :aggregate_failures do
       busy = [ interval(managua_time(12), managua_time(12, 30)) ]
 
-      slots = calculate(resources: [ room("r1", busy:) ], required_kinds: %w[room], plan: plan(30, after: 10), step_minutes: 15,
+      slots = calculate(resources: [ room("r1", busy:) ], plan: plan(30, after: 10, kind: "room"), step_minutes: 15,
                         professionals: [ person("p1", slots: [ slot(1, 11, 13) ]) ])
 
       expect(managua_labels(slots)).to eq([ "05 11:00", "05 11:15" ])
@@ -238,10 +238,6 @@ RSpec.describe Appointments::Availability::Calculator do
       slots = with_room([ room("r1", slots: [ slot(1, 10, 11) ]) ], professionals: [ busy_pro ])
 
       expect(rooms_at(slots)).to eq([ [ "10:30", "r1" ] ])
-    end
-
-    it "más de un tipo de recurso por petición no se puede asignar" do
-      expect { calculate(resources: [ room("r1") ], required_kinds: %w[chair room]) }.to raise_error(ArgumentError, /one resource kind/)
     end
   end
 end

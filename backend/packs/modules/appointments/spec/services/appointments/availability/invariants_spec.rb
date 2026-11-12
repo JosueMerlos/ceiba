@@ -65,12 +65,12 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
     range_start = ref_utc(tz, from_date, 0)
     range_end = ref_utc(tz, to_date + 1, 0)
     professionals = random_people(rng, dates, range_start, range_end)
-    required = rng.rand(2).zero? ? [] : [ %w[room chair].sample(random: rng) ]
+    required = rng.rand(2).zero? ? nil : %w[room chair].sample(random: rng)
     {
       time_zone: zone, from_date:, to_date:, branch_slots: random_slots(rng, dates, wide: true), professionals:,
-      resources: random_resources(rng, dates, range_start, range_end), required_kinds: required,
+      resources: random_resources(rng, dates, range_start, range_end),
       plan: Appointments::Availability::ServicePlan.new(duration_minutes: [ 5, 15, 30, 45, 60, 90 ].sample(random: rng), buffer_before_minutes: [ 0, 0, 5, 10, 15 ].sample(random: rng),
-                                                        buffer_after_minutes: [ 0, 0, 5, 10, 15 ].sample(random: rng), price_minor: 0, currency: "NIO", required_kinds: required),
+                                                        buffer_after_minutes: [ 0, 0, 5, 10, 15 ].sample(random: rng), price_minor: 0, currency: "NIO", required_kind: required),
       load_by_day: professionals.to_h { |person| [ person[:id], (from_date..(to_date + 1)).to_h { |date| [ date, rng.rand(0..3) ] } ] },
       step_minutes: [ 5, 7, 10, 15, 20, 25, 30, 40, 45, 50 ].sample(random: rng),
       now: Time.at(range_start - (rng.rand(0..4320) * 60) + fraction(rng)).utc, min_lead_minutes: rng.rand(0..360), max_advance_days: rng.rand(1..8)
@@ -140,7 +140,7 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
     [ start - (plan.buffer_before_minutes * 60), start + ((plan.duration_minutes + plan.buffer_after_minutes) * 60) ]
   end
 
-  def candidate_resources(scenario) = scenario[:resources].select { scenario[:required_kinds].include?(it[:kind]) }
+  def candidate_resources(scenario) = scenario[:resources].select { it[:kind] == scenario[:plan].required_kind }
 
   # First broken invariant of a slot, or nil.
   def violation(slot, scenario, tz, windows)
@@ -164,7 +164,7 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
   end
 
   def resource_violation(slot, scenario, windows, from, to)
-    return slot.resource_id.nil? ? nil : "resource assigned without being required" if scenario[:required_kinds].empty?
+    return slot.resource_id.nil? ? nil : "resource assigned without being required" if scenario[:plan].required_kind.nil?
 
     resource = candidate_resources(scenario).find { it[:id] == slot.resource_id }
     return "no compatible resource assigned" unless resource
@@ -184,11 +184,11 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
       block = block_of(scenario, start)
       free = scenario[:professionals].select { owner_free?(it, windows, *block) }
       resources = candidate_resources(scenario).select { owner_free?(it, windows, *block) }
-      next if free.empty? || (scenario[:required_kinds].any? && resources.empty?)
+      next if free.empty? || (scenario[:plan].required_kind && resources.empty?)
 
       day = local_date(tz, start)
       chosen = free.min_by { [ scenario[:load_by_day].dig(it[:id], day) || 0, it[:id] ] }
-      [ start, chosen[:id], scenario[:required_kinds].any? ? resources.map { it[:id] }.min : nil ]
+      [ start, chosen[:id], scenario[:plan].required_kind ? resources.map { it[:id] }.min : nil ]
     end
   end
 
