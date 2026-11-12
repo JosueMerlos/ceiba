@@ -1,0 +1,66 @@
+# ADR-0035: Motor de disponibilidad: núcleo puro con cargador de consultas fijas, agenda única por persona, rejilla del reloj local y regla de DST
+
+| Campo | Valor |
+| --- | --- |
+| Estado | aceptada |
+| Fecha | 2026-11-11 |
+| Origen | Plan del hito [M1.03](../milestones/F1-citas-dominio/M1.03-disponibilidad-caso-base.md): cuatro decisiones abiertas que el desarrollador resolvió antes de implementar (permiso, forma de `appointments`, anclaje de la rejilla y ocupación de sucursales hermanas) y ocho delegadas (ruta, rango, errores, medida de `max_advance_days`, regla de DST, generadores propios, forma de la respuesta y rejilla en minutos de pared) |
+
+## Contexto
+
+- El motor de disponibilidad es la pieza más delicada del módulo ([domain/appointments](../domain/appointments.md#motor-de-disponibilidad)): mezcla horarios en hora local, ausencias, citas, zonas con horario de verano y un rendimiento que no puede depender del número de días pedidos.
+- Un profesional puede trabajar en varias sucursales, pero es una sola persona: [ADR-0034](0034-horarios-ausencias-y-permisos-de-profesionales-y-recursos.md) ya le da una agenda única (sus franjas no se solapan entre sucursales y una ausencia bloquea todas). Ofrecer como libre un hueco que está ocupado en otra sucursal sería ofrecer uno que `Book` ([M1.05](../milestones/F1-citas-dominio/M1.05-reserva-atomica.md)) rechazaría con `409`.
+- El hito necesita una tabla `appointments` para leer las citas que bloquean, pero las constraints de agenda y el creador único llegan en M1.05.
+- No existía una clave de permiso para ver huecos, y la matriz de [04-access-control](../architecture/04-access-control.md) no tiene una fila para ello.
+- Una hora local puede no existir (salto de primavera) o repetirse (otoño), y los pasos de la rejilla pueden no dividir 60 (45 min, por ejemplo).
+
+## Decisión
+
+1. **Núcleo puro más un cargador de consultas fijas.** `Appointments::Availability::{Interval, IntervalSet, WeeklyExpander, SlotFinder, Calculator}` no tocan ActiveRecord: reciben valores y devuelven intervalos UTC semiabiertos `[inicio, fin)`. `Availability::DataLoader` es el único lugar que consulta la base de datos, con un número **fijo** de consultas sea cual sea el rango (settings, override de duración, franjas de la sucursal y del profesional en una sola consulta, ausencias y citas que bloquean). El caso de uso `Appointments::Availability.call(company:, branch:, service:, professional:, from_date:, to_date:, now:)` comprueba la elegibilidad, carga y calcula, y devuelve un `Result` con `slots`, `duration_minutes` y `step_minutes`. **El motor sugiere; la base decide.**
+2. **Una agenda por persona.** Las citas y ausencias del profesional se cargan de **todas** sus sucursales y restan; las franjas semanales, solo las de la sucursal pedida. Consecuencia aceptada por el desarrollador: quien consulta (la recepción incluida) puede deducir **que** el profesional está ocupado en una sucursal hermana y cuándo, durante hasta 31 días, aunque nunca el porqué (ni cliente, ni motivo de ausencia, ni sucursal). Es una audiencia más amplia que la que aceptó ADR-0034, que solo cubría el `422` de solape de horarios y al `branch_manager`. Se expone libre/ocupado y nada más.
+3. **Regla de DST, en un único lugar (`WeeklyExpander`).** Una hora local inexistente (el hueco de primavera) se **recorta al instante de la transición**; una ambigua (la repetida de otoño) toma su **primera ocurrencia**; la contención de una franja en un hueco es **cronológica** (sobre instantes UTC, no sobre relojes). No se usa `ActiveSupport::TimeZone#local` para resolver huecos: desplaza la hora inexistente **una hora adelante** en lugar de recortarla.
+4. **Rejilla del reloj local.** Un inicio es válido si su minuto del día **local** es múltiplo de `slot_step_minutes` (09:00, 09:15…). Se mide en minutos de pared y no en intervalos desde un instante, así que pasos que no dividen 60 (45 min: 00:00, 00:45, 01:30…) siguen cayendo en el reloj y una cita que acaba a las 10:40 deja el siguiente inicio en 10:45. Ante un cambio de offset, el recorrido **no cruza la transición**: tras ella relee el reloj, de modo que una hora inexistente se salta y una hora repetida ofrece **ambas** ocurrencias.
+5. **`max_advance_days` se mide como `now + N × 24 h`.** Un inicio es válido si `starts_at <= now + max_advance_days × 24 h`; no es "N días de calendario locales". Es independiente de la zona y de los cambios de horario. `min_lead_time_minutes` se mide igual desde `now`.
+6. **Reuso del permiso `appointments.appointment.create` a alcance de sucursal.** Ven huecos exactamente quienes reservan: `company_manager`, `branch_manager` y `receptionist`. El `professional` no consulta la disponibilidad de otros por este endpoint, y el endpoint no entra en el scope `read:appointments` de las API keys (la reserva pública tendrá su propio endpoint). Ni el manifiesto ni la matriz ni `04-access-control` cambian.
+7. **`appointments` mínima.** Solo las columnas que lee el motor: tenant, `company_id`, `branch_id`, `professional_id`, `starts_at`, `ends_at`, `blocks_from`, `blocks_to` y `status` (por defecto `scheduled`), con claves foráneas compuestas y **sin** constraints de agenda. M1.05 añade las columnas que faltan (`customer_id`, `resource_id`, `source`, `notes`, `lock_version`, `created_by`, `rescheduled_from_id`) junto con sus constraints: las decide quien tiene el caso de uso que las usa (las notas son PII, `created_by` es un actor). La tabla está vacía hasta entonces, así que añadir columnas `NOT NULL` es seguro.
+8. **Generadores propios en vez de `rantly`.** Los property tests usan `Random.new(seed)` explícito, con la semilla en el mensaje de fallo y en `ENV`, sin gema nueva ([12-testing-strategy](../architecture/12-testing-strategy.md) lo permite). El oráculo de los invariantes no reutiliza el expansor: comprueba "dentro del horario" convirtiendo cada hueco a hora local con TZInfo y comparando minutos, para que un bug del expansor no se valide a sí mismo.
+9. **Contrato del endpoint.** `GET /api/v1/organizations/:organization_id/companies/:company_id/appointments/branches/:branch_id/availability?service_id&professional_id&from&to`. `from` y `to` son fechas locales de la sucursal `YYYY-MM-DD`, inclusivas, con `from <= to` y **hasta 31 días**. Respuesta: `{ data: [{ starts_at, ends_at }], meta: { time_zone, duration_minutes, step_minutes } }`, instantes UTC ISO 8601; sin precio (llega con la totalización de M1.04). El profesional se busca **entre los asignados a la sucursal** y el servicio entre los de la empresa (si no, `404`, como en M1.02).
+10. **Orden fijo en el controlador:** (1) autorizar contra la sucursal de la ruta, (2) presencia y forma de la query, (3) búsqueda de profesional y servicio, (4) reglas de dominio. Así un rol sin permiso recibe `403` antes de cualquier validación y no obtiene un oráculo `404`/`422` sobre ids de profesionales y servicios.
+11. **Códigos de error.**
+
+    | Estado | Código | Cuándo |
+    | --- | --- | --- |
+    | `400` | `request.invalid` | Falta `service_id`, `professional_id`, `from` o `to` (`errors[]` nombra el campo) |
+    | `400` | `request.bad_request` | Un id que no es UUID, una fecha que no es `YYYY-MM-DD` real (`2026-13-01`, `2026-11-1`) o un parámetro repetido |
+    | `403` | `access.forbidden` | Sin `appointments.appointment.create` en la sucursal |
+    | `404` | `resource.not_found` | Sucursal no visible (otra sucursal u otra organización), módulo apagado, profesional no asignado a la sucursal o servicio de otra empresa |
+    | `422` | `appointments.availability_invalid` | `errors[]` con `{ field, code, message }`: `professional_id` `inactive` (pausado o archivado) o `not_assigned`; `service_id` `inactive` (inactivo o archivado) o `not_provided`; `to` `invalid_range` (`from > to` o más de 31 días) |
+
+    El `422` usa la clase de dominio `Appointments::Availability::InvalidRequest`, registrada en `Api::ErrorRegistry` desde el initializer del pack (`validation.failed` solo traduce `ActiveRecord::RecordInvalid`).
+
+## Alternativas consideradas
+
+| Opción | A favor | En contra |
+| --- | --- | --- |
+| Permiso nuevo `appointments.availability.read` | Semántica clara; extensible (el profesional vería su propia disponibilidad) | Fila nueva en la matriz, en `04-access-control` y en el manifiesto; más superficie que revisar |
+| Reusar `appointments.appointment.read` | Sin cambios en la matriz | Incluye al `professional`: vería la ocupación de sus colegas |
+| Tabla `appointments` completa ya en M1.03 | M1.05 solo añade constraints | Decide ahora PII (`notes`) y la forma de `created_by` sin el caso de uso que las usa; columnas sin uso ni tests |
+| Rejilla desde el inicio de cada ventana abierta | Respeta horarios que abren a deshoras (9:10) | Horas raras si el horario no está alineado |
+| Rejilla desde el inicio de cada tramo libre | Máximo aprovechamiento tras una cita | Horas impredecibles (10:40, 10:55…); la agenda se fragmenta |
+| Restar solo lo de la sucursal pedida | No expone nada de las sucursales hermanas | El motor ofrece huecos que la base rechaza: rompe el invariante "ningún hueco solapa una cita del profesional" y `Book` los devolvería con `409` |
+| `max_advance_days` en días de calendario locales | Más cercano a lo que ve el usuario | Depende de la zona y del DST; un día de 23 o 25 horas cambia el límite |
+| `rantly` para los property tests | Generadores listos | Dependencia nueva y semilla global que contagia a otros specs |
+| Rango sin tope | Sin regla que explicar | Un solo request puede pedir años de cálculo y de lectura de citas |
+
+## Consecuencias
+
+- **Positivas:** el núcleo se prueba de forma exhaustiva sin base de datos (incluidos escenarios aleatorios reproducibles); el número de consultas es constante, de modo que 14 o 31 días cuestan lo mismo en SQL; la oferta de huecos coincide con lo que la base aceptará; una sola función convierte hora local a UTC; sin cambios en la matriz de permisos.
+- **Negativas / costos aceptados:** la recepción de una sucursal ve que el profesional está ocupado en otra (solo libre/ocupado); minutos muertos tras una cita que no cae en la rejilla (menos que el paso); el permiso de escritura `appointment.create` autoriza una lectura; el tope de 31 días obliga al cliente a paginar rangos largos por su cuenta; M1.05 debe añadir columnas además de constraints.
+- **Qué obliga a hacer:** M1.04 extiende `Availability.call` (varios servicios, buffers, `:any`, recursos) sin cambiar el núcleo; M1.05 revalida contra el motor dentro de `Book` y añade las columnas y constraints de `appointments`; quien cambie la rejilla, el DST o el rango actualiza los invariantes de `invariants_spec`; un rol nuevo que deba ver huecos sin reservar exige separar el permiso.
+
+## Cuándo revisarla
+
+- Si el `professional` o un canal público necesita ver huecos sin poder reservar: separar un permiso `appointments.availability.read`.
+- Si el tiempo de respuesta de 14 días supera el presupuesto (200 ms con 3 profesionales) o el cliente necesita rangos mayores de 31 días.
+- Si el negocio pide ofrecer minutos "muertos" tras una cita (rejilla por tramo libre).
+- Si exponer la ocupación de sucursales hermanas se vuelve un problema de privacidad entre sucursales.
