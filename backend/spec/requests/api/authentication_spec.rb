@@ -9,6 +9,7 @@ RSpec.describe "Autenticación obligatoria por defecto (deny by default)" do
     {
       "GET /api/health" => "sonda de vida del proxy/Docker: infraestructura, no devuelve datos",
       "GET /api/ready" => "sonda de disponibilidad (BD, Redis): infraestructura",
+      "GET /api/public/v1/c/:slug/availability" => "disponibilidad de la reserva pública: anónima por diseño, sin PII; el módulo, la empresa y la reserva pública se comprueban en el controlador y la limita Rack::Attack",
       "POST /api/v1/auth/login" => "es la puerta de entrada: aún no hay sesión; protegido por Origin y, en M0.13, por rate limit",
       # Rswag mounts TWO engines at /api/docs (UI and contract) and their subroutes (/api/docs/v1.yaml, assets) do not
       # appear in the app's route table, so this spec does not walk them: public by design and only present where
