@@ -12,7 +12,6 @@ module Appointments
       # dates and the extra day on each side covers the zone offset at the borders.
       MARGIN_BEFORE_DAYS = 1
       MARGIN_AFTER_DAYS = 2
-      MINUTES_IN_HOUR = 60
 
       def self.call(...) = new(...).call
 
@@ -52,7 +51,7 @@ module Appointments
       def slot(weekday, from, to) = WeeklySlot.new(weekday:, starts_minute: minutes(from), ends_minute: minutes(to))
 
       # `time` columns come back as a Time on a dummy date; only the wall-clock minute of the day matters.
-      def minutes(time) = (time.hour * MINUTES_IN_HOUR) + time.min
+      def minutes(time) = (time.hour.hours + time.min.minutes).in_minutes.to_i
 
       # The absence belongs to the person, so it counts in every branch.
       def time_offs

@@ -6,10 +6,6 @@ module Appointments
     # DST: a nonexistent local time (spring gap) is clamped to the transition instant, and an ambiguous one (fall repeat)
     # takes its first occurrence. ActiveSupport::TimeZone#local is avoided on purpose: it shifts a gap time forward an hour.
     module WeeklyExpander
-      # Longest gap probed (in 30-minute steps) when looking for the end of a nonexistent local time.
-      GAP_PROBE_STEPS = 48
-      private_constant :GAP_PROBE_STEPS
-
       module_function
 
       # slots: WeeklySlot values.
@@ -30,21 +26,18 @@ module Appointments
       private_class_method :expand_slot
 
       def to_utc(zone, date, minute)
-        local = Time.utc(date.year, date.month, date.day) + (minute * 60)
+        local = Time.utc(date.year, date.month, date.day) + minute.minutes
         zone.local_to_utc(local, true)
       rescue TZInfo::PeriodNotFound
         gap_end(zone, local)
       end
       private_class_method :to_utc
 
-      # Instant at which the period that follows the gap begins (the transition itself).
+      # Instant at which the period that follows the gap begins (the transition itself). Reading the local time with the offset
+      # in force the day before lands just after that transition, inside the period that follows the gap.
       def gap_end(zone, local)
-        probe = (1..GAP_PROBE_STEPS).lazy.map { |step| local + (step * 1800) }.find do |candidate|
-          zone.period_for_local(candidate)
-        rescue TZInfo::PeriodNotFound
-          false
-        end
-        zone.period_for_local(probe).start_transition.at.to_time.utc
+        offset_before = zone.period_for_local(local - 1.day, true).utc_total_offset
+        zone.period_for_utc(local - offset_before).start_transition.at.to_time.utc
       end
       private_class_method :gap_end
     end

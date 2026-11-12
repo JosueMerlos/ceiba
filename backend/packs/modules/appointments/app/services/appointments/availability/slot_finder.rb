@@ -3,17 +3,17 @@ module Appointments
     # Turns free intervals into bookable slots. Starts sit on a wall-clock grid: the local minute of the day is a multiple of
     # the step (so a 45-minute step still lands on 00:00, 00:45...). Lead time and advance window are measured from `now`.
     module SlotFinder
-      MINUTE = 60
-      DAY_MINUTES = 1440
+      MINUTE = 1.minute.to_i
+      DAY_MINUTES = 1.day.in_minutes.to_i
       private_constant :MINUTE, :DAY_MINUTES
 
       module_function
 
       def call(free:, duration_minutes:, step_minutes:, time_zone:, now:, min_lead_minutes:, max_advance_days:)
         zone = TZInfo::Timezone.get(time_zone)
-        earliest = now.to_i + (min_lead_minutes * MINUTE)
-        latest = now.to_i + (max_advance_days * 86_400)
-        duration = duration_minutes * MINUTE
+        earliest = now.to_i + min_lead_minutes.minutes.to_i
+        latest = now.to_i + max_advance_days.days.to_i
+        duration = duration_minutes.minutes.to_i
 
         free.intervals.flat_map do |interval|
           first = [ interval.starts_at.to_i, earliest ].max
@@ -45,7 +45,7 @@ module Appointments
           minute = ((current + period.utc_total_offset) / MINUTE) % DAY_MINUTES
           return current if (minute % step).zero?
 
-          jump = [ step - (minute % step), DAY_MINUTES - minute ].min * MINUTE
+          jump = [ step - (minute % step), DAY_MINUTES - minute ].min.minutes.to_i
           transition = period.end_transition&.at&.to_i
           current = transition && transition < current + jump ? transition : current + jump
         end
