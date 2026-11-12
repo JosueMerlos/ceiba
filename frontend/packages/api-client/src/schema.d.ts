@@ -16,7 +16,7 @@ export interface paths {
         };
         /**
          * Consulta los horarios libres de una empresa sin sesión
-         * @description Superficie ANÓNIMA: sin sesión ni CSRF. Devuelve los inicios libres (UTC) de uno o varios servicios con un profesional o con `any`, con `professional_id` y `resource_id` asignados y el precio total. No expone nombres ni citas. Rango de hasta 14 días (`from` no anterior a ayer en la hora local de la sucursal). Un slug desconocido, el módulo de citas apagado, la reserva pública apagada (empresa o sucursal), una sucursal ajena o inactiva, y un servicio o profesional inexistente, inactivo o que no aplica responden todos el MISMO 404 `resource.not_found`. La respuesta se guarda en caché 30 s y está limitada a 60 peticiones por minuto por IP y empresa (429 `rate_limit.exceeded`).
+         * @description Superficie ANÓNIMA: sin sesión ni CSRF. Devuelve los inicios libres (UTC) de uno o varios servicios con un profesional o con `any`, con `professional_id` y `resource_id` asignados y el precio total. No expone nombres ni citas. Rango de hasta 14 días (`from` no anterior a ayer en la hora local de la sucursal). Un slug desconocido, el módulo de citas apagado, la reserva pública apagada (empresa o sucursal), la empresa inactiva, la organización suspendida, una sucursal ajena o inactiva, y un servicio o profesional inexistente, inactivo o que no aplica responden todos el MISMO 404 `resource.not_found`. La respuesta se guarda en caché 30 s y está limitada a 60 peticiones por minuto por IP y empresa (429 `rate_limit.exceeded`).
          */
         get: {
             parameters: {
@@ -85,6 +85,23 @@ export interface paths {
                     };
                     content: {
                         "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+                /** @description más de 60 peticiones por minuto desde la misma IP para la misma empresa (rate_limit.exceeded) */
+                429: {
+                    headers: {
+                        /** @description Peticiones permitidas por ventana */
+                        "RateLimit-Limit"?: number;
+                        /** @description Peticiones restantes en la ventana (0) */
+                        "RateLimit-Remaining"?: number;
+                        /** @description Segundos hasta el reinicio de la ventana */
+                        "RateLimit-Reset"?: number;
+                        /** @description Segundos hasta que se abre la ventana siguiente */
+                        "Retry-After"?: number;
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
             };

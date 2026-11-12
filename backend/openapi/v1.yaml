@@ -1165,7 +1165,7 @@ openapi: 3.0.3
 paths:
   "/api/public/v1/c/{slug}/availability":
     get:
-      description: 'Superficie ANÓNIMA: sin sesión ni CSRF. Devuelve los inicios libres (UTC) de uno o varios servicios con un profesional o con `any`, con `professional_id` y `resource_id` asignados y el precio total. No expone nombres ni citas. Rango de hasta 14 días (`from` no anterior a ayer en la hora local de la sucursal). Un slug desconocido, el módulo de citas apagado, la reserva pública apagada (empresa o sucursal), una sucursal ajena o inactiva, y un servicio o profesional inexistente, inactivo o que no aplica responden todos el MISMO 404 `resource.not_found`. La respuesta se guarda en caché 30 s y está limitada a 60 peticiones por minuto por IP y empresa (429 `rate_limit.exceeded`).'
+      description: 'Superficie ANÓNIMA: sin sesión ni CSRF. Devuelve los inicios libres (UTC) de uno o varios servicios con un profesional o con `any`, con `professional_id` y `resource_id` asignados y el precio total. No expone nombres ni citas. Rango de hasta 14 días (`from` no anterior a ayer en la hora local de la sucursal). Un slug desconocido, el módulo de citas apagado, la reserva pública apagada (empresa o sucursal), la empresa inactiva, la organización suspendida, una sucursal ajena o inactiva, y un servicio o profesional inexistente, inactivo o que no aplica responden todos el MISMO 404 `resource.not_found`. La respuesta se guarda en caché 30 s y está limitada a 60 peticiones por minuto por IP y empresa (429 `rate_limit.exceeded`).'
       parameters:
       - description: Sucursal de la empresa
         in: query
@@ -1257,6 +1257,29 @@ paths:
               schema:
                 "$ref": "#/components/schemas/ValidationProblem"
           description: un `from` anterior a ayer
+        '429':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: más de 60 peticiones por minuto desde la misma IP para la misma empresa (rate_limit.exceeded)
+          headers:
+            RateLimit-Limit:
+              description: Peticiones permitidas por ventana
+              schema:
+                type: integer
+            RateLimit-Remaining:
+              description: Peticiones restantes en la ventana (0)
+              schema:
+                type: integer
+            RateLimit-Reset:
+              description: Segundos hasta el reinicio de la ventana
+              schema:
+                type: integer
+            Retry-After:
+              description: Segundos hasta que se abre la ventana siguiente
+              schema:
+                type: integer
       security: []
       summary: Consulta los horarios libres de una empresa sin sesión
       tags:

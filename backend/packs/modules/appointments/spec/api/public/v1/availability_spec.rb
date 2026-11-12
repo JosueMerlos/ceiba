@@ -212,7 +212,7 @@ RSpec.describe "API pública v1: disponibilidad" do
       description "Superficie ANÓNIMA: sin sesión ni CSRF. Devuelve los inicios libres (UTC) de uno o varios servicios con un profesional o con `any`, " \
                   "con `professional_id` y `resource_id` asignados y el precio total. No expone nombres ni citas. Rango de hasta 14 días " \
                   "(`from` no anterior a ayer en la hora local de la sucursal). Un slug desconocido, el módulo de citas apagado, la reserva pública " \
-                  "apagada (empresa o sucursal), una sucursal ajena o inactiva, y un servicio o profesional inexistente, inactivo o que no aplica " \
+                  "apagada (empresa o sucursal), la empresa inactiva, la organización suspendida, una sucursal ajena o inactiva, y un servicio o profesional inexistente, inactivo o que no aplica " \
                   "responden todos el MISMO 404 `resource.not_found`. La respuesta se guarda en caché 30 s y está limitada a 60 peticiones por minuto " \
                   "por IP y empresa (429 `rate_limit.exceeded`)."
       produces "application/json", "application/problem+json"
@@ -279,6 +279,33 @@ RSpec.describe "API pública v1: disponibilidad" do
         schema "$ref" => "#/components/schemas/ValidationProblem"
 
         run_test! { |response| expect(response.parsed_body).to include("code" => "request.invalid") }
+      end
+
+      response "429", "más de 60 peticiones por minuto desde la misma IP para la misma empresa (rate_limit.exceeded)" do
+        # Rate limiting is off in the test environment: it is turned on for this example only, with a limit of one request.
+        before do
+          Rack::Attack.enabled = true
+          Rack::Attack.reset!
+          stub_const("ENV", ENV.to_h.merge("RATE_LIMIT_PUBLIC_AVAILABILITY" => "1"))
+          fetch
+        end
+
+        after do
+          Rack::Attack.reset!
+          Rack::Attack.enabled = false
+        end
+
+        header "Retry-After", schema: { type: :integer }, description: "Segundos hasta que se abre la ventana siguiente"
+        header "RateLimit-Limit", schema: { type: :integer }, description: "Peticiones permitidas por ventana"
+        header "RateLimit-Remaining", schema: { type: :integer }, description: "Peticiones restantes en la ventana (0)"
+        header "RateLimit-Reset", schema: { type: :integer }, description: "Segundos hasta el reinicio de la ventana"
+
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! do |response|
+          expect(response.parsed_body).to include("code" => "rate_limit.exceeded", "status" => 429)
+          expect(response.headers).to include("Retry-After" => be_present, "RateLimit-Limit" => "1", "RateLimit-Remaining" => "0", "RateLimit-Reset" => be_present)
+        end
       end
 
       response "404", "slug desconocido, puerta cerrada o recurso que no aplica: siempre el mismo cuerpo" do
