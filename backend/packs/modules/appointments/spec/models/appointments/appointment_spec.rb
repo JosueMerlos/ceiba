@@ -23,10 +23,16 @@ RSpec.describe Appointments::Appointment do
       expect(indexed_columns.select { it.size > 1 }.map(&:first).uniq).to eq(%w[organization_id])
     end
 
-    it "tiene los índices de agenda y el de lectura del motor", :aggregate_failures do
-      expect(indexed_columns).to include(%w[organization_id branch_id starts_at], %w[organization_id professional_id starts_at],
-                                         %w[organization_id professional_id blocks_from])
-      expect(indexed_columns).not_to include(%w[professional_id blocks_from])
+    it "tiene los índices de agenda", :aggregate_failures do
+      expect(indexed_columns).to include(%w[organization_id branch_id starts_at], %w[organization_id professional_id starts_at])
+    end
+
+    it "el índice de lectura del motor es parcial, sobre las citas que bloquean y acotado por blocks_to", :aggregate_failures do
+      engine_index = ActiveRecord::Base.connection.indexes(:appointments).find { it.name == "idx_appointments_professional_blocks" }
+
+      expect(engine_index.columns).to eq(%w[organization_id professional_id blocks_to])
+      expect(engine_index.where).to include("cancelled").and include("rescheduled").and match(/status/)
+      expect(indexed_columns).not_to include(%w[organization_id professional_id blocks_from])
     end
 
     def a_collection_starting_with(columns) = satisfy { |candidate| candidate.first(columns.size) == columns }
