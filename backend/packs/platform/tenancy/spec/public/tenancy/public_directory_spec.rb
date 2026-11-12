@@ -22,6 +22,12 @@ RSpec.describe Tenancy::PublicDirectory do
       expect(described_class.company_by_slug("  Barberia-Central ")).to eq(organization:, company:)
     end
 
+    it "devuelve nil si la organización está suspendida: no se opera bajo ella, tampoco de forma anónima" do
+      organization.update!(status: "suspended")
+
+      expect(described_class.company_by_slug("barberia-central")).to be_nil
+    end
+
     it "devuelve nil si no existe" do
       expect(described_class.company_by_slug("no-existe")).to be_nil
     end

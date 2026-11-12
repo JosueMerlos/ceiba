@@ -76,6 +76,7 @@ RSpec.describe "API pública v1: disponibilidad" do
         disable_booking
       },
       "la reserva pública apagada en la sucursal" => -> { disable_booking(branch: world.branch_a1) },
+      "la organización suspendida" => -> { world.organization.update!(status: "suspended") },
       "la empresa inactiva" => -> { with_tenant(world.organization) { world.company_a.update!(status: "inactive") } },
       "la sucursal inactiva" => -> { with_tenant(world.organization) { world.branch_a1.update!(status: "inactive") } }
     }.each do |door, close|
@@ -175,6 +176,31 @@ RSpec.describe "API pública v1: disponibilidad" do
       fetch(from: "no-es-fecha")
 
       expect(response).to have_http_status(:not_found)
+    end
+
+    # The company-level doors run before the query is read: a malformed query must not tell an existing closed company from an
+    # unknown slug.
+    {
+      "la reserva pública apagada en la empresa" => -> { disable_booking },
+      "la empresa inactiva" => -> { with_tenant(world.organization) { world.company_a.update!(status: "inactive") } },
+      "la organización suspendida" => -> { world.organization.update!(status: "suspended") }
+    }.each do |door, close|
+      it "la forma mala con #{door} es 404, igual que un slug desconocido" do
+        instance_exec(&close)
+
+        fetch(from: "no-es-fecha")
+        closed = [ response.status, response.parsed_body.except("request_id", "instance") ]
+        fetch(slug: "no-existe-nunca", from: "no-es-fecha")
+
+        expect(closed).to eq([ 404, response.parsed_body.except("request_id", "instance") ])
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+
+    it "la forma mala en una empresa abierta sigue siendo 400" do
+      fetch(from: "no-es-fecha")
+
+      expect(response).to have_http_status(:bad_request)
     end
   end
 
