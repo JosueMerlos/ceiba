@@ -80,6 +80,25 @@ RSpec.describe Appointments::Availability do
     end
   end
 
+  describe "varios días con citas y ausencias" do
+    before do
+      (1..5).each { open_hours(weekday: it) }
+      14.times do |day|
+        start = Time.utc(2026, 11, 16, 16) + day.days
+        create(:appointment, professional:, branch:, starts_at: start, ends_at: start + 30.minutes)
+        create(:time_off, professional:, starts_at: start + 1.hour, ends_at: start + 90.minutes)
+      end
+    end
+
+    it "devuelve huecos que respetan las citas y ausencias repartidas en las dos semanas", :aggregate_failures do
+      slots = availability(to_date: monday + 13)
+
+      busy = Appointments::Appointment.pluck(:blocks_from, :blocks_to) + Appointments::TimeOff.pluck(:starts_at, :ends_at)
+      expect(slots).not_to be_empty
+      expect(slots).to all(satisfy { |slot| busy.none? { |from, to| slot.starts_at < to && from < slot.ends_at } })
+    end
+  end
+
   describe "citas que bloquean" do
     before { open_hours }
 

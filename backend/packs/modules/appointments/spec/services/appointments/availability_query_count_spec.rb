@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Appointments::Availability::DataLoader do
+RSpec.describe Appointments::Availability do
   let(:organization) { create(:organization) }
   let(:company) { create_in(organization, :company) }
   let(:branch) { create_in(organization, :branch, company:) }
@@ -51,12 +51,5 @@ RSpec.describe Appointments::Availability::DataLoader do
     expect(two_weeks.size).to eq(one_day.size)
     expect(two_weeks.size).to be <= query_cap
     expect(run(14)).not_to be_empty
-  end
-
-  it "devuelve huecos que respetan las citas y ausencias repartidas en las dos semanas", :aggregate_failures do
-    slots = run(14)
-
-    busy = Appointments::Appointment.pluck(:blocks_from, :blocks_to) + Appointments::TimeOff.pluck(:starts_at, :ends_at)
-    expect(slots).to all(satisfy { |slot| busy.none? { |from, to| slot.starts_at < to && from < slot.ends_at } })
   end
 end
