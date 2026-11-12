@@ -1,5 +1,4 @@
 require "rails_helper"
-require "benchmark"
 
 # The public availability answer is cached for 30 s, AFTER the doors: the cache only ever holds the serialized 200 body, so
 # a closed door (module, booking disabled, inactive branch) takes effect on the very next request even with a warm cache.
@@ -108,11 +107,14 @@ RSpec.describe "Caché de la disponibilidad pública" do
   it "con Redis caído y las opciones de producción el endpoint falla abierto: responde 200 calculado, sin caché y sin error", :aggregate_failures do
     Rails.cache = ActiveSupport::Cache::RedisCacheStore.new(**RedisSettings.cache_store_options(url: "redis://127.0.0.1:1/15"))
 
-    elapsed = Benchmark.realtime { 2.times { fetch } }
+    warnings = []
+    allow(Rails.logger).to receive(:warn).and_wrap_original { |original, *args, &block| warnings << args.first.to_s; original.call(*args, &block) }
+
+    2.times { fetch }
 
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body).to include("data" => be_an(Array), "meta" => be_a(Hash))
-    expect(elapsed).to be < 2
+    expect(warnings).to include(a_string_including("cache.store_error"))
   end
 
   # Statements the request ran, without the schema lookups and the savepoints the transactional specs wrap around transactions.
