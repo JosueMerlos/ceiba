@@ -255,7 +255,7 @@ RSpec.describe "API v1: disponibilidad" do
 
         schema "$ref" => "#/components/schemas/ValidationProblem"
 
-        run_test! { |response| expect(response.parsed_body["errors"]).to contain_exactly(a_hash_including("field" => "service_id", "code" => "inactive")) }
+        run_test! { |response| expect(response.parsed_body["errors"]).to contain_exactly(a_hash_including("field" => "service_ids", "code" => "inactive")) }
       end
 
       response "422", "varios errores a la vez se devuelven todos" do
@@ -267,7 +267,7 @@ RSpec.describe "API v1: disponibilidad" do
 
         run_test! do |response|
           expect(response.parsed_body["errors"]).to contain_exactly(
-            a_hash_including("field" => "professional_id", "code" => "inactive"), a_hash_including("field" => "service_id", "code" => "inactive"),
+            a_hash_including("field" => "professional_id", "code" => "inactive"), a_hash_including("field" => "service_ids", "code" => "inactive"),
             a_hash_including("field" => "to", "code" => "invalid_range")
           )
         end
@@ -278,7 +278,7 @@ RSpec.describe "API v1: disponibilidad" do
 
         schema "$ref" => "#/components/schemas/ValidationProblem"
 
-        run_test! { |response| expect(response.parsed_body["errors"]).to contain_exactly(a_hash_including("field" => "service_id", "code" => "inactive")) }
+        run_test! { |response| expect(response.parsed_body["errors"]).to contain_exactly(a_hash_including("field" => "service_ids", "code" => "inactive")) }
       end
 
       response "422", "un servicio que el profesional no presta" do
@@ -286,7 +286,7 @@ RSpec.describe "API v1: disponibilidad" do
 
         schema "$ref" => "#/components/schemas/ValidationProblem"
 
-        run_test! { |response| expect(response.parsed_body["errors"]).to contain_exactly(a_hash_including("field" => "service_id", "code" => "not_provided")) }
+        run_test! { |response| expect(response.parsed_body["errors"]).to contain_exactly(a_hash_including("field" => "service_ids", "code" => "not_provided")) }
       end
 
       response "404", "un profesional de la empresa que no está asignado a la sucursal" do

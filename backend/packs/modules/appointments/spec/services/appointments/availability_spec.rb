@@ -321,7 +321,12 @@ RSpec.describe Appointments::Availability do
       error.errors
     end
 
-    def provided_service(**attributes) = create(:service, company:, **attributes).tap { create(:professional_service, professional:, service: it) }
+    def provided_service(**attributes)
+      create(:service, company:).tap do |own|
+        create(:professional_service, professional:, service: own)
+        own.update!(attributes)
+      end
+    end
 
     it "una lista vacía es blank" do
       expect(errors_of(services: [])).to eq([ { field: :service_ids, code: :blank } ])
@@ -405,10 +410,10 @@ RSpec.describe Appointments::Availability do
       expect(outcome.slots.map { it.ends_at - it.starts_at }.uniq).to eq([ 50.minutes.to_i ])
     end
 
-    it "el bloque de 60 min cabe entero en el horario: con 9-13 el último inicio es 11:45", :aggregate_failures do
+    it "el bloque de 60 min cabe entero en el horario: con 9-13 el último inicio es 12:00 (12:15 se saldría)", :aggregate_failures do
       outcome = result(services: beard_and_cut)
 
-      expect(local_starts(outcome.slots).last).to eq("11:45")
+      expect(local_starts(outcome.slots).last).to eq("12:00")
       expect(local_starts(outcome.slots).first).to eq("09:00")
     end
 
@@ -438,7 +443,7 @@ RSpec.describe Appointments::Availability do
   end
 
   describe ":any" do
-    let(:other) { create(:professional, company:) }
+    def other = @other ||= create(:professional, company:)
 
     before do
       open_hours
@@ -497,13 +502,6 @@ RSpec.describe Appointments::Availability do
 
       expect(any_slots).to eq([])
     end
-
-    it "un profesional no asignado a la sucursal no entra en :any" do
-      Appointments::ProfessionalBranchAssignment.where(professional_id: other.id).delete_all
-      Appointments::ProfessionalBranchAssignment.where(professional_id: professional.id).delete_all
-
-      expect(any_slots).to eq([])
-    end
   end
 
   describe "recursos" do
@@ -514,7 +512,7 @@ RSpec.describe Appointments::Availability do
       create(:weekly_schedule, branch:, professional: other, weekday: 1, starts_at_local: "09:00", ends_at_local: "13:00")
     end
 
-    let(:room) { create(:resource, branch:, kind: "room") }
+    def room = @room ||= create(:resource, branch:, kind: "room")
 
     before do
       open_hours

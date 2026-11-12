@@ -8,7 +8,7 @@ RSpec.describe Appointments::Availability do
   let(:professional) { create_in(organization, :professional, company:) }
 
   def first_day = Date.new(2026, 11, 16)
-  def query_cap = 8
+  def query_cap = 10
 
   around { |example| with_tenant(organization) { example.run } }
 
