@@ -1,7 +1,9 @@
 require "rails_helper"
 
 # Property test of the whole core. The oracle is deliberately independent of WeeklyExpander and SlotFinder: it builds the
-# open windows with TZInfo directly and checks everything on absolute (chronological) instants.
+# open windows with TZInfo directly (every candidate instant of a local time is computed and the earliest one wins; a
+# nonexistent time is located through the zone's transition list) and checks everything on absolute (chronological) instants,
+# with exact fractions of a second.
 RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
   let(:scenario_count) { 600 }
   let(:seed) { Integer(ENV.fetch("AVAILABILITY_SEED") { Random.new_seed % 1_000_000 }) }
@@ -27,12 +29,15 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
 
   def random_start(rng) = rng.rand(10) < 5 ? rng.rand(12..22) * 5 : rng.rand(0..220) * 5
 
+  # Whole 5-minute spans, and in a third of them a fraction of a second on either edge (exact Rationals, no float noise).
   def random_spans(rng, range_start, range_end)
     Array.new(rng.rand(0..4)) do
-      from = range_start + (rng.rand(0..((range_end - range_start) / 300)) * 300)
-      Appointments::Availability::Interval.new(starts_at: Time.at(from).utc, ends_at: Time.at(from + (rng.rand(1..120) * 300)).utc)
+      from = range_start + (rng.rand(0..((range_end - range_start) / 300)) * 300) + fraction(rng)
+      Appointments::Availability::Interval.new(starts_at: Time.at(from).utc, ends_at: Time.at(from + (rng.rand(1..120) * 300) + fraction(rng)).utc)
     end
   end
+
+  def fraction(rng) = rng.rand(3).zero? ? Rational(rng.rand(1..999), 1000) : 0
 
   def random_scenario(rng)
     zone, anchor = anchors.sample(random: rng)
@@ -46,18 +51,24 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
       time_zone: zone, from_date:, to_date:, branch_slots: random_slots(rng, dates, wide: true), professional_slots: random_slots(rng, dates, wide: false),
       time_offs: random_spans(rng, range_start, range_end), busy: random_spans(rng, range_start, range_end),
       duration_minutes: [ 5, 15, 30, 45, 60, 90 ].sample(random: rng), step_minutes: [ 5, 7, 10, 15, 20, 25, 30, 40, 45, 50 ].sample(random: rng),
-      now: Time.at(range_start - (rng.rand(0..4320) * 60)).utc, min_lead_minutes: rng.rand(0..360), max_advance_days: rng.rand(1..8)
+      now: Time.at(range_start - (rng.rand(0..4320) * 60) + fraction(rng)).utc, min_lead_minutes: rng.rand(0..360), max_advance_days: rng.rand(1..8)
     }
   end
 
-  # Local wall time to a UTC epoch with TZInfo only: first occurrence when ambiguous; a nonexistent time clamps to the
-  # transition that created the gap.
+  # Local wall time to a UTC epoch with TZInfo only. Every period that holds the local time gives a candidate instant and the
+  # earliest wins (the first occurrence of a repeated hour). A nonexistent time clamps to the transition whose gap holds it.
   def ref_utc(tz, date, minute)
     local = Time.utc(date.year, date.month, date.day) + (minute * 60)
-    (local - tz.period_for_local(local, true).utc_total_offset).to_i
-  rescue TZInfo::PeriodNotFound
-    guess = local - tz.period_for_local(local - 86_400, true).utc_total_offset
-    tz.period_for_utc(guess).start_transition.at.to_time.to_i
+    candidates = tz.periods_for_local(local).map { |period| (local - period.utc_total_offset).to_i }
+    return candidates.min if candidates.any?
+
+    tz.transitions_up_to(local + 86_400, local - 86_400).find { |transition| in_gap?(transition, local) }.at.to_time.to_i
+  end
+
+  def in_gap?(transition, local)
+    wall_before = transition.at.to_time.to_i + transition.previous_offset.utc_total_offset
+    wall_after = transition.at.to_time.to_i + transition.offset.utc_total_offset
+    local.to_i >= wall_before && local.to_i < wall_after
   end
 
   def ref_windows(tz, slots, from_date, to_date)
@@ -71,7 +82,7 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
 
   def inside?(windows, from, to) = windows.any? { |w_from, w_to| w_from <= from && to <= w_to }
 
-  def clash?(spans, from, to) = spans.any? { |span| span.starts_at.to_i < to && from < span.ends_at.to_i }
+  def clash?(spans, from, to) = spans.any? { |span| span.starts_at.to_r < to && from < span.ends_at.to_r }
 
   def grid?(tz, epoch, step)
     local = tz.utc_to_local(Time.at(epoch).utc)
@@ -96,8 +107,8 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
     return "overlaps a time off" if clash?(scenario[:time_offs], from, to)
     return "outside branch hours" unless inside?(windows[:branch], from, to)
     return "outside professional hours" unless inside?(windows[:professional], from, to)
-    return "breaks min lead" if from < scenario[:now].to_i + (scenario[:min_lead_minutes] * 60)
-    return "breaks max advance" if from > scenario[:now].to_i + (scenario[:max_advance_days] * 86_400)
+    return "breaks min lead" if from < scenario[:now].to_r + (scenario[:min_lead_minutes] * 60)
+    return "breaks max advance" if from > scenario[:now].to_r + (scenario[:max_advance_days] * 86_400)
 
     "off the wall-clock grid" unless grid?(tz, from, scenario[:step_minutes])
   end
@@ -128,8 +139,8 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
       branch = ref_windows(tz, scenario[:branch_slots], scenario[:from_date], scenario[:to_date])
       professional = ref_windows(tz, scenario[:professional_slots], scenario[:from_date], scenario[:to_date])
       duration = scenario[:duration_minutes] * 60
-      lowest = scenario[:now].to_i + (scenario[:min_lead_minutes] * 60)
-      highest = scenario[:now].to_i + (scenario[:max_advance_days] * 86_400)
+      lowest = scenario[:now].to_r + (scenario[:min_lead_minutes] * 60)
+      highest = scenario[:now].to_r + (scenario[:max_advance_days] * 86_400)
 
       expected = branch.flat_map { |from, to| (from...to).step(60).to_a }.select do |start|
         start.between?(lowest, highest) && inside?(branch, start, start + duration) && inside?(professional, start, start + duration) &&
