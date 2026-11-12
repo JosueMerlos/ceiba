@@ -80,6 +80,16 @@ RSpec.describe Appointments::Availability do
     end
   end
 
+  describe "horarios del profesional en otra sucursal" do
+    it "las franjas del profesional en OTRA sucursal no abren huecos en esta", :aggregate_failures do
+      create(:weekly_schedule, branch:, weekday: 1, starts_at_local: "09:00", ends_at_local: "18:00")
+      create(:weekly_schedule, branch:, professional:, weekday: 1, starts_at_local: "09:00", ends_at_local: "13:00")
+      create(:weekly_schedule, branch: second_branch, professional:, weekday: 1, starts_at_local: "14:00", ends_at_local: "18:00")
+
+      expect(local_starts(availability)).to eq(%w[09:00 09:15 09:30 09:45 10:00 10:15 10:30 10:45 11:00 11:15 11:30 11:45 12:00 12:15 12:30])
+    end
+  end
+
   describe "varios días con citas y ausencias" do
     before do
       (1..5).each { open_hours(weekday: it) }
@@ -105,7 +115,14 @@ RSpec.describe Appointments::Availability do
     it "una cita del mismo profesional en OTRA sucursal bloquea (agenda única)" do
       create(:appointment, professional:, branch: second_branch, starts_at: Time.utc(2026, 11, 16, 16), ends_at: Time.utc(2026, 11, 16, 16, 30))
 
-      expect(local_starts(availability)).not_to include("10:00", "10:15")
+      expect(local_starts(availability)).to eq(%w[09:00 09:15 09:30 10:30 10:45 11:00 11:15 11:30 11:45 12:00 12:15 12:30])
+    end
+
+    it "una cita cuyo bloqueo es más ancho que sus horas (relleno) quita también los inicios del relleno" do
+      create(:appointment, professional:, branch:, starts_at: Time.utc(2026, 11, 16, 16), ends_at: Time.utc(2026, 11, 16, 16, 30),
+                           blocks_from: Time.utc(2026, 11, 16, 15, 45), blocks_to: Time.utc(2026, 11, 16, 16, 45))
+
+      expect(local_starts(availability)).to eq(%w[09:00 09:15 10:45 11:00 11:15 11:30 11:45 12:00 12:15 12:30])
     end
 
     it "una cita de OTRO profesional no bloquea" do
@@ -161,34 +178,44 @@ RSpec.describe Appointments::Availability do
   end
 
   describe "aislamiento (adversarial)" do
+    # Absences and appointments of someone else's professional exactly where the requested professional is open and free.
+    def occupy_every_open_hour(professional:, branch:)
+      create(:time_off, professional:, starts_at: Time.utc(2026, 11, 16, 15), ends_at: Time.utc(2026, 11, 16, 16))
+      [ 16, 17, 18 ].each do |hour|
+        create(:appointment, professional:, branch:, starts_at: Time.utc(2026, 11, 16, hour), ends_at: Time.utc(2026, 11, 16, hour, 30))
+      end
+    end
+
     def populate_other_company
       other_company = create(:company)
       other_branch = create(:branch, company: other_company)
       other_pro = create(:professional, company: other_company)
       create(:weekly_schedule, branch: other_branch, weekday: 1, starts_at_local: "09:00", ends_at_local: "13:00")
       create(:professional_branch_assignment, professional: other_pro, branch: other_branch)
-      create(:time_off, professional: other_pro, starts_at: Time.utc(2026, 11, 16, 6), ends_at: Time.utc(2026, 11, 17, 6))
-      create(:appointment, professional: other_pro, branch: other_branch, starts_at: Time.utc(2026, 11, 16, 15), ends_at: Time.utc(2026, 11, 16, 19))
+      create(:weekly_schedule, branch: other_branch, professional: other_pro, weekday: 1, starts_at_local: "09:00", ends_at_local: "13:00")
+      occupy_every_open_hour(professional: other_pro, branch: other_branch)
     end
 
     def populate_other_organization
       with_tenant(create(:organization)) do
         foreign_company = create(:company)
-        create(:appointment, professional: create(:professional, company: foreign_company), branch: create(:branch, company: foreign_company),
-                             starts_at: Time.utc(2026, 11, 16, 15), ends_at: Time.utc(2026, 11, 16, 19))
+        foreign_branch = create(:branch, company: foreign_company)
+        foreign_pro = create(:professional, company: foreign_company)
+        create(:professional_branch_assignment, professional: foreign_pro, branch: foreign_branch)
+        occupy_every_open_hour(professional: foreign_pro, branch: foreign_branch)
       end
     end
 
     it "los datos de otra empresa y de otra organización no influyen", :aggregate_failures do
       open_hours
       book(16)
-      baseline = availability
+      expected = %w[09:00 09:15 09:30 10:30 10:45 11:00 11:15 11:30 11:45 12:00 12:15 12:30]
+      expect(local_starts(availability)).to eq(expected)
 
       populate_other_company
       populate_other_organization
 
-      expect(baseline).not_to be_empty
-      expect(availability).to eq(baseline)
+      expect(local_starts(availability)).to eq(expected)
     end
   end
 
