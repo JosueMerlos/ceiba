@@ -122,6 +122,37 @@ RSpec.describe Appointments::Availability::SlotFinder do
       expect(slots.map(&:starts_at)).to all(be >= managua_time(12, 5))
     end
 
+    it "con anticipación 0 y 10 min de margen previo ningún bloque empieza antes de now: el primer inicio es 10:15", :aggregate_failures do
+      slots = find(free_set([ managua_time(9), managua_time(13) ]), now: managua_time(10), buffer_before_minutes: 10)
+
+      expect(managua_starts(slots).first).to eq("10:15")
+      expect(slots.map { it.starts_at - 10.minutes }).to all(be >= managua_time(10))
+    end
+
+    it "el bloque que empieza exactamente en now entra: inicio 10:15 con now 10:05 y 10 min de margen previo" do
+      slots = find(free_set([ managua_time(9), managua_time(13) ]), now: managua_time(10, 5), buffer_before_minutes: 10)
+
+      expect(managua_starts(slots).first).to eq("10:15")
+    end
+
+    it "los segundos fraccionarios del margen redondean hacia arriba: now 10:05:00.5 con 10 min de margen previo no ofrece las 10:15" do
+      slots = find(free_set([ managua_time(9), managua_time(13) ]), now: managua_time(10, 5) + 0.5, buffer_before_minutes: 10)
+
+      expect(managua_starts(slots).first).to eq("10:30")
+    end
+
+    it "la anticipación mayor que el margen manda: el inicio sigue midiéndose desde now + anticipación" do
+      slots = find(free_set([ managua_time(9), managua_time(13) ]), now: managua_time(10), lead: 30, buffer_before_minutes: 10)
+
+      expect(managua_starts(slots).first).to eq("10:30")
+    end
+
+    it "sin margen previo la anticipación 0 sigue ofreciendo el inicio en now" do
+      slots = find(free_set([ managua_time(9), managua_time(13) ]), now: managua_time(10))
+
+      expect(managua_starts(slots).first).to eq("10:00")
+    end
+
     it "una anticipación que supera todo el tramo no deja huecos" do
       expect(find(free_set([ managua_time(9), managua_time(13) ]), now: managua_time(9), lead: 600)).to be_empty
     end

@@ -73,7 +73,7 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
                                                         buffer_after_minutes: [ 0, 0, 5, 10, 15 ].sample(random: rng), price_minor: 0, currency: "NIO", required_kind: required),
       load_by_day: professionals.to_h { |person| [ person[:id], (from_date..(to_date + 1)).to_h { |date| [ date, rng.rand(0..3) ] } ] },
       step_minutes: [ 5, 7, 10, 15, 20, 25, 30, 40, 45, 50 ].sample(random: rng),
-      now: Time.at(range_start - (rng.rand(0..4320) * 60) + fraction(rng)).utc, min_lead_minutes: rng.rand(0..360), max_advance_days: rng.rand(1..8)
+      now: Time.at(range_start - (rng.rand(-1440..4320) * 60) + fraction(rng)).utc, min_lead_minutes: [ 0, 0, rng.rand(0..360) ].sample(random: rng), max_advance_days: rng.rand(1..8)
     }
   end
 
@@ -148,6 +148,7 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
     to = slot.ends_at.to_i
     return "wrong duration" unless to - from == scenario[:plan].duration_minutes * 60
     return "breaks min lead" if from < scenario[:now].to_r + (scenario[:min_lead_minutes] * 60)
+    return "block starts in the past" if block_of(scenario, from).first < scenario[:now].to_r
     return "breaks max advance" if from > scenario[:now].to_r + (scenario[:max_advance_days] * 86_400)
     return "off the wall-clock grid" unless grid?(tz, from, scenario[:step_minutes])
 
@@ -178,7 +179,7 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
   def expected_slots(scenario, tz, windows)
     lowest = scenario[:now].to_r + (scenario[:min_lead_minutes] * 60)
     highest = scenario[:now].to_r + (scenario[:max_advance_days] * 86_400)
-    starts = windows[:branch].flat_map { |from, to| (from...to).step(60).to_a }.select { it.between?(lowest, highest) && grid?(tz, it, scenario[:step_minutes]) }
+    starts = windows[:branch].flat_map { |from, to| (from...to).step(60).to_a }.select { it.between?(lowest, highest) && block_of(scenario, it).first >= scenario[:now].to_r && grid?(tz, it, scenario[:step_minutes]) }
 
     starts.filter_map do |start|
       block = block_of(scenario, start)
