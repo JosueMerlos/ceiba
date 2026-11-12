@@ -213,7 +213,7 @@ RSpec.describe "API pública v1: disponibilidad" do
                   "con `professional_id` y `resource_id` asignados y el precio total. No expone nombres ni citas. Rango de hasta 14 días " \
                   "(`from` no anterior a ayer en la hora local de la sucursal). Un slug desconocido, el módulo de citas apagado, la reserva pública " \
                   "apagada (empresa o sucursal), la empresa inactiva, la organización suspendida, una sucursal ajena o inactiva, y un servicio o profesional inexistente, inactivo o que no aplica " \
-                  "responden todos el MISMO 404 `resource.not_found`. La respuesta se guarda en caché 30 s y está limitada a 60 peticiones por minuto " \
+                  "responden todos el MISMO 404 `resource.not_found`. Las puertas (módulo, empresa, sucursal, reserva pública) se comprueban en cada petición; la respuesta se guarda en caché hasta 30 s, así que un servicio o profesional recién desactivado puede seguir apareciendo ese tiempo y la reserva lo revalida. Está limitada a 60 peticiones por minuto " \
                   "por IP y empresa (429 `rate_limit.exceeded`)."
       produces "application/json", "application/problem+json"
       security []

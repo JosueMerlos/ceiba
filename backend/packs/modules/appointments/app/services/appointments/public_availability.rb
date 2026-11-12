@@ -7,6 +7,8 @@ module Appointments
   # a tenant context.
   module PublicAvailability
     TTL = 30.seconds
+    # When an entry expires, one request recomputes it while the others briefly keep the stale body instead of stampeding the database.
+    RACE_CONDITION_TTL = 5.seconds
     # A booking page shows a couple of weeks; a longer range would only be a bigger read for an anonymous caller.
     MAX_RANGE_DAYS = 14
 
@@ -14,7 +16,7 @@ module Appointments
 
     def call(company:, branch:, services:, professional:, from_date:, to_date:)
       key = cache_key(company:, branch:, services:, professional:, from_date:, to_date:)
-      Rails.cache.fetch(key, expires_in: TTL) do
+      Rails.cache.fetch(key, expires_in: TTL, race_condition_ttl: RACE_CONDITION_TTL) do
         result = Availability.call(company:, branch:, services:, professional:, from_date:, to_date:, max_range_days: MAX_RANGE_DAYS)
         AvailabilityResponse.call(result, time_zone: branch.time_zone)
       end
