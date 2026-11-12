@@ -176,6 +176,17 @@ RSpec.describe "API v1: disponibilidad" do
         end
       end
 
+      response "422", "un `from` anterior a ayer en la hora local de la sucursal" do
+        let(:from) { "2026-11-09" }
+
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! do |response|
+          expect(response.parsed_body).to include("code" => "appointments.availability_invalid")
+          expect(response.parsed_body["errors"]).to contain_exactly(a_hash_including("field" => "from", "code" => "too_early", "message" => a_kind_of(String)))
+        end
+      end
+
       response "422", "un rango de más de 31 días" do
         let(:to) { "2026-12-17" }
 

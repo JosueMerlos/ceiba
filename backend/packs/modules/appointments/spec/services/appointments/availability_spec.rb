@@ -241,6 +241,13 @@ RSpec.describe Appointments::Availability do
       expect(errors_of(from_date: monday, to_date: monday + 30)).to be_nil
     end
 
+    it "un `from` anterior a ayer en la hora local de la sucursal es demasiado antiguo, ayer no", :aggregate_failures do
+      now = Time.utc(2026, 11, 16, 5)
+
+      expect(errors_of(from_date: Date.new(2026, 11, 13), to_date: monday, now:)).to eq([ { field: :from, code: :too_early } ])
+      expect(errors_of(from_date: Date.new(2026, 11, 14), to_date: monday, now:)).to be_nil
+    end
+
     it "acumula todos los errores a la vez", :aggregate_failures do
       professional.update!(active: false)
       service.update!(active: false)
