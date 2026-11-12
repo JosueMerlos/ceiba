@@ -56,6 +56,26 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: appointments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.appointments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    branch_id uuid NOT NULL,
+    professional_id uuid NOT NULL,
+    starts_at timestamp(6) without time zone NOT NULL,
+    ends_at timestamp(6) without time zone NOT NULL,
+    blocks_from timestamp(6) without time zone NOT NULL,
+    blocks_to timestamp(6) without time zone NOT NULL,
+    status character varying DEFAULT 'scheduled'::character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
 -- Name: ar_internal_metadata; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -582,6 +602,14 @@ CREATE TABLE public.weekly_schedules (
 
 
 --
+-- Name: appointments appointments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointments
+    ADD CONSTRAINT appointments_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: ar_internal_metadata ar_internal_metadata_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -830,6 +858,14 @@ ALTER TABLE ONLY public.time_offs
 
 
 --
+-- Name: appointments uq_appointments_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointments
+    ADD CONSTRAINT uq_appointments_organization_id_id UNIQUE (organization_id, id);
+
+
+--
 -- Name: audit_events uq_audit_events_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1011,6 +1047,13 @@ ALTER TABLE ONLY public.users
 
 ALTER TABLE ONLY public.weekly_schedules
     ADD CONSTRAINT weekly_schedules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_appointments_professional_blocks; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_appointments_professional_blocks ON public.appointments USING btree (professional_id, blocks_from);
 
 
 --
@@ -1410,6 +1453,38 @@ CREATE TRIGGER audit_events_append_only BEFORE DELETE OR UPDATE OR TRUNCATE ON p
 --
 
 CREATE TRIGGER auth_audit_events_append_only BEFORE DELETE OR UPDATE OR TRUNCATE ON public.auth_audit_events FOR EACH STATEMENT EXECUTE FUNCTION public.reject_audit_mutation();
+
+
+--
+-- Name: appointments fk_appointments_branch; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointments
+    ADD CONSTRAINT fk_appointments_branch FOREIGN KEY (organization_id, company_id, branch_id) REFERENCES public.branches(organization_id, company_id, id);
+
+
+--
+-- Name: appointments fk_appointments_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointments
+    ADD CONSTRAINT fk_appointments_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: appointments fk_appointments_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointments
+    ADD CONSTRAINT fk_appointments_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: appointments fk_appointments_professional; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointments
+    ADD CONSTRAINT fk_appointments_professional FOREIGN KEY (organization_id, company_id, professional_id) REFERENCES public.professionals(organization_id, company_id, id);
 
 
 --
@@ -1853,6 +1928,13 @@ ALTER TABLE ONLY public.weekly_schedules
 
 
 --
+-- Name: appointments tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.appointments USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
 -- Name: audit_events tenant_isolation; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -1992,6 +2074,7 @@ CREATE POLICY tenant_isolation ON public.weekly_schedules USING ((organization_i
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261112021801'),
 ('20261111180300'),
 ('20261111180200'),
 ('20261111180100'),

@@ -14,14 +14,15 @@ RSpec.describe Appointments::Appointment do
         statuses = %w[scheduled confirmed completed no_show cancelled rescheduled]
         rows = statuses.to_h { |status| [ status, create(:appointment, professional:, branch:, status:) ] }
 
-        expect(described_class.blocking).to contain_exactly(*rows.values_at("scheduled", "confirmed", "completed", "no_show"))
+        expect(described_class.blocking).to match_array(rows.values_at("scheduled", "confirmed", "completed", "no_show"))
       end
     end
   end
 
   describe ".overlapping" do
     let(:base) { Time.utc(2026, 11, 16, 10) }
-    let(:appointment) { create_in(organization, :appointment, professional:, branch:, starts_at: base, ends_at: base + 30.minutes) }
+
+    def booked = create(:appointment, professional:, branch:, starts_at: base, ends_at: base + 30.minutes)
 
     it "usa el bloqueo (blocks_*) y no el horario de la cita", :aggregate_failures do
       with_tenant(organization) do
@@ -35,7 +36,7 @@ RSpec.describe Appointments::Appointment do
 
     it "es semiabierto: una cita que termina donde empieza el rango, o empieza donde termina, no solapa", :aggregate_failures do
       with_tenant(organization) do
-        appointment
+        appointment = booked
 
         expect(described_class.overlapping(base + 30.minutes, base + 60.minutes)).to be_empty
         expect(described_class.overlapping(base - 30.minutes, base)).to be_empty
@@ -46,7 +47,7 @@ RSpec.describe Appointments::Appointment do
 
     it "encuentra la cita que contiene el rango entero y la que lo contiene por dentro", :aggregate_failures do
       with_tenant(organization) do
-        appointment
+        appointment = booked
 
         expect(described_class.overlapping(base + 10.minutes, base + 20.minutes)).to contain_exactly(appointment)
         expect(described_class.overlapping(base - 1.hour, base + 2.hours)).to contain_exactly(appointment)
