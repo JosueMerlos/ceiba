@@ -9,14 +9,16 @@ module Appointments
 
       module_function
 
+      # Lower bounds round UP and upper bounds DOWN to whole seconds, so a slot never reaches into an absence or a lead window by
+      # a fraction of a second.
       def call(free:, duration_minutes:, step_minutes:, time_zone:, now:, min_lead_minutes:, max_advance_days:)
         zone = TZInfo::Timezone.get(time_zone)
-        earliest = now.to_i + min_lead_minutes.minutes.to_i
+        earliest = (now.to_r + min_lead_minutes.minutes.to_i).ceil
         latest = now.to_i + max_advance_days.days.to_i
         duration = duration_minutes.minutes.to_i
 
         free.intervals.flat_map do |interval|
-          first = [ interval.starts_at.to_i, earliest ].max
+          first = [ interval.starts_at.to_r.ceil, earliest ].max
           last = [ interval.ends_at.to_i - duration, latest ].min
           candidates(zone, first, last, step_minutes).map do |start|
             Interval.new(starts_at: Time.at(start).utc, ends_at: Time.at(start + duration).utc)
