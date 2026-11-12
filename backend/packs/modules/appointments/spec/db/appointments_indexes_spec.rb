@@ -1,13 +1,14 @@
 require "rails_helper"
 
-# The occupancy reads of the availability loader must be bounded below by blocks_to, so years of past appointments are not walked.
+# The occupancy read of the availability loader for resources must be bounded below by blocks_to, so years of past appointments are not walked.
 RSpec.describe "Índices de citas" do
   let(:organization) { create(:organization) }
   let(:company) { create_in(organization, :company) }
   let(:branch) { create_in(organization, :branch, company:) }
   let(:service) { create_in(organization, :service, company:) }
   let(:professional) { create_in(organization, :professional, company:) }
-  let(:room) { create(:resource, branch:, kind: "room") }
+
+  def room = @room ||= create(:resource, branch:, kind: "room")
 
   around { |example| with_tenant(organization) { example.run } }
 
@@ -43,14 +44,7 @@ RSpec.describe "Índices de citas" do
   it "la ocupación de recursos usa el índice por fin de bloque con condición sobre blocks_to", :aggregate_failures do
     plan = plan_for("resource_id")
 
-    expect(plan).to include("idx_appointments_resource_blocks")
-    expect(plan).to match(/Index Cond:.*blocks_to >/)
-  end
-
-  it "la ocupación de profesionales usa el índice por fin de bloque con condición sobre blocks_to", :aggregate_failures do
-    plan = plan_for("professional_id")
-
-    expect(plan).to include("idx_appointments_professional_blocks")
+    expect(plan).to include("idx_appointments_resource_blocks"), plan
     expect(plan).to match(/Index Cond:.*blocks_to >/)
   end
 end

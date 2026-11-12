@@ -282,15 +282,14 @@ RSpec.describe "API pública v1: disponibilidad" do
       end
 
       response "429", "más de 60 peticiones por minuto desde la misma IP para la misma empresa (rate_limit.exceeded)" do
-        # Rate limiting is off in the test environment: it is turned on for this example only, with a limit of one request.
-        before do
+        # Rate limiting is off in the test environment: it is turned on for this example only, with a limit of zero requests (the first one is already over it).
+        around do |example|
           Rack::Attack.enabled = true
           Rack::Attack.reset!
-          stub_const("ENV", ENV.to_h.merge("RATE_LIMIT_PUBLIC_AVAILABILITY" => "1"))
-          fetch
-        end
-
-        after do
+          ENV["RATE_LIMIT_PUBLIC_AVAILABILITY"] = "0"
+          example.run
+        ensure
+          ENV.delete("RATE_LIMIT_PUBLIC_AVAILABILITY")
           Rack::Attack.reset!
           Rack::Attack.enabled = false
         end
@@ -304,7 +303,7 @@ RSpec.describe "API pública v1: disponibilidad" do
 
         run_test! do |response|
           expect(response.parsed_body).to include("code" => "rate_limit.exceeded", "status" => 429)
-          expect(response.headers).to include("Retry-After" => be_present, "RateLimit-Limit" => "1", "RateLimit-Remaining" => "0", "RateLimit-Reset" => be_present)
+          expect(response.headers).to include("Retry-After" => be_present, "RateLimit-Limit" => "0", "RateLimit-Remaining" => "0", "RateLimit-Reset" => be_present)
         end
       end
 
