@@ -8,9 +8,10 @@ require "json"
 
 module RateLimiting
   LOGIN_PATH = %r{\A/api/v1/auth/login(\.\w+)?\z} # with or without a format extension: Rails would accept it too
-  # The public availability route, with the slug captured. Compared on the DECODED, slash-squeezed path and ignoring case,
-  # which is how the router will resolve it: a variant must not slip past with a counter of its own while still reaching the endpoint.
-  PUBLIC_AVAILABILITY_PATH = %r{\A/api/public/v1/c/([a-z0-9-]{3,40})/availability/?\z}i
+  # The public availability route, with the slug captured as any non-slash segment: whether it is a valid slug is the endpoint's
+  # call (a 404), not this layer's. Compared on the DECODED, slash-squeezed path and ignoring case, which is how the router will
+  # resolve it: a variant must not slip past with a counter of its own while still reaching the endpoint.
+  PUBLIC_AVAILABILITY_PATH = %r{\A/api/public/v1/c/([^/]+)/availability/?\z}i
   PROBE_PATHS = %w[/api/health /api/ready].freeze
   MAX_LOGIN_BODY_BYTES = 4096
 
