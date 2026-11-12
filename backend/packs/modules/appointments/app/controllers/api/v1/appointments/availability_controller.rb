@@ -17,8 +17,9 @@ module Api
         def show
           authorize Current.context.branch, :show?, policy_class: ::Appointments::AvailabilityPolicy
           query = availability_query
-          result = ::Appointments::Availability.call(company: Current.context.company, branch: Current.context.branch,
-                                                     service: company_services.find(query[:service_id]), professional: assigned_professionals.find(query[:professional_id]),
+          service = company_services.find(query[:service_id])
+          professional = assigned_professionals.find(query[:professional_id])
+          result = ::Appointments::Availability.call(company: Current.context.company, branch: Current.context.branch, service:, professional:,
                                                      from_date: query[:from], to_date: query[:to])
           render json: { data: ::Appointments::AvailabilitySlotSerializer.new(result.slots).serializable_hash,
                          meta: { time_zone: Current.context.branch.time_zone, duration_minutes: result.duration_minutes, step_minutes: result.step_minutes } }
