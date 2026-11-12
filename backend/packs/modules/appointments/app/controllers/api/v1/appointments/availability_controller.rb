@@ -11,6 +11,7 @@ module Api
 
         requires_module :appointments
 
+        QUERY_PARAMS = %w[service_id professional_id from to].freeze
         UUID_FORMAT = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
         DATE_FORMAT = /\A\d{4}-\d{2}-\d{2}\z/
 
@@ -32,9 +33,17 @@ module Api
         # A missing parameter is a 400 `request.invalid`; one that is not the shape asked for is a 400 `request.bad_request`.
         # `typed_params` only reads the body, so the query is parsed here.
         def availability_query
+          reject_repeated_query_params
           values = %i[service_id professional_id from to].index_with { required_query_param(it) }
           { service_id: uuid(values[:service_id], :service_id), professional_id: uuid(values[:professional_id], :professional_id),
             from: date(values[:from], :from), to: date(values[:to], :to) }
+        end
+
+        # Rack keeps the last value of a repeated parameter and the rest vanish silently; the raw query string still shows them.
+        def reject_repeated_query_params
+          raw = Rack::Utils.parse_query(request.query_string)
+          repeated = QUERY_PARAMS.find { raw[it].is_a?(Array) }
+          raise ActionController::BadRequest, "#{repeated} must be a single value" if repeated
         end
 
         def required_query_param(name)
