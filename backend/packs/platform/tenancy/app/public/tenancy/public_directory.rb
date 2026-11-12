@@ -8,7 +8,7 @@ module Tenancy
   module PublicDirectory
     module_function
 
-    # { organization:, company: } or nil. The slug is normalized as Company does; one that cannot be a slug (wrong format,
+    # { organization:, company: } or nil (also nil when the organization is suspended). The slug is normalized as Company does; one that cannot be a slug (wrong format,
     # reserved, not a String) is nil without touching the database.
     def company_by_slug(slug)
       slug = Company.normalize_value_for(:slug, slug) if slug.is_a?(String)
@@ -17,7 +17,11 @@ module Tenancy
       company = ActsAsTenant.without_tenant { Company.readonly.find_by(slug:) }
       return unless company
 
-      { organization: Organization.readonly.find(company.organization_id), company: }
+      organization = Organization.readonly.find(company.organization_id)
+      # A suspended organization cannot operate, so for an anonymous caller its company is a closed door, as for the panel.
+      return unless organization.active?
+
+      { organization:, company: }
     end
 
     def possible_slug?(slug) = slug.is_a?(String) && Company::SLUG_FORMAT.match?(slug) && Company::RESERVED_SLUGS.exclude?(slug)

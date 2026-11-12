@@ -8,7 +8,9 @@ module Api
         # Nothing here reveals what is closed. An unknown slug, the module off, booking disabled, another company's branch,
         # an inactive service or a professional that does not apply all answer the same 404; only a bad date range is a 422
         # (it says nothing about the company). Order: the company is opened from the slug and the module gate runs (both
-        # before anything else), then the shape of the query, the doors (PublicAvailability::Gate) and the use case.
+        # before anything else), then the company's doors (PublicAvailability::Gate.open_company!, still before the query: a
+        # malformed one must not tell a closed company from a missing one), the shape of the query, the branch's doors
+        # (Gate.open!) and the use case.
         class AvailabilityController < ::Api::BaseController
           include ::Modules::RequiresModule
           include ::Appointments::AvailabilityQuery
@@ -20,6 +22,7 @@ module Api
           skip_authentication!
           skip_authorization!(reason: "endpoint anónimo: no hay principal; solo expone huecos libres, sin datos personales, de una empresa con la reserva pública activa", only: :show)
           requires_module :appointments
+          before_action { ::Appointments::PublicAvailability::Gate.open_company!(Current.context.company) }
           # Registered after the gate so it runs BEFORE it: the gate reads the company from the context this opens.
           prepend_around_action :within_public_company
           rescue_from ::Appointments::Availability::InvalidRequest, with: :render_availability_invalid
