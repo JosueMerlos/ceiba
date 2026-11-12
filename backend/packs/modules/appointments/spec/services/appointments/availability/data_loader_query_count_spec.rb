@@ -39,7 +39,7 @@ RSpec.describe Appointments::Availability::DataLoader do
   end
 
   def run(days)
-    Appointments::Availability.call(company:, branch:, service:, professional:, from_date: first_day, to_date: first_day + (days - 1), now: Time.utc(2026, 11, 1))
+    Appointments::Availability.call(company:, branch:, service:, professional:, from_date: first_day, to_date: first_day + (days - 1), now: Time.utc(2026, 11, 1)).slots
   end
 
   it "emite el mismo número de consultas para 1 día que para 14, y pocas", :aggregate_failures do

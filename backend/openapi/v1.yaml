@@ -68,6 +68,22 @@ components:
       - csrf_token
       - expires_at
       type: object
+    AvailabilitySlot:
+      additionalProperties: false
+      description: Un inicio posible para el servicio y su fin (inicio + duración efectiva en la sucursal). Instantes UTC.
+      properties:
+        ends_at:
+          description: UTC
+          format: date-time
+          type: string
+        starts_at:
+          description: UTC
+          format: date-time
+          type: string
+      required:
+      - starts_at
+      - ends_at
+      type: object
     Branch:
       additionalProperties: false
       description: 'Sucursal: una ubicación de una empresa'
@@ -1488,6 +1504,122 @@ paths:
     parameters:
     - in: path
       name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/availability":
+    get:
+      description: 'Exige `appointments.appointment.create` en la sucursal (company_manager, branch_manager y receptionist); se comprueba ANTES de validar. `from` y `to` son fechas locales de la sucursal (`YYYY-MM-DD`, inclusivas, `from <= to`, hasta 31 días). El profesional debe estar asignado a la sucursal y el servicio ser de la empresa (si no, 404). Devuelve los inicios posibles en la rejilla del reloj local (múltiplos del paso `slot_step_minutes` desde la medianoche local) con la duración efectiva del servicio en la sucursal; los instantes son UTC. La agenda del profesional es única: sus citas y ausencias de otras sucursales también restan, y solo se expone libre/ocupado. Parámetro ausente: 400 `request.invalid`; mal formado: 400 `request.bad_request`; pedido no atendible: 422 `appointments.availability_invalid`.'
+      parameters:
+      - description: Servicio de la empresa
+        in: query
+        name: service_id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      - description: Profesional asignado a la sucursal
+        in: query
+        name: professional_id
+        required: true
+        schema:
+          format: uuid
+          type: string
+      - description: Primer día local (`YYYY-MM-DD`)
+        in: query
+        name: from
+        required: true
+        schema:
+          format: date
+          type: string
+      - description: Último día local, inclusivo (`YYYY-MM-DD`)
+        in: query
+        name: to
+        required: true
+        schema:
+          format: date
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/AvailabilitySlot"
+                    type: array
+                  meta:
+                    additionalProperties: false
+                    properties:
+                      duration_minutes:
+                        type: integer
+                      step_minutes:
+                        type: integer
+                      time_zone:
+                        type: string
+                    required:
+                    - time_zone
+                    - duration_minutes
+                    - step_minutes
+                    type: object
+                required:
+                - data
+                - meta
+                type: object
+          description: el company_manager de la empresa
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un `service_id` que no es un UUID
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: 'sin permiso, la autorización va ANTES de validar: ni un 400 ni un 404 sobre ids ajenos'
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: con el módulo de citas desactivado en la empresa (el gate)
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: un servicio que el profesional no presta
+      security:
+      - cookieAuth: []
+      summary: Consulta los horarios libres de un profesional para un servicio
+      tags:
+      - Disponibilidad
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
       required: true
       schema:
         format: uuid

@@ -28,7 +28,7 @@ RSpec.describe Appointments::Availability do
   end
 
   def availability(**overrides)
-    described_class.call(company:, branch:, service:, professional:, from_date: monday, to_date: monday, now: long_before, **overrides)
+    described_class.call(company:, branch:, service:, professional:, from_date: monday, to_date: monday, now: long_before, **overrides).slots
   end
 
   def local_starts(slots) = slots.map { it.starts_at.in_time_zone(branch.time_zone).strftime("%H:%M") }
@@ -134,7 +134,7 @@ RSpec.describe Appointments::Availability do
       open_hours
 
       travel_to(Time.utc(2026, 11, 16, 16)) do
-        slots = described_class.call(company:, branch:, service:, professional:, from_date: monday, to_date: monday)
+        slots = described_class.call(company:, branch:, service:, professional:, from_date: monday, to_date: monday).slots
 
         expect(local_starts(slots)).to eq(%w[12:00 12:15 12:30])
       end

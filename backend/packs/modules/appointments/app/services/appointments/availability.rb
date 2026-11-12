@@ -1,10 +1,12 @@
 module Appointments
   # Free slots of one professional for one service at a branch, over a range of the branch's local dates (inclusive). Returns
-  # UTC intervals of the service's effective duration. Eligibility is checked first and reported all at once through
-  # InvalidRequest; the data is then loaded with a fixed number of queries and handed to the pure calculator. Must run inside
-  # a tenant context.
+  # a Result: the UTC intervals of the service's effective duration plus the duration and grid step they were computed with.
+  # Eligibility is checked first and reported all at once through InvalidRequest; the data is then loaded with a fixed number
+  # of queries and handed to the pure calculator. Must run inside a tenant context.
   module Availability
     MAX_RANGE_DAYS = 31
+
+    Result = Data.define(:slots, :duration_minutes, :step_minutes)
 
     module_function
 
@@ -13,10 +15,12 @@ module Appointments
       loaded = DataLoader.call(company:, branch:, service:, professional:, from_date:, to_date:)
       settings = loaded.settings
 
-      Calculator.call(branch_slots: loaded.branch_slots, professional_slots: loaded.professional_slots, time_offs: loaded.time_offs,
-                      busy: loaded.busy, time_zone: branch.time_zone, from_date:, to_date:, duration_minutes: loaded.duration_minutes,
-                      step_minutes: settings.fetch("slot_step_minutes"), now:, min_lead_minutes: settings.fetch("min_lead_time_minutes"),
-                      max_advance_days: settings.fetch("max_advance_days"))
+      step_minutes = settings.fetch("slot_step_minutes")
+      slots = Calculator.call(branch_slots: loaded.branch_slots, professional_slots: loaded.professional_slots, time_offs: loaded.time_offs,
+                              busy: loaded.busy, time_zone: branch.time_zone, from_date:, to_date:, duration_minutes: loaded.duration_minutes,
+                              step_minutes:, now:, min_lead_minutes: settings.fetch("min_lead_time_minutes"),
+                              max_advance_days: settings.fetch("max_advance_days"))
+      Result.new(slots:, duration_minutes: loaded.duration_minutes, step_minutes:)
     end
 
     # Raises InvalidRequest with every reason the request cannot be answered.
