@@ -60,6 +60,23 @@ RSpec.describe "API v1: disponibilidad" do
 
   def starts_of(response) = response.parsed_body["data"].pluck("starts_at")
 
+  # rswag builds one value per parameter, so a repeated one needs a hand-written query string.
+  describe "un parámetro de consulta repetido" do
+    let(:base) { { service_id:, professional_id:, from:, to: } }
+    let(:path) { "/api/v1/organizations/#{organization_id}/companies/#{company_id}/appointments/branches/#{branch_id}/availability" }
+
+    %i[service_id professional_id from to].each do |name|
+      it "`#{name}` dos veces es un 400 request.bad_request (no gana el último)", :aggregate_failures do
+        query = base.map { |key, value| "#{key}=#{value}" }.join("&") + "&#{name}=#{base[name]}"
+
+        get "#{path}?#{query}"
+
+        expect(response).to have_http_status(:bad_request)
+        expect(response.parsed_body).to include("code" => "request.bad_request")
+      end
+    end
+  end
+
   path "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/availability" do
     parameter name: :organization_id, in: :path, schema: { type: :string, format: :uuid }, required: true
     parameter name: :company_id, in: :path, schema: { type: :string, format: :uuid }, required: true
