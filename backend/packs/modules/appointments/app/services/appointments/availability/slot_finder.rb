@@ -15,10 +15,12 @@ module Appointments
       def call(free:, duration_minutes:, step_minutes:, time_zone:, now:, min_lead_minutes:, max_advance_days:, buffer_before_minutes: 0,
                buffer_after_minutes: 0)
         zone = TZInfo::Timezone.get(time_zone)
-        earliest = (now.to_r + min_lead_minutes.minutes.to_i).ceil
-        latest = now.to_i + max_advance_days.days.to_i
         duration = duration_minutes.minutes.to_i
         before = buffer_before_minutes.minutes.to_i
+        # The lead time is measured on the service start (what the customer sees), but the block that starts `before` earlier must
+        # not begin in the past either, so the stricter of the two wins.
+        earliest = (now.to_r + [ min_lead_minutes.minutes.to_i, before ].max).ceil
+        latest = now.to_i + max_advance_days.days.to_i
         after = buffer_after_minutes.minutes.to_i
 
         free.intervals.flat_map do |interval|
