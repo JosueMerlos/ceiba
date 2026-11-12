@@ -133,28 +133,6 @@ RSpec.describe "API v1: disponibilidad" do
         run_test! { |response| expect(response.parsed_body["data"]).to eq([]) }
       end
 
-      response "400", "sin `from`" do
-        let(:from) { nil }
-
-        schema "$ref" => "#/components/schemas/ValidationProblem"
-
-        run_test! do |response|
-          expect(response.parsed_body).to include("code" => "request.invalid")
-          expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "from", "code" => "missing"))
-        end
-      end
-
-      response "400", "sin ningún parámetro de consulta" do
-        let(:service_id) { nil }
-        let(:professional_id) { nil }
-        let(:from) { nil }
-        let(:to) { nil }
-
-        schema "$ref" => "#/components/schemas/ValidationProblem"
-
-        run_test! { |response| expect(response.parsed_body).to include("code" => "request.invalid") }
-      end
-
       [ "2026-13-01", "2026-11-1", "16/11/2026", "2026-02-30" ].each do |bad|
         response "400", "una fecha mal formada (#{bad})" do
           let(:from) { bad }
@@ -179,6 +157,29 @@ RSpec.describe "API v1: disponibilidad" do
         schema "$ref" => "#/components/schemas/Problem"
 
         run_test! { |response| expect(response.parsed_body).to include("code" => "request.bad_request") }
+      end
+
+      # rswag publishes only the LAST block of a status code: the superset (`errors`) goes last.
+      response "400", "sin `from`" do
+        let(:from) { nil }
+
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! do |response|
+          expect(response.parsed_body).to include("code" => "request.invalid")
+          expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "from", "code" => "missing"))
+        end
+      end
+
+      response "400", "sin ningún parámetro de consulta" do
+        let(:service_id) { nil }
+        let(:professional_id) { nil }
+        let(:from) { nil }
+        let(:to) { nil }
+
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! { |response| expect(response.parsed_body).to include("code" => "request.invalid") }
       end
 
       response "422", "`from` posterior a `to`" do

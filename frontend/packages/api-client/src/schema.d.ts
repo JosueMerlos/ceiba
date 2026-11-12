@@ -598,13 +598,13 @@ export interface paths {
                         };
                     };
                 };
-                /** @description un `service_id` que no es un UUID */
+                /** @description sin ningún parámetro de consulta */
                 400: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/problem+json": components["schemas"]["Problem"];
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
                     };
                 };
                 /** @description sin sesión válida */

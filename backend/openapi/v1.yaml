@@ -1574,8 +1574,8 @@ paths:
           content:
             application/problem+json:
               schema:
-                "$ref": "#/components/schemas/Problem"
-          description: un `service_id` que no es un UUID
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: sin ningún parámetro de consulta
         '401':
           content:
             application/problem+json:
