@@ -104,6 +104,16 @@ RSpec.describe "Caché de la disponibilidad pública" do
     expect(response).to have_http_status(:not_found)
   end
 
+  it "con Redis caído y las opciones de producción el endpoint falla abierto: responde 200 calculado, sin caché y sin error", :aggregate_failures do
+    Rails.cache = ActiveSupport::Cache::RedisCacheStore.new(**RedisSettings.cache_store_options(url: "redis://127.0.0.1:1/15"))
+
+    elapsed = Benchmark.realtime { 2.times { fetch } }
+
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body["data"]).not_to be_empty
+    expect(elapsed).to be < 2
+  end
+
   it "una respuesta de error no se guarda: tras corregir la causa se calcula de verdad" do
     with_tenant(world.organization) { service.update!(active: false) }
     fetch
