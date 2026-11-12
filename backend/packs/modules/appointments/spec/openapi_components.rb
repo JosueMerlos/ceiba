@@ -239,5 +239,15 @@ OpenapiComponents.register(
     },
     required: %i[starts_at ends_at],
     additionalProperties: false
+  },
+  AvailabilitySlot: {
+    type: :object,
+    description: "Un inicio posible para el servicio y su fin (inicio + duración efectiva en la sucursal). Instantes UTC.",
+    properties: {
+      starts_at: { type: :string, format: "date-time", description: "UTC" },
+      ends_at: { type: :string, format: "date-time", description: "UTC" }
+    },
+    required: %i[starts_at ends_at],
+    additionalProperties: false
   }
 )
