@@ -200,6 +200,12 @@ RSpec.describe Appointments::Availability do
       error.errors
     end
 
+    it "una sucursal inactiva está cerrada" do
+      branch.update!(status: "inactive")
+
+      expect(errors_of).to eq([ { field: :branch_id, code: :inactive } ])
+    end
+
     it "un profesional pausado es inactivo" do
       professional.update!(active: false)
 

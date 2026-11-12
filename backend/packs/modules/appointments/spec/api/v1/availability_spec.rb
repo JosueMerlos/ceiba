@@ -221,6 +221,14 @@ RSpec.describe "API v1: disponibilidad" do
         run_test!
       end
 
+      response "422", "una sucursal inactiva está cerrada" do
+        let!(:closed) { with_tenant(world.organization) { world.branch_a1.update!(status: "inactive") } }
+
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! { |response| expect(response.parsed_body["errors"]).to contain_exactly(a_hash_including("field" => "branch_id", "code" => "inactive", "message" => a_kind_of(String))) }
+      end
+
       response "422", "un profesional pausado" do
         let!(:paused) { with_tenant(world.organization) { professional.update!(active: false) } }
 
