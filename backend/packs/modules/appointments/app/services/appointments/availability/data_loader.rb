@@ -53,8 +53,7 @@ module Appointments
 
       # The absence belongs to the person, so it counts in every branch.
       def time_offs
-        intervals(TimeOff.where(professional_id: @professional.id).where("starts_at < ? AND ends_at > ?", @range_to, @range_from)
-                         .pluck(:starts_at, :ends_at))
+        intervals(TimeOff.where(professional_id: @professional.id).overlapping(@range_from, @range_to).pluck(:starts_at, :ends_at))
       end
 
       # One agenda per person: appointments in any branch occupy the professional.
