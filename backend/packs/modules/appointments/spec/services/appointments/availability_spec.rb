@@ -542,6 +542,26 @@ RSpec.describe Appointments::Availability do
       expect(local_starts(slots)).to include("10:15", "12:00")
     end
 
+    it "la única sala ocupada por una cita a las 11:00 (17:00Z) quita ese tramo aunque los profesionales estén libres", :aggregate_failures do
+      add_open_professional
+      busy_with = create(:professional, company:)
+      create(:appointment, professional: busy_with, branch:, resource: room, starts_at: Time.utc(2026, 11, 16, 17),
+                           ends_at: Time.utc(2026, 11, 16, 17, 30))
+
+      slots = availability(professional: :any)
+
+      expect(local_starts(slots)).not_to include("11:00", "11:15", "10:45")
+      expect(local_starts(slots)).to include("10:15", "11:30", "12:00")
+    end
+
+    it "una cita cancelada en la sala no la ocupa" do
+      add_open_professional
+      create(:appointment, professional: create(:professional, company:), branch:, resource: room, status: "cancelled",
+                           starts_at: Time.utc(2026, 11, 16, 17), ends_at: Time.utc(2026, 11, 16, 17, 30))
+
+      expect(local_starts(availability(professional: :any))).to include("11:00")
+    end
+
     it "una sala archivada, pausada o de otra sucursal no se ofrece", :aggregate_failures do
       room.update!(archived_at: Time.current)
       create(:resource, branch:, kind: "room", active: false)
