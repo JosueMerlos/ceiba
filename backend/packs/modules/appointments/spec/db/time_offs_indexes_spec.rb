@@ -6,7 +6,8 @@ RSpec.describe "Índices de ausencias" do
   let(:branch) { create_in(organization, :branch, company:) }
   let(:service) { create_in(organization, :service, company:) }
   let(:professional) { create_in(organization, :professional, company:) }
-  let(:room) { create(:resource, branch:, kind: "room") }
+
+  def room = @room ||= create(:resource, branch:, kind: "room")
 
   around { |example| with_tenant(organization) { example.run } }
 

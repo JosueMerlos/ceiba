@@ -71,7 +71,8 @@ CREATE TABLE public.appointments (
     blocks_to timestamp(6) without time zone NOT NULL,
     status character varying DEFAULT 'scheduled'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    resource_id uuid
 );
 
 
@@ -1085,6 +1086,20 @@ CREATE INDEX idx_appointments_professional_starts ON public.appointments USING b
 
 
 --
+-- Name: idx_appointments_resource; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_appointments_resource ON public.appointments USING btree (organization_id, company_id, resource_id) WHERE (resource_id IS NOT NULL);
+
+
+--
+-- Name: idx_appointments_resource_blocks; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_appointments_resource_blocks ON public.appointments USING btree (organization_id, resource_id, blocks_to) WHERE ((resource_id IS NOT NULL) AND ((status)::text <> 'cancelled'::text) AND ((status)::text <> 'rescheduled'::text));
+
+
+--
 -- Name: idx_audit_events_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1218,17 +1233,17 @@ CREATE INDEX idx_srr_service ON public.service_resource_requirements USING btree
 
 
 --
--- Name: idx_time_offs_professional_starts; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_time_offs_professional_ends; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_time_offs_professional_starts ON public.time_offs USING btree (professional_id, starts_at) WHERE (professional_id IS NOT NULL);
+CREATE INDEX idx_time_offs_professional_ends ON public.time_offs USING btree (organization_id, professional_id, ends_at) WHERE (professional_id IS NOT NULL);
 
 
 --
--- Name: idx_time_offs_resource_starts; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_time_offs_resource_ends; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_time_offs_resource_starts ON public.time_offs USING btree (resource_id, starts_at) WHERE (resource_id IS NOT NULL);
+CREATE INDEX idx_time_offs_resource_ends ON public.time_offs USING btree (organization_id, resource_id, ends_at) WHERE (resource_id IS NOT NULL);
 
 
 --
@@ -1513,6 +1528,14 @@ ALTER TABLE ONLY public.appointments
 
 ALTER TABLE ONLY public.appointments
     ADD CONSTRAINT fk_appointments_professional FOREIGN KEY (organization_id, company_id, professional_id) REFERENCES public.professionals(organization_id, company_id, id);
+
+
+--
+-- Name: appointments fk_appointments_resource; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointments
+    ADD CONSTRAINT fk_appointments_resource FOREIGN KEY (organization_id, company_id, resource_id) REFERENCES public.resources(organization_id, company_id, id);
 
 
 --
@@ -2102,6 +2125,14 @@ CREATE POLICY tenant_isolation ON public.weekly_schedules USING ((organization_i
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261112100700'),
+('20261112100600'),
+('20261112100500'),
+('20261112100400'),
+('20261112100300'),
+('20261112100200'),
+('20261112100100'),
+('20261112100000'),
 ('20261112021801'),
 ('20261111180300'),
 ('20261111180200'),
