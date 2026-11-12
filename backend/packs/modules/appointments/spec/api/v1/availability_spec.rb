@@ -121,7 +121,12 @@ RSpec.describe "API v1: disponibilidad" do
 
         schema slot_schema
 
-        run_test! { |response| expect(starts_of(response)).not_to include("2026-11-16T16:00:00.000Z", "2026-11-16T16:15:00.000Z") }
+        run_test! do |response|
+          local = %w[09:00 09:15 09:30 10:30 10:45 11:00 11:15 11:30 11:45 12:00 12:15 12:30]
+          expected = local.map { |hhmm| Time.find_zone("America/Managua").parse("2026-11-16 #{hhmm}").utc.iso8601(3) }
+
+          expect(starts_of(response)).to eq(expected)
+        end
       end
 
       response "200", "un día sin horario devuelve una lista vacía" do
@@ -235,6 +240,37 @@ RSpec.describe "API v1: disponibilidad" do
         schema "$ref" => "#/components/schemas/ValidationProblem"
 
         run_test! { |response| expect(response.parsed_body["errors"]).to contain_exactly(a_hash_including("field" => "professional_id", "code" => "inactive")) }
+      end
+
+      response "422", "un profesional archivado" do
+        let!(:archived) { with_tenant(world.organization) { professional.update!(archived_at: Time.current) } }
+
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! { |response| expect(response.parsed_body["errors"]).to contain_exactly(a_hash_including("field" => "professional_id", "code" => "inactive")) }
+      end
+
+      response "422", "un servicio archivado" do
+        let!(:archived) { with_tenant(world.organization) { service.update!(archived_at: Time.current) } }
+
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! { |response| expect(response.parsed_body["errors"]).to contain_exactly(a_hash_including("field" => "service_id", "code" => "inactive")) }
+      end
+
+      response "422", "varios errores a la vez se devuelven todos" do
+        let(:from) { "2026-11-17" }
+        let(:to) { "2026-11-16" }
+        let!(:paused) { with_tenant(world.organization) { [ professional.update!(active: false), service.update!(active: false) ] } }
+
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! do |response|
+          expect(response.parsed_body["errors"]).to contain_exactly(
+            a_hash_including("field" => "professional_id", "code" => "inactive"), a_hash_including("field" => "service_id", "code" => "inactive"),
+            a_hash_including("field" => "to", "code" => "invalid_range")
+          )
+        end
       end
 
       response "422", "un servicio inactivo" do
