@@ -115,6 +115,31 @@ RSpec.describe "Caché de la disponibilidad pública" do
     expect(elapsed).to be < 2
   end
 
+  # Statements the request ran, without the schema lookups and the savepoints the transactional specs wrap around transactions.
+  def statements_of(&)
+    statements = []
+    counter = ->(*, payload) { statements << payload[:sql] unless payload[:name] == "SCHEMA" || payload[:sql].match?(/\A(RELEASE )?SAVEPOINT/) }
+    ActiveSupport::Notifications.subscribed(counter, "sql.active_record", &)
+    statements
+  end
+
+  # Pinned on purpose: a new read on this anonymous path shows up here. Today the module settings are read more than once per
+  # miss (the gate and the loader each resolve them), which is the known cost of keeping Availability.call's contract free of
+  # pre-read settings.
+  it "una petición que sale de la caché hace 12 consultas: la empresa, el módulo, la sucursal, los ajustes, el servicio y el profesional" do
+    fetch
+
+    expect(statements_of { fetch }.size).to eq(12)
+  end
+
+  it "una petición que calcula la respuesta hace 21 consultas, un número fijo (no crece con los días ni con las citas)", :aggregate_failures do
+    expect(statements_of { fetch }.size).to eq(21)
+
+    Rails.cache.clear
+    create_in(world.organization, :appointment, professional:, branch: world.branch_a1, starts_at: Time.utc(2026, 11, 16, 16), ends_at: Time.utc(2026, 11, 16, 16, 30))
+    expect(statements_of { fetch }.size).to eq(21)
+  end
+
   it "una respuesta de error no se guarda: tras corregir la causa se calcula de verdad" do
     with_tenant(world.organization) { service.update!(active: false) }
     fetch
