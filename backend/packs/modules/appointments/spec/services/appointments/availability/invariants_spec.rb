@@ -21,7 +21,7 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
     Array.new(rng.rand(1..3)) do
       starts = wide ? rng.rand(0..120) * 5 : random_start(rng)
       length = wide ? rng.rand(60..180) * 5 : rng.rand(6..120) * 5
-      { weekday: dates.sample(random: rng).wday, starts_minute: starts, ends_minute: [ starts + length, 1439 ].min }
+      Appointments::Availability::WeeklySlot.new(weekday: dates.sample(random: rng).wday, starts_minute: starts, ends_minute: [ starts + length, 1439 ].min)
     end
   end
 
@@ -62,7 +62,7 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
 
   def ref_windows(tz, slots, from_date, to_date)
     spans = (from_date..to_date).flat_map do |date|
-      slots.select { |slot| slot[:weekday] == date.wday }.map { |slot| [ ref_utc(tz, date, slot[:starts_minute]), ref_utc(tz, date, slot[:ends_minute]) ] }
+      slots.select { |slot| slot.weekday == date.wday }.map { |slot| [ ref_utc(tz, date, slot.starts_minute), ref_utc(tz, date, slot.ends_minute) ] }
     end
     spans.select { |from, to| from < to }.sort.each_with_object([]) do |(from, to), merged|
       merged.last && from <= merged.last[1] ? merged.last[1] = [ merged.last[1], to ].max : merged << [ from, to ]

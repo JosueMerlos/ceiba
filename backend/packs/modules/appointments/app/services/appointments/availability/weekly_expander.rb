@@ -12,18 +12,19 @@ module Appointments
 
       module_function
 
-      # slots: [{ weekday:, starts_minute:, ends_minute: }] with minutes since local midnight and weekday 0 = Sunday.
+      # slots: WeeklySlot values.
       def call(slots:, time_zone:, from_date:, to_date:)
         zone = TZInfo::Timezone.get(time_zone)
+        by_weekday = slots.group_by(&:weekday)
         intervals = (from_date..to_date).flat_map do |date|
-          slots.select { |slot| slot[:weekday] == date.wday }.filter_map { |slot| expand_slot(zone, date, slot) }
+          by_weekday.fetch(date.wday, []).filter_map { |slot| expand_slot(zone, date, slot) }
         end
         IntervalSet.new(intervals)
       end
 
       def expand_slot(zone, date, slot)
-        starts_at = to_utc(zone, date, slot[:starts_minute])
-        ends_at = to_utc(zone, date, slot[:ends_minute])
+        starts_at = to_utc(zone, date, slot.starts_minute)
+        ends_at = to_utc(zone, date, slot.ends_minute)
         Interval.new(starts_at:, ends_at:) if starts_at < ends_at
       end
       private_class_method :expand_slot

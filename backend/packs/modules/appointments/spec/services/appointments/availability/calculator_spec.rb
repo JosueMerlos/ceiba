@@ -4,7 +4,7 @@ RSpec.describe Appointments::Availability::Calculator do
   let(:managua) { "America/Managua" }
   let(:new_york) { "America/New_York" }
 
-  def slot(weekday, from, to) = { weekday:, starts_minute: from * 60, ends_minute: to * 60 }
+  def slot(weekday, from, to) = Appointments::Availability::WeeklySlot.new(weekday:, starts_minute: from * 60, ends_minute: to * 60)
 
   def interval(from, to) = Appointments::Availability::Interval.new(starts_at: from, ends_at: to)
 

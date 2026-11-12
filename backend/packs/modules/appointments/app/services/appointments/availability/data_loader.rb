@@ -24,10 +24,10 @@ module Appointments
       end
 
       def call
-        slots = weekly_slots
+        branch_slots, professional_slots = weekly_slots
         Loaded.new(settings: Modules.settings_for(:appointments, company: @company, branch: @branch),
                    duration_minutes: override_duration || @service.duration_minutes,
-                   branch_slots: slots.fetch("branch", []), professional_slots: slots.fetch("professional", []),
+                   branch_slots:, professional_slots:,
                    time_offs: time_offs, busy: busy)
       end
 
@@ -37,16 +37,16 @@ module Appointments
         BranchServiceOverride.where(service_id: @service.id, branch_id: @branch.id).pick(:duration_minutes)
       end
 
-      # Branch hours and this professional's hours at the branch, in one query, grouped by owner.
+      # Branch hours and this professional's hours at the branch, in one query.
       def weekly_slots
-        WeeklySchedule.where(branch_id: @branch.id)
-                      .where("owner_type = 'branch' OR professional_id = ?", @professional.id)
-                      .pluck(:owner_type, :weekday, :starts_at_local, :ends_at_local)
-                      .group_by(&:first)
-                      .transform_values { |rows| rows.map { |_, weekday, from, to| slot(weekday, from, to) } }
+        rows = WeeklySchedule.where(branch_id: @branch.id)
+                             .where("owner_type = 'branch' OR professional_id = ?", @professional.id)
+                             .pluck(:owner_type, :weekday, :starts_at_local, :ends_at_local)
+        branch_rows, professional_rows = rows.partition { |owner_type, *| owner_type == "branch" }
+        [ branch_rows, professional_rows ].map { |owned| owned.map { |_, weekday, from, to| slot(weekday, from, to) } }
       end
 
-      def slot(weekday, from, to) = { weekday:, starts_minute: minutes(from), ends_minute: minutes(to) }
+      def slot(weekday, from, to) = WeeklySlot.new(weekday:, starts_minute: minutes(from), ends_minute: minutes(to))
 
       # `time` columns come back as a Time on a dummy date; only the wall-clock minute of the day matters.
       def minutes(time) = (time.hour * MINUTES_IN_HOUR) + time.min

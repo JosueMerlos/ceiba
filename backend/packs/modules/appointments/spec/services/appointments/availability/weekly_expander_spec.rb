@@ -3,9 +3,9 @@ require "rails_helper"
 RSpec.describe Appointments::Availability::WeeklyExpander do
   let(:new_york) { "America/New_York" }
 
-  def slot(weekday, from, to) = { weekday:, starts_minute: from * 60, ends_minute: to * 60 }
+  def slot(weekday, from, to) = Appointments::Availability::WeeklySlot.new(weekday:, starts_minute: from * 60, ends_minute: to * 60)
 
-  def slot_minutes(weekday, from, to) = { weekday:, starts_minute: from, ends_minute: to }
+  def slot_minutes(weekday, from, to) = Appointments::Availability::WeeklySlot.new(weekday:, starts_minute: from, ends_minute: to)
 
   def expand(slots, zone, from, to) = described_class.call(slots:, time_zone: zone, from_date: from, to_date: to)
 
