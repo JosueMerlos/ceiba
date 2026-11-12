@@ -9,7 +9,7 @@ require "json"
 module RateLimiting
   LOGIN_PATH = %r{\A/api/v1/auth/login(\.\w+)?\z} # with or without a format extension: Rails would accept it too
   # The public availability route, with the slug captured as any non-slash segment: whether it is a valid slug is the endpoint's
-  # call (a 404), not this layer's. Compared on the DECODED, slash-squeezed path and ignoring case, which is how the router will
+  # call (a 404), not this layer's. Compared on the DECODED, slash-squeezed path, ignoring case and surrounding whitespace, which is how the router will
   # resolve it: a variant must not slip past with a counter of its own while still reaching the endpoint.
   PUBLIC_AVAILABILITY_PATH = %r{\A/api/public/v1/c/([^/]+)/availability/?\z}i
   PROBE_PATHS = %w[/api/health /api/ready].freeze
@@ -61,10 +61,11 @@ module RateLimiting
 
   def probe?(request) = PROBE_PATHS.include?(request.path)
 
-  # The company slug (lowercase) of an anonymous availability request, or nil for any other path.
+  # The company slug of an anonymous availability request, normalized as Tenancy::PublicDirectory does (strip and downcase), or
+  # nil for any other path. HEAD counts too: Rails routes it to the GET endpoint.
   def public_availability_slug(request)
     path = Rack::Utils.unescape_path(request.path).squeeze("/")
-    PUBLIC_AVAILABILITY_PATH.match(path)&.captures&.first&.downcase if request.get? && path.valid_encoding?
+    PUBLIC_AVAILABILITY_PATH.match(path)&.captures&.first&.strip&.downcase if (request.get? || request.head?) && path.valid_encoding?
   rescue ArgumentError
     nil
   end
