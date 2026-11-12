@@ -11,7 +11,7 @@ module Appointments
     module_function
 
     def call(company:, branch:, service:, professional:, from_date:, to_date:, now: Time.current)
-      ensure_eligible!(branch:, service:, professional:, from_date:, to_date:)
+      ensure_eligible!(branch:, service:, professional:, from_date:, to_date:, now:)
       loaded = DataLoader.call(company:, branch:, service:, professional:, from_date:, to_date:)
       slots = Calculator.call(**loaded.to_h, time_zone: branch.time_zone, from_date:, to_date:, now:)
       Result.new(slots:, duration_minutes: loaded.duration_minutes, step_minutes: loaded.step_minutes)
@@ -19,8 +19,8 @@ module Appointments
 
     # Shared eligibility check for non-HTTP callers such as booking. Raises InvalidRequest with every reason the request
     # cannot be answered.
-    def ensure_eligible!(branch:, service:, professional:, from_date:, to_date:)
-      errors = professional_errors(branch, professional) + service_errors(service, professional) + range_errors(from_date, to_date)
+    def ensure_eligible!(branch:, service:, professional:, from_date:, to_date:, now: Time.current)
+      errors = professional_errors(branch, professional) + service_errors(service, professional) + range_errors(branch, from_date, to_date, now)
       raise InvalidRequest, errors if errors.any?
     end
 
@@ -39,9 +39,11 @@ module Appointments
       errors
     end
 
-    def range_errors(from_date, to_date)
-      valid = from_date <= to_date && (to_date - from_date).to_i < MAX_RANGE_DAYS
-      valid ? [] : [ { field: :to, code: :invalid_range } ]
+    def range_errors(branch, from_date, to_date, now)
+      errors = []
+      errors << { field: :from, code: :too_early } if from_date < now.in_time_zone(branch.time_zone).to_date - 1
+      errors << { field: :to, code: :invalid_range } unless from_date <= to_date && (to_date - from_date).to_i < MAX_RANGE_DAYS
+      errors
     end
 
     private_class_method :professional_errors, :service_errors, :range_errors

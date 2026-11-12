@@ -55,5 +55,7 @@ es-NI:
         service_id:
           inactive: "el servicio está inactivo o archivado"
           not_provided: "el profesional no presta este servicio"
+        from:
+          too_early: "`from` no puede ser anterior a ayer en la hora local de la sucursal"
         to:
           invalid_range: "el rango debe ir de `from` a `to` (sin que `to` sea anterior) y abarcar hasta 31 días"
