@@ -236,7 +236,7 @@ RSpec.describe Appointments::Availability do
     context "con datos de una empresa hermana de la misma organización" do
       def sibling = @sibling ||= create_in(organization, :company)
 
-      it "un profesional de otra empresa se rechaza sin consultar nada más" do
+      it "un profesional de otra empresa devuelve exactamente wrong_company y ningún otro error" do
         foreign = create_in(organization, :professional, company: sibling)
 
         expect(errors_of(professional: foreign)).to eq([ { field: :professional_id, code: :wrong_company } ])

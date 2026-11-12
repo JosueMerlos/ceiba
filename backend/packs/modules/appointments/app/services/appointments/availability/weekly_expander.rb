@@ -3,8 +3,9 @@ module Appointments
     # Expands weekly local-time slots into UTC intervals, day by day, in the branch's zone. This is the single place where
     # local wall-clock time becomes UTC.
     #
-    # DST: a nonexistent local time (spring gap) is clamped to the transition instant, and an ambiguous one (fall repeat)
-    # takes its first occurrence. ActiveSupport::TimeZone#local is avoided on purpose: it shifts a gap time forward an hour.
+    # DST: a nonexistent local time (spring gap) is clamped to the transition instant. An ambiguous one (fall repeat) takes the
+    # DST-flagged occurrence, which is the first one wherever summer is DST. ActiveSupport::TimeZone#local is avoided on
+    # purpose: it shifts a gap time forward an hour.
     module WeeklyExpander
       module_function
 

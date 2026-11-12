@@ -31,7 +31,7 @@ RSpec.describe Appointments::Appointment do
       engine_index = ActiveRecord::Base.connection.indexes(:appointments).find { it.name == "idx_appointments_professional_blocks" }
 
       expect(engine_index.columns).to eq(%w[organization_id professional_id blocks_to])
-      expect(engine_index.where).to include("cancelled").and include("rescheduled").and match(/status/)
+      expect(engine_index.where).to include("cancelled").and include("rescheduled").and include("status")
       expect(indexed_columns).not_to include(%w[organization_id professional_id blocks_from])
     end
 

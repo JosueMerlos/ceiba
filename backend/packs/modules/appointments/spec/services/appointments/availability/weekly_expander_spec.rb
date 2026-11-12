@@ -83,5 +83,11 @@ RSpec.describe Appointments::Availability::WeeklyExpander do
 
       expect(utc_pairs(result)).to eq([ [ "2026-11-01T05:30:00Z", "2026-11-01T08:00:00Z" ] ])
     end
+
+    it "00:00-01:30 cierra en la primera ocurrencia de 01:30: 04:00Z-05:30Z (1 h 30 reales)" do
+      result = expand([ slot_minutes(0, 0, 90) ], new_york, Date.new(2026, 11, 1), Date.new(2026, 11, 1))
+
+      expect(utc_pairs(result)).to eq([ [ "2026-11-01T04:00:00Z", "2026-11-01T05:30:00Z" ] ])
+    end
   end
 end

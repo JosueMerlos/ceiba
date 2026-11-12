@@ -53,6 +53,7 @@ module Appointments
       # `time` columns come back as a Time on a dummy date; only the wall-clock minute of the day matters.
       def minutes(time) = (time.hour.hours + time.min.minutes).in_minutes.to_i
 
+      # The `company_id` filters below are defense in depth for non-HTTP callers; the composite FKs already prevent cross-company rows.
       # The absence belongs to the person, so it counts in every branch.
       def time_offs
         intervals(TimeOff.where(company_id: @company.id, professional_id: @professional.id).overlapping(@range_from, @range_to).pluck(:starts_at, :ends_at))
