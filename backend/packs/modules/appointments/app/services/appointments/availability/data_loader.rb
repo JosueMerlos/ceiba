@@ -2,7 +2,7 @@ module Appointments
   module Availability
     # The only place that loads the calculation inputs. It issues a FIXED set of queries whatever the number of days, services,
     # professionals or resources asked for (settings, overrides, resource requirements, eligible professionals, candidate
-    # resources, weekly hours, absences, blocking appointments) and returns plain values for the pure core. Must run inside a
+    # resources, weekly hours, absences, blocking appointments of the professionals and of the resources) and returns plain values for the pure core. Must run inside a
     # tenant context.
     class DataLoader
       # Every field but the plan's own is a Calculator keyword, so a Loaded splats straight into it (the plan too).
@@ -16,11 +16,13 @@ module Appointments
 
       def self.call(...) = new(...).call
 
-      def initialize(company:, branch:, services:, professional:, from_date:, to_date:)
+      # `requirements` is the [[service_id, kind]] list when the caller already read it (eligibility does); nil reads it here.
+      def initialize(company:, branch:, services:, professional:, from_date:, to_date:, requirements: nil)
         @company = company
         @branch = branch
         @services = services
         @professional = professional
+        @requirements = requirements
         @zone = ActiveSupport::TimeZone[branch.time_zone]
         @range_from = (from_date - MARGIN_BEFORE_DAYS).in_time_zone(@zone).utc
         @range_to = (to_date + MARGIN_AFTER_DAYS).in_time_zone(@zone).utc
@@ -31,13 +33,14 @@ module Appointments
         plan = service_plan
         professional_ids = eligible_professional_ids
         resource_rows = plan.required_kinds.any? ? candidate_resources(plan.required_kinds) : []
-        weekly = weekly_slots(professional_ids, resource_rows.map(&:first))
-        busy_rows = busy_appointments(professional_ids)
+        resource_ids = resource_rows.map(&:first)
+        weekly = weekly_slots(professional_ids, resource_ids)
+        busy_rows = busy_appointments(:professional_id, professional_ids)
 
         Loaded.new(step_minutes: settings.fetch("slot_step_minutes"), min_lead_minutes: settings.fetch("min_lead_time_minutes"),
                    max_advance_days: settings.fetch("max_advance_days"), plan:, branch_slots: weekly.fetch(:branch),
                    professionals: owners(professional_ids, weekly[:professional], time_offs(:professional_id, professional_ids), busy_rows),
-                   resources: owners(resource_rows.map(&:first), weekly[:resource], time_offs(:resource_id, resource_rows.map(&:first)), {})
+                   resources: owners(resource_ids, weekly[:resource], time_offs(:resource_id, resource_ids), busy_appointments(:resource_id, resource_ids))
                                 .map { |own| own.merge(kind: resource_rows.to_h.fetch(own[:id])) },
                    required_kinds: plan.required_kinds, load_by_day: load_by_day(busy_rows))
       end
@@ -50,7 +53,8 @@ module Appointments
         overrides = BranchServiceOverride.where(company_id: @company.id, branch_id: @branch.id, service_id: service_ids)
                                          .pluck(:service_id, :duration_minutes, :price_minor)
                                          .to_h { |id, duration, price| [ id, { duration_minutes: duration, price_minor: price } ] }
-        kinds = ServiceResourceRequirement.where(company_id: @company.id, service_id: service_ids).pluck(:service_id, :kind).group_by(&:first)
+        kinds = (@requirements || ServiceResourceRequirement.where(company_id: @company.id, service_id: service_ids).pluck(:service_id, :kind))
+                  .group_by(&:first)
         items = @services.map do |service|
           ServicePlan::Item.new(id: service.id, duration_minutes: service.duration_minutes, buffer_before_minutes: service.buffer_before_minutes,
                                 buffer_after_minutes: service.buffer_after_minutes, price_minor: service.price_minor,
@@ -101,13 +105,13 @@ module Appointments
         rows.group_by(&:first).transform_values { |own| intervals(own.map { |_, from, to| [ from, to ] }) }
       end
 
-      # One agenda per person: appointments in any branch occupy the professional. Rows of [professional_id, blocks_from, blocks_to,
-      # starts_at].
-      def busy_appointments(professional_ids)
-        return {} if professional_ids.empty?
+      # Blocking appointments of the owners (professionals or resources). One agenda per person: appointments in any branch occupy
+      # the professional. Rows of [owner id, blocks_from, blocks_to, starts_at], grouped by owner id.
+      def busy_appointments(column, ids)
+        return {} if ids.empty?
 
-        Appointment.blocking.where(company_id: @company.id, professional_id: professional_ids).overlapping(@range_from, @range_to)
-                   .pluck(:professional_id, :blocks_from, :blocks_to, :starts_at).group_by(&:first)
+        Appointment.blocking.where(company_id: @company.id, column => ids).overlapping(@range_from, @range_to)
+                   .pluck(column, :blocks_from, :blocks_to, :starts_at).group_by(&:first)
       end
 
       def owners(ids, weekly, time_offs, busy)

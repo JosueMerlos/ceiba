@@ -14,8 +14,8 @@ module Appointments
 
     # `services` is the ordered list of Service records asked for; `professional` is a Professional or :any.
     def call(company:, branch:, services:, professional:, from_date:, to_date:, now: Time.current)
-      ensure_eligible!(company:, branch:, services:, professional:, from_date:, to_date:, now:)
-      loaded = DataLoader.call(company:, branch:, services:, professional:, from_date:, to_date:)
+      requirements = ensure_eligible!(company:, branch:, services:, professional:, from_date:, to_date:, now:)
+      loaded = DataLoader.call(company:, branch:, services:, professional:, from_date:, to_date:, requirements:)
       slots = Calculator.call(**loaded.to_h, time_zone: branch.time_zone, from_date:, to_date:, now:)
       plan = loaded.plan
       Result.new(slots:, duration_minutes: plan.duration_minutes, buffer_before_minutes: plan.buffer_before_minutes,
@@ -23,14 +23,17 @@ module Appointments
     end
 
     # Shared eligibility check for non-HTTP callers such as booking. Raises InvalidRequest with every reason the request
-    # cannot be answered.
+    # cannot be answered. Returns the [[service_id, kind]] resource requirements it read, so the loader does not read them again.
     def ensure_eligible!(company:, branch:, services:, professional:, from_date:, to_date:, now: Time.current)
       foreign = company_errors(company, branch:, services:, professional:)
       raise InvalidRequest, foreign if foreign.any?
 
-      errors = branch_errors(branch) + professional_errors(company, branch, professional) + service_errors(company, services, professional) +
-               range_errors(branch, from_date, to_date, now)
+      requirements = requirement_rows(company, services)
+      errors = branch_errors(branch) + professional_errors(company, branch, professional) +
+               service_errors(company, services, professional, requirements) + range_errors(branch, from_date, to_date, now)
       raise InvalidRequest, errors if errors.any?
+
+      requirements
     end
 
     # Everything the request names must belong to the company asked about; a mismatch is reported alone (once per field) so
@@ -57,7 +60,7 @@ module Appointments
 
     # Each check is one grouped query whatever the number of services. With `:any` nobody is required to provide them: the
     # eligible professionals are simply the ones who do, possibly none.
-    def service_errors(company, services, professional)
+    def service_errors(company, services, professional, requirements)
       return [ { field: :service_ids, code: :blank } ] if services.empty?
 
       ids = services.map(&:id)
@@ -66,8 +69,14 @@ module Appointments
       codes << :duplicated if ids.uniq.size != ids.size
       codes << :inactive if services.any? { it.archived? || !it.active }
       codes << :not_provided if professional != :any && !provides_all?(company, professional, ids.uniq)
-      codes << :multiple_resource_kinds if ServiceResourceRequirement.where(company_id: company.id, service_id: ids).distinct.count(:kind) > 1
+      codes << :multiple_resource_kinds if requirements.map(&:last).uniq.size > 1
       codes.map { { field: :service_ids, code: it } }
+    end
+
+    def requirement_rows(company, services)
+      return [] if services.empty?
+
+      ServiceResourceRequirement.where(company_id: company.id, service_id: services.map(&:id)).pluck(:service_id, :kind)
     end
 
     def provides_all?(company, professional, ids)
@@ -81,6 +90,6 @@ module Appointments
       errors
     end
 
-    private_class_method :company_errors, :branch_errors, :professional_errors, :service_errors, :provides_all?, :range_errors
+    private_class_method :company_errors, :branch_errors, :professional_errors, :service_errors, :requirement_rows, :provides_all?, :range_errors
   end
 end
