@@ -11,18 +11,27 @@ module Appointments
 
     private
 
-    # { service_ids: [uuid...] in the requested order, professional_id: uuid or :any, from:, to: }
+    # { service_ids: [uuid...] in the requested order, professional_id: uuid or :any, from:, to: } (plus branch_id where the
+    # route does not name the branch).
     def availability_query
       reject_repeated_query_params
-      values = QUERY_PARAMS.index_with { required_query_param(it) }
-      { service_ids: uuid_list(values["service_ids"], :service_ids), professional_id: professional_param(values["professional_id"]),
-        from: date(values["from"], :from), to: date(values["to"], :to) }
+      values = query_names.index_with { required_query_param(it) }
+      service_ids = uuid_list(values["service_ids"], :service_ids)
+      validate_service_ids!(service_ids)
+      { service_ids:, professional_id: professional_param(values["professional_id"]), from: date(values["from"], :from), to: date(values["to"], :to) }
+        .merge(values.key?("branch_id") ? { branch_id: uuid(values["branch_id"], :branch_id) } : {})
     end
+
+    # The parameters the request must carry; a controller that needs more (the public one names the branch in the query) extends it.
+    def query_names = QUERY_PARAMS
+
+    # Hook: a controller may reject a list that is the wrong shape for it before anything is looked up.
+    def validate_service_ids!(_ids); end
 
     # Rack keeps the last value of a repeated parameter and the rest vanish silently; the raw query string still shows them.
     def reject_repeated_query_params
       raw = Rack::Utils.parse_query(request.query_string)
-      repeated = QUERY_PARAMS.find { raw[it].is_a?(Array) }
+      repeated = query_names.find { raw[it].is_a?(Array) }
       raise ActionController::BadRequest, "#{repeated} must be a single value" if repeated
     end
 

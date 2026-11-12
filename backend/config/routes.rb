@@ -19,5 +19,10 @@ Rails.application.routes.draw do
       draw(:customers)
       draw(:appointments)
     end
+
+    # Public API v1: anonymous, by company slug. Each pack contributes its controllers under Api::Public::V1::<Pack>.
+    scope path: "public/v1", module: "api/public/v1" do
+      draw(:appointments_public)
+    end
   end
 end

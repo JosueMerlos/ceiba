@@ -9,7 +9,8 @@ module RuboCop
       # Zeitwerk already requires the file path to match the constant; this cop requires the constant to start with the
       # pack the file belongs to, so a file cannot "sneak" into another pack's namespace or sit without one.
       #
-      # Controllers may hang from `Api::V1::<Pack>` (routes under /api/v1).
+      # Controllers may hang from `Api::V1::<Pack>` (routes under /api/v1) or `Api::Public::V1::<Pack>` (the anonymous
+      # surface under /api/public/v1).
       #
       # @example
       #   # bad (packs/modules/appointments/app/models/appointments/booking.rb)
@@ -37,7 +38,7 @@ module RuboCop
 
         def allowed_namespaces(pack_name, kind)
           namespace = pack_name.split("_").map(&:capitalize).join
-          kind == "controllers" ? [ namespace, "Api::V1::#{namespace}" ] : [ namespace ]
+          kind == "controllers" ? [ namespace, "Api::V1::#{namespace}", "Api::Public::V1::#{namespace}" ] : [ namespace ]
         end
 
         def top_level_nodes
