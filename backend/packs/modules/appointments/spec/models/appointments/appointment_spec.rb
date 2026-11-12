@@ -8,6 +8,31 @@ RSpec.describe Appointments::Appointment do
 
   def build_for(**attributes) = build(:appointment, professional:, branch:, **attributes)
 
+  describe "índices" do
+    let(:connection) { ActiveRecord::Base.connection }
+    let(:indexed_columns) { connection.indexes(:appointments).map(&:columns) }
+
+    it "toda clave foránea tiene un índice que empieza por sus columnas", :aggregate_failures do
+      connection.foreign_keys(:appointments).each do |foreign_key|
+        columns = Array(foreign_key.column)
+
+        expect(indexed_columns).to include(a_collection_starting_with(columns)), "#{foreign_key.name} has no index"
+      end
+    end
+
+    it "todo índice compuesto empieza por organization_id" do
+      expect(indexed_columns.select { it.size > 1 }.map(&:first).uniq).to eq(%w[organization_id])
+    end
+
+    it "tiene los índices de agenda y el de lectura del motor", :aggregate_failures do
+      expect(indexed_columns).to include(%w[organization_id branch_id starts_at], %w[organization_id professional_id starts_at],
+                                         %w[organization_id professional_id blocks_from])
+      expect(indexed_columns).not_to include(%w[professional_id blocks_from])
+    end
+
+    def a_collection_starting_with(columns) = satisfy { |candidate| candidate.first(columns.size) == columns }
+  end
+
   describe ".blocking" do
     it "excluye las citas canceladas y reprogramadas y conserva el resto", :aggregate_failures do
       with_tenant(organization) do
