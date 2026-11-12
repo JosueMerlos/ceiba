@@ -1074,7 +1074,7 @@ CREATE INDEX idx_appointments_professional ON public.appointments USING btree (o
 -- Name: idx_appointments_professional_blocks; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_appointments_professional_blocks ON public.appointments USING btree (organization_id, professional_id, blocks_from);
+CREATE INDEX idx_appointments_professional_blocks ON public.appointments USING btree (organization_id, professional_id, blocks_to) WHERE (((status)::text <> 'cancelled'::text) AND ((status)::text <> 'rescheduled'::text));
 
 
 --

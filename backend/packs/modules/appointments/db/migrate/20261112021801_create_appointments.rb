@@ -28,8 +28,11 @@ class CreateAppointments < ActiveRecord::Migration[8.1]
       # The agendas: one branch's day and one professional's day.
       t.index %i[organization_id branch_id starts_at], name: "idx_appointments_branch_starts"
       t.index %i[organization_id professional_id starts_at], name: "idx_appointments_professional_starts"
-      # What the engine reads: the blocking slots of a professional by range, in every branch.
-      t.index %i[organization_id professional_id blocks_from], name: "idx_appointments_professional_blocks"
+      # What the engine reads: the blocking slots of a professional, in every branch, that end after the range starts. Partial on
+      # the statuses that still occupy the agenda, and ordered by blocks_to, so `blocks_to > from` skips the past history and
+      # the released rows instead of scanning them.
+      t.index %i[organization_id professional_id blocks_to], name: "idx_appointments_professional_blocks",
+        where: "status <> 'cancelled' AND status <> 'rescheduled'"
     end
   end
 end
