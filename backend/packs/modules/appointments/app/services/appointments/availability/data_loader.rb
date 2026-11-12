@@ -1,12 +1,15 @@
 module Appointments
   module Availability
-    # The only place of the availability engine that touches the database. It issues a FIXED set of queries whatever the
-    # number of days asked for (settings, duration override, weekly hours, absences, blocking appointments) and returns plain
-    # values for the pure core. Must run inside a tenant context.
+    # The only place that loads the calculation inputs. It issues a FIXED set of queries whatever the number of days asked
+    # for (settings, duration override, weekly hours, absences, blocking appointments) and returns plain values for the pure
+    # core. Must run inside a tenant context.
     class DataLoader
-      Loaded = Data.define(:settings, :duration_minutes, :branch_slots, :professional_slots, :time_offs, :busy)
+      # Every field is a Calculator keyword, so a Loaded splats straight into it.
+      Loaded = Data.define(:step_minutes, :min_lead_minutes, :max_advance_days, :duration_minutes, :branch_slots, :professional_slots,
+                           :time_offs, :busy)
 
-      # A day on each side of the asked dates covers the zone offset at the borders.
+      # The range runs from local midnight of from_date - 1 to that of to_date + 2: to_date + 1 is the exclusive end of the asked
+      # dates and the extra day on each side covers the zone offset at the borders.
       MARGIN_BEFORE_DAYS = 1
       MARGIN_AFTER_DAYS = 2
       MINUTES_IN_HOUR = 60
@@ -25,10 +28,10 @@ module Appointments
 
       def call
         branch_slots, professional_slots = weekly_slots
-        Loaded.new(settings: Modules.settings_for(:appointments, company: @company, branch: @branch),
-                   duration_minutes: override_duration || @service.duration_minutes,
-                   branch_slots:, professional_slots:,
-                   time_offs: time_offs, busy: busy)
+        settings = Modules.settings_for(:appointments, company: @company, branch: @branch)
+        Loaded.new(step_minutes: settings.fetch("slot_step_minutes"), min_lead_minutes: settings.fetch("min_lead_time_minutes"),
+                   max_advance_days: settings.fetch("max_advance_days"), duration_minutes: override_duration || @service.duration_minutes,
+                   branch_slots:, professional_slots:, time_offs:, busy:)
       end
 
       private

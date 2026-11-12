@@ -13,17 +13,12 @@ module Appointments
     def call(company:, branch:, service:, professional:, from_date:, to_date:, now: Time.current)
       ensure_eligible!(branch:, service:, professional:, from_date:, to_date:)
       loaded = DataLoader.call(company:, branch:, service:, professional:, from_date:, to_date:)
-      settings = loaded.settings
-
-      step_minutes = settings.fetch("slot_step_minutes")
-      slots = Calculator.call(branch_slots: loaded.branch_slots, professional_slots: loaded.professional_slots, time_offs: loaded.time_offs,
-                              busy: loaded.busy, time_zone: branch.time_zone, from_date:, to_date:, duration_minutes: loaded.duration_minutes,
-                              step_minutes:, now:, min_lead_minutes: settings.fetch("min_lead_time_minutes"),
-                              max_advance_days: settings.fetch("max_advance_days"))
-      Result.new(slots:, duration_minutes: loaded.duration_minutes, step_minutes:)
+      slots = Calculator.call(**loaded.to_h, time_zone: branch.time_zone, from_date:, to_date:, now:)
+      Result.new(slots:, duration_minutes: loaded.duration_minutes, step_minutes: loaded.step_minutes)
     end
 
-    # Raises InvalidRequest with every reason the request cannot be answered.
+    # Shared eligibility check for non-HTTP callers such as booking. Raises InvalidRequest with every reason the request
+    # cannot be answered.
     def ensure_eligible!(branch:, service:, professional:, from_date:, to_date:)
       errors = professional_errors(branch, professional) + service_errors(service, professional) + range_errors(from_date, to_date)
       raise InvalidRequest, errors if errors.any?
@@ -32,6 +27,7 @@ module Appointments
     def professional_errors(branch, professional)
       errors = []
       errors << { field: :professional_id, code: :inactive } if professional.archived? || !professional.active
+      # Guards callers that do not resolve the professional through the branch.
       errors << { field: :professional_id, code: :not_assigned } unless ProfessionalBranchAssignment.exists?(professional_id: professional.id, branch_id: branch.id)
       errors
     end
