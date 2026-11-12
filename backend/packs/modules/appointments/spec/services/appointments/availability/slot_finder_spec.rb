@@ -20,6 +20,22 @@ RSpec.describe Appointments::Availability::SlotFinder do
 
   def managua_starts(slots) = slots.map { |slot| slot.starts_at.in_time_zone(managua).strftime("%H:%M") }
 
+  describe "segundos fraccionarios" do
+    it "un tramo libre que empieza a las 10:00:00.5 no ofrece las 10:00 (el inicio se redondea hacia arriba)" do
+      free = free_set([ managua_time(10) + 0.5, managua_time(13) ])
+
+      expect(managua_starts(find(free))).to eq(%w[10:15 10:30 10:45 11:00 11:15 11:30 11:45 12:00 12:15 12:30])
+    end
+
+    it "con `now` a las 09:00:00.9 y anticipación 0 no ofrece las 09:00" do
+      free = free_set([ managua_time(9), managua_time(11) ])
+
+      slots = find(free, now: managua_time(9) + 0.9)
+
+      expect(managua_starts(slots)).to eq(%w[09:15 09:30 09:45 10:00 10:15 10:30])
+    end
+  end
+
   describe "rejilla y huecos" do
     it "ofrece cada paso dentro de cada tramo libre y ninguno que cruce una cita (horario 9-13, cita 10:00-10:30)" do
       free = free_set([ managua_time(9), managua_time(10) ], [ managua_time(10, 30), managua_time(13) ])
