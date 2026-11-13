@@ -40,3 +40,4 @@ Cada decisión relevante tiene su ADR ([plantilla](../templates/adr.md)). Un ADR
 | [0034](0034-horarios-ausencias-y-permisos-de-profesionales-y-recursos.md) | Horarios por defecto solo al activar, permisos de profesionales y recursos, ausencias con motivo libre y dueño explícito | aceptada |
 | [0035](0035-motor-de-disponibilidad-caso-base.md) | Motor de disponibilidad: núcleo puro con cargador de consultas fijas, agenda única por persona, rejilla del reloj local y regla de DST | aceptada |
 | [0036](0036-motor-de-disponibilidad-completo-y-superficie-publica.md) | Motor de disponibilidad completo (servicios, buffers, `:any`, recursos) y su superficie pública anónima | aceptada |
+| [0037](0037-reserva-atomica.md) | Reserva atómica: `Book` como único creador, `tsrange`, candados por persona y por tipo de recurso | aceptada |

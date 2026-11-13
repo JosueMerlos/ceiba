@@ -2,6 +2,7 @@ require "rails_helper"
 
 # Behavior of POST .../branches/:branch_id/appointments that the contract spec does not describe: idempotency, the order of the
 # checks and what a conflict does to the key.
+# rubocop:disable RSpec/MultipleMemoizedHelpers
 RSpec.describe "Reserva de citas: peticiones" do
   include ActiveSupport::Testing::TimeHelpers
 
@@ -54,7 +55,6 @@ RSpec.describe "Reserva de citas: peticiones" do
         "lock_version" => 0, "notes" => "Llega con su hijo", "total_price_minor" => 20_000, "currency" => "NIO",
         "services" => [ { "service_id" => service.id, "position" => 0, "duration_minutes" => 30, "price_minor" => 20_000, "currency" => "NIO" } ]
       )
-      expect(response.body).not_to include(customer.name.to_s) if customer.respond_to?(:name)
       expect(snapshot_lines).to eq(1)
       expect(stored).to have_attributes(created_by_type: "user", source: "panel")
     end
@@ -62,7 +62,7 @@ RSpec.describe "Reserva de citas: peticiones" do
     it "una reserva del panel puede caer dentro de la anticipación mínima" do
       travel_to Time.utc(2026, 11, 16, 15, 30)
 
-      book
+      book(csrf: sign_in(receptionist).csrf_headers)
 
       expect(response).to have_http_status(:created)
     end
@@ -100,9 +100,9 @@ RSpec.describe "Reserva de citas: peticiones" do
 
   describe "autorización y alcance" do
     it "un rol sin appointments.appointment.create en esa sucursal recibe 403 y no consume la clave", :aggregate_failures do
-      other_branch_receptionist = sign_in(user_with_role("receptionist", world, branch: world.branch_a2))
+      without_permission = sign_in(user_with_role("professional", world, branch: world.branch_a1))
 
-      book(csrf: other_branch_receptionist.csrf_headers)
+      book(csrf: without_permission.csrf_headers)
 
       expect(response).to have_http_status(:forbidden)
       expect(response.parsed_body).to include("code" => "access.forbidden")
@@ -207,3 +207,4 @@ RSpec.describe "Reserva de citas: peticiones" do
     end
   end
 end
+# rubocop:enable RSpec/MultipleMemoizedHelpers

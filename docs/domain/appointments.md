@@ -79,22 +79,33 @@ Todas son tablas tenant (`create_tenant_table`) con FKs compuestas hacia sus pad
 - **Recursos:** un solo tipo por petición (`multiple_resource_kinds` si se piden más); el recurso libre de menor `id`; un recurso sin franjas sigue el horario de la sucursal. `appointments.resource_id` existe desde este hito (sin `no_overlap_resource`, que llega con `Book`).
 - **Superficie pública** `GET /api/public/v1/c/:slug/availability`: sin datos personales, `404` uniforme, hasta 14 días, caché de 30 s y regla 5 de Rack::Attack.
 
+### Cómo quedó implementado (M1.05)
+
+- **`appointments` recreada con las constraints de agenda** (la tabla estaba vacía; una guarda hace fallar la migración si no lo está): `no_overlap_professional` y `no_overlap_resource` sobre `tsrange [)`, `chk_appointments_valid_interval`, FKs compuestas del recurso (a la sucursal) y del cliente (a la empresa), y las columnas `customer_id`, `source`, `notes` (cifradas), `lock_version`, `created_by_type`/`created_by_id` y `rescheduled_from_id`. `appointment_services` guarda el snapshot inmutable de duración, buffers y precio por servicio ([ADR-0037](../adr/0037-reserva-atomica.md)).
+- **`Book` es el único creador**, y el cop `Ceiba/AppointmentCreation` lo hace cumplir: toma `pg_advisory_xact_lock` sobre la persona (`professionals.user_id`, o el id del profesional) y después sobre (sucursal, tipo de recurso), siempre en ese orden; revalida contra el motor; comprueba la persona entre empresas; inserta; publica el evento y audita, todo en un savepoint.
+- **Conflictos:** un hueco que ya no se ofrece o una `ExclusionViolation` o `Deadlocked` es `409 appointments.slot_unavailable`; la misma persona ocupada en otra empresa es `409 appointments.person_unavailable`. El perdedor de una carrera casi siempre ve al ganador en la revalidación, no en la constraint.
+- **Solo un profesional concreto:** `any` es `422 appointments.booking_invalid` (`professional_id` `any_not_allowed`). El panel reserva con `booking_window: :staff` (sin anticipación mínima ni máxima).
+- **Endpoint** `POST …/appointments/branches/:branch_id/appointments` con `Idempotency-Key` obligatoria y el permiso `appointments.appointment.create` a alcance de sucursal. Responde `201` con la cita, sus líneas y el total, sin datos personales del cliente; un `409` de agenda no consume la clave.
+- **Evento** `appointments.appointment_booked.v1`: solo ids y horas, sin `notes` ni datos del cliente.
+
 ## Restricciones críticas
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
 ALTER TABLE appointments ADD CONSTRAINT no_overlap_professional
-  EXCLUDE USING gist (professional_id WITH =, tstzrange(blocks_from, blocks_to) WITH &&)
+  EXCLUDE USING gist (professional_id WITH =, tsrange(blocks_from, blocks_to, '[)') WITH &&)
   WHERE (status NOT IN ('cancelled', 'rescheduled'));
 
 ALTER TABLE appointments ADD CONSTRAINT no_overlap_resource
-  EXCLUDE USING gist (resource_id WITH =, tstzrange(blocks_from, blocks_to) WITH &&)
+  EXCLUDE USING gist (resource_id WITH =, tsrange(blocks_from, blocks_to, '[)') WITH &&)
   WHERE (resource_id IS NOT NULL AND status NOT IN ('cancelled', 'rescheduled'));
 
-ALTER TABLE appointments ADD CONSTRAINT valid_interval
+ALTER TABLE appointments ADD CONSTRAINT chk_appointments_valid_interval
   CHECK (starts_at < ends_at AND blocks_from <= starts_at AND blocks_to >= ends_at);
 ```
+
+> Las columnas `blocks_*` son `timestamp` sin zona (UTC), por eso `tsrange` y no `tstzrange`. El recurso se ata a la sucursal de la cita con una FK compuesta `(organization_id, branch_id, resource_id)` y el cliente a la empresa con `(organization_id, company_id, customer_id)`.
 
 > `no_show` y `completed` siguen bloqueando su intervalo: el tiempo ya ocurrió. Solo `cancelled` y `rescheduled` lo liberan.
 
@@ -128,7 +139,7 @@ stateDiagram-v2
 | Servicio | Responsabilidad |
 | --- | --- |
 | `Appointments::Availability.call(company:, branch:, services:, professional:, from_date:, to_date:, now:)` (`professional` es un profesional o `:any`) | Devuelve un `Result(slots:, duration_minutes:, buffer_before_minutes:, buffer_after_minutes:, price_minor:, currency:, step_minutes:)`; cada hueco es `Slot(starts_at, ends_at, professional_id, resource_id)` en UTC, con `ends_at = starts_at + duración` (sin buffers) |
-| `Appointments::Book.call(context:, customer:, services:, professional:, starts_at:, source:, idempotency_key:)` | **Único** creador de citas. Calcula el snapshot, valida la persona entre empresas, inserta y traduce la violación de la constraint en `SlotUnavailable` |
+| `Appointments::Book.call(company:, branch:, customer_id:, services:, professional:, starts_at:, source:, notes: nil, actor:, now:, rescheduled_from: nil)` | **Único** creador de citas. Dentro de un savepoint toma los candados (persona y tipo de recurso), revalida contra el motor, comprueba la persona entre empresas, inserta la cita y su snapshot de `appointment_services`, publica `appointment_booked.v1` y audita. Errores: `SlotUnavailable` y `PersonUnavailable` (409), `InvalidBooking` y `Availability::InvalidRequest` (422) |
 | `Appointments::Reschedule.call(appointment:, starts_at:, professional:)` | Bloquea, marca `rescheduled` y llama a `Book` con `rescheduled_from_id` |
 | `Appointments::Transition.call(appointment:, to:, actor:)` | Confirmar, check-in, completar, no-show, cancelar |
 

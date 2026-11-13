@@ -39,6 +39,7 @@ RSpec.describe "API v1: reserva de citas" do
 
   single_schema = { type: :object, required: %w[data], additionalProperties: false, properties: { data: { "$ref" => "#/components/schemas/Appointment" } } }
 
+  def collection_path = "/api/v1/organizations/#{organization_id}/companies/#{company_id}/appointments/branches/#{branch_id}/appointments"
   def stored = with_tenant(world.organization) { Appointments::Appointment.order(:id).to_a }
   def book_slot!(starts_at: Time.utc(2026, 11, 16, 16)) = create_in(world.organization, :appointment, professional:, branch: world.branch_a1, starts_at:, ends_at: starts_at + 30.minutes)
 
@@ -76,10 +77,13 @@ RSpec.describe "API v1: reserva de citas" do
       end
 
       response "400", "sin `Idempotency-Key` (`idempotency.key_required`)" do
-        let("Idempotency-Key") { nil }
         schema "$ref" => "#/components/schemas/Problem"
 
-        run_test! do |response|
+        # rswag always sends the declared header (an empty one is `key_invalid`), so the request without it is made by hand.
+        it "responde 400 idempotency.key_required y no crea nada" do
+          post collection_path, params: body, headers: { "X-CSRF-Token" => signed_in.csrf_token }, as: :json
+
+          expect(response).to have_http_status(:bad_request)
           expect(response.parsed_body["code"]).to eq("idempotency.key_required")
           expect(stored).to be_empty
         end
@@ -138,7 +142,12 @@ RSpec.describe "API v1: reserva de citas" do
       end
 
       response "409", "la misma persona está ocupada en otra empresa del grupo (`appointments.person_unavailable`)" do
-        let(:person) { create(:user) }
+        let(:person) do
+          create(:user).tap do |user|
+            user_with_role("receptionist", world, branch: world.branch_a1, user:)
+            user_with_role("receptionist", world, branch: world.branch_b1, user:)
+          end
+        end
         let(:professional) { create_in(world.organization, :professional, company: world.company_a, user_id: person.id) }
         let!(:elsewhere) do
           other = create_in(world.organization, :professional, company: world.company_b, user_id: person.id)
@@ -148,14 +157,15 @@ RSpec.describe "API v1: reserva de citas" do
 
         run_test! do |response|
           expect(response.parsed_body["code"]).to eq("appointments.person_unavailable")
-          expect(stored).to be_empty
+          expect(stored.map(&:id)).to eq([ elsewhere.id ])
         end
       end
 
       response "409", "la misma `Idempotency-Key` con otro cuerpo (`idempotency.key_reused`)" do
-        before do
-          post request.path, params: body.merge(notes: "Otra"), headers: { "X-CSRF-Token" => signed_in.csrf_token, "Idempotency-Key" => self.send("Idempotency-Key") }, as: :json
+        let!(:first_booking) do
+          post collection_path, params: body.merge(notes: "Otra"), headers: { "X-CSRF-Token" => signed_in.csrf_token, "Idempotency-Key" => send("Idempotency-Key") }, as: :json
         end
+
         schema "$ref" => "#/components/schemas/Problem"
 
         run_test! { |response| expect(response.parsed_body["code"]).to eq("idempotency.key_reused") }

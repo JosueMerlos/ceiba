@@ -17,6 +17,8 @@ Dos reservas simultáneas del mismo hueco son inevitables (staff y página públ
 - **Único punto de entrada:** `Appointments::Book` crea todas las citas, traduce la violación de la constraint en `409 slot_unavailable` y además valida la **persona** entre empresas (la constraint cubre registros, no personas).
 - "El motor sugiere; la base decide."
 
+> **Nota (M1.05):** las exclusiones se implementaron sobre `tsrange(blocks_from, blocks_to, '[)')` y no `tstzrange`, porque las columnas son `timestamp without time zone` y guardan UTC. Los detalles (recreación de la tabla, candados, revalidación y el cop) están en [ADR-0037](0037-reserva-atomica.md).
+
 ## Consecuencias
 
 - **Positivas:** imposible una doble reserva por profesional o recurso, venga de donde venga.
