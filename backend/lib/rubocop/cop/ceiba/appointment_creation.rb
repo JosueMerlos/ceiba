@@ -24,7 +24,7 @@ module RuboCop
 
         CREATORS = %i[
           create create! new insert insert! insert_all insert_all! upsert upsert_all find_or_create_by find_or_create_by!
-          first_or_create first_or_create! create_or_find_by create_or_find_by!
+          first_or_create first_or_create! create_or_find_by create_or_find_by! build find_or_initialize_by first_or_initialize create_with
         ].freeze
         RESTRICT_ON_SEND = CREATORS
 
@@ -47,9 +47,11 @@ module RuboCop
           node
         end
 
+        # The patterns are written from the project root (backend/), but RuboCop may run from the repository root, from a pack or
+        # with absolute paths: matching the end of the path keeps the allowlist independent of the working directory.
         def allowed_file?
-          relative = PathUtil.relative_path(processed_source.file_path.to_s)
-          Array(cop_config["AllowedFiles"]).any? { |pattern| File.fnmatch?(pattern, relative, File::FNM_PATHNAME | File::FNM_EXTGLOB) }
+          path = processed_source.file_path.to_s
+          Array(cop_config["AllowedFiles"]).any? { |pattern| File.fnmatch?("**/#{pattern}", path, File::FNM_PATHNAME | File::FNM_EXTGLOB) }
         end
       end
     end

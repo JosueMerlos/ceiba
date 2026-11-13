@@ -105,7 +105,7 @@ CREATE TABLE public.appointments (
     created_by_type character varying NOT NULL,
     created_by_id uuid,
     rescheduled_from_id uuid,
-    CONSTRAINT chk_appointments_created_by_type CHECK (((created_by_type)::text = ANY ((ARRAY['user'::character varying, 'api_key'::character varying, 'system'::character varying, 'public_token'::character varying])::text[]))),
+    CONSTRAINT chk_appointments_created_by_type CHECK (((created_by_type)::text = ANY ((ARRAY['user'::character varying, 'api_key'::character varying, 'system'::character varying, 'public_token'::character varying, 'platform_staff'::character varying])::text[]))),
     CONSTRAINT chk_appointments_source CHECK (((source)::text = ANY ((ARRAY['panel'::character varying, 'public_booking'::character varying])::text[]))),
     CONSTRAINT chk_appointments_status CHECK (((status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying, 'checked_in'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'rescheduled'::character varying, 'no_show'::character varying])::text[]))),
     CONSTRAINT chk_appointments_valid_interval CHECK (((starts_at < ends_at) AND (blocks_from <= starts_at) AND (blocks_to >= ends_at)))

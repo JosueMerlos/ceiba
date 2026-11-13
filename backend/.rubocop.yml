@@ -141,8 +141,11 @@ Ceiba/AppointmentCreation:
     - "app/**/*.rb"
     - "packs/*/*/app/**/*.rb"
     - "packs/*/*/lib/**/*.rb"
+    - "packs/*/*/db/**/*.rb"
+    - "packs/*/*/config/**/*.rb"
     - "lib/**/*.rb"
     - "db/**/*.rb"
+    - "**/*.rake"
   Exclude:
     - "lib/rubocop/**/*"
     - "**/spec/**/*"

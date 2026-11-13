@@ -35,6 +35,17 @@ RSpec.describe "Traducciones es-NI del módulo de citas" do
     end
   end
 
+  describe "errores de reserva" do
+    {
+      "starts_at.in_the_past" => "la hora de inicio ya pasó",
+      "starts_at.not_on_minute" => "la hora de inicio debe caer en un minuto exacto, sin segundos ni fracciones"
+    }.each do |key, message|
+      it "`#{key}` se traduce a su mensaje" do
+        expect(I18n.t("appointments.booking.errors.#{key}", raise: true)).to eq(message)
+      end
+    end
+  end
+
   describe "validaciones de los modelos" do
     {
       "appointments/resource.attributes.base.archived" => "el recurso está archivado y no admite cambios",

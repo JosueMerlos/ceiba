@@ -3,7 +3,7 @@ module Appointments
   # promises: `typed_params` only reads the body and never lists, so these read what it cannot.
   module RequestParams
     UUID_FORMAT = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
-    ISO_8601_WITH_OFFSET = /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:\d{2})\z/
+    ISO_8601_WITH_OFFSET = /\A(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})\z/
     # Room to let the use case report "too many" for a short overlong list, a bound for a hostile one.
     MAX_LIST_ITEMS = Availability::MAX_SERVICES * 2
     UUID_WITH_SEPARATOR_LENGTH = 37
@@ -27,11 +27,23 @@ module Appointments
 
     # An instant without an offset would silently take the server's zone, so it is rejected.
     def instant(value, name)
-      raise ActionController::BadRequest, "#{name} must be ISO 8601 with a UTC offset" unless ISO_8601_WITH_OFFSET.match?(value)
+      match = ISO_8601_WITH_OFFSET.match(value)
+      raise ActionController::BadRequest, "#{name} must be ISO 8601 with seconds and a UTC offset" unless match
 
-      Time.iso8601(value)
+      parsed = Time.iso8601(value)
+      raise ArgumentError, "calendar overflow" unless same_wall_clock?(parsed, match)
+
+      parsed
     rescue ArgumentError
       raise ActionController::BadRequest, "#{name} must be a valid ISO 8601 instant"
+    end
+
+    # Time.iso8601 rolls a day that does not exist (February 30th) into the next month: reading the parsed time back in the
+    # offset it was written in must give the same digits.
+    def same_wall_clock?(parsed, match)
+      offset = match[7]
+      written = offset == "Z" ? parsed.getutc : parsed.getlocal(offset)
+      [ written.year, written.month, written.day, written.hour, written.min, written.sec ] == match.captures.first(6).map(&:to_i)
     end
 
     def checked_string(value, name)

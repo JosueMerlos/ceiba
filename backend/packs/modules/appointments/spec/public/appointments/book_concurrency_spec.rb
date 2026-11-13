@@ -161,27 +161,36 @@ RSpec.describe Appointments::Book do
     Rails.error.unsubscribe(subscriber)
   end
 
-  it "una cita que se confirma tras la revalidación y antes del INSERT: ExclusionViolation traducida a SlotUnavailable, reportada y la transacción externa sigue usable", :aggregate_failures do
+  def book_after_competitor_commits(world, professional)
+    competitor = -> { Tenancy.with_context(organization:) { create(:appointment, professional:, branch: world[:branch], customer: world[:customer], starts_at:) } }
+    compete_before_insert(competitor) do
+      expect { book(world, professional) }.to raise_error(Appointments::SlotUnavailable) { |error| expect(error.cause).to be_a(ActiveRecord::ExclusionViolation) }
+    end
+  end
+
+  it "una cita que se confirma tras la revalidación y antes del INSERT: ExclusionViolation traducida a SlotUnavailable y la transacción externa sigue usable", :aggregate_failures do
     world = build_company
     professional = add_professional(world)
-    competitor = -> { Tenancy.with_context(organization:) { create(:appointment, professional:, branch: world[:branch], customer: world[:customer], starts_at:) } }
 
-    reports = reported_errors do
-      with_tenant(organization) do
-        compete_before_insert(competitor) do
-          expect { book(world, professional) }.to raise_error(Appointments::SlotUnavailable) { |error| expect(error.cause).to be_a(ActiveRecord::ExclusionViolation) }
-        end
-        create(:service, company: world[:company], name: "Servicio posterior")
-      end
+    with_tenant(organization) do
+      book_after_competitor_commits(world, professional)
+      create(:service, company: world[:company], name: "Servicio posterior")
     end
-
-    expect(reports.size).to eq(1)
-    expect(reports.first).to include(error: an_instance_of(ActiveRecord::ExclusionViolation), handled: true)
-    expect(reports.first[:context]).to eq(company_id: world[:company].id, branch_id: world[:branch].id, professional_id: professional.id, starts_at: starts_at.iso8601)
 
     expect(with_tenant(organization) { Appointments::Service.where(name: "Servicio posterior").count }).to eq(1)
     expect(appointments.size).to eq(1)
     expect(with_tenant(organization) { Appointments::AppointmentService.count + Events::OutboxEvent.where(name: "appointments.appointment_booked.v1").count }).to eq(0)
+  end
+
+  it "esa ExclusionViolation traducida se reporta a Rails.error con solo ids, sin PII", :aggregate_failures do
+    world = build_company
+    professional = add_professional(world)
+
+    reports = reported_errors { with_tenant(organization) { book_after_competitor_commits(world, professional) } }
+
+    expect(reports.size).to eq(1)
+    expect(reports.first).to include(error: an_instance_of(ActiveRecord::ExclusionViolation), handled: true)
+    expect(reports.first[:context]).to eq(company_id: world[:company].id, branch_id: world[:branch].id, professional_id: professional.id, starts_at: starts_at.iso8601)
   end
 
   it "el sillón ocupado por otro profesional tras la revalidación: la exclusión del recurso es la última barrera", :aggregate_failures do

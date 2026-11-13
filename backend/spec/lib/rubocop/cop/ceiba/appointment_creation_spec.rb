@@ -37,7 +37,7 @@ RSpec.describe RuboCop::Cop::Ceiba::AppointmentCreation, :config do
       expect_offense(<<~RUBY, file)
         Appointments::Appointment.create_with(source: "panel").find_or_initialize_by(id: id)
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`find_or_initialize_by` se salta los candados y la revalidación).
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`create_with` se salta los candados y la revalidación).
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`create_with` se salta los candados y la revalidación).
       RUBY
     end
 

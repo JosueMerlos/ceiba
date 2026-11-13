@@ -38,7 +38,7 @@ class RecreateAppointmentsWithAgendaConstraints < ActiveRecord::Migration[8.1]
       t.check_constraint "starts_at < ends_at AND blocks_from <= starts_at AND blocks_to >= ends_at", name: "chk_appointments_valid_interval"
       t.check_constraint "status IN (#{STATUSES.map { |status| "'#{status}'" }.join(', ')})", name: "chk_appointments_status"
       t.check_constraint "source IN ('panel', 'public_booking')", name: "chk_appointments_source"
-      t.check_constraint "created_by_type IN ('user', 'api_key', 'system', 'public_token')", name: "chk_appointments_created_by_type"
+      t.check_constraint "created_by_type IN ('user', 'api_key', 'system', 'public_token', 'platform_staff')", name: "chk_appointments_created_by_type"
 
       t.exclusion_constraint "professional_id WITH =, #{RANGE} WITH &&", using: :gist, where: RELEASED, name: "no_overlap_professional"
       t.exclusion_constraint "resource_id WITH =, #{RANGE} WITH &&", using: :gist, where: "resource_id IS NOT NULL AND #{RELEASED}",

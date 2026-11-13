@@ -13,8 +13,8 @@ RSpec.describe "Reserva de citas: carrera por HTTP" do
   let(:professional) { create_in(world.organization, :professional, company: world.company_a) }
   let(:customer) { create_in(world.organization, :customer, company: world.company_a) }
   let(:path) { "/api/v1/organizations/#{world.organization.id}/companies/#{world.company_a.id}/appointments/branches/#{world.branch_a1.id}/appointments" }
-  # Monday, 10:00 in America/Managua (UTC-6), in the future of the real clock.
-  let(:starts_at) { "2036-11-17T10:00:00-06:00" }
+  # The first Monday at least two weeks ahead of the real clock, 10:00 in America/Managua (UTC-6): always in the future.
+  let(:starts_at) { "#{(Date.current + 14).next_occurring(:monday).iso8601}T10:00:00-06:00" }
   let(:body) { { customer_id: customer.id, service_ids: [ service.id ], professional_id: professional.id, starts_at: } }
 
   before do

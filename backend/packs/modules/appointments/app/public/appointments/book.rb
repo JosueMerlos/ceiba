@@ -12,7 +12,9 @@ module Appointments
   class Book
     NOTES_MAX_LENGTH = 500
     WINDOW_BY_SOURCE = { "panel" => :staff, "public_booking" => :customer }.freeze
-    AUDITED_FIELDS = %w[branch_id professional_id resource_id customer_id starts_at ends_at status source notes].freeze
+    AUDITED_FIELDS = %w[branch_id professional_id resource_id customer_id starts_at ends_at status source notes rescheduled_from_id].freeze
+    RESOURCE_FK = "fk_appointments_resource".freeze
+    AUDITED_LINE_FIELDS = %i[service_id position duration_minutes price_minor].freeze
 
     def self.call(...) = new(...).call
 
@@ -42,12 +44,26 @@ module Appointments
         ensure_person_free(slot, plan)
         insert(slot, plan).tap { |appointment| publish_and_audit(appointment, plan) }
       end
-    rescue ActiveRecord::ExclusionViolation, ActiveRecord::Deadlocked
+    rescue ActiveRecord::ExclusionViolation, ActiveRecord::Deadlocked => error
       # Outside the savepoint, which the failed statement already rolled back.
-      raise SlotUnavailable
+      conflict!(error)
+    rescue ActiveRecord::InvalidForeignKey => error
+      # Only the resource's composite FK is a lost race (the resource went away or changed branch after the revalidation).
+      raise unless violated_constraint(error) == RESOURCE_FK
+
+      conflict!(error)
     end
 
     private
+
+    # The constraint, the locks and the revalidation make this rare, so a translation here is worth a trace: ids only, no PII.
+    def conflict!(error)
+      Rails.error.report(error, handled: true, context: { company_id: @company.id, branch_id: @branch.id, professional_id: professional.id,
+                                                          starts_at: @starts_at.iso8601 })
+      raise SlotUnavailable
+    end
+
+    def violated_constraint(error) = error.cause.try(:result)&.error_field(PG::Result::PG_DIAG_CONSTRAINT_NAME)
 
     def professional = @choice.professional
 
@@ -58,9 +74,17 @@ module Appointments
       errors << { field: :customer_id, code: :invalid } unless Customers::Lookup.active_id?(id: @customer_id, company: @company)
       errors << { field: :source, code: :invalid } unless Appointment::SOURCES.include?(@source)
       errors << { field: :notes, code: :too_long } if @notes && @notes.length > NOTES_MAX_LENGTH
-      errors << { field: :starts_at, code: :blank } unless @starts_at.is_a?(Time)
+      errors.concat(starts_at_errors)
       errors << { field: :professional_id, code: :any_not_allowed } if @choice.any?
       raise InvalidBooking, errors if errors.any?
+    end
+
+    # A past start is one error here, before the engine's own range check could report it as a different one.
+    def starts_at_errors
+      return [ { field: :starts_at, code: :blank } ] unless @starts_at.is_a?(Time)
+      return [ { field: :starts_at, code: :in_the_past } ] if @starts_at < @now
+
+      @starts_at.sec.zero? && @starts_at.subsec.zero? ? [] : [ { field: :starts_at, code: :not_on_minute } ]
     end
 
     # Always in this order (person, then resource), so two bookings can never wait on each other. The lock is held until the
@@ -101,7 +125,8 @@ module Appointments
         starts_at: slot.starts_at, ends_at: slot.ends_at, blocks_from:, blocks_to:, status: "scheduled", source: @source, notes: @notes,
         created_by_type: @actor.actor_type, created_by_id: @actor.id, rescheduled_from_id: @rescheduled_from&.id
       )
-      plan.lines.each { |line| AppointmentService.create!(company_id: @company.id, appointment_id: appointment.id, **line.to_h) }
+      # `appointment:` (the record in memory) spares belongs_to its SELECT per line.
+      plan.lines.each { |line| AppointmentService.create!(company_id: @company.id, appointment:, **line.to_h) }
       appointment
     end
 
@@ -111,7 +136,14 @@ module Appointments
                                                            resource_id: appointment.resource_id, starts_at: appointment.starts_at, ends_at: appointment.ends_at,
                                                            service_ids: plan.lines.map(&:service_id), source: appointment.source,
                                                            rescheduled_from_id: appointment.rescheduled_from_id)
-      Audit.record(action: "appointments.appointment.booked", subject: appointment, after: appointment.attributes.slice(*AUDITED_FIELDS), actor: @actor)
+      Audit.record(action: "appointments.appointment.booked", subject: appointment, after: appointment.attributes.slice(*AUDITED_FIELDS), actor: @actor,
+                   metadata: money_snapshot(plan))
+    end
+
+    # What was charged, as booked: the lines are immutable but the total is derived, so the audit trail keeps both.
+    def money_snapshot(plan)
+      { total_price_minor: plan.price_minor, currency: plan.currency,
+        services: plan.lines.map { |line| line.to_h.slice(*AUDITED_LINE_FIELDS) } }
     end
   end
 end

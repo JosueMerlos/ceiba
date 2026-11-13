@@ -243,8 +243,10 @@ RSpec.describe Appointments::Book do
       expect { book(source: "public_booking", now: Time.utc(2026, 8, 1)) }.to raise_error(Appointments::SlotUnavailable)
     end
 
-    it "el panel tampoco reserva un bloque que empieza antes de ahora" do
-      expect { book(now: starts_at + 5.minutes) }.to raise_error(Appointments::SlotUnavailable)
+    it "el panel tampoco reserva un bloque que empieza antes de ahora, aunque la cita empiece después (buffer previo)" do
+      service.update!(buffer_before_minutes: 10)
+
+      expect { book(now: starts_at - 5.minutes) }.to raise_error(Appointments::SlotUnavailable)
     end
   end
 

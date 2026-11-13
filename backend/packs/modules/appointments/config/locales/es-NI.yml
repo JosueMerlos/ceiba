@@ -81,5 +81,7 @@ es-NI:
           too_long: "las notas no pueden superar los 500 caracteres"
         starts_at:
           blank: "indica la hora de inicio"
+          in_the_past: "la hora de inicio ya pasó"
+          not_on_minute: "la hora de inicio debe caer en un minuto exacto, sin segundos ni fracciones"
         professional_id:
           any_not_allowed: "indica un profesional concreto: `any` no se acepta al reservar"

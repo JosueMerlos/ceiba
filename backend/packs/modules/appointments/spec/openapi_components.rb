@@ -303,9 +303,9 @@ OpenapiComponents.register(
     description: "Reserva desde el panel. `professional_id` es el de un hueco de la disponibilidad; el literal `any` no se acepta (422).",
     properties: {
       customer_id: { type: :string, format: :uuid },
-      service_ids: { type: :array, items: { type: :string, format: :uuid }, minItems: 1, maxItems: 10, description: "Servicios de la empresa, en orden de secuencia" },
+      service_ids: { type: :array, items: { type: :string, format: :uuid }, minItems: 1, maxItems: Appointments::Availability::MAX_SERVICES, description: "Servicios de la empresa, en orden de secuencia (hasta 5; más responden 422)" },
       professional_id: { type: :string, format: :uuid },
-      starts_at: { type: :string, format: "date-time", description: "ISO 8601 con zona horaria (por ejemplo `2026-11-16T10:00:00-06:00`)" },
+      starts_at: { type: :string, format: "date-time", description: "ISO 8601 con segundos y zona horaria (por ejemplo `2026-11-16T10:00:00-06:00`); en el pasado o con fracción de segundo responde 422" },
       notes: { type: :string, maxLength: 500, nullable: true, description: "Texto libre, se guarda cifrado" }
     },
     required: %i[customer_id service_ids professional_id starts_at],
