@@ -12,8 +12,9 @@ RSpec.describe Appointments::Availability::Calculator do
   def managua_time(hour, minute = 0, day: 5) = Time.utc(2026, 1, day) + (((hour + 6) * 60) + minute) * 60
 
   def plan(duration = 30, before: 0, after: 0, kind: nil)
-    Appointments::Availability::ServicePlan.new(duration_minutes: duration, buffer_before_minutes: before, buffer_after_minutes: after, price_minor: 0,
-                                                currency: "NIO", required_kind: kind)
+    line = Appointments::Availability::ServicePlan::Line.new(service_id: "s1", position: 0, duration_minutes: duration, buffer_before_minutes: before,
+                                                             buffer_after_minutes: after, price_minor: 0, currency: "NIO")
+    Appointments::Availability::ServicePlan.new(lines: [ line ], currency: "NIO", required_kind: kind)
   end
 
   def person(id, slots: [ slot(1, 9, 13) ], time_offs: [], busy: []) = { id:, slots:, time_offs:, busy: }

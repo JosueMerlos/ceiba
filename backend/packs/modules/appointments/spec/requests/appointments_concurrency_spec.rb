@@ -36,13 +36,14 @@ RSpec.describe "Reserva de citas: carrera por HTTP" do
 
   # The logins happen before the race: only the POSTs compete.
   def race(attempts)
-    sessions = Array.new(attempts) { open_session.tap { |browser| browser.instance_variable_set(:@csrf, sign_in(user, browser:).csrf_token) } }
+    sessions = Array.new(attempts) { open_session.then { |browser| [ browser, sign_in(user, browser:).csrf_token ] } }
     barrier = Concurrent::CyclicBarrier.new(attempts)
-    sessions.map do |browser|
+    sessions.map do |browser, csrf_token|
       Thread.new do
         ApplicationRecord.connection_pool.with_connection do
-          barrier.wait(30)
-          browser.post path, params: body, headers: { "X-CSRF-Token" => browser.instance_variable_get(:@csrf), "Idempotency-Key" => SecureRandom.uuid }, as: :json
+          raise "barrier timeout" unless barrier.wait(30)
+
+          browser.post path, params: body, headers: { "X-CSRF-Token" => csrf_token, "Idempotency-Key" => SecureRandom.uuid }, as: :json
           browser.response
         end
       end

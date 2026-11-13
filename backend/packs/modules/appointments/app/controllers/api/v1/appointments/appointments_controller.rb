@@ -8,10 +8,7 @@ module Api
         include ::Idempotency::Idempotent
         include ::Modules::RequiresModule
         include BranchOwner
-        include ::Appointments::AvailabilityQuery
-
-        MAX_SERVICES = 10
-        ISO_8601_WITH_OFFSET = /\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:\d{2})\z/
+        include ::Appointments::RequestParams
 
         requires_module :appointments
 
@@ -42,26 +39,16 @@ module Api
           values = typed_params(customer_id: String, professional_id: String, starts_at: String, notes: String)
           %i[customer_id professional_id starts_at].each { |name| raise ActionController::ParameterMissing, name if values[name].blank? }
           { customer_id: uuid(values[:customer_id], :customer_id), professional_id: professional_param(values[:professional_id]),
-            starts_at: instant(values[:starts_at]), notes: values[:notes], service_ids: service_ids }
+            starts_at: instant(values[:starts_at], :starts_at), notes: values[:notes], service_ids: service_ids }
         end
 
-        # `typed_params` rejects arrays, so the list is read here: one to MAX_SERVICES UUIDs.
+        # `typed_params` rejects arrays, so the list is read here.
         def service_ids
           raw = request.request_parameters["service_ids"]
           raise ActionController::ParameterMissing, :service_ids if raw.blank?
-          raise ActionController::BadRequest, "service_ids must be a list of UUIDs" unless raw.is_a?(Array) && raw.all?(String)
-          raise ActionController::BadRequest, "service_ids is too long" if raw.size > MAX_SERVICES
+          raise ActionController::BadRequest, "service_ids must be a list of UUIDs" unless raw.is_a?(Array)
 
-          raw.map { uuid(it, :service_ids) }
-        end
-
-        # An instant without an offset would silently take the server's zone, so it is rejected.
-        def instant(value)
-          raise ActionController::BadRequest, "starts_at must be ISO 8601 with a UTC offset" unless ISO_8601_WITH_OFFSET.match?(value)
-
-          Time.iso8601(value)
-        rescue ArgumentError
-          raise ActionController::BadRequest, "starts_at must be a valid ISO 8601 instant"
+          uuid_list(raw, :service_ids)
         end
 
         def company_id = Current.context.company.id

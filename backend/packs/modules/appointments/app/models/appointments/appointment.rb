@@ -13,7 +13,7 @@ module Appointments
     encrypts :notes
 
     belongs_to :resource, class_name: "Appointments::Resource", optional: true
-    has_many :services_snapshot, class_name: "Appointments::AppointmentService", inverse_of: :appointment, dependent: nil
+    has_many :services_snapshot, -> { order(:position) }, class_name: "Appointments::AppointmentService", inverse_of: :appointment, dependent: nil
 
     scope :blocking, -> { where.not(status: RELEASING_STATUSES) }
     # Half-open: a blocking interval that ends exactly at `from`, or starts exactly at `to`, does not overlap.

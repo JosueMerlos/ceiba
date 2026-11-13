@@ -1,7 +1,8 @@
 require "rails_helper"
 
 # Real races: COMMIT, one thread and one connection per attempt, all released at once by a barrier. What is under test is that the
-# database (exclusions) and the advisory locks decide, so the races mock nothing.
+# database (exclusions) and the advisory locks decide, so nothing is mocked: the exclusion path commits a competing row from a
+# second connection at the exact statement where Book is about to insert.
 RSpec.describe Appointments::Book do
   self.use_transactional_tests = false
 
@@ -49,7 +50,8 @@ RSpec.describe Appointments::Book do
     threads = attempts.map do |world, professional|
       Thread.new do
         ApplicationRecord.connection_pool.with_connection do
-          barrier.wait(30)
+          raise "barrier timeout" unless barrier.wait(30)
+
           Tenancy.with_context(organization:) { book(world, professional) }
         rescue StandardError => error
           error
@@ -68,6 +70,10 @@ RSpec.describe Appointments::Book do
   def winners(results) = results.grep(Appointments::Appointment)
   def failures(results) = results.reject { it.is_a?(Appointments::Appointment) }
 
+  # What Book rescued to raise its conflict: nothing when the locks and the revalidation decided, an exclusion or a deadlock when
+  # the database had to.
+  def causes(results) = failures(results).filter_map(&:cause).map(&:class)
+
   it "10 hilos sobre el mismo hueco y profesional: una cita y nueve SlotUnavailable", :aggregate_failures do
     world = build_company
     professional = add_professional(world)
@@ -76,6 +82,7 @@ RSpec.describe Appointments::Book do
 
     expect(winners(results).size).to eq(1)
     expect(failures(results).map(&:class)).to eq([ Appointments::SlotUnavailable ] * 9)
+    expect(causes(results)).to be_empty
     expect(appointments.size).to eq(1)
     expect(with_tenant(organization) { Events::OutboxEvent.where(name: "appointments.appointment_booked.v1").count }).to eq(1)
   end
@@ -93,10 +100,11 @@ RSpec.describe Appointments::Book do
 
     expect(winners(results).size).to eq(1)
     expect(failures(results).map(&:class)).to eq([ Appointments::PersonUnavailable ] * 9)
+    expect(causes(results)).to be_empty
     expect(appointments.size).to eq(1)
   end
 
-  it "un solo sillón y profesionales distintos a la vez: una cita, el resto SlotUnavailable y ningún Deadlocked", :aggregate_failures do
+  it "un solo sillón y profesionales distintos a la vez: una cita, el resto SlotUnavailable por el candado y ni un Deadlocked ni una exclusión de por medio", :aggregate_failures do
     world = build_company
     chair = add_chairs(world, 1).first
     attempts = Array.new(6) { [ world, add_professional(world) ] }
@@ -104,6 +112,7 @@ RSpec.describe Appointments::Book do
     results = race(attempts)
 
     expect(failures(results).map(&:class).uniq).to eq([ Appointments::SlotUnavailable ])
+    expect(causes(results)).to be_empty
     expect(winners(results).size).to eq(1)
     expect(appointments.map(&:resource_id)).to eq([ chair.id ])
   end
@@ -117,27 +126,61 @@ RSpec.describe Appointments::Book do
 
     expect(winners(results).size).to eq(2)
     expect(failures(results).map(&:class)).to eq([ Appointments::SlotUnavailable ])
+    expect(causes(results)).to be_empty
     expect(appointments.map(&:resource_id)).to match_array(chairs.map(&:id))
   end
 
-  # The exclusion path: the engine is made to offer the taken slot, so the INSERT itself fails inside Book's savepoint.
-  it "una ExclusionViolation dentro de una transacción externa la deja usable: se rescata, se sigue y se confirma otra escritura", :aggregate_failures do
+  # Runs `on_insert` once, just before Book's INSERT of the appointment, on another connection and to completion, so a competing
+  # row is committed after the revalidation has passed and before the exclusion constraint is consulted. Needs a subscriber that
+  # responds to start/finish: a block subscriber only runs after the statement.
+  def compete_before_insert(on_insert)
+    fired = false
+    subscriber = Object.new
+    subscriber.define_singleton_method(:start) do |_name, _id, payload|
+      next if fired || !payload[:sql].start_with?('INSERT INTO "appointments"')
+
+      fired = true
+      Thread.new { ApplicationRecord.connection_pool.with_connection { on_insert.call } }.join
+    end
+    subscriber.define_singleton_method(:finish) { |*| }
+    subscription = ActiveSupport::Notifications.subscribe("sql.active_record", subscriber)
+    yield
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscription)
+  end
+
+  it "una cita que se confirma tras la revalidación y antes del INSERT: ExclusionViolation traducida a SlotUnavailable y la transacción externa sigue usable", :aggregate_failures do
     world = build_company
     professional = add_professional(world)
-    with_tenant(organization) { create(:appointment, professional:, branch: world[:branch], customer: world[:customer], starts_at:) }
-    allow(Appointments::Availability).to receive(:call).and_wrap_original do |original, **arguments|
-      original.call(**arguments).then do |result|
-        slot = Appointments::Availability::Slot.new(starts_at:, ends_at: starts_at + 30.minutes, professional_id: professional.id, resource_id: nil)
-        result.with(slots: [ slot ])
-      end
-    end
+    competitor = -> { Tenancy.with_context(organization:) { create(:appointment, professional:, branch: world[:branch], customer: world[:customer], starts_at:) } }
 
     with_tenant(organization) do
-      expect { book(world, professional) }.to raise_error(Appointments::SlotUnavailable)
+      compete_before_insert(competitor) do
+        expect { book(world, professional) }.to raise_error(Appointments::SlotUnavailable) { |error| expect(error.cause).to be_a(ActiveRecord::ExclusionViolation) }
+      end
       create(:service, company: world[:company], name: "Servicio posterior")
     end
 
     expect(with_tenant(organization) { Appointments::Service.where(name: "Servicio posterior").count }).to eq(1)
     expect(appointments.size).to eq(1)
+    expect(with_tenant(organization) { Appointments::AppointmentService.count + Events::OutboxEvent.where(name: "appointments.appointment_booked.v1").count }).to eq(0)
+  end
+
+  it "el sillón ocupado por otro profesional tras la revalidación: la exclusión del recurso es la última barrera", :aggregate_failures do
+    world = build_company
+    chair = add_chairs(world, 1).first
+    professional = add_professional(world)
+    other = add_professional(world)
+    competitor = lambda do
+      Tenancy.with_context(organization:) { create(:appointment, professional: other, branch: world[:branch], customer: world[:customer], resource: chair, starts_at:) }
+    end
+
+    with_tenant(organization) do
+      compete_before_insert(competitor) do
+        expect { book(world, professional) }.to raise_error(Appointments::SlotUnavailable) { |error| expect(error.cause).to be_a(ActiveRecord::ExclusionViolation) }
+      end
+    end
+
+    expect(appointments.map(&:professional_id)).to eq([ other.id ])
   end
 end

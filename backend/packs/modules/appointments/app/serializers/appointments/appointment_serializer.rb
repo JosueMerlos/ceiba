@@ -7,7 +7,7 @@ module Appointments
     attribute(:ends_at) { |appointment| appointment.ends_at.utc.iso8601(3) }
 
     attribute :services do |appointment|
-      appointment.services_snapshot.sort_by(&:position).map do |line|
+      appointment.services_snapshot.map do |line|
         line.slice(:service_id, :position, :duration_minutes, :price_minor, :currency).symbolize_keys
       end
     end

@@ -49,15 +49,15 @@ RSpec.describe Appointments::Book do
     Array.new(count) { create(:resource, branch:, kind: "chair") }.sort_by(&:id)
   end
 
-  def errors_of(error_class = Appointments::InvalidBooking)
-    book
-    raise "expected #{error_class}"
-  rescue error_class => error
+  def errors_of(**overrides)
+    book(**overrides)
+    raise "expected InvalidBooking"
+  rescue Appointments::InvalidBooking => error
     error.errors
   end
 
   describe "caso feliz" do
-    # barba 20 min (5_000, buffer previo 5) y corte 30 min (15_000, buffer posterior 10); la sucursal baja el precio del corte a 12_000.
+    # beard: 20 min, 5_000, 5 min buffer before; cut: 30 min, 15_000, 10 min buffer after; the branch lowers the cut's price to 12_000.
     def beard = @beard ||= create(:service, company:, duration_minutes: 20, price_minor: 5_000, buffer_before_minutes: 5)
     def cut = @cut ||= create(:service, company:, duration_minutes: 30, price_minor: 15_000, buffer_after_minutes: 10)
 
@@ -171,35 +171,6 @@ RSpec.describe Appointments::Book do
 
       expect { book }.to raise_error(Appointments::SlotUnavailable)
     end
-
-    it "si el motor ofreciera el hueco con el sillón ocupado, la exclusión es la última barrera y sale SlotUnavailable", :aggregate_failures do
-      chair = with_chairs(1).first
-      create(:appointment, professional: other, branch:, customer:, resource: chair, starts_at:)
-      offer_slot_with(resource_id: chair.id)
-      before = untouched
-
-      expect { book }.to raise_error(Appointments::SlotUnavailable)
-      expect(untouched).to eq(before)
-      expect(Appointments::Appointment.count).to eq(1) # the outer transaction is still usable
-    end
-
-    it "un recurso que el motor devuelve de otra sucursal se rechaza antes de insertar", :aggregate_failures do
-      with_chairs(1)
-      foreign = create(:resource, branch: create(:branch, company:), kind: "chair")
-      offer_slot_with(resource_id: foreign.id)
-
-      expect { book }.to raise_error(Appointments::SlotUnavailable)
-      expect(Appointments::Appointment.count).to eq(0)
-    end
-
-    def offer_slot_with(resource_id:)
-      allow(Appointments::Availability).to receive(:call).and_wrap_original do |original, **arguments|
-        original.call(**arguments).then do |result|
-          slot = Appointments::Availability::Slot.new(starts_at:, ends_at: starts_at + 30.minutes, professional_id: professional.id, resource_id:)
-          result.with(slots: [ slot ])
-        end
-      end
-    end
   end
 
   describe "entrada inválida" do
@@ -223,23 +194,20 @@ RSpec.describe Appointments::Book do
       expect(untouched).to eq([ 0, 0, 0, 0 ])
     end
 
-    it "un cliente de otra empresa de la organización: InvalidBooking" do
+    it "un cliente de otra empresa de la organización: InvalidBooking en customer_id" do
       sibling_customer = create(:customer, company: create(:company))
 
-      expect { book(customer_id: sibling_customer.id) }.to raise_error(Appointments::InvalidBooking)
+      expect(errors_of(customer_id: sibling_customer.id)).to eq([ { field: :customer_id, code: :invalid } ])
     end
 
-    it "un customer_id que no existe: InvalidBooking" do
-      expect { book(customer_id: SecureRandom.uuid) }.to raise_error(Appointments::InvalidBooking)
+    it "un customer_id que no existe: InvalidBooking en customer_id" do
+      expect(errors_of(customer_id: SecureRandom.uuid)).to eq([ { field: :customer_id, code: :invalid } ])
     end
 
-    it "un origen desconocido, notas de más de 500 caracteres y sin starts_at se reportan juntos", :aggregate_failures do
-      result = described_class.call(company:, branch:, customer_id: customer.id, services: [ service ], professional: choice(professional), starts_at: nil,
-                                    source: "otro", notes: "x" * 501, actor:, now:)
-      raise "expected InvalidBooking"
-    rescue Appointments::InvalidBooking => error
-      expect(error.errors).to contain_exactly({ field: :source, code: :invalid }, { field: :notes, code: :too_long }, { field: :starts_at, code: :blank })
-      expect(result).to be_nil
+    it "un origen desconocido, notas de más de 500 caracteres y sin starts_at se reportan juntos" do
+      expect { book(starts_at: nil, source: "otro", notes: "x" * 501) }.to raise_error(Appointments::InvalidBooking) do |error|
+        expect(error.errors).to contain_exactly({ field: :source, code: :invalid }, { field: :notes, code: :too_long }, { field: :starts_at, code: :blank })
+      end
     end
 
     it "notas de exactamente 500 caracteres se aceptan" do
@@ -247,13 +215,7 @@ RSpec.describe Appointments::Book do
     end
 
     it "el profesional any no se acepta: InvalidBooking en professional_id (any_not_allowed)" do
-      error = begin
-        book(professional: Appointments::Availability::ProfessionalChoice.any)
-      rescue Appointments::InvalidBooking => caught
-        caught
-      end
-
-      expect(error.errors).to eq([ { field: :professional_id, code: :any_not_allowed } ])
+      expect(errors_of(professional: Appointments::Availability::ProfessionalChoice.any)).to eq([ { field: :professional_id, code: :any_not_allowed } ])
     end
   end
 

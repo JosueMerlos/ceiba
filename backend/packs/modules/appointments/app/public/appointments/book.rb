@@ -22,7 +22,7 @@ module Appointments
       @branch = branch
       @customer_id = customer_id
       @services = services
-      @choice = professional.is_a?(Availability::ProfessionalChoice) ? professional : Availability::ProfessionalChoice.of(professional)
+      @choice = professional
       @starts_at = starts_at
       @source = source
       @notes = notes.presence
@@ -34,12 +34,11 @@ module Appointments
     def call
       ApplicationRecord.transaction(requires_new: true) do
         validate_input!
+        eligibility = Availability.ensure_eligible!(company: @company, branch: @branch, services: @services, professional: @choice,
+                                                    from_date: local_date, to_date: local_date, now: @now)
         lock_person
-        requirements = Availability.ensure_eligible!(company: @company, branch: @branch, services: @services, professional: @choice,
-                                                     from_date: local_date, to_date: local_date, now: @now)
-        lock_resource(requirements.map(&:last).first)
-        slot, plan = revalidate
-        ensure_resource_in_branch(slot)
+        lock_resource(eligibility.required_kind)
+        slot, plan = revalidate(eligibility)
         ensure_person_free(slot, plan)
         insert(slot, plan).tap { |appointment| publish_and_audit(appointment, plan) }
       end
@@ -76,18 +75,11 @@ module Appointments
     end
 
     # The engine is the authority on what can be booked now: a stale answer (a cache, a page left open) ends here as a conflict.
-    def revalidate
+    def revalidate(eligibility)
       result = Availability.call(company: @company, branch: @branch, services: @services, professional: @choice, from_date: local_date, to_date: local_date,
-                                 now: @now, booking_window: WINDOW_BY_SOURCE.fetch(@source))
+                                 now: @now, booking_window: WINDOW_BY_SOURCE.fetch(@source), eligibility:)
       slot = result.slots.find { it.starts_at == @starts_at } || raise(SlotUnavailable)
       [ slot, result.plan ]
-    end
-
-    # The foreign key is the real barrier; this keeps a wrong resource from reaching the INSERT as a 500.
-    def ensure_resource_in_branch(slot)
-      return unless slot.resource_id
-
-      raise SlotUnavailable unless Resource.exists?(id: slot.resource_id, branch_id: @branch.id)
     end
 
     # The engine reads one company's agenda; the same person (user) may have another record elsewhere in the organization, and

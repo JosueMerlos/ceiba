@@ -3,11 +3,10 @@ module Appointments
   # 400 `request.invalid`; one that is not the shape asked for is a 400 `request.bad_request`. `typed_params` only reads the
   # body, so the query is parsed here.
   module AvailabilityQuery
+    include RequestParams
+
     QUERY_PARAMS = %w[service_ids professional_id from to].freeze
-    UUID_FORMAT = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
     DATE_FORMAT = /\A\d{4}-\d{2}-\d{2}\z/
-    # Ten ids with their commas: room to let the use case report "too many" for a short overlong list, a bound for a hostile one.
-    MAX_SERVICE_IDS_LENGTH = 10 * 37
 
     private
 
@@ -35,20 +34,6 @@ module Appointments
       raise ActionController::BadRequest, "#{name} must be a single value" unless value.is_a?(String)
 
       value
-    end
-
-    def uuid_list(value, name)
-      raise ActionController::BadRequest, "#{name} is too long" if value.length > MAX_SERVICE_IDS_LENGTH
-
-      value.split(",", -1).map { uuid(it, name) }
-    end
-
-    def professional_param(value) = value == "any" ? :any : uuid(value, :professional_id)
-
-    def uuid(value, name)
-      raise ActionController::BadRequest, "#{name} must be a UUID" unless UUID_FORMAT.match?(value)
-
-      value.downcase
     end
 
     def date(value, name)
