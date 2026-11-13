@@ -75,4 +75,31 @@ RSpec.describe Appointments::Availability::ServicePlan do
 
     expect([ result.duration_minutes, result.buffer_before_minutes, result.buffer_after_minutes, result.price_minor ]).to eq([ 45, 5, 10, 100 ])
   end
+
+  describe "lines" do
+    it "una línea por servicio, en el orden pedido, con duración, buffers y precio efectivos", :aggregate_failures do
+      result = plan([ item("a", 30, before: 5, after: 7, price: 15_000), item("b", 20, before: 11, after: 13, price: 8_000) ],
+                    overrides: { "b" => { duration_minutes: 25, price_minor: 9_500 } }, currency: "USD")
+
+      expect(result.lines.map(&:to_h)).to eq([
+        { service_id: "a", position: 0, duration_minutes: 30, buffer_before_minutes: 5, buffer_after_minutes: 7, price_minor: 15_000, currency: "USD" },
+        { service_id: "b", position: 1, duration_minutes: 25, buffer_before_minutes: 11, buffer_after_minutes: 13, price_minor: 9_500, currency: "USD" }
+      ])
+    end
+
+    it "la suma de las líneas es el total del plan (duración y precio)", :aggregate_failures do
+      result = plan([ item("a", 30, price: 15_000), item("b", 20, price: 8_000), item("c", 10, price: 0) ],
+                    overrides: { "a" => { duration_minutes: 40, price_minor: 0 }, "c" => { duration_minutes: nil, price_minor: 700 } })
+
+      expect(result.lines.sum(&:duration_minutes)).to eq(result.duration_minutes)
+      expect(result.lines.sum(&:price_minor)).to eq(result.price_minor)
+      expect([ result.duration_minutes, result.price_minor ]).to eq([ 70, 8_700 ])
+    end
+
+    it "un precio de override en 0 queda como 0 en la línea" do
+      result = plan([ item("a", 30, price: 15_000) ], overrides: { "a" => { duration_minutes: nil, price_minor: 0 } })
+
+      expect(result.lines.first.price_minor).to eq(0)
+    end
+  end
 end

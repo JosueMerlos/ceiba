@@ -183,6 +183,49 @@ RSpec.describe Appointments::Availability do
     end
   end
 
+  describe "ventana de reserva (booking_window)" do
+    before { open_hours }
+
+    def starts_with(window, now:, **overrides)
+      local_starts(availability(now:, **({ booking_window: window } if window).to_h, **overrides))
+    end
+
+    it "por defecto es :customer: aplica la anticipación mínima (a las 10:07 locales el primer hueco es 12:15)" do
+      expect(starts_with(nil, now: Time.utc(2026, 11, 16, 16, 7))).to eq(%w[12:15 12:30])
+    end
+
+    it ":staff no aplica la anticipación mínima, pero el bloque no empieza antes de now (a las 10:07 el primero es 10:15)" do
+      expect(starts_with(:staff, now: Time.utc(2026, 11, 16, 16, 7))).to eq(%w[10:15 10:30 10:45 11:00 11:15 11:30 11:45 12:00 12:15 12:30])
+    end
+
+    it ":staff respeta el buffer previo: el bloque no empieza antes de now" do
+      Appointments::BranchServiceOverride.delete_all
+      service.update!(buffer_before_minutes: 10, duration_minutes: 30)
+
+      expect(starts_with(:staff, now: Time.utc(2026, 11, 16, 16, 7))).to start_with("10:30")
+    end
+
+    it ":customer no ofrece más allá de la anticipación máxima y :staff sí", :aggregate_failures do
+      far_before = Time.utc(2026, 8, 1)
+
+      expect(starts_with(:customer, now: far_before)).to eq([])
+      expect(starts_with(:staff, now: far_before)).to eq(%w[09:00 09:15 09:30 09:45 10:00 10:15 10:30 10:45 11:00 11:15 11:30 11:45 12:00 12:15 12:30])
+    end
+
+    it ":staff sigue respetando horarios y ausencias", :aggregate_failures do
+      create(:time_off, professional:, starts_at: Time.utc(2026, 11, 16, 16), ends_at: Time.utc(2026, 11, 16, 17))
+
+      slots = starts_with(:staff, now: Time.utc(2026, 8, 1))
+
+      expect(slots).not_to include("10:00", "10:15", "10:30")
+      expect(slots).to all(satisfy { |hour| hour >= "09:00" && hour <= "12:30" })
+    end
+
+    it "una ventana desconocida es un error de quien llama" do
+      expect { availability(booking_window: :other) }.to raise_error(ArgumentError, /booking_window must be/)
+    end
+  end
+
   describe "aislamiento (adversarial)" do
     # Absences and appointments of someone else's professional exactly where the requested professional is open and free.
     def occupy_every_open_hour(professional:, branch:)

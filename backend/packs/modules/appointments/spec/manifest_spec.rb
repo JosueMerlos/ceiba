@@ -114,7 +114,8 @@ RSpec.describe "Manifiesto de appointments" do
     )
   end
 
-  it "no publica eventos todavía (sus esquemas llegan con el dominio, F1)" do
-    expect(manifest.publishes).to be_empty
+  it "publica el evento de cita reservada, con su esquema registrado", :aggregate_failures do
+    expect(manifest.publishes).to eq(%w[appointments.appointment_booked.v1])
+    expect(Events::Schemas.names).to include("appointments.appointment_booked.v1")
   end
 end
