@@ -1,0 +1,55 @@
+require "rails_helper"
+require "rubocop"
+require "rubocop/rspec/support"
+require "rubocop/cop/ceiba/appointment_creation"
+
+# Appointments::Book is the only creator of appointments: it takes the locks and revalidates before inserting. Any other way
+# in would skip both.
+RSpec.describe RuboCop::Cop::Ceiba::AppointmentCreation, :config do
+  include RuboCop::RSpec::ExpectOffense
+
+  let(:cop_config) { { "AllowedFiles" => [ "packs/modules/appointments/app/public/appointments/book.rb" ] } }
+  let(:file) { "packs/modules/appointments/app/services/appointments/reschedule.rb" }
+
+  context "con un archivo fuera de la lista permitida" do
+    %w[create create! new insert insert! insert_all insert_all! upsert upsert_all find_or_create_by find_or_create_by!].each do |method|
+      it "prohíbe Appointments::Appointment.#{method}" do
+        expect_offense(<<~RUBY, file)
+          Appointments::Appointment.#{method}(status: "scheduled")
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^#{'^' * method.length}^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`#{method}` se salta los candados y la revalidación).
+        RUBY
+      end
+    end
+
+    it "prohíbe Appointment.create! dentro del módulo" do
+      expect_offense(<<~RUBY, file)
+        Appointment.create!(status: "scheduled")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`create!` se salta los candados y la revalidación).
+      RUBY
+    end
+
+    it "prohíbe la forma con :: inicial" do
+      expect_offense(<<~RUBY, file)
+        ::Appointments::Appointment.new(status: "scheduled")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`new` se salta los candados y la revalidación).
+      RUBY
+    end
+
+    it "acepta leer y actualizar citas" do
+      expect_no_offenses(<<~RUBY, file)
+        Appointments::Appointment.where(status: "scheduled").update_all(status: "cancelled")
+        Appointment.find(id)
+      RUBY
+    end
+
+    it "acepta el Appointment de otro namespace" do
+      expect_no_offenses("Other::Appointment.create(name: 'x')", file)
+    end
+  end
+
+  context "con el archivo de Book" do
+    it "acepta crear la cita" do
+      expect_no_offenses("Appointment.create!(status: 'scheduled')", "packs/modules/appointments/app/public/appointments/book.rb")
+    end
+  end
+end
