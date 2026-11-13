@@ -10,12 +10,20 @@ module Appointments
 
     Result = Data.define(:slots, :plan, :step_minutes)
 
+    # Whose rules the booking window follows. A customer books within the lead time and advance days the branch sets; staff
+    # (the panel) may book sooner or further ahead. Either way a block never starts before `now`.
+    BOOKING_WINDOWS = %i[customer staff].freeze
+
     module_function
 
     # `services` is the ordered list of Service records asked for. `max_range_days` is the longest range the caller serves.
-    def call(company:, branch:, services:, professional:, from_date:, to_date:, max_range_days: MAX_RANGE_DAYS, now: Time.current)
+    # `booking_window` is :customer (the branch's lead time and advance limit) or :staff (neither; hours, absences and the grid still apply).
+    def call(company:, branch:, services:, professional:, from_date:, to_date:, max_range_days: MAX_RANGE_DAYS, now: Time.current, booking_window: :customer)
+      raise ArgumentError, "booking_window must be one of #{BOOKING_WINDOWS.inspect}, got #{booking_window.inspect}" unless BOOKING_WINDOWS.include?(booking_window)
+
       requirements = ensure_eligible!(company:, branch:, services:, professional:, from_date:, to_date:, max_range_days:, now:)
       loaded = DataLoader.call(company:, branch:, services:, professional:, from_date:, to_date:, requirements:)
+      loaded = loaded.with(min_lead_minutes: 0, max_advance_days: nil) if booking_window == :staff
       slots = Calculator.call(**loaded.to_h, time_zone: branch.time_zone, from_date:, to_date:, now:)
       Result.new(slots:, plan: loaded.plan, step_minutes: loaded.step_minutes)
     end

@@ -33,6 +33,8 @@ test:
   <<: *default
   database: ceiba_test
   seeds: false
+  # The concurrency specs run 10 threads, each with its own connection, plus the example's own and some margin.
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 12 } %>
 
 production:
   <<: *default

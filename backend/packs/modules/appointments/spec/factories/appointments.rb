@@ -149,3 +149,25 @@ FactoryBot.define do
     created_by_type { "system" }
   end
 end
+
+# The booked copy of one service of an appointment; organization and company come from the appointment, and the service must
+# belong to that company.
+FactoryBot.define do
+  factory :appointment_service, class: "Appointments::AppointmentService" do
+    transient do
+      appointment { association(:appointment, strategy: :create) }
+      service { association(:service, company: Tenancy::Directory.company!(appointment.company_id), strategy: :create) }
+    end
+
+    appointment_id { appointment.id }
+    service_id { service.id }
+    company_id { appointment.company_id }
+    organization { appointment.organization }
+    position { 0 }
+    duration_minutes { 30 }
+    buffer_before_minutes { 0 }
+    buffer_after_minutes { 0 }
+    price_minor { 20_000 }
+    currency { "NIO" }
+  end
+end

@@ -46,6 +46,9 @@ es-NI:
     errors:
       appointments:
         availability_invalid: "No se puede calcular la disponibilidad con esos datos"
+        slot_unavailable: "El horario ya no está disponible"
+        person_unavailable: "La persona ya tiene otra cita a esa hora"
+        booking_invalid: "No se puede reservar la cita con esos datos"
   appointments:
     availability:
       errors:
@@ -68,3 +71,15 @@ es-NI:
           too_early: "`from` no puede ser anterior a ayer en la hora local de la sucursal"
         to:
           invalid_range: "el rango debe ir de `from` a `to` (sin que `to` sea anterior) y no superar el máximo de días permitido"
+    booking:
+      errors:
+        customer_id:
+          invalid: "el cliente no existe, está archivado o no es de la empresa"
+        source:
+          invalid: "el origen debe ser panel o public_booking"
+        notes:
+          too_long: "las notas no pueden superar los 500 caracteres"
+        starts_at:
+          blank: "indica la hora de inicio"
+        professional_id:
+          any_not_allowed: "indica un profesional concreto: `any` no se acepta al reservar"

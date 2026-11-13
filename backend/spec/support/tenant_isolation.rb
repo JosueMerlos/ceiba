@@ -12,6 +12,10 @@ module TenantIsolation
   # test foreign writes (UPDATE/DELETE) do not apply; the read and INSERT isolation ones do.
   APPEND_ONLY_TABLES = %w[audit_events].freeze
 
+  # Tables whose model is read-only once saved (no updated_at, rows only go away with their parent): like the append-only ones,
+  # the examples about foreign UPDATE/DELETE do not apply. There is no trigger, so they are not in APPEND_ONLY_TABLES.
+  IMMUTABLE_TABLES = %w[appointment_services].freeze
+
   class MissingFactory < StandardError; end
 
   module_function
@@ -22,7 +26,7 @@ module TenantIsolation
     (candidates || ApplicationRecord.descendants).select { |model| tenant_model?(model) }.sort_by(&:name)
   end
 
-  def append_only?(model) = APPEND_ONLY_TABLES.include?(model.table_name)
+  def append_only?(model) = (APPEND_ONLY_TABLES + IMMUTABLE_TABLES).include?(model.table_name)
 
   def tenant_model?(model)
     return false if model.abstract_class? || model.name.blank? || !model.name.safe_constantize.equal?(model)

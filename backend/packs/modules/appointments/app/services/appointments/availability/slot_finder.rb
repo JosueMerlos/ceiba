@@ -1,7 +1,8 @@
 module Appointments
   module Availability
     # Turns free intervals into bookable slots. Starts sit on a wall-clock grid: the local minute of the day is a multiple of
-    # the step (so a 45-minute step still lands on 00:00, 00:45...). Lead time and advance window are measured from `now`.
+    # the step (so a 45-minute step still lands on 00:00, 00:45...). Lead time and advance window are measured from `now`; a nil
+    # `max_advance_days` means no limit.
     module SlotFinder
       MINUTE = 1.minute.to_i
       DAY_MINUTES = 1.day.in_minutes.to_i
@@ -20,7 +21,7 @@ module Appointments
         # The lead time is measured on the service start (what the customer sees), but the block that starts `before` earlier must
         # not begin in the past either, so the stricter of the two wins.
         earliest = (now.to_r + [ min_lead_minutes.minutes.to_i, before ].max).ceil
-        latest = now.to_i + max_advance_days.days.to_i
+        latest = max_advance_days ? now.to_i + max_advance_days.days.to_i : Float::INFINITY
         after = buffer_after_minutes.minutes.to_i
 
         free.intervals.flat_map do |interval|

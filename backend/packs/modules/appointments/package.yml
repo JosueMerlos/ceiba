@@ -22,3 +22,7 @@ dependencies:
   - "packs/platform/modules"
   # Creating a service accepts an Idempotency-Key.
   - "packs/platform/idempotency"
+  # Booking publishes appointments.appointment_booked.v1 in the same transaction as the appointment (Events.publish).
+  - "packs/platform/events"
+  # Booking asks whether the customer is an active customer of the company (Customers::Lookup), never for its data.
+  - "packs/platform/customers"
