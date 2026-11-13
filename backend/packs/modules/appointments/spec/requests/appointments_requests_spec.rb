@@ -140,6 +140,46 @@ RSpec.describe "Reserva de citas: peticiones" do
       expect(appointments).to be_empty
     end
 
+    it "un starts_at sin segundos responde 400", :aggregate_failures do
+      book(body.merge(starts_at: "2026-11-16T10:00-06:00"))
+
+      expect(response).to have_http_status(:bad_request)
+      expect(appointments).to be_empty
+    end
+
+    it "un starts_at con una fecha que no existe (30 de febrero) responde 400 como cualquier instante mal formado", :aggregate_failures do
+      book(body.merge(starts_at: "2026-02-30T10:00:00-06:00"))
+
+      expect(response).to have_http_status(:bad_request)
+      expect(response.parsed_body).to include("code" => "request.bad_request")
+      expect(appointments).to be_empty
+    end
+
+    it "un starts_at con una fracción de segundo distinta de cero responde 422 booking_invalid con starts_at not_on_minute", :aggregate_failures do
+      book(body.merge(starts_at: "2026-11-16T10:00:00.5-06:00"))
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "starts_at", "code" => "not_on_minute"))
+      expect(appointments).to be_empty
+    end
+
+    it "un starts_at con fracción en cero (.000) se acepta" do
+      book(body.merge(starts_at: "2026-11-16T10:00:00.000-06:00"))
+
+      expect(response).to have_http_status(:created)
+    end
+
+    [ "2026-11-08T10:00:00-06:00", "2026-11-10T10:00:00-06:00", "2026-11-11T11:59:00Z" ].each do |past|
+      it "un starts_at en el pasado (#{past}) responde 422 booking_invalid con starts_at in_the_past y un mensaje es-NI", :aggregate_failures do
+        book(body.merge(starts_at: past))
+
+        expect(response).to have_http_status(:unprocessable_content)
+        expect(response.parsed_body).to include("code" => "appointments.booking_invalid")
+        expect(response.parsed_body["errors"]).to eq([ { "field" => "starts_at", "code" => "in_the_past", "message" => "la hora de inicio ya pasó" } ])
+        expect(appointments).to be_empty
+      end
+    end
+
     it "un service_ids que no es una lista de UUID responde 400" do
       book(body.merge(service_ids: "no-es-lista"))
 

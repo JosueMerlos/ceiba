@@ -149,17 +149,35 @@ RSpec.describe Appointments::Book do
     ActiveSupport::Notifications.unsubscribe(subscription)
   end
 
-  it "una cita que se confirma tras la revalidación y antes del INSERT: ExclusionViolation traducida a SlotUnavailable y la transacción externa sigue usable", :aggregate_failures do
+  # What reached Rails.error while the block ran, through a real subscriber (the reporter is not mocked).
+  def reported_errors
+    reports = []
+    subscriber = Object.new
+    subscriber.define_singleton_method(:report) { |error, handled:, severity:, context:, source: nil| reports << { error:, handled:, severity:, context:, source: } }
+    Rails.error.subscribe(subscriber)
+    yield
+    reports
+  ensure
+    Rails.error.unsubscribe(subscriber)
+  end
+
+  it "una cita que se confirma tras la revalidación y antes del INSERT: ExclusionViolation traducida a SlotUnavailable, reportada y la transacción externa sigue usable", :aggregate_failures do
     world = build_company
     professional = add_professional(world)
     competitor = -> { Tenancy.with_context(organization:) { create(:appointment, professional:, branch: world[:branch], customer: world[:customer], starts_at:) } }
 
-    with_tenant(organization) do
-      compete_before_insert(competitor) do
-        expect { book(world, professional) }.to raise_error(Appointments::SlotUnavailable) { |error| expect(error.cause).to be_a(ActiveRecord::ExclusionViolation) }
+    reports = reported_errors do
+      with_tenant(organization) do
+        compete_before_insert(competitor) do
+          expect { book(world, professional) }.to raise_error(Appointments::SlotUnavailable) { |error| expect(error.cause).to be_a(ActiveRecord::ExclusionViolation) }
+        end
+        create(:service, company: world[:company], name: "Servicio posterior")
       end
-      create(:service, company: world[:company], name: "Servicio posterior")
     end
+
+    expect(reports.size).to eq(1)
+    expect(reports.first).to include(error: an_instance_of(ActiveRecord::ExclusionViolation), handled: true)
+    expect(reports.first[:context]).to eq(company_id: world[:company].id, branch_id: world[:branch].id, professional_id: professional.id, starts_at: starts_at.iso8601)
 
     expect(with_tenant(organization) { Appointments::Service.where(name: "Servicio posterior").count }).to eq(1)
     expect(appointments.size).to eq(1)
@@ -182,5 +200,41 @@ RSpec.describe Appointments::Book do
     end
 
     expect(appointments.map(&:professional_id)).to eq([ other.id ])
+  end
+
+  # Deletes a row from another committed connection, the way a competing writer would between Book's revalidation and its INSERT.
+  def delete_row(model, id) = -> { Tenancy.with_context(organization:) { model.where(id:).delete_all } }
+
+  it "el recurso que desaparece tras la revalidación: la FK compuesta del recurso es SlotUnavailable y se reporta", :aggregate_failures do
+    world = build_company
+    chair = add_chairs(world, 1).first
+    professional = add_professional(world)
+
+    reports = reported_errors do
+      with_tenant(organization) do
+        compete_before_insert(delete_row(Appointments::Resource, chair.id)) do
+          expect { book(world, professional) }.to raise_error(Appointments::SlotUnavailable) { |error| expect(error.cause).to be_a(ActiveRecord::InvalidForeignKey) }
+        end
+      end
+    end
+
+    expect(reports.map { it[:error] }).to match([ an_instance_of(ActiveRecord::InvalidForeignKey) ])
+    expect(reports.first).to include(handled: true, context: a_hash_including(branch_id: world[:branch].id, professional_id: professional.id))
+    expect(appointments).to be_empty
+  end
+
+  it "cualquier otra FK rota (el cliente desaparece tras la validación) no se traduce: la InvalidForeignKey sale tal cual y no se reporta", :aggregate_failures do
+    world = build_company
+    professional = add_professional(world)
+
+    reports = reported_errors do
+      with_tenant(organization) do
+        compete_before_insert(delete_row(Customers::Customer, world[:customer].id)) do
+          expect { book(world, professional) }.to raise_error(ActiveRecord::InvalidForeignKey, /fk_appointments_customer/)
+        end
+      end
+    end
+
+    expect(reports).to be_empty
   end
 end

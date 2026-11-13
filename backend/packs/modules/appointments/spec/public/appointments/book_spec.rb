@@ -210,6 +210,19 @@ RSpec.describe Appointments::Book do
       end
     end
 
+    it "un starts_at anterior a ahora (hace 3 días, ayer o hace un minuto) es InvalidBooking en starts_at (in_the_past), nunca un error del motor", :aggregate_failures do
+      [ now - 3.days, now - 1.day, now - 1.minute ].each do |past|
+        expect(errors_of(starts_at: past)).to eq([ { field: :starts_at, code: :in_the_past } ])
+      end
+      expect(untouched).to eq([ 0, 0, 0, 0 ])
+    end
+
+    it "un starts_at con segundos o fracciones es InvalidBooking en starts_at (not_on_minute)", :aggregate_failures do
+      [ starts_at + 0.5.seconds, starts_at + 30.seconds ].each do |off_minute|
+        expect(errors_of(starts_at: off_minute)).to eq([ { field: :starts_at, code: :not_on_minute } ])
+      end
+    end
+
     it "notas de exactamente 500 caracteres se aceptan" do
       expect(book(notes: "x" * 500).reload.notes).to eq("x" * 500)
     end
@@ -257,6 +270,19 @@ RSpec.describe Appointments::Book do
       expect(audit).to have_attributes(auditable_type: "Appointments::Appointment", auditable_id: appointment.id, actor_type: "user", actor_id: actor.id)
       expect(audit.after).to include("professional_id" => professional.id, "customer_id" => customer.id, "status" => "scheduled", "notes" => "[FILTERED]")
       expect(audit.after.to_s).not_to include("Dolor de muela")
+    end
+
+    it "la auditoría guarda el dinero y las líneas del snapshot, y la cita de origen de una reprogramación", :aggregate_failures do
+      original = create(:appointment, professional:, branch:, customer:, starts_at: starts_at + 2.hours, status: "rescheduled")
+
+      appointment = book(rescheduled_from: original)
+
+      audit = audits.sole
+      expect(audit.after).to include("rescheduled_from_id" => original.id)
+      expect(audit.metadata).to include("total_price_minor" => 20_000, "currency" => "NIO")
+      expect(audit.metadata["services"]).to eq(
+        lines_of(appointment).map { |line| { "service_id" => line.service_id, "position" => 0, "duration_minutes" => 30, "price_minor" => 20_000 } }
+      )
     end
 
     it "si la auditoría falla no queda la cita, ni sus líneas ni el evento", :aggregate_failures do

@@ -13,7 +13,7 @@ RSpec.describe RuboCop::Cop::Ceiba::AppointmentCreation, :config do
 
   context "con un archivo fuera de la lista permitida" do
     %w[create create! new insert insert! insert_all insert_all! upsert upsert_all find_or_create_by find_or_create_by!
-       first_or_create first_or_create! create_or_find_by create_or_find_by!].each do |method|
+       first_or_create first_or_create! create_or_find_by create_or_find_by! build find_or_initialize_by first_or_initialize create_with].each do |method|
       it "prohíbe Appointments::Appointment.#{method}" do
         expect_offense(<<~RUBY, file)
           Appointments::Appointment.#{method}(status: "scheduled")
@@ -26,6 +26,18 @@ RSpec.describe RuboCop::Cop::Ceiba::AppointmentCreation, :config do
       expect_offense(<<~RUBY, file)
         Appointments::Appointment.where(status: "scheduled").create!(notes: "x")
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`create!` se salta los candados y la revalidación).
+      RUBY
+    end
+
+    it "prohíbe construir desde una cadena que parte del modelo (build y create_with)", :aggregate_failures do
+      expect_offense(<<~RUBY, file)
+        Appointment.where(status: "scheduled").build(notes: "x")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`build` se salta los candados y la revalidación).
+      RUBY
+      expect_offense(<<~RUBY, file)
+        Appointments::Appointment.create_with(source: "panel").find_or_initialize_by(id: id)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`find_or_initialize_by` se salta los candados y la revalidación).
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`create_with` se salta los candados y la revalidación).
       RUBY
     end
 
@@ -81,6 +93,42 @@ RSpec.describe RuboCop::Cop::Ceiba::AppointmentCreation, :config do
   context "con el archivo de Book" do
     it "acepta crear la cita" do
       expect_no_offenses("Appointment.create!(status: 'scheduled')", "packs/modules/appointments/app/public/appointments/book.rb")
+    end
+
+    it "lo reconoce con la ruta desde la raíz del repositorio o absoluta, no solo desde backend/", :aggregate_failures do
+      expect_no_offenses("Appointment.create!(status: 'scheduled')", "backend/packs/modules/appointments/app/public/appointments/book.rb")
+      expect_no_offenses("Appointment.create!(status: 'scheduled')", "/app/backend/packs/modules/appointments/app/public/appointments/book.rb")
+    end
+
+    it "no confunde otro archivo con el mismo nombre en otra ruta" do
+      expect_offense(<<~RUBY, "packs/modules/appointments/app/services/appointments/book.rb")
+        Appointment.create!(status: "scheduled")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`create!` se salta los candados y la revalidación).
+      RUBY
+    end
+  end
+
+  # The cop only sees the files .rubocop.yml hands it: seeds, initializers and rake tasks create data too.
+  describe "los archivos que revisa (.rubocop.yml)" do
+    let(:project_config) { RuboCop::ConfigLoader.configuration_from_file(Rails.root.join(".rubocop.yml").to_s) }
+    let(:cop) { described_class.new(project_config) }
+
+    %w[
+      packs/modules/appointments/app/services/appointments/reschedule.rb
+      packs/modules/appointments/db/seeds.rb
+      packs/modules/appointments/db/migrate/20261112200200_recreate.rb
+      packs/modules/appointments/config/initializers/seed.rb
+      lib/tasks/demo.rake
+      packs/modules/appointments/lib/tasks/demo.rake
+      db/seeds.rb
+    ].each do |path|
+      it "incluye #{path}" do
+        expect(cop.relevant_file?(Rails.root.join(path).to_s)).to be(true)
+      end
+    end
+
+    it "sigue excluyendo los specs" do
+      expect(cop.relevant_file?(Rails.root.join("packs/modules/appointments/spec/factories/appointments.rb").to_s)).to be(false)
     end
   end
 end

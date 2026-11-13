@@ -19,12 +19,12 @@ RSpec.describe "Restricciones de citas en la base de datos" do
 
   # Inserts one appointment row. `blocks_from`/`blocks_to` default to the slot itself.
   def insert_appointment(from: ten, to: from + 1.hour, professional: self.professional, resource: nil, status: "scheduled", branch: self.branch,
-                         customer: self.customer, source: "panel", starts_at: from, ends_at: to, blocks_from: from, blocks_to: to)
+                         customer: self.customer, source: "panel", created_by_type: "system", starts_at: from, ends_at: to, blocks_from: from, blocks_to: to)
     ApplicationRecord.connection.select_value(<<~SQL.squish)
       INSERT INTO appointments (organization_id, company_id, branch_id, professional_id, resource_id, customer_id, source, created_by_type,
                                 starts_at, ends_at, blocks_from, blocks_to, status, created_at, updated_at)
       VALUES (#{quote(organization.id)}, #{quote(company.id)}, #{quote(branch.id)}, #{quote(professional.id)}, #{quote(resource&.id)},
-              #{quote(customer.id)}, #{quote(source)}, 'system', #{quote(starts_at)}, #{quote(ends_at)}, #{quote(blocks_from)}, #{quote(blocks_to)},
+              #{quote(customer.id)}, #{quote(source)}, #{quote(created_by_type)}, #{quote(starts_at)}, #{quote(ends_at)}, #{quote(blocks_from)}, #{quote(blocks_to)},
               #{quote(status)}, now(), now())
       RETURNING id
     SQL
@@ -115,6 +115,18 @@ RSpec.describe "Restricciones de citas en la base de datos" do
   describe "chk_appointments_source" do
     it "rechaza un origen desconocido" do
       expect { savepoint { insert_appointment(source: "otro") } }.to violating(ActiveRecord::CheckViolation, "chk_appointments_source")
+    end
+  end
+
+  describe "chk_appointments_created_by_type" do
+    it "acepta cada tipo de actor que la auditoría conoce, platform_staff incluido", :aggregate_failures do
+      %w[user api_key system public_token platform_staff].each_with_index do |type, index|
+        expect(insert_appointment(from: ten + index.days, created_by_type: type)).to be_present
+      end
+    end
+
+    it "rechaza un tipo de actor desconocido" do
+      expect { savepoint { insert_appointment(created_by_type: "robot") } }.to violating(ActiveRecord::CheckViolation, "chk_appointments_created_by_type")
     end
   end
 
