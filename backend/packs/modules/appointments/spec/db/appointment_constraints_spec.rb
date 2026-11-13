@@ -6,10 +6,14 @@ RSpec.describe "Restricciones de citas en la base de datos" do
   let(:company) { create_in(organization, :company) }
   let(:branch) { create_in(organization, :branch, company:) }
   let(:professional) { create_in(organization, :professional, company:) }
-  let(:customer) { create_in(organization, :customer, company:) }
-  let(:ten) { Time.utc(2026, 11, 16, 10) }
 
   around { |example| with_tenant(organization) { example.run } }
+
+  # Eager: a record first built inside a rolled-back savepoint would not exist for the next attempt of the same example.
+  before { [ branch, professional, customer ] }
+
+  def customer = @customer ||= create_in(organization, :customer, company:)
+  def ten = Time.utc(2026, 11, 16, 10)
 
   def quote(value) = ApplicationRecord.connection.quote(value)
 
@@ -26,15 +30,13 @@ RSpec.describe "Restricciones de citas en la base de datos" do
     SQL
   end
 
-  def rejected_by(error, name, &)
-    expect { savepoint(&) }.to raise_error(error, /#{name}/)
-  end
+  def violating(error, name) = raise_error(error, /#{name}/)
 
   describe "no_overlap_professional" do
     it "rechaza dos citas bloqueantes del mismo profesional con bloques solapados" do
       insert_appointment(from: ten)
 
-      rejected_by(ActiveRecord::ExclusionViolation, "no_overlap_professional") { insert_appointment(from: ten + 30.minutes) }
+      expect { savepoint { insert_appointment(from: ten + 30.minutes) } }.to violating(ActiveRecord::ExclusionViolation, "no_overlap_professional")
     end
 
     it "permite bloques contiguos del mismo profesional porque el rango es semiabierto" do
@@ -55,7 +57,7 @@ RSpec.describe "Restricciones de citas en la base de datos" do
     it "rechaza una cita sobre un no_show, que sigue bloqueando" do
       insert_appointment(from: ten, status: "no_show")
 
-      rejected_by(ActiveRecord::ExclusionViolation, "no_overlap_professional") { insert_appointment(from: ten) }
+      expect { savepoint { insert_appointment(from: ten) } }.to violating(ActiveRecord::ExclusionViolation, "no_overlap_professional")
     end
 
     it "permite la misma hora a otro profesional" do
@@ -66,14 +68,13 @@ RSpec.describe "Restricciones de citas en la base de datos" do
   end
 
   describe "no_overlap_resource" do
-    let(:chair) { create(:resource, branch:) }
+    def chair = @chair ||= create(:resource, branch:)
 
     it "rechaza el mismo recurso con otro profesional y bloques solapados" do
       insert_appointment(from: ten, resource: chair)
 
-      rejected_by(ActiveRecord::ExclusionViolation, "no_overlap_resource") do
-        insert_appointment(from: ten + 15.minutes, resource: chair, professional: create(:professional, company:))
-      end
+      expect { savepoint { insert_appointment(from: ten + 15.minutes, resource: chair, professional: create(:professional, company:)) } }
+        .to violating(ActiveRecord::ExclusionViolation, "no_overlap_resource")
     end
 
     it "permite solapar cuando las dos citas no usan recurso" do
@@ -87,13 +88,13 @@ RSpec.describe "Restricciones de citas en la base de datos" do
     it "rechaza un recurso de otra sucursal de la misma empresa" do
       other_branch_resource = create(:resource, branch: create(:branch, company:))
 
-      rejected_by(ActiveRecord::InvalidForeignKey, "fk_appointments_resource") { insert_appointment(resource: other_branch_resource) }
+      expect { savepoint { insert_appointment(resource: other_branch_resource) } }.to violating(ActiveRecord::InvalidForeignKey, "fk_appointments_resource")
     end
 
     it "rechaza un cliente de otra empresa de la misma organización" do
       foreign_customer = create(:customer, company: create(:company))
 
-      rejected_by(ActiveRecord::InvalidForeignKey, "fk_appointments_customer") { insert_appointment(customer: foreign_customer) }
+      expect { savepoint { insert_appointment(customer: foreign_customer) } }.to violating(ActiveRecord::InvalidForeignKey, "fk_appointments_customer")
     end
   end
 
@@ -105,19 +106,21 @@ RSpec.describe "Restricciones de citas en la base de datos" do
         { blocks_to: ten + 59.minutes }
       ]
 
-      invalid.each { |attributes| rejected_by(ActiveRecord::CheckViolation, "chk_appointments_valid_interval") { insert_appointment(from: ten, **attributes) } }
+      invalid.each do |attributes|
+        expect { savepoint { insert_appointment(from: ten, **attributes) } }.to violating(ActiveRecord::CheckViolation, "chk_appointments_valid_interval")
+      end
     end
   end
 
   describe "chk_appointments_source" do
     it "rechaza un origen desconocido" do
-      rejected_by(ActiveRecord::CheckViolation, "chk_appointments_source") { insert_appointment(source: "otro") }
+      expect { savepoint { insert_appointment(source: "otro") } }.to violating(ActiveRecord::CheckViolation, "chk_appointments_source")
     end
   end
 
   describe "appointment_services" do
-    let(:service) { create_in(organization, :service, company:) }
-    let(:appointment_id) { insert_appointment }
+    def service = @service ||= create_in(organization, :service, company:)
+    def appointment_id = @appointment_id ||= insert_appointment
 
     def insert_line(position: 0, price_minor: 20_000, currency: "NIO")
       ApplicationRecord.connection.execute(<<~SQL.squish)
@@ -129,11 +132,11 @@ RSpec.describe "Restricciones de citas en la base de datos" do
     end
 
     it "rechaza una moneda en minúsculas" do
-      rejected_by(ActiveRecord::CheckViolation, "chk_appointment_services_currency") { insert_line(currency: "usd") }
+      expect { savepoint { insert_line(currency: "usd") } }.to violating(ActiveRecord::CheckViolation, "chk_appointment_services_currency")
     end
 
     it "rechaza un precio negativo" do
-      rejected_by(ActiveRecord::CheckViolation, "chk_appointment_services_price") { insert_line(price_minor: -1) }
+      expect { savepoint { insert_line(price_minor: -1) } }.to violating(ActiveRecord::CheckViolation, "chk_appointment_services_price")
     end
 
     it "rechaza una posición repetida dentro de la misma cita" do

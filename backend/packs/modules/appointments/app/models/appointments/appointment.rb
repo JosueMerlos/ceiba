@@ -5,9 +5,15 @@ module Appointments
     # Only these statuses give the slot back; every other one (including no_show and completed) still occupies the agenda.
     RELEASING_STATUSES = %w[cancelled rescheduled].freeze
 
+    SOURCES = %w[panel public_booking].freeze
+
     acts_as_tenant :organization, class_name: "Tenancy::Organization"
 
+    # Free text that may reveal something private.
+    encrypts :notes
+
     belongs_to :resource, class_name: "Appointments::Resource", optional: true
+    has_many :services_snapshot, class_name: "Appointments::AppointmentService", inverse_of: :appointment, dependent: nil
 
     scope :blocking, -> { where.not(status: RELEASING_STATUSES) }
     # Half-open: a blocking interval that ends exactly at `from`, or starts exactly at `to`, does not overlap.

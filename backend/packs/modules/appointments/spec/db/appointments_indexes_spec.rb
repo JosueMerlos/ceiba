@@ -8,6 +8,7 @@ RSpec.describe "Índices de citas" do
   let(:service) { create_in(organization, :service, company:) }
   let(:professional) { create_in(organization, :professional, company:) }
 
+  def customer = @customer ||= create_in(organization, :customer, company:)
   def room = @room ||= create(:resource, branch:, kind: "room")
 
   around { |example| with_tenant(organization) { example.run } }
@@ -39,10 +40,11 @@ RSpec.describe "Índices de citas" do
   # Six years of history, every owner with appointments all along, a fifth of them cancelled; the owner asked for is one of twenty.
   def seed_sql(column, owner_id)
     <<~SQL
-      INSERT INTO {{clone}} (organization_id, company_id, branch_id, professional_id, resource_id, starts_at, ends_at, blocks_from, blocks_to, status, created_at, updated_at)
+      INSERT INTO {{clone}} (organization_id, company_id, branch_id, professional_id, resource_id, customer_id, source, created_by_type, starts_at, ends_at, blocks_from, blocks_to, status, created_at, updated_at)
       SELECT '#{organization.id}', '#{company.id}', '#{branch.id}',
              #{column == "professional_id" ? "CASE WHEN i % 20 = 0 THEN '#{owner_id}'::uuid ELSE md5(i::text)::uuid END" : "'#{professional.id}'"},
              #{column == "resource_id" ? "CASE WHEN i % 20 = 0 THEN '#{owner_id}'::uuid ELSE md5(i::text)::uuid END" : "NULL"},
+             '#{customer.id}', 'panel', 'system',
              t, t + interval '30 minutes', t, t + interval '30 minutes',
              CASE WHEN i % 5 = 0 THEN 'cancelled' ELSE 'scheduled' END, t, t
       FROM (SELECT i, timestamp '2020-01-01' + i * interval '3 hours' AS t FROM generate_series(1, 20000) AS i) AS series

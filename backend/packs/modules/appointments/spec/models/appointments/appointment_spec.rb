@@ -20,7 +20,15 @@ RSpec.describe Appointments::Appointment do
     end
 
     it "todo índice compuesto empieza por organization_id" do
-      expect(indexed_columns.select { it.size > 1 }.map(&:first).uniq).to eq(%w[organization_id])
+      column_lists = indexed_columns.select { it.is_a?(Array) && it.size > 1 }
+
+      expect(column_lists.map(&:first).uniq).to eq(%w[organization_id])
+    end
+
+    it "las dos exclusiones de agenda existen como índices de expresión", :aggregate_failures do
+      expressions = ActiveRecord::Base.connection.indexes(:appointments).select { it.columns.is_a?(String) }.map(&:name)
+
+      expect(expressions).to contain_exactly("no_overlap_professional", "no_overlap_resource")
     end
 
     it "tiene los índices de agenda", :aggregate_failures do
@@ -42,7 +50,9 @@ RSpec.describe Appointments::Appointment do
     it "excluye las citas canceladas y reprogramadas y conserva el resto", :aggregate_failures do
       with_tenant(organization) do
         statuses = %w[scheduled confirmed completed no_show cancelled rescheduled]
-        rows = statuses.to_h { |status| [ status, create(:appointment, professional:, branch:, status:) ] }
+        rows = statuses.each_with_index.to_h do |status, index|
+          [ status, create(:appointment, professional:, branch:, status:, starts_at: Time.utc(2026, 11, 16, 8 + index)) ]
+        end
 
         expect(described_class.blocking).to match_array(rows.values_at("scheduled", "confirmed", "completed", "no_show"))
       end
