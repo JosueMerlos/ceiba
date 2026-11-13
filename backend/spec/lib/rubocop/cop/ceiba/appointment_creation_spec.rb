@@ -12,13 +12,42 @@ RSpec.describe RuboCop::Cop::Ceiba::AppointmentCreation, :config do
   let(:file) { "packs/modules/appointments/app/services/appointments/reschedule.rb" }
 
   context "con un archivo fuera de la lista permitida" do
-    %w[create create! new insert insert! insert_all insert_all! upsert upsert_all find_or_create_by find_or_create_by!].each do |method|
+    %w[create create! new insert insert! insert_all insert_all! upsert upsert_all find_or_create_by find_or_create_by!
+       first_or_create first_or_create! create_or_find_by create_or_find_by!].each do |method|
       it "prohíbe Appointments::Appointment.#{method}" do
         expect_offense(<<~RUBY, file)
           Appointments::Appointment.#{method}(status: "scheduled")
           ^^^^^^^^^^^^^^^^^^^^^^^^^^#{'^' * method.length}^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`#{method}` se salta los candados y la revalidación).
         RUBY
       end
+    end
+
+    it "prohíbe crear desde una cadena que parte del modelo" do
+      expect_offense(<<~RUBY, file)
+        Appointments::Appointment.where(status: "scheduled").create!(notes: "x")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`create!` se salta los candados y la revalidación).
+      RUBY
+    end
+
+    it "prohíbe first_or_create! tras un scope" do
+      expect_offense(<<~RUBY, file)
+        Appointment.blocking.first_or_create!(status: "scheduled")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`first_or_create!` se salta los candados y la revalidación).
+      RUBY
+    end
+
+    it "prohíbe crear líneas de servicio de una cita fuera de Book" do
+      expect_offense(<<~RUBY, file)
+        Appointments::AppointmentService.create!(appointment_id: id)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`create!` se salta los candados y la revalidación).
+      RUBY
+    end
+
+    it "prohíbe AppointmentService.insert_all dentro del módulo" do
+      expect_offense(<<~RUBY, file)
+        AppointmentService.insert_all(rows)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Crear citas es solo de Appointments::Book (`insert_all` se salta los candados y la revalidación).
+      RUBY
     end
 
     it "prohíbe Appointment.create! dentro del módulo" do
@@ -39,6 +68,8 @@ RSpec.describe RuboCop::Cop::Ceiba::AppointmentCreation, :config do
       expect_no_offenses(<<~RUBY, file)
         Appointments::Appointment.where(status: "scheduled").update_all(status: "cancelled")
         Appointment.find(id)
+        Appointment.blocking.where(professional_id: id).first
+        AppointmentService.where(appointment_id: id).order(:position).to_a
       RUBY
     end
 
