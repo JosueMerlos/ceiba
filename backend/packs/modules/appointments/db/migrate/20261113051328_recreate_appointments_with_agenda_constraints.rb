@@ -7,7 +7,7 @@
 #
 # The ranges use tsrange because the columns are `timestamp without time zone` holding UTC; tstzrange would depend on the session.
 class RecreateAppointmentsWithAgendaConstraints < ActiveRecord::Migration[8.1]
-  RELEASED = "status NOT IN ('cancelled', 'rescheduled')".freeze
+  RELEASED = "status <> 'cancelled' AND status <> 'rescheduled'".freeze
   RANGE = "tsrange(blocks_from, blocks_to, '[)')".freeze
   STATUSES = %w[scheduled confirmed checked_in completed cancelled rescheduled no_show].freeze
 
@@ -36,9 +36,10 @@ class RecreateAppointmentsWithAgendaConstraints < ActiveRecord::Migration[8.1]
       t.unique_constraint %i[organization_id company_id id], name: "uq_appointments_org_company_id"
 
       t.check_constraint "starts_at < ends_at AND blocks_from <= starts_at AND blocks_to >= ends_at", name: "chk_appointments_valid_interval"
-      t.check_constraint "status IN (#{STATUSES.map { |status| "'#{status}'" }.join(', ')})", name: "chk_appointments_status"
-      t.check_constraint "source IN ('panel', 'public_booking')", name: "chk_appointments_source"
-      t.check_constraint "created_by_type IN ('user', 'api_key', 'system', 'public_token', 'platform_staff')", name: "chk_appointments_created_by_type"
+      t.check_constraint any_of("status", STATUSES), name: "chk_appointments_status"
+      t.check_constraint any_of("source", %w[panel public_booking]), name: "chk_appointments_source"
+      t.check_constraint any_of("created_by_type", %w[user api_key system public_token platform_staff]),
+                         name: "chk_appointments_created_by_type"
       # A user is always identified; the other actors may have no id (the system) or an id this table cannot check.
       t.check_constraint "created_by_type <> 'user' OR created_by_id IS NOT NULL", name: "chk_appointments_created_by_user_id"
 
@@ -106,4 +107,8 @@ class RecreateAppointmentsWithAgendaConstraints < ActiveRecord::Migration[8.1]
     t.index %i[organization_id resource_id blocks_to], name: "idx_appointments_resource_blocks",
       where: "resource_id IS NOT NULL AND status <> 'cancelled' AND status <> 'rescheduled'"
   end
+
+  # OR chains instead of IN (...): PostgreSQL dumps IN differently after a migrate than after a structure load,
+  # and CI requires both dumps to match.
+  def any_of(column, values) = values.map { |value| "#{column} = '#{value}'" }.join(" OR ")
 end

@@ -118,10 +118,10 @@ CREATE TABLE public.appointments (
     created_by_type character varying NOT NULL,
     created_by_id uuid,
     rescheduled_from_id uuid,
-    CONSTRAINT chk_appointments_created_by_type CHECK (((created_by_type)::text = ANY ((ARRAY['user'::character varying, 'api_key'::character varying, 'system'::character varying, 'public_token'::character varying, 'platform_staff'::character varying])::text[]))),
+    CONSTRAINT chk_appointments_created_by_type CHECK ((((created_by_type)::text = 'user'::text) OR ((created_by_type)::text = 'api_key'::text) OR ((created_by_type)::text = 'system'::text) OR ((created_by_type)::text = 'public_token'::text) OR ((created_by_type)::text = 'platform_staff'::text))),
     CONSTRAINT chk_appointments_created_by_user_id CHECK ((((created_by_type)::text <> 'user'::text) OR (created_by_id IS NOT NULL))),
-    CONSTRAINT chk_appointments_source CHECK (((source)::text = ANY ((ARRAY['panel'::character varying, 'public_booking'::character varying])::text[]))),
-    CONSTRAINT chk_appointments_status CHECK (((status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying, 'checked_in'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'rescheduled'::character varying, 'no_show'::character varying])::text[]))),
+    CONSTRAINT chk_appointments_source CHECK ((((source)::text = 'panel'::text) OR ((source)::text = 'public_booking'::text))),
+    CONSTRAINT chk_appointments_status CHECK ((((status)::text = 'scheduled'::text) OR ((status)::text = 'confirmed'::text) OR ((status)::text = 'checked_in'::text) OR ((status)::text = 'completed'::text) OR ((status)::text = 'cancelled'::text) OR ((status)::text = 'rescheduled'::text) OR ((status)::text = 'no_show'::text))),
     CONSTRAINT chk_appointments_valid_interval CHECK (((starts_at < ends_at) AND (blocks_from <= starts_at) AND (blocks_to >= ends_at)))
 );
 
@@ -801,7 +801,7 @@ ALTER TABLE ONLY public.memberships
 --
 
 ALTER TABLE ONLY public.appointments
-    ADD CONSTRAINT no_overlap_professional EXCLUDE USING gist (professional_id WITH =, tsrange(blocks_from, blocks_to, '[)'::text) WITH &&) WHERE (((status)::text <> ALL ((ARRAY['cancelled'::character varying, 'rescheduled'::character varying])::text[])));
+    ADD CONSTRAINT no_overlap_professional EXCLUDE USING gist (professional_id WITH =, tsrange(blocks_from, blocks_to, '[)'::text) WITH &&) WHERE ((((status)::text <> 'cancelled'::text) AND ((status)::text <> 'rescheduled'::text)));
 
 
 --
@@ -809,7 +809,7 @@ ALTER TABLE ONLY public.appointments
 --
 
 ALTER TABLE ONLY public.appointments
-    ADD CONSTRAINT no_overlap_resource EXCLUDE USING gist (resource_id WITH =, tsrange(blocks_from, blocks_to, '[)'::text) WITH &&) WHERE (((resource_id IS NOT NULL) AND ((status)::text <> ALL ((ARRAY['cancelled'::character varying, 'rescheduled'::character varying])::text[]))));
+    ADD CONSTRAINT no_overlap_resource EXCLUDE USING gist (resource_id WITH =, tsrange(blocks_from, blocks_to, '[)'::text) WITH &&) WHERE (((resource_id IS NOT NULL) AND ((status)::text <> 'cancelled'::text) AND ((status)::text <> 'rescheduled'::text)));
 
 
 --
