@@ -294,6 +294,18 @@ RSpec.describe Appointments::Book do
 
       expect(booked_events.sole.metadata).to include("company_id" => company.id, "branch_id" => branch.id)
     end
+
+    it "la cita, su línea, el evento y la auditoría viven en la transacción del llamador: si esta se revierte, no queda nada", :aggregate_failures do
+      before_booking = untouched
+
+      ApplicationRecord.transaction(requires_new: true) do
+        book
+        expect(untouched).to eq(before_booking.map(&:succ))
+        raise ActiveRecord::Rollback
+      end
+
+      expect(untouched).to eq(before_booking)
+    end
   end
 
   describe "reprogramación" do
