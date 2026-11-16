@@ -123,7 +123,7 @@ FactoryBot.define do
   end
 end
 
-# A booked slot of a professional at a branch (the table holds only what the availability engine reads). Organization and
+# A booked slot of a professional at a branch (the database constraints still apply, so the defaults must be a valid, non-overlapping slot). Organization and
 # company come from the professional; the branch and the customer must belong to that company. `blocks_*` default to the slot itself.
 FactoryBot.define do
   factory :appointment, class: "Appointments::Appointment" do

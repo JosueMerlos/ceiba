@@ -89,13 +89,13 @@ module Appointments
 
     # Always in this order (person, then resource), so two bookings can never wait on each other. The lock is held until the
     # outermost transaction ends, so whoever waits reads the winner's committed rows.
-    def lock_person = advisory_lock("appointments.person:#{professional.user_id || professional.id}")
+    # The keys carry the organization so two tenants never contend for (or collide on) the same lock.
+    def lock_person = advisory_lock("appointments.person:#{@company.organization_id}:#{professional.user_id || professional.id}")
 
-    def lock_resource(kind) = (advisory_lock("appointments.resource:#{@branch.id}:#{kind}") if kind)
+    def lock_resource(kind) = (advisory_lock("appointments.resource:#{@company.organization_id}:#{@branch.id}:#{kind}") if kind)
 
     def advisory_lock(name)
-      connection = ApplicationRecord.connection
-      connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(#{connection.quote(name)}, 0))")
+      ApplicationRecord.connection.select_value("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", "Appointments::Book lock", [ name ])
     end
 
     # The engine is the authority on what can be booked now: a stale answer (a cache, a page left open) ends here as a conflict.
@@ -135,7 +135,8 @@ module Appointments
                                                            professional_id: appointment.professional_id, customer_id: appointment.customer_id,
                                                            resource_id: appointment.resource_id, starts_at: appointment.starts_at, ends_at: appointment.ends_at,
                                                            service_ids: plan.lines.map(&:service_id), source: appointment.source,
-                                                           rescheduled_from_id: appointment.rescheduled_from_id)
+                                                           rescheduled_from_id: appointment.rescheduled_from_id,
+                                                           metadata: { company_id: @company.id, branch_id: @branch.id })
       Audit.record(action: "appointments.appointment.booked", subject: appointment, after: appointment.attributes.slice(*AUDITED_FIELDS), actor: @actor,
                    metadata: money_snapshot(plan))
     end

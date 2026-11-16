@@ -51,6 +51,19 @@ END
 $$;
 
 
+--
+-- Name: reject_row_update(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_row_update() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION '% es inmutable: % no está permitido', TG_TABLE_NAME, TG_OP USING ERRCODE = 'restrict_violation';
+END
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -106,6 +119,7 @@ CREATE TABLE public.appointments (
     created_by_id uuid,
     rescheduled_from_id uuid,
     CONSTRAINT chk_appointments_created_by_type CHECK (((created_by_type)::text = ANY ((ARRAY['user'::character varying, 'api_key'::character varying, 'system'::character varying, 'public_token'::character varying, 'platform_staff'::character varying])::text[]))),
+    CONSTRAINT chk_appointments_created_by_user_id CHECK ((((created_by_type)::text <> 'user'::text) OR (created_by_id IS NOT NULL))),
     CONSTRAINT chk_appointments_source CHECK (((source)::text = ANY ((ARRAY['panel'::character varying, 'public_booking'::character varying])::text[]))),
     CONSTRAINT chk_appointments_status CHECK (((status)::text = ANY ((ARRAY['scheduled'::character varying, 'confirmed'::character varying, 'checked_in'::character varying, 'completed'::character varying, 'cancelled'::character varying, 'rescheduled'::character varying, 'no_show'::character varying])::text[]))),
     CONSTRAINT chk_appointments_valid_interval CHECK (((starts_at < ends_at) AND (blocks_from <= starts_at) AND (blocks_to >= ends_at)))
@@ -1603,6 +1617,13 @@ CREATE UNIQUE INDEX uq_srr_service_kind ON public.service_resource_requirements 
 
 
 --
+-- Name: appointment_services appointment_services_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER appointment_services_reject_update BEFORE UPDATE ON public.appointment_services FOR EACH STATEMENT EXECUTE FUNCTION public.reject_row_update();
+
+
+--
 -- Name: audit_events audit_events_append_only; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2298,10 +2319,10 @@ CREATE POLICY tenant_isolation ON public.weekly_schedules USING ((organization_i
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20261112200300'),
-('20261112200200'),
-('20261112200100'),
-('20261112200000'),
+('20261113051330'),
+('20261113051328'),
+('20261113051326'),
+('20261113051324'),
 ('20261112100700'),
 ('20261112100600'),
 ('20261112100500'),

@@ -10,8 +10,9 @@ module RuboCop
       # inconsistent. A creator is flagged on the model itself or at the end of a chain that starts there (`Appointment.where(...)
       # .create!`). The allowed files (AllowedFiles) are the ones that hold that creation; specs are excluded in .rubocop.yml because
       # the factory is test infrastructure.
-      # Known limit: it matches the constants by name, so an alias stored in a variable, `constantize` or creating through an
-      # association (`appointment.services_snapshot.create!`) is not followed.
+      # Known limits: it matches the constants by name, so an alias stored in a variable, `constantize` or creating through an
+      # association (`appointment.services_snapshot.create!`) is not followed; neither is a dynamic call (`send(:create!)`,
+      # `public_send`) nor copying a record to save it (`appointment.dup.save`, `clone.save`).
       #
       # @example
       #   # bad
@@ -39,11 +40,18 @@ module RuboCop
 
           add_offense(node, message: format(MSG, method: node.method_name))
         end
+        alias on_csend on_send
 
         private
 
         def chain_root(node)
-          node = node.receiver while node&.send_type?
+          # A block wraps the call it is attached to (`scope.then { ... }.create!`), `&.` is a csend.
+          loop do
+            node = node.send_node if node&.block_type?
+            break unless node&.call_type?
+
+            node = node.receiver
+          end
           node
         end
 

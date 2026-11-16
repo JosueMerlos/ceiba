@@ -121,7 +121,7 @@ RSpec.describe "Restricciones de citas en la base de datos" do
   describe "chk_appointments_created_by_type" do
     it "acepta cada tipo de actor que la auditoría conoce, platform_staff incluido", :aggregate_failures do
       %w[user api_key system public_token platform_staff].each_with_index do |type, index|
-        expect(insert_appointment(from: ten + index.days, created_by_type: type)).to be_present
+        expect(insert_appointment(from: ten + index.days, created_by_type: type, created_by_id: SecureRandom.uuid)).to be_present
       end
     end
 

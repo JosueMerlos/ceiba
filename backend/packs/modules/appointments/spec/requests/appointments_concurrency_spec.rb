@@ -5,6 +5,8 @@ require "rails_helper"
 # mocked: the advisory locks, the engine's revalidation and the exclusion constraints decide.
 # rubocop:disable RSpec/MultipleMemoizedHelpers
 RSpec.describe "Reserva de citas: carrera por HTTP" do
+  include ActiveSupport::Testing::TimeHelpers
+
   self.use_transactional_tests = false
 
   let!(:world) { build_access_world }
@@ -13,11 +15,12 @@ RSpec.describe "Reserva de citas: carrera por HTTP" do
   let(:professional) { create_in(world.organization, :professional, company: world.company_a) }
   let(:customer) { create_in(world.organization, :customer, company: world.company_a) }
   let(:path) { "/api/v1/organizations/#{world.organization.id}/companies/#{world.company_a.id}/appointments/branches/#{world.branch_a1.id}/appointments" }
-  # The first Monday at least two weeks ahead of the real clock, 10:00 in America/Managua (UTC-6): always in the future.
-  let(:starts_at) { "#{(Date.current + 14).next_occurring(:monday).iso8601}T10:00:00-06:00" }
+  # Monday 16 Nov 2026, 10:00 in America/Managua (UTC-6); the clock is frozen before it.
+  let(:starts_at) { "2026-11-16T10:00:00-06:00" }
   let(:body) { { customer_id: customer.id, service_ids: [ service.id ], professional_id: professional.id, starts_at: } }
 
   before do
+    travel_to Time.utc(2026, 11, 11, 12)
     with_tenant(world.organization) { Modules::Enable.call(company: world.company_a, key: "appointments") }
     create_in(world.organization, :professional_branch_assignment, professional:, branch: world.branch_a1)
     create_in(world.organization, :professional_service, professional:, service:)
@@ -27,6 +30,7 @@ RSpec.describe "Reserva de citas: carrera por HTTP" do
   end
 
   after do
+    travel_back
     purge_organizations([ world.organization ], user_ids: [ user.id ])
     Identity::Session.where(user_id: user.id).delete_all
     Identity::User.where(id: user.id).delete_all

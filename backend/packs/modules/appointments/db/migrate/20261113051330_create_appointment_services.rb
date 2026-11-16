@@ -1,7 +1,8 @@
 # appointment_services: the services of an appointment as they were when it was booked (duration, buffers and price are copied,
-# so a later catalog change does not rewrite history). Immutable: no updated_at. Tenant table.
+# so a later catalog change does not rewrite history). Immutable: no updated_at and a trigger that rejects UPDATE (DELETE stays
+# allowed for the cascade from its appointment and for purges). Tenant table.
 class CreateAppointmentServices < ActiveRecord::Migration[8.1]
-  def change
+  def up
     create_tenant_table :appointment_services do |t|
       # No (organization_id, company_id) index of its own: the two below start with that pair.
       t.tenant_reference :company, index: false
@@ -31,5 +32,11 @@ class CreateAppointmentServices < ActiveRecord::Migration[8.1]
       # The service side of the composite FK (deleting a service looks here).
       t.index %i[organization_id company_id service_id], name: "idx_appointment_services_service"
     end
+    reject_updates :appointment_services
+  end
+
+  # The trigger goes with the table; the shared function stays because other tables may use it.
+  def down
+    drop_table :appointment_services
   end
 end

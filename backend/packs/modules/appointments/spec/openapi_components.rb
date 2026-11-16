@@ -290,12 +290,11 @@ OpenapiComponents.register(
       status: { type: :string, enum: %w[scheduled confirmed checked_in completed cancelled rescheduled no_show] },
       source: { type: :string, enum: %w[panel public_booking] },
       lock_version: { type: :integer, minimum: 0 },
-      notes: { type: :string, nullable: true },
       services: { type: :array, items: { "$ref" => "#/components/schemas/AppointmentService" } },
       total_price_minor: { type: :integer, format: :int64, minimum: 0 },
       currency: { type: :string, enum: %w[NIO USD] }
     },
-    required: %i[id branch_id professional_id resource_id customer_id starts_at ends_at status source lock_version notes services total_price_minor currency],
+    required: %i[id branch_id professional_id resource_id customer_id starts_at ends_at status source lock_version services total_price_minor currency],
     additionalProperties: false
   },
   AppointmentInput: {

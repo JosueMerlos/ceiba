@@ -1,7 +1,7 @@
 module Appointments
-  # Fields match components.schemas.Appointment EXACTLY. Only the customer's id goes out, never their name or contact data.
+  # Fields match components.schemas.Appointment EXACTLY. Only the customer's id goes out, never their name or contact data, and the encrypted notes stay out too.
   class AppointmentSerializer < Api::Serializer
-    attributes :id, :branch_id, :professional_id, :resource_id, :customer_id, :status, :source, :lock_version, :notes
+    attributes :id, :branch_id, :professional_id, :resource_id, :customer_id, :status, :source, :lock_version
 
     attribute(:starts_at) { |appointment| appointment.starts_at.utc.iso8601(3) }
     attribute(:ends_at) { |appointment| appointment.ends_at.utc.iso8601(3) }

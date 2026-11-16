@@ -39,6 +39,8 @@ class RecreateAppointmentsWithAgendaConstraints < ActiveRecord::Migration[8.1]
       t.check_constraint "status IN (#{STATUSES.map { |status| "'#{status}'" }.join(', ')})", name: "chk_appointments_status"
       t.check_constraint "source IN ('panel', 'public_booking')", name: "chk_appointments_source"
       t.check_constraint "created_by_type IN ('user', 'api_key', 'system', 'public_token', 'platform_staff')", name: "chk_appointments_created_by_type"
+      # A user is always identified; the other actors may have no id (the system) or an id this table cannot check.
+      t.check_constraint "created_by_type <> 'user' OR created_by_id IS NOT NULL", name: "chk_appointments_created_by_user_id"
 
       t.exclusion_constraint "professional_id WITH =, #{RANGE} WITH &&", using: :gist, where: RELEASED, name: "no_overlap_professional"
       t.exclusion_constraint "resource_id WITH =, #{RANGE} WITH &&", using: :gist, where: "resource_id IS NOT NULL AND #{RELEASED}",

@@ -180,6 +180,7 @@ RSpec.describe Appointments::Book do
     expect(with_tenant(organization) { Appointments::Service.where(name: "Servicio posterior").count }).to eq(1)
     expect(appointments.size).to eq(1)
     expect(with_tenant(organization) { Appointments::AppointmentService.count + Events::OutboxEvent.where(name: "appointments.appointment_booked.v1").count }).to eq(0)
+    expect(with_tenant(organization) { Audit::Event.where(action: "appointments.appointment.booked").count }).to eq(0)
   end
 
   it "esa ExclusionViolation traducida se reporta a Rails.error con solo ids, sin PII", :aggregate_failures do

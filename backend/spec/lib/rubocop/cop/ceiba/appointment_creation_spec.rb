@@ -132,7 +132,7 @@ RSpec.describe RuboCop::Cop::Ceiba::AppointmentCreation, :config do
     %w[
       packs/modules/appointments/app/services/appointments/reschedule.rb
       packs/modules/appointments/db/seeds.rb
-      packs/modules/appointments/db/migrate/20261112200200_recreate.rb
+      packs/modules/appointments/db/migrate/20261113051328_recreate.rb
       packs/modules/appointments/config/initializers/seed.rb
       lib/tasks/demo.rake
       packs/modules/appointments/lib/tasks/demo.rake

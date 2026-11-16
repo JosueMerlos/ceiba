@@ -56,7 +56,7 @@ RSpec.describe "API v1: reserva de citas" do
                   "(rejilla, horarios y ausencias); el panel no aplica la anticipación mínima ni la máxima. El recurso lo asigna el motor. " \
                   "Un hueco ya ocupado, aunque sea por la carrera de otra petición, responde 409 `appointments.slot_unavailable`; la misma persona (usuario) ocupada en otra " \
                   "empresa del grupo, 409 `appointments.person_unavailable`. Un 409 de agenda no consume la clave: se puede reintentar con la misma. " \
-                  "El precio de cada servicio queda congelado en la cita. `notes` (hasta 500 caracteres) se guarda cifrada."
+                  "El precio de cada servicio queda congelado en la cita. `notes` (hasta 500 caracteres) se guarda cifrada y no se devuelve en la respuesta."
       consumes "application/json"
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
