@@ -14,13 +14,15 @@ module Appointments
 
       def self.call(...) = new(...).call
 
-      # `requirements` is the [[service_id, kind]] list eligibility already read, so it is not read twice.
-      def initialize(company:, branch:, services:, professional:, from_date:, to_date:, requirements:)
+      # `requirements` is the [[service_id, kind]] list eligibility already read, so it is not read twice. `booking_window` decides
+      # whether the branch's lead time and advance limit apply (:customer) or not (:staff).
+      def initialize(company:, branch:, services:, professional:, from_date:, to_date:, requirements:, booking_window: :customer)
         @company = company
         @branch = branch
         @services = services
         @professional = professional
         @requirements = requirements
+        @staff = booking_window == :staff
         @zone = ActiveSupport::TimeZone[branch.time_zone]
         @range_from = (from_date - MARGIN_BEFORE_DAYS).in_time_zone(@zone).utc
         @range_to = (to_date + MARGIN_AFTER_DAYS).in_time_zone(@zone).utc
@@ -35,8 +37,8 @@ module Appointments
         weekly = weekly_slots(professional_ids, resource_ids)
         busy_rows = busy_appointments(:professional_id, professional_ids)
 
-        Loaded.new(step_minutes: settings.fetch("slot_step_minutes"), min_lead_minutes: settings.fetch("min_lead_time_minutes"),
-                   max_advance_days: settings.fetch("max_advance_days"), plan:, branch_slots: weekly.fetch(:branch),
+        Loaded.new(step_minutes: settings.fetch("slot_step_minutes"), min_lead_minutes: @staff ? 0 : settings.fetch("min_lead_time_minutes"),
+                   max_advance_days: @staff ? nil : settings.fetch("max_advance_days"), plan:, branch_slots: weekly.fetch(:branch),
                    professionals: owners(professional_ids, weekly[:professional], time_offs(:professional_id, professional_ids), busy_rows),
                    resources: owners(resource_ids, weekly[:resource], time_offs(:resource_id, resource_ids), busy_appointments(:resource_id, resource_ids))
                                 .map { |own| own.merge(kind: kind_by_resource.fetch(own[:id])) },

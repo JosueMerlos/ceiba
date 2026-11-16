@@ -48,6 +48,25 @@ module Database
       execute "ALTER TABLE #{quote_table_name(table_name)} DISABLE ROW LEVEL SECURITY"
     end
 
+    # reject_updates :appointment_services
+    #
+    # For tables whose rows are written once (a snapshot): a statement-level trigger rejects every UPDATE, even one that matches no
+    # row, also from raw SQL. DELETE (a cascade, a purge) stays allowed. A control against the application, not against the table
+    # owner, who can disable the trigger. It goes through the connection (not the migration's own `execute`), as the other helpers do.
+    def reject_updates(table_name)
+      execute <<~SQL
+        CREATE OR REPLACE FUNCTION reject_row_update() RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+          RAISE EXCEPTION '% es inmutable: % no está permitido', TG_TABLE_NAME, TG_OP USING ERRCODE = 'restrict_violation';
+        END
+        $$
+      SQL
+      execute <<~SQL.squish
+        CREATE TRIGGER #{quote_table_name("#{table_name}_reject_update")} BEFORE UPDATE ON #{quote_table_name(table_name)}
+        FOR EACH STATEMENT EXECUTE FUNCTION reject_row_update()
+      SQL
+    end
+
     private
 
     # NULLIF: after an earlier `SET LOCAL app.organization_id`, the setting is left as an empty string (not NULL) once

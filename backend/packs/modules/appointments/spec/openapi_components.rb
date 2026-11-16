@@ -262,5 +262,52 @@ OpenapiComponents.register(
     },
     required: %i[amount_minor currency],
     additionalProperties: false
+  },
+  AppointmentService: {
+    type: :object,
+    description: "Un servicio de la cita tal como se reservó: duración y precio son una copia, un cambio posterior del catálogo no la reescribe.",
+    properties: {
+      service_id: { type: :string, format: :uuid },
+      position: { type: :integer, minimum: 0, description: "Orden en la secuencia (0 es el primero)" },
+      duration_minutes: { type: :integer, minimum: 1 },
+      price_minor: { type: :integer, format: :int64, minimum: 0, description: "Precio congelado en unidades menores" },
+      currency: { type: :string, enum: %w[NIO USD] }
+    },
+    required: %i[service_id position duration_minutes price_minor currency],
+    additionalProperties: false
+  },
+  Appointment: {
+    type: :object,
+    description: "Una cita reservada. Del cliente solo va su `id`: nunca nombre, teléfono ni correo. `total_price_minor` es la suma de los servicios congelados.",
+    properties: {
+      id: { type: :string, format: :uuid },
+      branch_id: { type: :string, format: :uuid },
+      professional_id: { type: :string, format: :uuid },
+      resource_id: { type: :string, format: :uuid, nullable: true, description: "El recurso que asignó el motor; null si los servicios no exigen uno" },
+      customer_id: { type: :string, format: :uuid },
+      starts_at: { type: :string, format: "date-time", description: "UTC" },
+      ends_at: { type: :string, format: "date-time", description: "UTC" },
+      status: { type: :string, enum: %w[scheduled confirmed checked_in completed cancelled rescheduled no_show] },
+      source: { type: :string, enum: %w[panel public_booking] },
+      lock_version: { type: :integer, minimum: 0 },
+      services: { type: :array, items: { "$ref" => "#/components/schemas/AppointmentService" } },
+      total_price_minor: { type: :integer, format: :int64, minimum: 0 },
+      currency: { type: :string, enum: %w[NIO USD] }
+    },
+    required: %i[id branch_id professional_id resource_id customer_id starts_at ends_at status source lock_version services total_price_minor currency],
+    additionalProperties: false
+  },
+  AppointmentInput: {
+    type: :object,
+    description: "Reserva desde el panel. `professional_id` es el de un hueco de la disponibilidad; el literal `any` no se acepta (422).",
+    properties: {
+      customer_id: { type: :string, format: :uuid },
+      service_ids: { type: :array, items: { type: :string, format: :uuid }, minItems: 1, maxItems: Appointments::Availability::MAX_SERVICES, description: "Servicios de la empresa, en orden de secuencia (hasta 5; más responden 422)" },
+      professional_id: { type: :string, format: :uuid },
+      starts_at: { type: :string, format: "date-time", description: "ISO 8601 con segundos y zona horaria (por ejemplo `2026-11-16T10:00:00-06:00`); en el pasado o con fracción de segundo responde 422" },
+      notes: { type: :string, maxLength: 500, nullable: true, description: "Texto libre, se guarda cifrado" }
+    },
+    required: %i[customer_id service_ids professional_id starts_at],
+    additionalProperties: false
   }
 )

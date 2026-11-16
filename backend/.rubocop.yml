@@ -10,6 +10,7 @@ require:
   - ./lib/rubocop/cop/ceiba/authorization_skips
   - ./lib/rubocop/cop/ceiba/directory_writes
   - ./lib/rubocop/cop/ceiba/module_gate_skips
+  - ./lib/rubocop/cop/ceiba/appointment_creation
 
 plugins:
   - rubocop-rails
@@ -132,6 +133,24 @@ Ceiba/DirectoryWrites:
     - "db/**/*.rb"
   Exclude:
     - "lib/rubocop/**/*"
+
+# Appointments::Book is the only creator of appointments (locks + revalidation). Specs build them with the factory.
+Ceiba/AppointmentCreation:
+  Enabled: true
+  Include:
+    - "app/**/*.rb"
+    - "packs/*/*/app/**/*.rb"
+    - "packs/*/*/lib/**/*.rb"
+    - "packs/*/*/db/**/*.rb"
+    - "packs/*/*/config/**/*.rb"
+    - "lib/**/*.rb"
+    - "db/**/*.rb"
+    - "**/*.rake"
+  Exclude:
+    - "lib/rubocop/**/*"
+    - "**/spec/**/*"
+  AllowedFiles:
+    - "packs/modules/appointments/app/public/appointments/book.rb"
 
 # Nobody bypasses tenant isolation (ActsAsTenant.without_tenant, unscoped...) outside this list. Every file added here is
 # a privileged path and needs review (CODEOWNERS). Tenancy.with_context is the only thing that sets the tenant.

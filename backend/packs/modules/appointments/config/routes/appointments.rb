@@ -29,6 +29,7 @@ scope path: "organizations/:organization_id/companies/:company_id/appointments" 
 
   scope path: "branches/:branch_id" do
     get "availability", to: "appointments/availability#show"
+    post "appointments", to: "appointments/appointments#create"
 
     get "resources", to: "appointments/resources#index"
     post "resources", to: "appointments/resources#create"

@@ -56,9 +56,10 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
   end
 
   # Append-only tables (audit_events): the trigger rejects UPDATE/DELETE of any row; there is nothing to isolate.
-  append_only = TenantIsolation.append_only?(model)
+  skip_update = TenantIsolation.skip_update_examples?(model)
+  skip_delete = TenantIsolation.skip_delete_examples?(model)
 
-  it "con el tenant A, mover un registro propio a la organización B lanza TenantIsImmutable", unless: append_only do
+  it "con el tenant A, mover un registro propio a la organización B lanza TenantIsImmutable", unless: skip_update do
     record = record_a
 
     with_tenant(organization_a) do
@@ -95,7 +96,7 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
       end
     end
 
-    it "upsert_all de una fila propia con unique_by (organization_id, id) sigue permitido", unless: append_only do
+    it "upsert_all de una fila propia con unique_by (organization_id, id) sigue permitido", unless: skip_update do
       own = record_a.attributes
 
       with_tenant(organization_a) do
@@ -125,12 +126,10 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
 
     def stale_b = with_tenant(organization_b) { target.find(record_b.id) }
 
-    def b_untouched?(before)
-      with_tenant(organization_b) { target.find(record_b.id).updated_at == before }
-    end
+    def b_snapshot = with_tenant(organization_b) { target.find_by(id: record_b.id)&.attributes }
 
-    it "update_attribute, touch y update_columns desde A se rechazan y la fila de B queda intacta", unless: append_only do
-      before = record_b.updated_at
+    it "update_attribute, touch y update_columns desde A se rechazan y la fila de B queda intacta", unless: skip_update do
+      before = b_snapshot
       stale = stale_b
 
       with_tenant(organization_a) do
@@ -138,30 +137,36 @@ RSpec.shared_examples "un modelo tenant aislado" do |model|
           expect(&attempt).to raise_error(Tenancy::TenantMismatch)
         end
       end
-      expect(b_untouched?(before)).to be(true)
+      expect(b_snapshot).to eq(before)
     end
 
-    it "delete y destroy desde A se rechazan y la fila de B sigue existiendo", unless: append_only do
-      before = record_b.updated_at
+    it "delete y destroy desde A se rechazan y la fila de B sigue existiendo igual", unless: skip_delete do
+      before = b_snapshot
       stale = stale_b
 
       with_tenant(organization_a) do
         expect { stale.delete }.to raise_error(Tenancy::TenantMismatch)
         expect { stale.destroy }.to raise_error(Tenancy::TenantMismatch)
       end
-      expect(b_untouched?(before)).to be(true)
+      expect(b_snapshot).to eq(before)
     end
 
-    it "las sentencias llevan organization_id en las condiciones (defensa en profundidad)", unless: append_only do
-      before = record_b.updated_at
+    it "las sentencias de UPDATE llevan organization_id en las condiciones (defensa en profundidad)", unless: skip_update do
+      before = b_snapshot
 
       with_tenant(organization_a) do
-        affected = model._update_record({ "updated_at" => 1.day.from_now }, { "id" => record_b.id })
-        deleted = model._delete_record({ "id" => record_b.id })
-
-        expect([ affected, deleted ]).to eq([ 0, 0 ])
+        expect(model._update_record({ "updated_at" => 1.day.from_now }, { "id" => record_b.id })).to eq(0)
       end
-      expect(b_untouched?(before)).to be(true)
+      expect(b_snapshot).to eq(before)
+    end
+
+    it "las sentencias de DELETE llevan organization_id en las condiciones (defensa en profundidad)", unless: skip_delete do
+      before = b_snapshot
+
+      with_tenant(organization_a) do
+        expect(model._delete_record({ "id" => record_b.id })).to eq(0)
+      end
+      expect(b_snapshot).to eq(before)
     end
 
     it "upsert_all con un on_duplicate propio que menciona organization_id se rechaza" do

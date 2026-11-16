@@ -56,6 +56,14 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
     end
   end
 
+  def random_plan(rng, required)
+    line = Appointments::Availability::ServicePlan::Line.new(
+      service_id: "s1", position: 0, duration_minutes: [ 5, 15, 30, 45, 60, 90 ].sample(random: rng), buffer_before_minutes: [ 0, 0, 5, 10, 15 ].sample(random: rng),
+      buffer_after_minutes: [ 0, 0, 5, 10, 15 ].sample(random: rng), price_minor: 0, currency: "NIO"
+    )
+    Appointments::Availability::ServicePlan.new(lines: [ line ], currency: "NIO", required_kind: required)
+  end
+
   def random_scenario(rng)
     zone, anchor = anchors.sample(random: rng)
     tz = TZInfo::Timezone.get(zone)
@@ -69,8 +77,7 @@ RSpec.describe "Appointments::Availability (invariantes del núcleo)" do
     {
       time_zone: zone, from_date:, to_date:, branch_slots: random_slots(rng, dates, wide: true), professionals:,
       resources: random_resources(rng, dates, range_start, range_end),
-      plan: Appointments::Availability::ServicePlan.new(duration_minutes: [ 5, 15, 30, 45, 60, 90 ].sample(random: rng), buffer_before_minutes: [ 0, 0, 5, 10, 15 ].sample(random: rng),
-                                                        buffer_after_minutes: [ 0, 0, 5, 10, 15 ].sample(random: rng), price_minor: 0, currency: "NIO", required_kind: required),
+      plan: random_plan(rng, required),
       load_by_day: professionals.to_h { |person| [ person[:id], (from_date..(to_date + 1)).to_h { |date| [ date, rng.rand(0..3) ] } ] },
       step_minutes: [ 5, 7, 10, 15, 20, 25, 30, 40, 45, 50 ].sample(random: rng),
       now: Time.at(range_start - (rng.rand(-1440..4320) * 60) + fraction(rng)).utc, min_lead_minutes: [ 0, 0, rng.rand(0..360) ].sample(random: rng), max_advance_days: rng.rand(1..8)

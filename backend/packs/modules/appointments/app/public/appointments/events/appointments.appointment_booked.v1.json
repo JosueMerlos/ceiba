@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "appointments.appointment_booked.v1",
+  "description": "Se reservó una cita (Appointments::Book). Solo ids y horas: sin notas ni datos del cliente. La organización viaja en el sobre del evento.",
+  "type": "object",
+  "required": ["appointment_id", "branch_id", "professional_id", "customer_id", "resource_id", "starts_at", "ends_at", "service_ids", "source", "rescheduled_from_id"],
+  "properties": {
+    "appointment_id": { "type": "string", "format": "uuid" },
+    "branch_id": { "type": "string", "format": "uuid" },
+    "professional_id": { "type": "string", "format": "uuid" },
+    "customer_id": { "type": "string", "format": "uuid" },
+    "resource_id": { "type": ["string", "null"], "format": "uuid" },
+    "starts_at": { "type": "string", "format": "date-time" },
+    "ends_at": { "type": "string", "format": "date-time" },
+    "service_ids": { "type": "array", "items": { "type": "string", "format": "uuid" } },
+    "source": { "enum": ["panel", "public_booking"] },
+    "rescheduled_from_id": { "type": ["string", "null"], "format": "uuid" }
+  },
+  "additionalProperties": false
+}

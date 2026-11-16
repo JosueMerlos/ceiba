@@ -123,19 +123,21 @@ FactoryBot.define do
   end
 end
 
-# A booked slot of a professional at a branch (the table holds only what the availability engine reads). Organization and
-# company come from the professional; the branch must belong to that company. `blocks_*` default to the slot itself.
+# A booked slot of a professional at a branch (the database constraints still apply, so the defaults must be a valid, non-overlapping slot). Organization and
+# company come from the professional; the branch and the customer must belong to that company. `blocks_*` default to the slot itself.
 FactoryBot.define do
   factory :appointment, class: "Appointments::Appointment" do
     transient do
       professional { association(:professional, strategy: :create) }
       resource { nil }
       branch { association(:branch, company: Tenancy::Directory.company!(professional.company_id), strategy: :create) }
+      customer { association(:customer, company: Tenancy::Directory.company!(professional.company_id), strategy: :create) }
     end
 
     professional_id { professional.id }
     branch_id { branch.id }
     resource_id { resource&.id }
+    customer_id { customer.id }
     company_id { professional.company_id }
     organization { professional.organization }
     starts_at { Time.utc(2026, 11, 16, 15) }
@@ -143,5 +145,29 @@ FactoryBot.define do
     blocks_from { starts_at }
     blocks_to { ends_at }
     status { "scheduled" }
+    source { "panel" }
+    created_by_type { "system" }
+  end
+end
+
+# The booked copy of one service of an appointment; organization and company come from the appointment, and the service must
+# belong to that company.
+FactoryBot.define do
+  factory :appointment_service, class: "Appointments::AppointmentService" do
+    transient do
+      appointment { association(:appointment, strategy: :create) }
+      service { association(:service, company: Tenancy::Directory.company!(appointment.company_id), strategy: :create) }
+    end
+
+    appointment_id { appointment.id }
+    service_id { service.id }
+    company_id { appointment.company_id }
+    organization { appointment.organization }
+    position { 0 }
+    duration_minutes { 30 }
+    buffer_before_minutes { 0 }
+    buffer_after_minutes { 0 }
+    price_minor { 20_000 }
+    currency { "NIO" }
   end
 end

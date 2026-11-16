@@ -7,4 +7,12 @@ Rails.application.config.to_prepare do
         { field: entry[:field].to_s, code: entry[:code].to_s, message: I18n.t("appointments.availability.errors.#{entry[:field]}.#{entry[:code]}") }
       end
     })
+  Api::ErrorRegistry.register(Appointments::SlotUnavailable, status: :conflict, code: "appointments.slot_unavailable")
+  Api::ErrorRegistry.register(Appointments::PersonUnavailable, status: :conflict, code: "appointments.person_unavailable")
+  Api::ErrorRegistry.register(Appointments::InvalidBooking, status: :unprocessable_content, code: "appointments.booking_invalid",
+    errors: ->(error) {
+      error.errors.map do |entry|
+        { field: entry[:field].to_s, code: entry[:code].to_s, message: I18n.t("appointments.booking.errors.#{entry[:field]}.#{entry[:code]}") }
+      end
+    })
 end

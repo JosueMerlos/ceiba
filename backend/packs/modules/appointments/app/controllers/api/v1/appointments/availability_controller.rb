@@ -1,7 +1,8 @@
 module Api
   module V1
     module Appointments
-      # Free slots of one or several services (in sequence) with a professional or with any, at the route's branch. Order matters: the permission is asked FIRST (a role
+      # Free slots of one or several services (in sequence) with a professional or with any, at the route's branch, under the staff booking
+      # window (the same one the panel's booking uses, so the grid never hides a slot POST accepts). Order matters: the permission is asked FIRST (a role
       # without it never learns whether an id exists), then the query is checked for presence and shape, and only then are the
       # professional (among those assigned to the branch, unless `any`) and the services (among the company's) searched. Inside this namespace
       # `Appointments` is Api::V1::Appointments: the pack's own constants are always written `::Appointments`.
@@ -18,7 +19,8 @@ module Api
           services = ::Appointments::Service.where(company_id:).in_order(query[:service_ids])
           professional = ::Appointments::Availability::ProfessionalChoice.resolve(query[:professional_id], within: assigned_professionals)
           result = ::Appointments::Availability.call(company: Current.context.company, branch: Current.context.branch, services:, professional:,
-                                                     from_date: query[:from], to_date: query[:to])
+                                                     from_date: query[:from], to_date: query[:to],
+                                                     booking_window: :staff)
           render json: ::Appointments::AvailabilityResponse.call(result, time_zone: Current.context.branch.time_zone)
         end
       end

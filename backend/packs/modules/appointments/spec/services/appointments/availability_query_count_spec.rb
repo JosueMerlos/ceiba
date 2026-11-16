@@ -20,6 +20,8 @@ RSpec.describe Appointments::Availability do
 
   def services = (@services ||= [])
   def professionals = (@professionals ||= [])
+  def rooms_added = (@rooms_added ||= 0)
+  attr_writer :rooms_added
 
   def add_service(kind: nil)
     service = create_in(organization, :service, company:, duration_minutes: 30)
@@ -46,7 +48,9 @@ RSpec.describe Appointments::Availability do
   def add_room
     room = create(:resource, branch:, kind: "room")
     create(:time_off, resource: room, starts_at: Time.utc(2026, 11, 16, 17), ends_at: Time.utc(2026, 11, 16, 18))
-    start = Time.utc(2026, 11, 17, 16)
+    # One hour per room (and never 16:00, which holds the professional's own appointment): the same professional cannot overlap.
+    start = Time.utc(2026, 11, 17, 8 + rooms_added)
+    self.rooms_added += 1
     create(:appointment, professional: professionals.first, branch:, resource: room, starts_at: start, ends_at: start + 30.minutes)
   end
 

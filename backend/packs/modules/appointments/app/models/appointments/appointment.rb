@@ -1,13 +1,19 @@
 module Appointments
-  # A booked slot of a professional at a branch. TENANT table. It holds only what the availability engine reads and has no
-  # business validations: creating appointments is the job of a booking use case, not of the model.
+  # A booked slot of a professional at a branch. TENANT table. It has no business validations: the database constraints guard
+  # the agenda and creating appointments is the job of a booking use case, not of the model.
   class Appointment < ApplicationRecord
     # Only these statuses give the slot back; every other one (including no_show and completed) still occupies the agenda.
     RELEASING_STATUSES = %w[cancelled rescheduled].freeze
 
+    SOURCES = %w[panel public_booking].freeze
+
     acts_as_tenant :organization, class_name: "Tenancy::Organization"
 
+    # Free text that may reveal something private.
+    encrypts :notes
+
     belongs_to :resource, class_name: "Appointments::Resource", optional: true
+    has_many :services_snapshot, -> { order(:position) }, class_name: "Appointments::AppointmentService", inverse_of: :appointment, dependent: nil
 
     scope :blocking, -> { where.not(status: RELEASING_STATUSES) }
     # Half-open: a blocking interval that ends exactly at `from`, or starts exactly at `to`, does not overlap.

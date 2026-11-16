@@ -1,0 +1,42 @@
+require "rails_helper"
+
+RSpec.describe Customers::Lookup do
+  let(:organization) { create(:organization) }
+  let(:company) { create_in(organization, :company) }
+  let(:sibling) { create_in(organization, :company) }
+
+  around { |example| with_tenant(organization) { example.run } }
+
+  describe ".active_id?" do
+    it "true para un cliente activo de la empresa" do
+      customer = create(:customer, company:)
+
+      expect(described_class.active_id?(id: customer.id, company:)).to be(true)
+    end
+
+    it "false para un cliente archivado" do
+      customer = create(:customer, company:)
+      Customers::Archive.call(customer:)
+
+      expect(described_class.active_id?(id: customer.id, company:)).to be(false)
+    end
+
+    it "false para un cliente de otra empresa de la misma organización" do
+      customer = create(:customer, company: sibling)
+
+      expect(described_class.active_id?(id: customer.id, company:)).to be(false)
+    end
+
+    it "false para un id que no existe, nulo o que no es un uuid", :aggregate_failures do
+      expect(described_class.active_id?(id: SecureRandom.uuid, company:)).to be(false)
+      expect(described_class.active_id?(id: nil, company:)).to be(false)
+      expect(described_class.active_id?(id: "no-es-uuid", company:)).to be(false)
+    end
+
+    it "devuelve solo un booleano: no expone ningún dato del cliente" do
+      customer = create(:customer, company:)
+
+      expect(described_class.active_id?(id: customer.id, company:)).to be_in([ true, false ])
+    end
+  end
+end

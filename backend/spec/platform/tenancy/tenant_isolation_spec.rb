@@ -46,7 +46,7 @@ RSpec.describe TenantIsolation do
     group.run(RSpec::Core::NullReporter)
     failures = group.descendants.flat_map(&:examples).filter_map { |example| example.execution_result.exception }
 
-    expect(failures.size).to eq(15) # all except those that need no records (NoTenantSet, guard included, update_all, on_duplicate)
+    expect(failures.size).to eq(16) # all except those that need no records (NoTenantSet, guard included, update_all, on_duplicate)
     expect(failures.map(&:message)).to all(include("Falta una factory para IsolationProbe"))
   ensure
     RSpec.world.example_groups.delete(group)

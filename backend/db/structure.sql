@@ -51,9 +51,47 @@ END
 $$;
 
 
+--
+-- Name: reject_row_update(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.reject_row_update() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  RAISE EXCEPTION '% es inmutable: % no está permitido', TG_TABLE_NAME, TG_OP USING ERRCODE = 'restrict_violation';
+END
+$$;
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
+
+--
+-- Name: appointment_services; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.appointment_services (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    appointment_id uuid NOT NULL,
+    service_id uuid NOT NULL,
+    "position" integer NOT NULL,
+    duration_minutes integer NOT NULL,
+    buffer_before_minutes integer NOT NULL,
+    buffer_after_minutes integer NOT NULL,
+    price_minor bigint NOT NULL,
+    currency character varying(3) NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_appointment_services_buffers CHECK (((buffer_before_minutes >= 0) AND (buffer_after_minutes >= 0))),
+    CONSTRAINT chk_appointment_services_currency CHECK (((currency)::text ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT chk_appointment_services_duration CHECK ((duration_minutes > 0)),
+    CONSTRAINT chk_appointment_services_position CHECK (("position" >= 0)),
+    CONSTRAINT chk_appointment_services_price CHECK ((price_minor >= 0))
+);
+
 
 --
 -- Name: appointments; Type: TABLE; Schema: public; Owner: -
@@ -65,6 +103,7 @@ CREATE TABLE public.appointments (
     company_id uuid NOT NULL,
     branch_id uuid NOT NULL,
     professional_id uuid NOT NULL,
+    resource_id uuid,
     starts_at timestamp(6) without time zone NOT NULL,
     ends_at timestamp(6) without time zone NOT NULL,
     blocks_from timestamp(6) without time zone NOT NULL,
@@ -72,7 +111,18 @@ CREATE TABLE public.appointments (
     status character varying DEFAULT 'scheduled'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    resource_id uuid
+    customer_id uuid NOT NULL,
+    source character varying NOT NULL,
+    notes text,
+    lock_version integer DEFAULT 0 NOT NULL,
+    created_by_type character varying NOT NULL,
+    created_by_id uuid,
+    rescheduled_from_id uuid,
+    CONSTRAINT chk_appointments_created_by_type CHECK ((((created_by_type)::text = 'user'::text) OR ((created_by_type)::text = 'api_key'::text) OR ((created_by_type)::text = 'system'::text) OR ((created_by_type)::text = 'public_token'::text) OR ((created_by_type)::text = 'platform_staff'::text))),
+    CONSTRAINT chk_appointments_created_by_user_id CHECK ((((created_by_type)::text <> 'user'::text) OR (created_by_id IS NOT NULL))),
+    CONSTRAINT chk_appointments_source CHECK ((((source)::text = 'panel'::text) OR ((source)::text = 'public_booking'::text))),
+    CONSTRAINT chk_appointments_status CHECK ((((status)::text = 'scheduled'::text) OR ((status)::text = 'confirmed'::text) OR ((status)::text = 'checked_in'::text) OR ((status)::text = 'completed'::text) OR ((status)::text = 'cancelled'::text) OR ((status)::text = 'rescheduled'::text) OR ((status)::text = 'no_show'::text))),
+    CONSTRAINT chk_appointments_valid_interval CHECK (((starts_at < ends_at) AND (blocks_from <= starts_at) AND (blocks_to >= ends_at)))
 );
 
 
@@ -603,6 +653,14 @@ CREATE TABLE public.weekly_schedules (
 
 
 --
+-- Name: appointment_services appointment_services_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointment_services
+    ADD CONSTRAINT appointment_services_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: appointments appointments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -739,6 +797,22 @@ ALTER TABLE ONLY public.memberships
 
 
 --
+-- Name: appointments no_overlap_professional; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointments
+    ADD CONSTRAINT no_overlap_professional EXCLUDE USING gist (professional_id WITH =, tsrange(blocks_from, blocks_to, '[)'::text) WITH &&) WHERE ((((status)::text <> 'cancelled'::text) AND ((status)::text <> 'rescheduled'::text)));
+
+
+--
+-- Name: appointments no_overlap_resource; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointments
+    ADD CONSTRAINT no_overlap_resource EXCLUDE USING gist (resource_id WITH =, tsrange(blocks_from, blocks_to, '[)'::text) WITH &&) WHERE (((resource_id IS NOT NULL) AND ((status)::text <> 'cancelled'::text) AND ((status)::text <> 'rescheduled'::text)));
+
+
+--
 -- Name: organizations organizations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -856,6 +930,22 @@ ALTER TABLE ONLY public.sessions
 
 ALTER TABLE ONLY public.time_offs
     ADD CONSTRAINT time_offs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: appointment_services uq_appointment_services_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointment_services
+    ADD CONSTRAINT uq_appointment_services_organization_id_id UNIQUE (organization_id, id);
+
+
+--
+-- Name: appointments uq_appointments_org_company_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointments
+    ADD CONSTRAINT uq_appointments_org_company_id UNIQUE (organization_id, company_id, id);
 
 
 --
@@ -1051,6 +1141,13 @@ ALTER TABLE ONLY public.weekly_schedules
 
 
 --
+-- Name: idx_appointment_services_service; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_appointment_services_service ON public.appointment_services USING btree (organization_id, company_id, service_id);
+
+
+--
 -- Name: idx_appointments_branch; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1062,6 +1159,13 @@ CREATE INDEX idx_appointments_branch ON public.appointments USING btree (organiz
 --
 
 CREATE INDEX idx_appointments_branch_starts ON public.appointments USING btree (organization_id, branch_id, starts_at);
+
+
+--
+-- Name: idx_appointments_customer; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_appointments_customer ON public.appointments USING btree (organization_id, company_id, customer_id);
 
 
 --
@@ -1086,10 +1190,17 @@ CREATE INDEX idx_appointments_professional_starts ON public.appointments USING b
 
 
 --
+-- Name: idx_appointments_rescheduled_from; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_appointments_rescheduled_from ON public.appointments USING btree (organization_id, company_id, rescheduled_from_id) WHERE (rescheduled_from_id IS NOT NULL);
+
+
+--
 -- Name: idx_appointments_resource; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_appointments_resource ON public.appointments USING btree (organization_id, company_id, resource_id) WHERE (resource_id IS NOT NULL);
+CREATE INDEX idx_appointments_resource ON public.appointments USING btree (organization_id, branch_id, resource_id) WHERE (resource_id IS NOT NULL);
 
 
 --
@@ -1359,6 +1470,13 @@ CREATE UNIQUE INDEX index_users_on_email ON public.users USING btree (email);
 
 
 --
+-- Name: uq_appointment_services_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_appointment_services_position ON public.appointment_services USING btree (organization_id, company_id, appointment_id, "position");
+
+
+--
 -- Name: uq_branches_organization_id_company_id_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1384,6 +1502,13 @@ CREATE UNIQUE INDEX uq_companies_slug ON public.companies USING btree (slug);
 --
 
 CREATE UNIQUE INDEX uq_customers_company_phone ON public.customers USING btree (company_id, phone_e164);
+
+
+--
+-- Name: uq_customers_org_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_customers_org_company_id ON public.customers USING btree (organization_id, company_id, id);
 
 
 --
@@ -1443,6 +1568,13 @@ CREATE UNIQUE INDEX uq_ps_professional_service ON public.professional_services U
 
 
 --
+-- Name: uq_resources_org_branch_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_resources_org_branch_id ON public.resources USING btree (organization_id, branch_id, id);
+
+
+--
 -- Name: uq_resources_org_company_branch_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1485,6 +1617,13 @@ CREATE UNIQUE INDEX uq_srr_service_kind ON public.service_resource_requirements 
 
 
 --
+-- Name: appointment_services appointment_services_reject_update; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER appointment_services_reject_update BEFORE UPDATE ON public.appointment_services FOR EACH STATEMENT EXECUTE FUNCTION public.reject_row_update();
+
+
+--
 -- Name: audit_events audit_events_append_only; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1496,6 +1635,38 @@ CREATE TRIGGER audit_events_append_only BEFORE DELETE OR UPDATE OR TRUNCATE ON p
 --
 
 CREATE TRIGGER auth_audit_events_append_only BEFORE DELETE OR UPDATE OR TRUNCATE ON public.auth_audit_events FOR EACH STATEMENT EXECUTE FUNCTION public.reject_audit_mutation();
+
+
+--
+-- Name: appointment_services fk_appointment_services_appointment; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointment_services
+    ADD CONSTRAINT fk_appointment_services_appointment FOREIGN KEY (organization_id, company_id, appointment_id) REFERENCES public.appointments(organization_id, company_id, id) ON DELETE CASCADE;
+
+
+--
+-- Name: appointment_services fk_appointment_services_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointment_services
+    ADD CONSTRAINT fk_appointment_services_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: appointment_services fk_appointment_services_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointment_services
+    ADD CONSTRAINT fk_appointment_services_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: appointment_services fk_appointment_services_service; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointment_services
+    ADD CONSTRAINT fk_appointment_services_service FOREIGN KEY (organization_id, company_id, service_id) REFERENCES public.services(organization_id, company_id, id);
 
 
 --
@@ -1515,6 +1686,14 @@ ALTER TABLE ONLY public.appointments
 
 
 --
+-- Name: appointments fk_appointments_customer; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointments
+    ADD CONSTRAINT fk_appointments_customer FOREIGN KEY (organization_id, company_id, customer_id) REFERENCES public.customers(organization_id, company_id, id);
+
+
+--
 -- Name: appointments fk_appointments_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1531,11 +1710,19 @@ ALTER TABLE ONLY public.appointments
 
 
 --
+-- Name: appointments fk_appointments_rescheduled_from; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.appointments
+    ADD CONSTRAINT fk_appointments_rescheduled_from FOREIGN KEY (organization_id, company_id, rescheduled_from_id) REFERENCES public.appointments(organization_id, company_id, id);
+
+
+--
 -- Name: appointments fk_appointments_resource; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.appointments
-    ADD CONSTRAINT fk_appointments_resource FOREIGN KEY (organization_id, company_id, resource_id) REFERENCES public.resources(organization_id, company_id, id);
+    ADD CONSTRAINT fk_appointments_resource FOREIGN KEY (organization_id, branch_id, resource_id) REFERENCES public.resources(organization_id, branch_id, id);
 
 
 --
@@ -1979,6 +2166,13 @@ ALTER TABLE ONLY public.weekly_schedules
 
 
 --
+-- Name: appointment_services tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.appointment_services USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
 -- Name: appointments tenant_isolation; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -2125,6 +2319,10 @@ CREATE POLICY tenant_isolation ON public.weekly_schedules USING ((organization_i
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261113051330'),
+('20261113051328'),
+('20261113051326'),
+('20261113051324'),
 ('20261112100700'),
 ('20261112100600'),
 ('20261112100500'),
