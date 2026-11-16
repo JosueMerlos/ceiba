@@ -50,6 +50,145 @@ components:
             "$ref": "#/components/schemas/Problem"
       description: Otra petición con la misma `Idempotency-Key` sigue en curso (código `idempotency.request_in_progress`); reintenta con la misma clave
   schemas:
+    Appointment:
+      additionalProperties: false
+      description: 'Una cita reservada. Del cliente solo va su `id`: nunca nombre, teléfono ni correo. `total_price_minor` es la suma de los servicios congelados.'
+      properties:
+        branch_id:
+          format: uuid
+          type: string
+        currency:
+          enum:
+          - NIO
+          - USD
+          type: string
+        customer_id:
+          format: uuid
+          type: string
+        ends_at:
+          description: UTC
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        lock_version:
+          minimum: 0
+          type: integer
+        professional_id:
+          format: uuid
+          type: string
+        resource_id:
+          description: El recurso que asignó el motor; null si los servicios no exigen uno
+          format: uuid
+          nullable: true
+          type: string
+        services:
+          items:
+            "$ref": "#/components/schemas/AppointmentService"
+          type: array
+        source:
+          enum:
+          - panel
+          - public_booking
+          type: string
+        starts_at:
+          description: UTC
+          format: date-time
+          type: string
+        status:
+          enum:
+          - scheduled
+          - confirmed
+          - checked_in
+          - completed
+          - cancelled
+          - rescheduled
+          - no_show
+          type: string
+        total_price_minor:
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+      - id
+      - branch_id
+      - professional_id
+      - resource_id
+      - customer_id
+      - starts_at
+      - ends_at
+      - status
+      - source
+      - lock_version
+      - services
+      - total_price_minor
+      - currency
+      type: object
+    AppointmentInput:
+      additionalProperties: false
+      description: Reserva desde el panel. `professional_id` es el de un hueco de la disponibilidad; el literal `any` no se acepta (422).
+      properties:
+        customer_id:
+          format: uuid
+          type: string
+        notes:
+          description: Texto libre, se guarda cifrado
+          maxLength: 500
+          nullable: true
+          type: string
+        professional_id:
+          format: uuid
+          type: string
+        service_ids:
+          description: Servicios de la empresa, en orden de secuencia (hasta 5; más responden 422)
+          items:
+            format: uuid
+            type: string
+          maxItems: 5
+          minItems: 1
+          type: array
+        starts_at:
+          description: ISO 8601 con segundos y zona horaria (por ejemplo `2026-11-16T10:00:00-06:00`); en el pasado o con fracción de segundo responde 422
+          format: date-time
+          type: string
+      required:
+      - customer_id
+      - service_ids
+      - professional_id
+      - starts_at
+      type: object
+    AppointmentService:
+      additionalProperties: false
+      description: 'Un servicio de la cita tal como se reservó: duración y precio son una copia, un cambio posterior del catálogo no la reescribe.'
+      properties:
+        currency:
+          enum:
+          - NIO
+          - USD
+          type: string
+        duration_minutes:
+          minimum: 1
+          type: integer
+        position:
+          description: Orden en la secuencia (0 es el primero)
+          minimum: 0
+          type: integer
+        price_minor:
+          description: Precio congelado en unidades menores
+          format: int64
+          minimum: 0
+          type: integer
+        service_id:
+          format: uuid
+          type: string
+      required:
+      - service_id
+      - position
+      - duration_minutes
+      - price_minor
+      - currency
+      type: object
     AuthSession:
       additionalProperties: false
       description: 'Sesión del panel: quién es y el token CSRF que debe enviar en `X-CSRF-Token` en toda mutación'
@@ -1662,6 +1801,96 @@ paths:
       schema:
         format: uuid
         type: string
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments":
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: 'Exige `appointments.appointment.create` en la sucursal (company_manager, branch_manager y receptionist); se comprueba ANTES de la clave y de validar. `Idempotency-Key` es obligatoria. Solo un profesional concreto: `professional_id` es el del hueco que mostró la disponibilidad, y `any` responde 422 (`appointments.booking_invalid`, `professional_id: any_not_allowed`). `starts_at` es ISO 8601 con zona horaria y debe ser un inicio que el motor ofrezca (rejilla, horarios y ausencias); el panel no aplica la anticipación mínima ni la máxima. El recurso lo asigna el motor. Un hueco ya ocupado, aunque sea por la carrera de otra petición, responde 409 `appointments.slot_unavailable`; la misma persona (usuario) ocupada en otra empresa del grupo, 409 `appointments.person_unavailable`. Un 409 de agenda no consume la clave: se puede reintentar con la misma. El precio de cada servicio queda congelado en la cita. `notes` (hasta 500 caracteres) se guarda cifrada y no se devuelve en la respuesta.'
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKeyRequired"
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AppointmentInput"
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Appointment"
+                required:
+                - data
+                type: object
+          description: la cita creada, con el snapshot de precios y sin datos personales del cliente
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un `starts_at` sin zona horaria
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el rol `professional` no tiene `appointments.appointment.create`; no consume la clave
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un profesional que no está asignado a la sucursal
+        '409':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: la misma `Idempotency-Key` con otro cuerpo (`idempotency.key_reused`)
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: 'el pedido no es atendible: un profesional que no ofrece el servicio (`appointments.availability_invalid`)'
+      security:
+      - cookieAuth: []
+      summary: Reserva una cita en la sucursal desde el panel
+      tags:
+      - Citas
   "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/availability":
     get:
       description: 'Exige `appointments.appointment.create` en la sucursal (company_manager, branch_manager y receptionist); se comprueba ANTES de validar. `from` y `to` son fechas locales de la sucursal (`YYYY-MM-DD`, inclusivas, `from <= to`, hasta 31 días). `service_ids` son de 1 a 5 servicios de la empresa (404 si alguno no existe), en orden de secuencia; `professional_id` es un profesional asignado a la sucursal o el literal `any`. Devuelve los inicios posibles en la rejilla del reloj local (múltiplos del paso `slot_step_minutes` desde la medianoche local) con la duración efectiva del servicio en la sucursal; los instantes son UTC. La agenda del profesional es única: sus citas y ausencias de otras sucursales también restan, y solo se expone libre/ocupado. Parámetro ausente: 400 `request.invalid`; mal formado: 400 `request.bad_request`; pedido no atendible: 422 `appointments.availability_invalid`.'
