@@ -47,7 +47,10 @@ RSpec.describe "API v1: ciclo de vida de la cita" do
   list_schema = { type: :object, required: %w[data], additionalProperties: false,
                   properties: { data: { type: :array, items: { "$ref" => "#/components/schemas/Appointment" } } } }
 
-  def set_status(status) = with_tenant(world.organization) { Appointments::Appointment.where(id: booked.id).update_all(status:) }
+  def set_status(status)
+    columns = status == "cancelled" ? { cancelled_by: "staff", cancellation_reason: "other" } : {}
+    with_tenant(world.organization) { Appointments::Appointment.where(id: booked.id).update_all(status:, **columns) }
+  end
 
   path "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments" do
     parameter name: :organization_id, in: :path, schema: { type: :string, format: :uuid }, required: true
@@ -70,6 +73,8 @@ RSpec.describe "API v1: ciclo de vida de la cita" do
       let(:to) { "2026-11-22" }
 
       response "200", "las citas del rango" do
+        let!(:listed) { booked }
+
         schema list_schema
 
         run_test! { |response| expect(response.parsed_body["data"].pluck("id")).to eq([ booked.id ]) }
@@ -77,7 +82,7 @@ RSpec.describe "API v1: ciclo de vida de la cita" do
 
       response "400", "sin `from`" do
         let(:from) { nil }
-        schema "$ref" => "#/components/schemas/Problem"
+        schema "$ref" => "#/components/schemas/ValidationProblem"
 
         run_test! { |response| expect(response.parsed_body["code"]).to eq("request.invalid") }
       end
@@ -143,7 +148,7 @@ RSpec.describe "API v1: ciclo de vida de la cita" do
       end
 
       response "409", "una versión vieja (`resource.stale`)" do
-        before { set_status("confirmed") && with_tenant(world.organization) { Appointments::Appointment.where(id: booked.id).update_all(lock_version: 1) } }
+        let!(:changed) { set_status("confirmed") && with_tenant(world.organization) { Appointments::Appointment.where(id: booked.id).update_all(lock_version: 1) } }
 
         schema "$ref" => "#/components/schemas/Problem"
 
@@ -185,10 +190,11 @@ RSpec.describe "API v1: ciclo de vida de la cita" do
         let("Idempotency-Key") { SecureRandom.uuid }
 
         response "200", "la cita en `#{to}`" do
-          before do
+          let!(:prepared) do
             set_status(from)
             travel_to Time.utc(2026, 11, 16, 16, 10) if action == "no_show"
           end
+
           let!(:signed_in) { action == "no_show" ? nil : sign_in(receptionist) }
           let("X-CSRF-Token") { (signed_in || sign_in(receptionist)).csrf_token }
           schema single_schema
@@ -204,7 +210,8 @@ RSpec.describe "API v1: ciclo de vida de la cita" do
         end
 
         response "409", "desde `#{blocked}` (`appointments.invalid_transition`)" do
-          before { set_status(blocked) }
+          let!(:prepared) { set_status(blocked) }
+
           schema "$ref" => "#/components/schemas/ValidationProblem"
 
           run_test! { |response| expect(response.parsed_body).to include("code" => "appointments.invalid_transition") }
@@ -242,7 +249,8 @@ RSpec.describe "API v1: ciclo de vida de la cita" do
       end
 
       response "409", "una cita completada (`appointments.invalid_transition`)" do
-        before { set_status("completed") }
+        let!(:prepared) { set_status("completed") }
+
         schema "$ref" => "#/components/schemas/ValidationProblem"
 
         run_test! { |response| expect(response.parsed_body["code"]).to eq("appointments.invalid_transition") }
@@ -288,17 +296,19 @@ RSpec.describe "API v1: ciclo de vida de la cita" do
       end
 
       response "409", "el nuevo hueco está ocupado (`appointments.slot_unavailable`)" do
-        before do
+        let!(:taken) do
           booked
           create_in(world.organization, :appointment, professional:, branch: world.branch_a1, starts_at: Time.utc(2026, 11, 16, 17))
         end
+
         schema "$ref" => "#/components/schemas/Problem"
 
         run_test! { |response| expect(response.parsed_body["code"]).to eq("appointments.slot_unavailable") }
       end
 
       response "409", "ya estaba reprogramada (`appointments.invalid_transition`)" do
-        before { set_status("rescheduled") }
+        let!(:prepared) { set_status("rescheduled") }
+
         schema "$ref" => "#/components/schemas/ValidationProblem"
 
         run_test! { |response| expect(response.parsed_body["code"]).to eq("appointments.invalid_transition") }

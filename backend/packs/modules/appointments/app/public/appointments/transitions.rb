@@ -1,11 +1,8 @@
 module Appointments
   # The appointment state machine, as data: the only place that knows which status each action leads to, from which statuses,
-  # what it publishes, whether a professional may do it on their own appointments (`own?`, with the update_own permission; every
-  # action is open to the staff permission) and whether the appointment must have started. Appointments::Transition applies it.
+  # what it publishes, whether a professional may do it on their own appointments (`own?`, with update_own; every action is open
+  # to the staff's update permission, see AppointmentPolicy) and whether the appointment must have started. Transition applies it.
   module Transitions
-    STAFF_PERMISSION = "appointments.appointment.update".freeze
-    OWN_PERMISSION = "appointments.appointment.update_own".freeze
-
     Rule = Data.define(:action, :to, :from, :event, :own, :attributes, :not_before_start) do
       def own? = own
       def not_before_start? = not_before_start

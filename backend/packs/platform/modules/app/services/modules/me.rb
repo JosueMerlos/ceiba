@@ -70,7 +70,7 @@ module Modules
 
     def navigation_for(modules, permissions)
       modules.flat_map do |entry|
-        entry.manifest.navigation.select { |item| permissions.include?(item[:permission]) }
+        entry.manifest.navigation.select { |item| Array(item[:permission]).intersect?(permissions) }
           .map { |item| { module: entry.manifest.key, key: item[:key], path: item[:path] } }
       end
     end

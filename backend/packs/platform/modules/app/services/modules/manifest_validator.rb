@@ -197,7 +197,10 @@ module Modules
         label = (item[:key] || "?").inspect
         problem("la navegación #{label} necesita key") if item[:key].blank?
         problem("la navegación #{label} necesita path (que empiece por \"/\")") unless item[:path].to_s.start_with?("/")
-        problem("la navegación #{label} usa el permiso #{item[:permission].inspect}, que el módulo no declara") unless known.include?(item[:permission].to_s)
+        # One permission or a list of them: any one of them shows the entry.
+        Array(item[:permission].presence || [ item[:permission] ]).each do |permission|
+          problem("la navegación #{label} usa el permiso #{permission.inspect}, que el módulo no declara") unless known.include?(permission.to_s)
+        end
         problem("la navegación #{label} está repetida") if keys.include?(item[:key])
         keys << item[:key]
       end

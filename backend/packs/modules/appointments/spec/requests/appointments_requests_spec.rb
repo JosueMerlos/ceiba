@@ -56,7 +56,8 @@ RSpec.describe "Reserva de citas: peticiones" do
       expect(data).to eq(
         "id" => stored.id, "branch_id" => world.branch_a1.id, "professional_id" => professional.id, "resource_id" => nil, "customer_id" => customer.id,
         "starts_at" => "2026-11-16T16:00:00.000Z", "ends_at" => "2026-11-16T16:30:00.000Z", "status" => "scheduled", "source" => "panel",
-        "lock_version" => 0, "total_price_minor" => 20_000, "currency" => "NIO",
+        "lock_version" => 0, "total_price_minor" => 20_000, "currency" => "NIO", "rescheduled_from_id" => nil, "cancelled_by" => nil,
+        "cancellation_reason" => nil,
         "services" => [ { "service_id" => service.id, "position" => 0, "duration_minutes" => 30, "price_minor" => 20_000, "currency" => "NIO" } ]
       )
       expect(snapshot_lines).to eq(1)

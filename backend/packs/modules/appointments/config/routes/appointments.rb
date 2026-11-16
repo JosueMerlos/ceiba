@@ -29,7 +29,13 @@ scope path: "organizations/:organization_id/companies/:company_id/appointments" 
 
   scope path: "branches/:branch_id" do
     get "availability", to: "appointments/availability#show"
+    get "appointments", to: "appointments/appointments#index"
     post "appointments", to: "appointments/appointments#create"
+    get "appointments/:appointment_id", to: "appointments/appointments#show"
+    patch "appointments/:appointment_id", to: "appointments/appointments#update"
+    %w[confirm check_in complete no_show cancel reschedule].each do |action|
+      post "appointments/:appointment_id/#{action}", to: "appointments/appointment_transitions##{action}"
+    end
 
     get "resources", to: "appointments/resources#index"
     post "resources", to: "appointments/resources#create"

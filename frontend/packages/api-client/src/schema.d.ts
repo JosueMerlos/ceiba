@@ -666,7 +666,70 @@ export interface paths {
             };
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Agenda: las citas de la sucursal entre dos fechas locales
+         * @description Exige `appointments.appointment.read` en la sucursal, o `appointments.appointment.read_own` (el profesional), que solo ve sus propias citas. `from` y `to` son fechas locales de la sucursal (incluidas), hasta 31 días. Todas las citas en cualquier estado, ordenadas por `starts_at`. Sin paginar: por encima de 1000 citas responde 422 (`appointments.agenda_invalid`, `too_many_appointments`) en vez de truncar. Sin notas ni datos del cliente.
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Primer día (local), `YYYY-MM-DD` */
+                    from: string;
+                    /** @description Último día (local), `YYYY-MM-DD` */
+                    to: string;
+                    /** @description Solo las de ese profesional */
+                    professional_id?: string;
+                };
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description las citas del rango */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Appointment"][];
+                        };
+                    };
+                };
+                /** @description sin `from` */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+                /** @description sin permiso de lectura de citas */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un rango de más de 31 días (`appointments.agenda_invalid`) */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
         put?: never;
         /**
          * Reserva una cita en la sucursal desde el panel
@@ -752,6 +815,564 @@ export interface paths {
                 };
                 /** @description el pedido no es atendible: un profesional que no ofrece el servicio (`appointments.availability_invalid`) */
                 422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Detalle de una cita, con sus notas
+         * @description Exige poder editar la cita: `appointments.appointment.update` en la sucursal, o `appointments.appointment.update_own` si es una cita propia (el profesional vinculado al usuario y asignado a la sucursal). Incluye `notes`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    appointment_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description la cita con sus notas */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["AppointmentDetail"];
+                        };
+                    };
+                };
+                /** @description una cita de otra sucursal */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edita las notas de una cita
+         * @description Mismo permiso que el detalle. `lock_version` es obligatorio: si la cita cambió desde que se leyó (otra edición o un cambio de estado), 409 `resource.stale`.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    appointment_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AppointmentNotesInput"];
+                };
+            };
+            responses: {
+                /** @description las notas guardadas y la versión nueva */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["AppointmentDetail"];
+                        };
+                    };
+                };
+                /** @description una versión vieja (`resource.stale`) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description notas de más de 500 caracteres */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancela una cita
+         * @description Exige `appointments.appointment.update` en la sucursal (el profesional no cancela, ni siquiera las propias). Desde `scheduled` o `confirmed`; libera el hueco. `reason` es un código de la lista cerrada; queda `cancelled_by: staff`. `Idempotency-Key` es opcional.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    appointment_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AppointmentCancelInput"];
+                };
+            };
+            responses: {
+                /** @description la cita cancelada */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Appointment"];
+                        };
+                    };
+                };
+                /** @description una cita completada (`appointments.invalid_transition`) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+                /** @description un motivo fuera de la lista (`appointments.cancellation_invalid`) */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}/check_in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Registra la llegada del cliente (check-in)
+         * @description Exige `appointments.appointment.update` en la sucursal, o `appointments.appointment.update_own` si la cita es propia. Desde `confirmed` o `scheduled` pasa a `checked_in`; desde cualquier otro estado, 409 `appointments.invalid_transition` (`status: not_allowed`). Sube `lock_version` y publica el evento del cambio. `Idempotency-Key` es opcional.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    appointment_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description la cita en `checked_in` */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Appointment"];
+                        };
+                    };
+                };
+                /** @description un profesional sobre una cita ajena */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description desde `cancelled` (`appointments.invalid_transition`) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Completa una cita con check-in
+         * @description Exige `appointments.appointment.update` en la sucursal, o `appointments.appointment.update_own` si la cita es propia. Desde `checked_in` pasa a `completed`; desde cualquier otro estado, 409 `appointments.invalid_transition` (`status: not_allowed`). Sube `lock_version` y publica el evento del cambio. `Idempotency-Key` es opcional.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    appointment_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description la cita en `completed` */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Appointment"];
+                        };
+                    };
+                };
+                /** @description un profesional sobre una cita ajena */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description desde `scheduled` (`appointments.invalid_transition`) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirma una cita
+         * @description Exige `appointments.appointment.update` en la sucursal, o `appointments.appointment.update_own` si la cita es propia. Desde `scheduled` pasa a `confirmed`; desde cualquier otro estado, 409 `appointments.invalid_transition` (`status: not_allowed`). Sube `lock_version` y publica el evento del cambio. `Idempotency-Key` es opcional.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    appointment_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description la cita en `confirmed` */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Appointment"];
+                        };
+                    };
+                };
+                /** @description un profesional sobre una cita ajena */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description desde `completed` (`appointments.invalid_transition`) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}/no_show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Marca que el cliente no se presentó (solo después del inicio)
+         * @description Exige `appointments.appointment.update` en la sucursal, o `appointments.appointment.update_own` si la cita es propia. Desde `scheduled` o `confirmed` pasa a `no_show`; desde cualquier otro estado, 409 `appointments.invalid_transition` (`status: not_allowed`); antes de la hora de inicio, `status: too_early`. Sube `lock_version` y publica el evento del cambio. `Idempotency-Key` es opcional.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    appointment_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description la cita en `no_show` */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Appointment"];
+                        };
+                    };
+                };
+                /** @description un profesional sobre una cita ajena */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description desde `completed` (`appointments.invalid_transition`) */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}/reschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                appointment_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reprograma una cita
+         * @description Exige `appointments.appointment.update` en la sucursal y `Idempotency-Key`. La cita (`scheduled` o `confirmed`) pasa a `rescheduled` y se reserva una nueva enlazada (`rescheduled_from_id`) en la misma transacción, con el mismo cliente, servicios, notas y precio por servicio de la original y la duración actual del catálogo. El nuevo hueco se valida como una reserva del panel: ocupado, 409 `appointments.slot_unavailable` y la original no cambia; si otra petición ya la reprogramó, 409 `appointments.invalid_transition`. Un 409 no consume la clave.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+                    "Idempotency-Key": components["parameters"]["IdempotencyKeyRequired"];
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    appointment_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AppointmentRescheduleInput"];
+                };
+            };
+            responses: {
+                /** @description la cita nueva */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Appointment"];
+                        };
+                    };
+                };
+                /** @description ya estaba reprogramada (`appointments.invalid_transition`) */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -4255,6 +4876,16 @@ export interface components {
         Appointment: {
             /** Format: uuid */
             branch_id: string;
+            /**
+             * @description Motivo de la cancelación como código; null si no está cancelada
+             * @enum {string|null}
+             */
+            cancellation_reason: "customer_request" | "professional_unavailable" | "business_decision" | "other" | null;
+            /**
+             * @description Quién canceló; null si no está cancelada
+             * @enum {string|null}
+             */
+            cancelled_by: "staff" | "customer" | "system" | null;
             /** @enum {string} */
             currency: "NIO" | "USD";
             /** Format: uuid */
@@ -4269,6 +4900,71 @@ export interface components {
             lock_version: number;
             /** Format: uuid */
             professional_id: string;
+            /**
+             * Format: uuid
+             * @description La cita que esta reprogramó; null si no viene de una reprogramación
+             */
+            rescheduled_from_id: string | null;
+            /**
+             * Format: uuid
+             * @description El recurso que asignó el motor; null si los servicios no exigen uno
+             */
+            resource_id: string | null;
+            services: components["schemas"]["AppointmentService"][];
+            /** @enum {string} */
+            source: "panel" | "public_booking";
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            starts_at: string;
+            /** @enum {string} */
+            status: "scheduled" | "confirmed" | "checked_in" | "completed" | "cancelled" | "rescheduled" | "no_show";
+            /** Format: int64 */
+            total_price_minor: number;
+        };
+        AppointmentCancelInput: {
+            /**
+             * @description Motivo como código de la lista cerrada; ausente o fuera de ella responde 422
+             * @enum {string}
+             */
+            reason?: "customer_request" | "professional_unavailable" | "business_decision" | "other";
+        };
+        /** @description El detalle de una cita: lo mismo que `Appointment` más las notas (texto libre cifrado). Solo lo ve quien puede editar la cita. */
+        AppointmentDetail: {
+            /** Format: uuid */
+            branch_id: string;
+            /**
+             * @description Motivo de la cancelación como código; null si no está cancelada
+             * @enum {string|null}
+             */
+            cancellation_reason: "customer_request" | "professional_unavailable" | "business_decision" | "other" | null;
+            /**
+             * @description Quién canceló; null si no está cancelada
+             * @enum {string|null}
+             */
+            cancelled_by: "staff" | "customer" | "system" | null;
+            /** @enum {string} */
+            currency: "NIO" | "USD";
+            /** Format: uuid */
+            customer_id: string;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            ends_at: string;
+            /** Format: uuid */
+            id: string;
+            lock_version: number;
+            /** @description Notas operativas de la cita (nunca datos clínicos) */
+            notes: string | null;
+            /** Format: uuid */
+            professional_id: string;
+            /**
+             * Format: uuid
+             * @description La cita que esta reprogramó; null si no viene de una reprogramación
+             */
+            rescheduled_from_id: string | null;
             /**
              * Format: uuid
              * @description El recurso que asignó el motor; null si los servicios no exigen uno
@@ -4300,6 +4996,24 @@ export interface components {
             /**
              * Format: date-time
              * @description ISO 8601 con segundos y zona horaria (por ejemplo `2026-11-16T10:00:00-06:00`); en el pasado o con fracción de segundo responde 422
+             */
+            starts_at: string;
+        };
+        AppointmentNotesInput: {
+            /** @description La versión que el cliente leyó; si la cita cambió desde entonces responde 409 `resource.stale` */
+            lock_version: number;
+            /** @description Texto libre, se guarda cifrado; null las borra */
+            notes?: string | null;
+        };
+        AppointmentRescheduleInput: {
+            /**
+             * Format: uuid
+             * @description Un profesional asignado a la sucursal; por defecto, el de la cita
+             */
+            professional_id?: string;
+            /**
+             * Format: date-time
+             * @description ISO 8601 con segundos y zona horaria: el nuevo inicio, que el motor debe ofrecer
              */
             starts_at: string;
         };

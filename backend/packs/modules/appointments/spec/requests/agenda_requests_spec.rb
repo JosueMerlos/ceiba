@@ -68,7 +68,7 @@ RSpec.describe "Agenda de la sucursal: peticiones" do
     mine = appointment_at(Time.utc(2026, 11, 16, 16))
     appointment_at(Time.utc(2026, 11, 16, 16), person: other)
 
-    agenda(from: "2026-11-16", to: "2026-11-16", professional_id: professional.id)
+    agenda({ from: "2026-11-16", to: "2026-11-16", professional_id: professional.id })
 
     expect(ids).to eq([ mine.id ])
   end
@@ -94,22 +94,22 @@ RSpec.describe "Agenda de la sucursal: peticiones" do
   end
 
   it "admite 31 días y rechaza 32 o un rango invertido con 422 appointments.agenda_invalid", :aggregate_failures do
-    agenda(from: "2026-11-01", to: "2026-12-01")
+    agenda({ from: "2026-11-01", to: "2026-12-01" })
     expect(response).to have_http_status(:ok)
 
-    agenda(from: "2026-11-01", to: "2026-12-02")
+    agenda({ from: "2026-11-01", to: "2026-12-02" })
     expect([ response.status, problem["code"], problem.dig("errors", 0, "field"), problem.dig("errors", 0, "code") ])
       .to eq([ 422, "appointments.agenda_invalid", "to", "too_far" ])
-    agenda(from: "2026-11-10", to: "2026-11-09")
+    agenda({ from: "2026-11-10", to: "2026-11-09" })
     expect(problem.dig("errors", 0, "code")).to eq("before_from")
   end
 
   it "una fecha ausente es 400 request.invalid y una mal escrita o un profesional que no es UUID, 400 request.bad_request", :aggregate_failures do
-    agenda(to: "2026-11-16")
+    agenda({ to: "2026-11-16" })
     expect([ response.status, problem["code"] ]).to eq([ 400, "request.invalid" ])
-    agenda(from: "2026-02-30", to: "2026-03-01")
+    agenda({ from: "2026-02-30", to: "2026-03-01" })
     expect([ response.status, problem["code"] ]).to eq([ 400, "request.bad_request" ])
-    agenda(from: "2026-11-16", to: "2026-11-16", professional_id: "x")
+    agenda({ from: "2026-11-16", to: "2026-11-16", professional_id: "x" })
     expect([ response.status, problem["code"] ]).to eq([ 400, "request.bad_request" ])
   end
 
@@ -128,7 +128,7 @@ RSpec.describe "Agenda de la sucursal: peticiones" do
     on_the_day = appointment_at(Time.utc(2026, 9, 6, 4))
     appointment_at(Time.utc(2026, 9, 6, 3, 30))
 
-    agenda(from: "2026-09-06", to: "2026-09-06")
+    agenda({ from: "2026-09-06", to: "2026-09-06" })
 
     expect(ids).to eq([ on_the_day.id ])
   end

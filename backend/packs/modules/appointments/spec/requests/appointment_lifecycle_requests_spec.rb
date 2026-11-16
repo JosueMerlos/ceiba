@@ -33,14 +33,15 @@ RSpec.describe "Ciclo de vida de la cita: peticiones" do
     person
   end
 
-  # A professional linked to a user with the `professional` role at the branch.
-  def professional_user
-    @professional_user ||= user_with_role("professional", world, branch: world.branch_a1).tap do |user|
-      @own_professional = make_bookable(create_in(world.organization, :professional, company: world.company_a, user_id: user.id))
+  # A user with the `professional` role at the branch and the professional record linked to it.
+  def own_pair
+    @own_pair ||= user_with_role("professional", world, branch: world.branch_a1).then do |user|
+      [ user, make_bookable(create_in(world.organization, :professional, company: world.company_a, user_id: user.id)) ]
     end
   end
 
-  def own_professional = professional_user && @own_professional
+  def professional_user = own_pair.first
+  def own_professional = own_pair.last
 
   def booked(at: ten, person: professional, notes: "Trae su tinte")
     with_tenant(world.organization) do
@@ -185,7 +186,10 @@ RSpec.describe "Ciclo de vida de la cita: peticiones" do
 
     it "deja de actuar sobre sus citas de una sucursal cuando lo desasignan" do
       appointment = booked(person: own_professional)
-      with_tenant(world.organization) { Appointments::ProfessionalBranchAssignment.where(professional_id: own_professional.id).delete_all }
+      with_tenant(world.organization) do
+        Appointments::WeeklySchedule.where(professional_id: own_professional.id).delete_all
+        Appointments::ProfessionalBranchAssignment.where(professional_id: own_professional.id).delete_all
+      end
 
       act(appointment, "confirm", session: professional_session)
 
