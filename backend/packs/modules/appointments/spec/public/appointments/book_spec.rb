@@ -317,5 +317,16 @@ RSpec.describe Appointments::Book do
       expect(appointment.reload.rescheduled_from_id).to eq(original.id)
       expect(booked_events.last.payload["rescheduled_from_id"]).to eq(original.id)
     end
+
+    it "con price_lines guarda el precio y la moneda dados en cada línea, en el total auditado y con la duración del catálogo", :aggregate_failures do
+      appointment = book(price_lines: { service.id => { price_minor: 12_345, currency: "USD" } })
+
+      expect(lines_of(appointment).map { [ it.price_minor, it.currency, it.duration_minutes ] }).to eq([ [ 12_345, "USD", 30 ] ])
+      expect(audits.sole.metadata).to include("total_price_minor" => 12_345, "currency" => "USD")
+    end
+
+    it "price_lines que no cubre exactamente los servicios reservados es un error del llamador" do
+      expect { book(price_lines: { SecureRandom.uuid => { price_minor: 1, currency: "NIO" } }) }.to raise_error(ArgumentError, /price_lines must cover exactly the booked services/)
+    end
   end
 end

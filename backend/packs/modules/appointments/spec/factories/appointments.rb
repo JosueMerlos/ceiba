@@ -145,6 +145,8 @@ FactoryBot.define do
     blocks_from { starts_at }
     blocks_to { ends_at }
     status { "scheduled" }
+    cancelled_by { status == "cancelled" ? "staff" : nil }
+    cancellation_reason { status == "cancelled" ? "customer_request" : nil }
     source { "panel" }
     created_by_type { "system" }
   end

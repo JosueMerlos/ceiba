@@ -114,8 +114,17 @@ RSpec.describe "Manifiesto de appointments" do
     )
   end
 
-  it "publica el evento de cita reservada, con su esquema registrado", :aggregate_failures do
-    expect(manifest.publishes).to eq(%w[appointments.appointment_booked.v1])
-    expect(Events::Schemas.names).to include("appointments.appointment_booked.v1")
+  it "publica la reserva y un evento por transición, todos con su esquema registrado", :aggregate_failures do
+    expect(manifest.publishes).to contain_exactly(
+      "appointments.appointment_booked.v1", "appointments.appointment_confirmed.v1", "appointments.appointment_checked_in.v1",
+      "appointments.appointment_completed.v1", "appointments.appointment_no_show.v1", "appointments.appointment_cancelled.v1",
+      "appointments.appointment_rescheduled.v1"
+    )
+    expect(Events::Schemas.names).to include(*manifest.publishes)
+  end
+
+  # The platform events suite only finds names written literally in Events.publish; the transitions publish theirs from a table.
+  it "declara exactamente los eventos que publica la tabla de transiciones" do
+    expect(Appointments::Transitions.events).to match_array(manifest.publishes - %w[appointments.appointment_booked.v1])
   end
 end

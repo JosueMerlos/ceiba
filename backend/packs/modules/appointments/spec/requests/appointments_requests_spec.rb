@@ -282,7 +282,7 @@ RSpec.describe "Reserva de citas: peticiones" do
     it "reintentar con la misma clave cuando el hueco se libera crea la cita", :aggregate_failures do
       book
       expect(response).to have_http_status(:conflict)
-      with_tenant(world.organization) { taken.update!(status: "cancelled") }
+      with_tenant(world.organization) { taken.update!(status: "cancelled", cancelled_by: "staff", cancellation_reason: "other") }
 
       book
 
