@@ -287,11 +287,12 @@ RSpec.describe Appointments::Book do
       )
     end
 
-    it "si la auditoría falla no queda la cita, ni sus líneas ni el evento", :aggregate_failures do
-      allow(Audit).to receive(:record).and_raise(RuntimeError, "audit down")
+    it "el sobre del evento lleva la empresa y la sucursal aunque el contexto sea solo de la organización", :aggregate_failures do
+      expect(Current.context.company).to be_nil
 
-      expect { book }.to raise_error(RuntimeError, "audit down")
-      expect(untouched).to eq([ 0, 0, 0, 0 ])
+      book
+
+      expect(booked_events.sole.metadata).to include("company_id" => company.id, "branch_id" => branch.id)
     end
   end
 

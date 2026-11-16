@@ -19,12 +19,12 @@ RSpec.describe "Restricciones de citas en la base de datos" do
 
   # Inserts one appointment row. `blocks_from`/`blocks_to` default to the slot itself.
   def insert_appointment(from: ten, to: from + 1.hour, professional: self.professional, resource: nil, status: "scheduled", branch: self.branch,
-                         customer: self.customer, source: "panel", created_by_type: "system", starts_at: from, ends_at: to, blocks_from: from, blocks_to: to)
+                         customer: self.customer, source: "panel", created_by_type: "system", created_by_id: nil, starts_at: from, ends_at: to, blocks_from: from, blocks_to: to)
     ApplicationRecord.connection.select_value(<<~SQL.squish)
       INSERT INTO appointments (organization_id, company_id, branch_id, professional_id, resource_id, customer_id, source, created_by_type,
-                                starts_at, ends_at, blocks_from, blocks_to, status, created_at, updated_at)
+                                created_by_id, starts_at, ends_at, blocks_from, blocks_to, status, created_at, updated_at)
       VALUES (#{quote(organization.id)}, #{quote(company.id)}, #{quote(branch.id)}, #{quote(professional.id)}, #{quote(resource&.id)},
-              #{quote(customer.id)}, #{quote(source)}, #{quote(created_by_type)}, #{quote(starts_at)}, #{quote(ends_at)}, #{quote(blocks_from)}, #{quote(blocks_to)},
+              #{quote(customer.id)}, #{quote(source)}, #{quote(created_by_type)}, #{quote(created_by_id)}, #{quote(starts_at)}, #{quote(ends_at)}, #{quote(blocks_from)}, #{quote(blocks_to)},
               #{quote(status)}, now(), now())
       RETURNING id
     SQL
@@ -130,6 +130,18 @@ RSpec.describe "Restricciones de citas en la base de datos" do
     end
   end
 
+  describe "chk_appointments_created_by_user_id" do
+    it "rechaza una cita creada por un usuario sin su id" do
+      expect { savepoint { insert_appointment(created_by_type: "user", created_by_id: nil) } }
+        .to violating(ActiveRecord::CheckViolation, "chk_appointments_created_by_user_id")
+    end
+
+    it "acepta al usuario con su id y a los demás actores sin id", :aggregate_failures do
+      expect(insert_appointment(from: ten, created_by_type: "user", created_by_id: SecureRandom.uuid)).to be_present
+      expect(insert_appointment(from: ten + 1.day, created_by_type: "system", created_by_id: nil)).to be_present
+    end
+  end
+
   describe "appointment_services" do
     def service = @service ||= create_in(organization, :service, company:)
     def appointment_id = @appointment_id ||= insert_appointment
@@ -149,6 +161,22 @@ RSpec.describe "Restricciones de citas en la base de datos" do
 
     it "rechaza un precio negativo" do
       expect { savepoint { insert_line(price_minor: -1) } }.to violating(ActiveRecord::CheckViolation, "chk_appointment_services_price")
+    end
+
+    it "rechaza cualquier UPDATE de una línea, también por SQL", :aggregate_failures do
+      insert_line
+
+      expect { savepoint { ApplicationRecord.connection.execute("UPDATE appointment_services SET price_minor = 1") } }
+        .to raise_error(ActiveRecord::StatementInvalid, /appointment_services.*UPDATE/)
+      expect(ApplicationRecord.connection.select_values("SELECT price_minor FROM appointment_services")).to eq([ 20_000 ])
+    end
+
+    it "deja borrar las líneas en cascada al borrar la cita", :aggregate_failures do
+      insert_line
+
+      ApplicationRecord.connection.execute("DELETE FROM appointments WHERE id = #{quote(appointment_id)}")
+
+      expect(ApplicationRecord.connection.select_value("SELECT count(*) FROM appointment_services")).to eq(0)
     end
 
     it "rechaza una posición repetida dentro de la misma cita" do

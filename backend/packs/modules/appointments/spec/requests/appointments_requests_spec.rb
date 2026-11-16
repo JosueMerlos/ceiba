@@ -40,6 +40,10 @@ RSpec.describe "Reserva de citas: peticiones" do
 
   def appointments = with_tenant(world.organization) { Appointments::Appointment.order(:id).to_a }
   def snapshot_lines = with_tenant(world.organization) { Appointments::AppointmentService.count }
+  def raw_notes
+    with_tenant(world.organization) { ApplicationRecord.connection.select_value("SELECT notes FROM appointments") }
+  end
+
   def keys_stored = with_tenant(world.organization) { Idempotency::Key.where(key:).count }
 
   describe "una reserva válida" do
@@ -52,11 +56,28 @@ RSpec.describe "Reserva de citas: peticiones" do
       expect(data).to eq(
         "id" => stored.id, "branch_id" => world.branch_a1.id, "professional_id" => professional.id, "resource_id" => nil, "customer_id" => customer.id,
         "starts_at" => "2026-11-16T16:00:00.000Z", "ends_at" => "2026-11-16T16:30:00.000Z", "status" => "scheduled", "source" => "panel",
-        "lock_version" => 0, "notes" => "Llega con su hijo", "total_price_minor" => 20_000, "currency" => "NIO",
+        "lock_version" => 0, "total_price_minor" => 20_000, "currency" => "NIO",
         "services" => [ { "service_id" => service.id, "position" => 0, "duration_minutes" => 30, "price_minor" => 20_000, "currency" => "NIO" } ]
       )
       expect(snapshot_lines).to eq(1)
-      expect(stored).to have_attributes(created_by_type: "user", source: "panel")
+      expect(stored).to have_attributes(created_by_type: "user", created_by_id: receptionist.id, source: "panel")
+    end
+
+    it "no devuelve las notas (cifradas) en la respuesta, pero la cita las guarda cifradas", :aggregate_failures do
+      book
+
+      expect(response.parsed_body.fetch("data")).not_to have_key("notes")
+      expect(response.body).not_to include("Llega con su hijo")
+      expect(appointments.sole.notes).to eq("Llega con su hijo")
+      expect(raw_notes).to be_present
+      expect(raw_notes).not_to include("Llega con su hijo")
+    end
+
+    it "audita la reserva con el usuario de la sesión como actor", :aggregate_failures do
+      book
+
+      audit = with_tenant(world.organization) { Audit::Event.where(action: "appointments.appointment.booked").sole }
+      expect(audit).to have_attributes(actor_type: "user", actor_id: receptionist.id, auditable_id: appointments.sole.id)
     end
 
     it "una reserva del panel puede caer dentro de la anticipación mínima" do
@@ -128,6 +149,7 @@ RSpec.describe "Reserva de citas: peticiones" do
       book(branch: world.branch_b1, company: world.company_a)
 
       expect(response).to have_http_status(:not_found)
+      expect(response.parsed_body).to include("code" => "resource.not_found")
       expect(appointments).to be_empty
     end
   end
@@ -137,6 +159,7 @@ RSpec.describe "Reserva de citas: peticiones" do
       book(body.merge(starts_at: "2026-11-16T10:00:00"))
 
       expect(response).to have_http_status(:bad_request)
+      expect(response.parsed_body).to include("code" => "request.bad_request")
       expect(appointments).to be_empty
     end
 
@@ -144,6 +167,7 @@ RSpec.describe "Reserva de citas: peticiones" do
       book(body.merge(starts_at: "2026-11-16T10:00-06:00"))
 
       expect(response).to have_http_status(:bad_request)
+      expect(response.parsed_body).to include("code" => "request.bad_request")
       expect(appointments).to be_empty
     end
 
@@ -180,26 +204,31 @@ RSpec.describe "Reserva de citas: peticiones" do
       end
     end
 
-    it "un service_ids que no es una lista de UUID responde 400" do
+    it "un service_ids que no es una lista de UUID responde 400", :aggregate_failures do
       book(body.merge(service_ids: "no-es-lista"))
 
       expect(response).to have_http_status(:bad_request)
+      expect(response.parsed_body).to include("code" => "request.bad_request")
     end
 
-    it "un servicio inexistente responde 404 y uno de otra empresa también" do
+    it "un servicio inexistente responde 404 y uno de otra empresa también", :aggregate_failures do
       foreign = create_in(world.organization, :service, company: world.company_b)
 
-      book(body.merge(service_ids: [ foreign.id ]))
+      [ SecureRandom.uuid, foreign.id ].each do |missing|
+        book(body.merge(service_ids: [ missing ]), idempotency_key: SecureRandom.uuid)
 
-      expect(response).to have_http_status(:not_found)
+        expect(response).to have_http_status(:not_found)
+        expect(response.parsed_body).to include("code" => "resource.not_found")
+      end
     end
 
-    it "un profesional que no está asignado a la sucursal responde 404" do
+    it "un profesional que no está asignado a la sucursal responde 404", :aggregate_failures do
       unassigned = create_in(world.organization, :professional, company: world.company_a)
 
       book(body.merge(professional_id: unassigned.id))
 
       expect(response).to have_http_status(:not_found)
+      expect(response.parsed_body).to include("code" => "resource.not_found")
     end
 
     it "professional_id any responde 422 booking_invalid con professional_id any_not_allowed", :aggregate_failures do
@@ -218,6 +247,22 @@ RSpec.describe "Reserva de citas: peticiones" do
 
       expect(response).to have_http_status(:unprocessable_content)
       expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "customer_id", "code" => "invalid"))
+    end
+  end
+
+  describe "un sillón ocupado por otro profesional" do
+    it "responde 409 appointments.slot_unavailable y no crea la cita", :aggregate_failures do
+      chair = create_in(world.organization, :resource, branch: world.branch_a1, kind: "chair")
+      create_in(world.organization, :service_resource_requirement, service:, kind: "chair")
+      other = create_in(world.organization, :professional, company: world.company_a)
+      create_in(world.organization, :appointment, professional: other, branch: world.branch_a1, resource: chair, starts_at: Time.utc(2026, 11, 16, 16),
+                                                  ends_at: Time.utc(2026, 11, 16, 16, 30))
+
+      book
+
+      expect(response).to have_http_status(:conflict)
+      expect(response.parsed_body).to include("code" => "appointments.slot_unavailable")
+      expect(appointments.map(&:professional_id)).to eq([ other.id ])
     end
   end
 

@@ -76,6 +76,22 @@ RSpec.describe RuboCop::Cop::Ceiba::AppointmentCreation, :config do
       RUBY
     end
 
+    it "prohíbe crear con navegación segura (&.)", :aggregate_failures do
+      direct = 'Appointment&.create!(status: "scheduled")'
+      chained = 'Appointment.where(status: "scheduled")&.create!(notes: "x")'
+      message = "Crear citas es solo de Appointments::Book (`create!` se salta los candados y la revalidación)."
+
+      expect_offense("#{direct}\n#{'^' * direct.length} #{message}\n", file)
+      expect_offense("#{chained}\n#{'^' * chained.length} #{message}\n", file)
+    end
+
+    it "prohíbe crear desde una cadena que pasa por un bloque" do
+      line = 'Appointment.where(status: "scheduled").then { |scope| scope }.create!(notes: "x")'
+      message = "Crear citas es solo de Appointments::Book (`create!` se salta los candados y la revalidación)."
+
+      expect_offense("#{line}\n#{'^' * line.length} #{message}\n", file)
+    end
+
     it "acepta leer y actualizar citas" do
       expect_no_offenses(<<~RUBY, file)
         Appointments::Appointment.where(status: "scheduled").update_all(status: "cancelled")
