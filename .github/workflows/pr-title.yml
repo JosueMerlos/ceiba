@@ -1,11 +1,11 @@
 name: PR title
 
-# Why pull_request_target: the validator ALWAYS runs from main (base branch checkout), not from the PR, so a PR cannot
-# change the rule that validates it, and the token can read the PR even from a fork. It is safe because the job never
-# checks out PR code: it only validates the title (passed via env var, never interpolated into the script).
-# Consequence: the workflow and script must exist on main before they apply.
+# Why pull_request and not pull_request_target: the job only needs the title from the event payload and a read-only
+# token, so it does not need the elevated context of pull_request_target, which GitHub restricts on public repos.
+# The validator script is still checked out from the base branch, so a PR that only edits the script cannot loosen
+# the rule that validates its own title; a PR that edits this workflow is caught by review on the protected branch.
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, edited, synchronize, reopened]
 
 permissions:
@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
-      # Only the validator from the base branch (main) is checked out, never PR code.
+      # Only the validator from the base branch is checked out, never PR code.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.repository.default_branch }}
