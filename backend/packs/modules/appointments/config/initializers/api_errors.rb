@@ -9,6 +9,18 @@ Rails.application.config.to_prepare do
     })
   Api::ErrorRegistry.register(Appointments::SlotUnavailable, status: :conflict, code: "appointments.slot_unavailable")
   Api::ErrorRegistry.register(Appointments::PersonUnavailable, status: :conflict, code: "appointments.person_unavailable")
+  Api::ErrorRegistry.register(Appointments::InvalidTransition, status: :conflict, code: "appointments.invalid_transition",
+    errors: ->(error) {
+      error.errors.map do |entry|
+        { field: entry[:field].to_s, code: entry[:code].to_s, message: I18n.t("appointments.transition.errors.#{entry[:field]}.#{entry[:code]}") }
+      end
+    })
+  Api::ErrorRegistry.register(Appointments::InvalidCancellation, status: :unprocessable_content, code: "appointments.cancellation_invalid",
+    errors: ->(error) {
+      error.errors.map do |entry|
+        { field: entry[:field].to_s, code: entry[:code].to_s, message: I18n.t("appointments.cancellation.errors.#{entry[:field]}.#{entry[:code]}") }
+      end
+    })
   Api::ErrorRegistry.register(Appointments::InvalidBooking, status: :unprocessable_content, code: "appointments.booking_invalid",
     errors: ->(error) {
       error.errors.map do |entry|

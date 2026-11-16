@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "appointments.appointment_rescheduled.v1",
+  "description": "Se reprogramó una cita: queda `rescheduled` y la nueva (new_appointment_id) se reservó en la misma transacción; su `appointment_booked.v1` lleva `rescheduled_from_id`. Solo ids, estados y horas: sin notas ni datos del cliente. La organización viaja en el sobre del evento.",
+  "type": "object",
+  "required": [
+    "appointment_id",
+    "branch_id",
+    "professional_id",
+    "customer_id",
+    "starts_at",
+    "ends_at",
+    "from_status",
+    "new_appointment_id"
+  ],
+  "properties": {
+    "appointment_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "branch_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "professional_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "customer_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "starts_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ends_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "from_status": {
+      "enum": [
+        "scheduled",
+        "confirmed"
+      ]
+    },
+    "new_appointment_id": {
+      "type": "string",
+      "format": "uuid"
+    }
+  },
+  "additionalProperties": false
+}

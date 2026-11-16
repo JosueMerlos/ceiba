@@ -68,7 +68,9 @@ Modules.define :appointments do
   settings_levels %i[company branch]
 
   # Each published event needs a registered schema (app/public/appointments/events/<name>.json).
-  publishes   %w[appointments.appointment_booked.v1]
+  publishes   %w[appointments.appointment_booked.v1 appointments.appointment_confirmed.v1 appointments.appointment_checked_in.v1
+                 appointments.appointment_completed.v1 appointments.appointment_no_show.v1 appointments.appointment_cancelled.v1
+                 appointments.appointment_rescheduled.v1]
   subscribes  { }
 
   navigation  [ { key: "agenda", path: "/agenda", permission: "appointments.appointment.read" },

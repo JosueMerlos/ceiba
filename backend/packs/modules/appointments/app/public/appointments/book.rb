@@ -19,7 +19,7 @@ module Appointments
     def self.call(...) = new(...).call
 
     def initialize(company:, branch:, customer_id:, services:, professional:, starts_at:, source:, notes: nil, actor: Current.principal,
-                   now: Time.current, rescheduled_from: nil)
+                   now: Time.current, rescheduled_from: nil, price_lines: nil)
       @company = company
       @branch = branch
       @customer_id = customer_id
@@ -31,6 +31,7 @@ module Appointments
       @actor = actor || Access::Principal::System.new
       @now = now
       @rescheduled_from = rescheduled_from
+      @price_lines = price_lines
     end
 
     def call
@@ -103,7 +104,17 @@ module Appointments
       result = Availability.call(company: @company, branch: @branch, services: @services, professional: @choice, from_date: local_date, to_date: local_date,
                                  now: @now, booking_window: WINDOW_BY_SOURCE.fetch(@source), eligibility:)
       slot = result.slots.find { it.starts_at == @starts_at } || raise(SlotUnavailable)
-      [ slot, result.plan ]
+      [ slot, reprice(result.plan) ]
+    end
+
+    # A reschedule keeps what the customer was quoted: `price_lines` ({ service_id => { price_minor:, currency: } }) replaces the
+    # catalog's price and currency line by line; the duration and the buffers stay the catalog's, which the engine just validated.
+    def reprice(plan)
+      return plan unless @price_lines
+      raise ArgumentError, "price_lines must cover exactly the booked services" unless @price_lines.keys.sort == plan.lines.map(&:service_id).sort
+
+      lines = plan.lines.map { |line| line.with(**@price_lines.fetch(line.service_id).slice(:price_minor, :currency)) }
+      plan.with(lines:, currency: lines.first.currency)
     end
 
     # The engine reads one company's agenda; the same person (user) may have another record elsewhere in the organization, and
