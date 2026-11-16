@@ -10,7 +10,6 @@ module Appointments
   # person overlapping in another company of the group, which the engine does not see; InvalidBooking and
   # Availability::InvalidRequest (422) are requests that were wrong to begin with.
   class Book
-    NOTES_MAX_LENGTH = 500
     WINDOW_BY_SOURCE = { "panel" => :staff, "public_booking" => :customer }.freeze
     AUDITED_FIELDS = %w[branch_id professional_id resource_id customer_id starts_at ends_at status source notes rescheduled_from_id].freeze
     RESOURCE_FK = "fk_appointments_resource".freeze
@@ -74,7 +73,7 @@ module Appointments
       errors = []
       errors << { field: :customer_id, code: :invalid } unless Customers::Lookup.active_id?(id: @customer_id, company: @company)
       errors << { field: :source, code: :invalid } unless Appointment::SOURCES.include?(@source)
-      errors << { field: :notes, code: :too_long } if @notes && @notes.length > NOTES_MAX_LENGTH
+      errors << { field: :notes, code: :too_long } if @notes && @notes.length > Appointment::NOTES_MAX_LENGTH
       errors.concat(starts_at_errors)
       errors << { field: :professional_id, code: :any_not_allowed } if @choice.any?
       raise InvalidBooking, errors if errors.any?

@@ -13,6 +13,8 @@ module Appointments
 
     acts_as_tenant :organization, class_name: "Tenancy::Organization"
 
+    NOTES_MAX_LENGTH = 500
+
     # Free text that may reveal something private.
     encrypts :notes
 

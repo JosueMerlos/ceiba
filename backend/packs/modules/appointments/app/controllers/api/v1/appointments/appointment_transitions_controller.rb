@@ -9,7 +9,11 @@ module Api
         include ::Idempotency::Idempotent
         include ::Modules::RequiresModule
         include BranchOwner
+        include BranchAppointment
         include ::Appointments::RequestParams
+
+        # Every action but cancel and reschedule, which take a body, is the bare transition.
+        PLAIN_ACTIONS = ::Appointments::Transitions.actions - %i[cancel reschedule]
 
         requires_module :appointments
 
@@ -17,10 +21,10 @@ module Api
         # for a principal whose access was revoked. A denied request never reaches the key either.
         before_action :authorize_action
         # Declared after Access::Authorization's around action: the idempotency key needs the tenancy context.
-        idempotent :confirm, :check_in, :complete, :no_show, :cancel, required: false
+        idempotent(*(::Appointments::Transitions.actions - %i[reschedule]), required: false)
         idempotent :reschedule, required: true
 
-        %i[confirm check_in complete no_show].each do |action|
+        PLAIN_ACTIONS.each do |action|
           define_method(action) { render_appointment(::Appointments::Transition.call(appointment:, action:)) }
         end
 
@@ -43,15 +47,7 @@ module Api
 
         private
 
-        def appointment
-          @appointment ||= ::Appointments::Appointment.where(company_id:, branch_id:).find(params[:appointment_id])
-        end
-
         def authorize_action = authorize(appointment, :"#{action_name}?", policy_class: ::Appointments::AppointmentPolicy)
-
-        def render_appointment(record, status: :ok)
-          render json: { data: ::Appointments::AppointmentSerializer.new(record).serializable_hash }, status:
-        end
       end
     end
   end

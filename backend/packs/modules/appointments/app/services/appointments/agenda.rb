@@ -7,15 +7,8 @@ module Appointments
     MAX_DAYS = 31
     LIMIT = 1000
 
-    # The range itself is wrong. `errors` is a list of { field:, code: }.
-    class InvalidRequest < StandardError
-      attr_reader :errors
-
-      def initialize(errors)
-        @errors = errors.freeze
-        super(errors.map { "#{it[:field]}: #{it[:code]}" }.join(", "))
-      end
-    end
+    # The range itself is wrong.
+    class InvalidRequest < FieldErrors; end
 
     def self.call(...) = new(...).call
 

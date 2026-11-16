@@ -54,9 +54,12 @@ module Appointments
       raise ActionController::BadRequest, "#{repeated} must be a single value" if repeated
     end
 
-    def required_query_param(name)
+    def required_query_param(name) = optional_query_param(name) || raise(ActionController::ParameterMissing, name)
+
+    # nil when absent or blank.
+    def optional_query_param(name)
       value = params[name]
-      raise ActionController::ParameterMissing, name if value.blank?
+      return if value.blank?
       raise ActionController::BadRequest, "#{name} must be a single value" unless value.is_a?(String)
 
       value

@@ -5,8 +5,8 @@ module Appointments
   class UpdateNotes
     def self.call(appointment:, notes:, lock_version:, actor: Current.principal)
       notes = notes.presence
-      if notes && notes.length > Book::NOTES_MAX_LENGTH
-        appointment.errors.add(:notes, :too_long, count: Book::NOTES_MAX_LENGTH)
+      if notes && notes.length > Appointment::NOTES_MAX_LENGTH
+        appointment.errors.add(:notes, :too_long, count: Appointment::NOTES_MAX_LENGTH)
         raise ActiveRecord::RecordInvalid, appointment
       end
 

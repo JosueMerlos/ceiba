@@ -9,6 +9,7 @@ module Api
         include ::Idempotency::Idempotent
         include ::Modules::RequiresModule
         include BranchOwner
+        include BranchAppointment
         include ::Appointments::RequestParams
 
         AGENDA_PARAMS = %w[from to professional_id].freeze
@@ -28,23 +29,23 @@ module Api
           readable = policy_scope(::Appointments::Appointment.where(company_id:), policy_scope_class: ::Appointments::AppointmentPolicy::Scope)
           appointments = ::Appointments::Agenda.call(scope: readable, branch: Current.context.branch, from_date: query[:from], to_date: query[:to],
                                                      professional_id: query[:professional_id])
-          render json: { data: ::Appointments::AppointmentSerializer.new(appointments).serializable_hash }
+          render_appointment(appointments)
         end
 
         def show
           authorize appointment, :show?, policy_class: ::Appointments::AppointmentPolicy
-          render_detail
+          render_appointment(appointment, serializer: ::Appointments::AppointmentDetailSerializer)
         end
 
         def create
           attributes = booking_params
-          appointment = ::Appointments::Book.call(
+          booked = ::Appointments::Book.call(
             company: Current.context.company, branch: Current.context.branch, customer_id: attributes[:customer_id],
             services: ::Appointments::Service.where(company_id:).in_order(attributes[:service_ids]),
             professional: ::Appointments::Availability::ProfessionalChoice.resolve(attributes[:professional_id], within: assigned_professionals),
             starts_at: attributes[:starts_at], notes: attributes[:notes], source: "panel"
           )
-          render json: { data: ::Appointments::AppointmentSerializer.new(appointment).serializable_hash }, status: :created
+          render_appointment(booked, status: :created)
         end
 
         # Notes only, under the version the client read.
@@ -54,7 +55,7 @@ module Api
           raise ActionController::ParameterMissing, :lock_version if values[:lock_version].nil?
 
           ::Appointments::UpdateNotes.call(appointment:, notes: values[:notes], lock_version: values[:lock_version])
-          render_detail
+          render_appointment(appointment, serializer: ::Appointments::AppointmentDetailSerializer)
         end
 
         private
@@ -63,19 +64,10 @@ module Api
           authorize Current.context.branch, :create?, policy_class: ::Appointments::AppointmentPolicy
         end
 
-        def appointment
-          @appointment ||= ::Appointments::Appointment.where(company_id:, branch_id:).find(params[:appointment_id])
-        end
-
-        def render_detail = render(json: { data: ::Appointments::AppointmentDetailSerializer.new(appointment).serializable_hash })
-
         def agenda_query
           reject_repeated_query_params(AGENDA_PARAMS)
-          professional_id = params[:professional_id]
-          raise ActionController::BadRequest, "professional_id must be a single value" unless professional_id.nil? || professional_id.is_a?(String)
-
           { from: date(required_query_param("from"), :from), to: date(required_query_param("to"), :to),
-            professional_id: professional_id.presence && uuid(professional_id, :professional_id) }
+            professional_id: optional_query_param("professional_id")&.then { uuid(it, :professional_id) } }
         end
 
         def booking_params

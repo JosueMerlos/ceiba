@@ -49,6 +49,14 @@ RSpec.describe Appointments::Transitions do
       .to include(cancel: %i[cancelled_by cancellation_reason], confirm: [], reschedule: [])
   end
 
+  it "cada acción tiene su ruta POST en la sucursal, y no hay rutas de acciones que la tabla no conozca" do
+    routed = Rails.application.routes.routes.filter_map do |route|
+      route.path.spec.to_s[%r{/branches/:branch_id/appointments/:appointment_id/(\w+)}, 1] if route.verb == "POST"
+    end
+
+    expect(routed.map(&:to_sym)).to match_array(described_class.actions)
+  end
+
   it "una acción desconocida es un error del llamador, también como string", :aggregate_failures do
     expect { described_class.fetch(:archive) }.to raise_error(ArgumentError, /archive/)
     expect(described_class.fetch("confirm").to).to eq("confirmed")

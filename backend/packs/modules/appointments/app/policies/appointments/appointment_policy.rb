@@ -23,9 +23,7 @@ module Appointments
         (own_allowed && can?("appointments.appointment.update_own", context_scope(:branch)) && own_appointment?)
     end
 
-    def own_appointment?
-      Professional.find_by(id: record.professional_id)&.own_in_branch?(user_id: principal.id, branch_id: Current.context.branch.id) || false
-    end
+    def own_appointment? = Professional.of_user(principal.id, branch: Current.context.branch).exists?(id: record.professional_id)
 
     class Scope < Access::BasePolicy::Scope
       def resolve
@@ -33,7 +31,7 @@ module Appointments
         return scope if principal.can?("appointments.appointment.read", branch)
         return scope.none unless principal.can?("appointments.appointment.read_own", branch)
 
-        scope.where(professional_id: Professional.assigned_to(Current.context.branch).where(user_id: principal.id).select(:id))
+        scope.where(professional_id: Professional.of_user(principal.id, branch: Current.context.branch).select(:id))
       end
     end
   end

@@ -25,8 +25,8 @@ module Appointments
 
     def call
       moved = nil
-      Transition.call(appointment: @appointment, action: :reschedule, actor: @actor, now: @now) do
-        moved = book(Appointment.find(@appointment.id))
+      Transition.call(appointment: @appointment, action: :reschedule, actor: @actor, now: @now) do |original|
+        moved = book(original)
         { new_appointment_id: moved.id }
       end
       moved
@@ -34,7 +34,7 @@ module Appointments
 
     private
 
-    # Reads the original again INSIDE the lock, so the snapshot and the notes are the ones of the row being moved.
+    # `original` is the row Transition locked, so the snapshot and the notes are the ones being moved.
     def book(original)
       lines = original.services_snapshot.to_a
       Book.call(company: @company, branch: @branch, customer_id: original.customer_id, starts_at: @starts_at, professional: @choice,

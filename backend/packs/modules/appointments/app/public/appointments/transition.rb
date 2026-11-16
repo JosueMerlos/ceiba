@@ -4,8 +4,9 @@ module Appointments
   # overwritten: zero rows is InvalidTransition. The version goes up with it, so a stale edit of the same appointment conflicts.
   # The event and the audit record share the savepoint. Must run inside a tenant context.
   #
-  # A block (`follow_up`) runs inside the same savepoint after the UPDATE: whatever it raises rolls the transition back, and the
-  # hash it returns is added to the event and to the audit record. Rescheduling books the new appointment there.
+  # A block (`follow_up`) runs inside the same savepoint after the UPDATE and receives the locked appointment: whatever it raises
+  # rolls the transition back, and the hash it returns is added to the event and to the audit record. Rescheduling books the new
+  # appointment there.
   class Transition
     def self.call(...) = new(...).call
 
@@ -28,8 +29,8 @@ module Appointments
         from = @appointment.status
         check!(from)
         move!
-        extra = @follow_up ? @follow_up.call.to_h : {}
-        @appointment.reload
+        extra = @follow_up ? @follow_up.call(@appointment).to_h : {}
+        @appointment = Appointment.find(@appointment.id)
         publish_and_audit(from, extra)
         @appointment
       end
