@@ -75,3 +75,12 @@ end
 ModuleCoverageFactories.register("appointments", :resource_time_off_id) do |company:, branch:|
   Tenancy.with_context(organization: company.organization) { FactoryBot.create(:time_off, resource: AppointmentsCoverageOwners.resource(branch:)).id }
 end
+
+# An appointment of the suite's branch, each one an hour after the previous so the agenda constraints never collide.
+ModuleCoverageFactories.register("appointments", :appointment_id) do |company:, branch:|
+  Tenancy.with_context(organization: company.organization) do
+    professional = AppointmentsCoverageOwners.professional(company:, branch:)
+    latest = Appointments::Appointment.where(professional_id: professional.id).maximum(:starts_at)
+    FactoryBot.create(:appointment, professional:, branch:, starts_at: latest ? latest + 1.hour : Time.utc(2026, 11, 16, 15)).id
+  end
+end
