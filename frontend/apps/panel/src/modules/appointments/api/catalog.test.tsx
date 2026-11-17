@@ -20,6 +20,7 @@ import {
   catalogKeys,
   useArchiveService,
   useBranchScheduleQuery,
+  useCompanyBranchesQuery,
   useCreateBranch,
   usePutBranchSchedule,
   usePutServiceOverride,
@@ -193,15 +194,15 @@ describe("sucursales y horario", () => {
         );
       }),
     );
-    const { wrapper, queryClient } = setup();
-    const { result } = renderHook(() => useCreateBranch(), { wrapper });
-    await queryClient.prefetchQuery({
-      queryKey: ["organizations", ids.orgA, "companies", ids.companyA, "branches"],
-      queryFn: async () => (await fetch(`${BASE}/branches`)).json(),
-    });
+    const { wrapper } = setup();
+    const { result } = renderHook(
+      () => ({ create: useCreateBranch(), list: useCompanyBranchesQuery() }),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.list.isSuccess).toBe(true));
 
     const created = await act(() =>
-      result.current.mutateAsync({ name: "Granada", time_zone: "America/Managua" }),
+      result.current.create.mutateAsync({ name: "Granada", time_zone: "America/Managua" }),
     );
 
     expect(bodies).toEqual([{ name: "Granada", time_zone: "America/Managua" }]);
