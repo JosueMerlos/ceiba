@@ -5,11 +5,14 @@ import { renderWithI18n } from "../../../test/render-with-i18n";
 import { WeeklyScheduleEditor } from "./weekly-schedule-editor";
 
 const day = (name: string) => screen.getByRole("group", { name });
-const setTime = (input: HTMLElement, value: string) => fireEvent.change(input, { target: { value } });
+const setTime = (input: HTMLElement, value: string) =>
+  fireEvent.change(input, { target: { value } });
 
 const MONDAY = scheduleSlot("s1", 1, "09:00", "13:00");
 
-async function renderEditor(props: Partial<React.ComponentProps<typeof WeeklyScheduleEditor>> = {}) {
+async function renderEditor(
+  props: Partial<React.ComponentProps<typeof WeeklyScheduleEditor>> = {},
+) {
   const onSave = vi.fn();
   const view = await renderWithI18n(
     <WeeklyScheduleEditor slots={[MONDAY]} onSave={onSave} {...props} />,
@@ -22,7 +25,15 @@ describe("WeeklyScheduleEditor", () => {
     await renderEditor({ slots: [MONDAY, scheduleSlot("s2", 0, "10:00", "12:00")] });
 
     const names = screen.getAllByRole("group").map((group) => group.getAttribute("aria-label"));
-    expect(names).toEqual(["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]);
+    expect(names).toEqual([
+      "Lunes",
+      "Martes",
+      "Miércoles",
+      "Jueves",
+      "Viernes",
+      "Sábado",
+      "Domingo",
+    ]);
     expect(within(day("Lunes")).getByLabelText("Inicio")).toHaveProperty("value", "09:00");
     expect(within(day("Lunes")).getByLabelText("Fin")).toHaveProperty("value", "13:00");
     expect(within(day("Domingo")).getByLabelText("Inicio")).toHaveProperty("value", "10:00");
@@ -71,7 +82,9 @@ describe("WeeklyScheduleEditor", () => {
       "Esta franja se cruza con otra del mismo día.",
       "Esta franja se cruza con otra del mismo día.",
     ]);
-    expect(within(day("Lunes")).getAllByLabelText("Inicio")[0]!.getAttribute("aria-invalid")).toBe("true");
+    expect(within(day("Lunes")).getAllByLabelText("Inicio")[0]!.getAttribute("aria-invalid")).toBe(
+      "true",
+    );
   });
 
   it("AC3: un fin igual o anterior al inicio marca el error y no guarda", async () => {
@@ -81,9 +94,9 @@ describe("WeeklyScheduleEditor", () => {
     await user.click(screen.getByRole("button", { name: "Guardar horario" }));
 
     expect(onSave).not.toHaveBeenCalled();
-    expect(
-      within(day("Lunes")).getByRole("alert").textContent,
-    ).toBe("La hora de fin debe ser posterior a la de inicio.");
+    expect(within(day("Lunes")).getByRole("alert").textContent).toBe(
+      "La hora de fin debe ser posterior a la de inicio.",
+    );
   });
 
   it("corregir la franja limpia el error y deja guardar", async () => {
@@ -113,7 +126,9 @@ describe("WeeklyScheduleEditor", () => {
   it("muestra los errores que devolvió el servidor en el editor", async () => {
     await renderEditor({ serverMessages: ["se cruza con otro horario del profesional"] });
 
-    expect(screen.getByRole("alert").textContent).toContain("se cruza con otro horario del profesional");
+    expect(screen.getByRole("alert").textContent).toContain(
+      "se cruza con otro horario del profesional",
+    );
   });
 
   it("guardar sin franjas pide confirmar que la sucursal quedará cerrada", async () => {

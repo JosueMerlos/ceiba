@@ -19,17 +19,25 @@ describe("validateSlots", () => {
   });
 
   it("marca solape el mismo día en las dos franjas", () => {
-    const problems = validateSlots([draft("a", 1, "09:00", "13:00"), draft("b", 1, "12:00", "15:00")]);
+    const problems = validateSlots([
+      draft("a", 1, "09:00", "13:00"),
+      draft("b", 1, "12:00", "15:00"),
+    ]);
     expect(problems.get("a")).toBe("overlap");
     expect(problems.get("b")).toBe("overlap");
   });
 
   it("el mismo horario en otro día NO es solape (adversarial: no comparar entre días)", () => {
-    expect(validateSlots([draft("a", 1, "09:00", "13:00"), draft("b", 2, "09:00", "13:00")]).size).toBe(0);
+    expect(
+      validateSlots([draft("a", 1, "09:00", "13:00"), draft("b", 2, "09:00", "13:00")]).size,
+    ).toBe(0);
   });
 
   it("marca fin igual o anterior al inicio", () => {
-    const problems = validateSlots([draft("a", 1, "13:00", "13:00"), draft("b", 2, "15:00", "09:00")]);
+    const problems = validateSlots([
+      draft("a", 1, "13:00", "13:00"),
+      draft("b", 2, "15:00", "09:00"),
+    ]);
     expect(problems.get("a")).toBe("endBeforeStart");
     expect(problems.get("b")).toBe("endBeforeStart");
   });
