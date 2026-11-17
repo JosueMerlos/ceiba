@@ -13,6 +13,8 @@ module Tenancy
 
     acts_as_tenant :organization, class_name: "Tenancy::Organization"
 
+    include Branding
+
     enum :status, { active: "active", inactive: "inactive" }, default: "active", validate: true
 
     has_many :branches, class_name: "Tenancy::Branch", inverse_of: :company

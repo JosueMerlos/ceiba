@@ -5,19 +5,21 @@ require "rails_helper"
 # purges replaced blobs only once everything committed. ActiveStorage never enqueues a job.
 RSpec.describe Access::UpdateBranding do
   let(:organization) { create(:organization) }
-  let(:company) { create_in(organization, :company) }
+  let!(:company) { create_in(organization, :company) }
 
-  around { |example| with_tenant(organization) { example.run } }
-
+  # Each call is its own transaction (like a request): what waits for the outermost commit (rendered variant files, purges)
+  # happens when it returns. A spec that wrapped everything in one tenant block would never reach that moment.
   def call(attributes: {}, files: {}, remove: [])
-    described_class.call(company:, attributes:, files:, remove:)
+    with_tenant(organization) { described_class.call(company: Tenancy::Company.find(company.id), attributes:, files:, remove:) }
   end
+
+  def stored = with_tenant(organization) { Tenancy::Company.find(company.id) }
 
   def logo_upload(color: [ 47, 138, 102 ], name: "logo.png")
     branding_upload(png_bytes(width: 300, height: 300, color:), filename: name, type: "image/png")
   end
 
-  def audit_events = Audit::Event.where(action: "company.branding_updated").order(:id).to_a
+  def audit_events = with_tenant(organization) { Audit::Event.where(action: "company.branding_updated").order(:id).to_a }
 
   def variant_image(attachment, name)
     Vips::Image.new_from_buffer(attachment.variant(name).processed.download, "")
@@ -27,7 +29,7 @@ RSpec.describe Access::UpdateBranding do
     it "guarda los valores normalizados y audita el diff con before y after" do
       call(attributes: { brand_name: "Salón Estilo", primary_color: "#ffff00", font_choice: "lora" })
 
-      expect(company.reload).to have_attributes(brand_name: "Salón Estilo", primary_color: "#FFFF00", font_choice: "lora")
+      expect(stored).to have_attributes(brand_name: "Salón Estilo", primary_color: "#FFFF00", font_choice: "lora")
       expect(audit_events).to contain_exactly(
         have_attributes(
           auditable_id: company.id, before: { "brand_name" => nil, "primary_color" => nil, "font_choice" => nil },
@@ -41,20 +43,20 @@ RSpec.describe Access::UpdateBranding do
 
       call(attributes: { tagline: "" })
 
-      expect([ company.reload.tagline, audit_events.last.after ]).to eq([ nil, { "tagline" => nil } ])
+      expect([ stored.tagline, audit_events.last.after ]).to eq([ nil, { "tagline" => nil } ])
     end
 
     it "sin cambios efectivos no audita" do
       call(attributes: { primary_color: "#1D6C4E" })
 
-      expect { call(attributes: { primary_color: "#1d6c4e" }) }.not_to change(Audit::Event, :count)
+      expect { call(attributes: { primary_color: "#1d6c4e" }) }.not_to change { audit_events.size }
     end
 
     it "un color inválido no persiste nada y responde con el error del campo" do
       expect { call(attributes: { brand_name: "Nuevo", primary_color: "amarillo" }) }.to raise_error(ActiveRecord::RecordInvalid) do |error|
         expect(error.record.errors.where(:primary_color).map(&:type)).to eq([ :invalid ])
       end
-      expect([ company.reload.brand_name, audit_events ]).to eq([ nil, [] ])
+      expect([ stored.brand_name, audit_events ]).to eq([ nil, [] ])
     end
   end
 
@@ -62,7 +64,7 @@ RSpec.describe Access::UpdateBranding do
     it "adjunta el logo con el tipo detectado, procesa sus dos variantes y las re-codifica a WebP del alto pedido" do
       call(files: { logo: logo_upload })
 
-      logo = company.reload.logo
+      logo = stored.logo
       expect([ logo.content_type, variant_image(logo, :x1).height, variant_image(logo, :x2).height ]).to eq([ "image/png", 64, 128 ])
       expect(logo.variant(:x1).processed.image.content_type).to eq("image/webp")
     end
@@ -72,10 +74,10 @@ RSpec.describe Access::UpdateBranding do
 
       call(files: { banner: logo_upload, favicon: png })
 
-      company.reload
-      sizes = [ variant_image(company.banner, :wide), variant_image(company.banner, :standard), variant_image(company.favicon, :icon32), variant_image(company.favicon, :icon180) ].map { [ it.width, it.height ] }
+      current = stored
+      sizes = [ variant_image(current.banner, :wide), variant_image(current.banner, :standard), variant_image(current.favicon, :icon32), variant_image(current.favicon, :icon180) ].map { [ it.width, it.height ] }
       expect(sizes).to eq([ [ 1600, 900 ], [ 1200, 900 ], [ 32, 32 ], [ 180, 180 ] ])
-      expect(company.favicon.variant(:icon32).processed.image.content_type).to eq("image/png")
+      expect(current.favicon.variant(:icon32).processed.image.content_type).to eq("image/png")
     end
 
     it "usa el tipo detectado y no el declarado" do
@@ -83,45 +85,45 @@ RSpec.describe Access::UpdateBranding do
 
       call(files: { logo: upload })
 
-      expect(company.reload.logo.content_type).to eq("image/png")
+      expect(stored.logo.content_type).to eq("image/png")
     end
 
     it "audita el archivo nuevo con nombre, tamaño y checksum, sin su contenido" do
       call(files: { logo: logo_upload })
 
-      blob = company.reload.logo.blob
+      blob = stored.logo.blob
       expect(audit_events.last.metadata).to eq("assets" => { "logo" => { "filename" => "logo.png", "byte_size" => blob.byte_size, "checksum" => blob.checksum } })
     end
 
     it "al reemplazar el logo cambia la clave del blob, cambia la variante y purga el blob y los archivos anteriores" do
       call(files: { logo: logo_upload })
-      old_blob = company.reload.logo.blob
-      old_variant_key = company.logo.variant(:x1).processed.key
+      old_blob = stored.logo.blob
+      old_variant_key = stored.logo.variant(:x1).processed.key
 
       call(files: { logo: logo_upload(color: [ 200, 20, 20 ], name: "nuevo.png") })
 
-      new_blob = company.reload.logo.blob
+      new_blob = stored.logo.blob
       expect(new_blob.key).not_to eq(old_blob.key)
       expect(new_blob.signed_id).not_to eq(old_blob.signed_id)
       expect(ActiveStorage::Blob.exists?(old_blob.id)).to be(false)
       expect(ActiveStorage::Blob.service.exist?(old_blob.key)).to be(false)
       expect(ActiveStorage::Blob.service.exist?(old_variant_key)).to be(false)
-      expect(ActiveStorage::Blob.service.exist?(company.logo.variant(:x1).processed.key)).to be(true)
+      expect(ActiveStorage::Blob.service.exist?(stored.logo.variant(:x1).processed.key)).to be(true)
     end
 
     it "remove desadjunta, audita y purga el blob" do
       call(files: { logo: logo_upload })
-      old_blob = company.reload.logo.blob
+      old_blob = stored.logo.blob
 
       call(remove: %w[logo])
 
-      expect(company.reload.logo).not_to be_attached
+      expect(stored.logo).not_to be_attached
       expect(ActiveStorage::Blob.exists?(old_blob.id)).to be(false)
       expect(audit_events.last.metadata).to eq("assets" => { "logo" => nil })
     end
 
     it "quitar un adjunto que no existe no audita" do
-      expect { call(remove: %w[logo]) }.not_to change(Audit::Event, :count)
+      expect { call(remove: %w[logo]) }.not_to change { audit_events.size }
     end
 
     it "rechaza en remove lo que no es un adjunto de marca" do
@@ -136,7 +138,7 @@ RSpec.describe Access::UpdateBranding do
       expect { call(attributes: { primary_color: "#FFFF00" }, files: { logo: svg }) }.to raise_error(ActiveRecord::RecordInvalid) do |error|
         expect(error.record.errors.where(:logo).map(&:type)).to eq([ :invalid_file_type ])
       end
-      expect([ company.reload.primary_color, company.logo.attached?, audit_events, ActiveStorage::Blob.count ]).to eq([ nil, false, [], 0 ])
+      expect([ stored.primary_color, stored.logo.attached?, audit_events, ActiveStorage::Blob.count ]).to eq([ nil, false, [], 0 ])
     end
 
     it "informa a la vez de los errores de campos y de archivos" do
@@ -149,12 +151,12 @@ RSpec.describe Access::UpdateBranding do
 
     it "si la auditoría falla, el logo anterior sigue adjunto y su blob no se purga" do
       call(files: { logo: logo_upload })
-      old_blob = company.reload.logo.blob
+      old_blob = stored.logo.blob
       allow(Audit).to receive(:record).and_raise(ActiveRecord::StatementInvalid, "boom")
 
       expect { ApplicationRecord.transaction { call(files: { logo: logo_upload(color: [ 1, 2, 3 ]) }) } }.to raise_error(ActiveRecord::StatementInvalid)
 
-      expect(company.reload.logo.blob).to eq(old_blob)
+      expect(stored.logo.blob).to eq(old_blob)
       expect(ActiveStorage::Blob.service.exist?(old_blob.key)).to be(true)
     end
   end

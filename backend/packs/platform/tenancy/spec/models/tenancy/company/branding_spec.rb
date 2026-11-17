@@ -65,10 +65,10 @@ RSpec.describe Tenancy::Company::Branding do
       expect { savepoint { record.update_columns(font_choice: "comic-sans") } }.to raise_error(ActiveRecord::StatementInvalid, /chk_companies_font_choice/)
     end
 
-    it "rechaza un color en minúsculas escrito sin pasar por las validaciones" do
+    it "rechaza un color en minúsculas escrito sin pasar por el modelo (que lo normalizaría)" do
       record = create(:company)
 
-      expect { savepoint { record.update_columns(secondary_color: "#ffff00") } }.to raise_error(ActiveRecord::StatementInvalid, /chk_companies_secondary_color_format/)
+      expect { savepoint { Tenancy::Company.connection.execute("UPDATE companies SET secondary_color = '#ffff00' WHERE id = '#{record.id}'") } }.to raise_error(ActiveRecord::StatementInvalid, /chk_companies_secondary_color_format/)
     end
   end
 
