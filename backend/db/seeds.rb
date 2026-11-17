@@ -147,7 +147,7 @@ DEMO_CUSTOMERS = [
 # Demo branding (colors, font and texts, no images) for the salon; the dental clinic stays without branding to show the
 # platform palette. Applied only while the company has none, so a seeded database never overwrites what an admin chose.
 DEMO_BRANDING = {
-  "salon-estilo" => { brand_name: "Salón Estilo", tagline: "Tu estilo, tu momento", primary_color: "#8B2F5C", secondary_color: "#F4E4EC", accent_color: "#C8873A", font_choice: "nunito" }
+  "salon-estilo" => { brand_name: "Salón Estilo", tagline: "Su estilo, su momento", primary_color: "#8B2F5C", secondary_color: "#F4E4EC", accent_color: "#C8873A", font_choice: "nunito" }
 }.freeze
 
 # The module's demo hook is loaded by path: the root pack cannot see the module's constants.
