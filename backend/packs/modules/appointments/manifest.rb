@@ -10,6 +10,7 @@ Modules.define :appointments do
 
   permissions do
     permission "appointments.appointment.read",       description: "Ver citas"
+    permission "appointments.appointment.read_own",   description: "Ver las propias citas (profesional)"
     permission "appointments.appointment.create",     description: "Crear citas"
     permission "appointments.appointment.update",     description: "Editar, mover y cancelar citas"
     permission "appointments.appointment.update_own", description: "Editar las propias citas (profesional)"
@@ -53,7 +54,7 @@ Modules.define :appointments do
     grant :receptionist,    %w[appointments.appointment.read appointments.appointment.create appointments.appointment.update
                                appointments.service.read appointments.professional.read appointments.resource.read
                                appointments.schedule.read appointments.time_off.read]
-    grant :professional,    %w[appointments.appointment.read appointments.appointment.update_own appointments.service.read
+    grant :professional,    %w[appointments.appointment.read_own appointments.appointment.update_own appointments.service.read
                                appointments.professional.read_own appointments.resource.read appointments.schedule.read_own
                                appointments.time_off.manage_own]
   end
@@ -68,9 +69,12 @@ Modules.define :appointments do
   settings_levels %i[company branch]
 
   # Each published event needs a registered schema (app/public/appointments/events/<name>.json).
-  publishes   %w[appointments.appointment_booked.v1]
+  publishes   %w[appointments.appointment_booked.v1 appointments.appointment_confirmed.v1 appointments.appointment_checked_in.v1
+                 appointments.appointment_completed.v1 appointments.appointment_no_show.v1 appointments.appointment_cancelled.v1
+                 appointments.appointment_rescheduled.v1]
   subscribes  { }
 
-  navigation  [ { key: "agenda", path: "/agenda", permission: "appointments.appointment.read" },
+  # The agenda shows with either permission: the professional sees only their own appointments in it.
+  navigation  [ { key: "agenda", path: "/agenda", permission: %w[appointments.appointment.read appointments.appointment.read_own] },
                 { key: "summary", path: "/agenda/summary", permission: "appointments.appointment.count" } ]
 end

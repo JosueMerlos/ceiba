@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 export interface ModuleRoute {
   /** Relative to the panel root, no leading slash ("agenda", "agenda/summary"). */
   path: string;
-  /** Permission the user must have (in /me) for the route to exist. */
-  permission: string;
+  /** Permissions in /me that make the route exist: any one of them is enough. */
+  permissions: readonly string[];
   element: ReactNode;
 }
 
@@ -15,7 +15,8 @@ export interface ModuleNavigation {
   path: string;
   /** Key in the i18n `shell` namespace. */
   labelKey: "nav.agenda" | "nav.summary";
-  permission: string;
+  /** Any one of them shows the item (and /me must offer it too). */
+  permissions: readonly string[];
   icon: LucideIcon;
 }
 

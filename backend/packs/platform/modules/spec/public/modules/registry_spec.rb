@@ -194,6 +194,29 @@ RSpec.describe Modules::Registry do
       end
     end
 
+    it "acepta navegación con varios permisos (basta cualquiera)" do
+      manifest = define(:loyalty) do
+        permissions do
+          permission "loyalty.card.read", description: "Ver"
+          permission "loyalty.card.read_own", description: "Ver las propias"
+        end
+        navigation [ { key: "cards", path: "/loyalty", permission: %w[loyalty.card.read loyalty.card.read_own] } ]
+      end
+      expect(manifest.navigation.sole[:permission]).to eq(%w[loyalty.card.read loyalty.card.read_own])
+      expect(manifest.navigation.sole[:permission]).to be_frozen
+    end
+
+    it "rechaza en la navegación una lista de permisos vacía o con uno no declarado", :aggregate_failures do
+      expect_invalid(/navegación "cards".*al menos un permiso/m) do
+        permissions { permission "loyalty.card.read", description: "Ver" }
+        navigation [ { key: "cards", path: "/loyalty", permission: [] } ]
+      end
+      expect_invalid(/navegación.*"loyalty\.card\.fantasma"/m) do
+        permissions { permission "loyalty.card.read", description: "Ver" }
+        navigation [ { key: "cards", path: "/loyalty", permission: %w[loyalty.card.read loyalty.card.fantasma] } ]
+      end
+    end
+
     it "rechaza hooks que no son un nombre de constante" do
       expect_invalid(/on_enable.*"no es constante"/m) { on_enable "no es constante" }
     end

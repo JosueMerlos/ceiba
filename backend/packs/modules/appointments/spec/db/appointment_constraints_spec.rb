@@ -18,14 +18,16 @@ RSpec.describe "Restricciones de citas en la base de datos" do
   def quote(value) = ApplicationRecord.connection.quote(value)
 
   # Inserts one appointment row. `blocks_from`/`blocks_to` default to the slot itself.
+  # A cancelled row carries who cancelled it and why unless the caller says otherwise.
   def insert_appointment(from: ten, to: from + 1.hour, professional: self.professional, resource: nil, status: "scheduled", branch: self.branch,
-                         customer: self.customer, source: "panel", created_by_type: "system", created_by_id: nil, starts_at: from, ends_at: to, blocks_from: from, blocks_to: to)
+                         customer: self.customer, source: "panel", created_by_type: "system", created_by_id: nil, starts_at: from, ends_at: to, blocks_from: from, blocks_to: to,
+                         cancelled_by: (status == "cancelled" ? "staff" : nil), cancellation_reason: (status == "cancelled" ? "customer_request" : nil))
     ApplicationRecord.connection.select_value(<<~SQL.squish)
       INSERT INTO appointments (organization_id, company_id, branch_id, professional_id, resource_id, customer_id, source, created_by_type,
-                                created_by_id, starts_at, ends_at, blocks_from, blocks_to, status, created_at, updated_at)
+                                created_by_id, starts_at, ends_at, blocks_from, blocks_to, status, cancelled_by, cancellation_reason, created_at, updated_at)
       VALUES (#{quote(organization.id)}, #{quote(company.id)}, #{quote(branch.id)}, #{quote(professional.id)}, #{quote(resource&.id)},
               #{quote(customer.id)}, #{quote(source)}, #{quote(created_by_type)}, #{quote(created_by_id)}, #{quote(starts_at)}, #{quote(ends_at)}, #{quote(blocks_from)}, #{quote(blocks_to)},
-              #{quote(status)}, now(), now())
+              #{quote(status)}, #{quote(cancelled_by)}, #{quote(cancellation_reason)}, now(), now())
       RETURNING id
     SQL
   end
@@ -139,6 +141,41 @@ RSpec.describe "Restricciones de citas en la base de datos" do
     it "acepta al usuario con su id y a los demás actores sin id", :aggregate_failures do
       expect(insert_appointment(from: ten, created_by_type: "user", created_by_id: SecureRandom.uuid)).to be_present
       expect(insert_appointment(from: ten + 1.day, created_by_type: "system", created_by_id: nil)).to be_present
+    end
+  end
+
+  describe "cancelación" do
+    it "acepta una cancelada con quién y motivo de la lista cerrada", :aggregate_failures do
+      %w[staff customer system].each_with_index do |by, index|
+        expect(insert_appointment(from: ten + index.days, status: "cancelled", cancelled_by: by, cancellation_reason: "other")).to be_present
+      end
+      %w[customer_request professional_unavailable business_decision other].each_with_index do |reason, index|
+        expect(insert_appointment(from: ten + (index + 3).days, status: "cancelled", cancellation_reason: reason)).to be_present
+      end
+    end
+
+    it "rechaza quién canceló fuera de la lista" do
+      expect { savepoint { insert_appointment(status: "cancelled", cancelled_by: "robot") } }
+        .to violating(ActiveRecord::CheckViolation, "chk_appointments_cancelled_by")
+    end
+
+    it "rechaza un motivo fuera de la lista" do
+      expect { savepoint { insert_appointment(status: "cancelled", cancellation_reason: "porque si") } }
+        .to violating(ActiveRecord::CheckViolation, "chk_appointments_cancellation_reason")
+    end
+
+    it "rechaza una cancelada sin quién o sin motivo", :aggregate_failures do
+      expect { savepoint { insert_appointment(status: "cancelled", cancelled_by: nil) } }
+        .to violating(ActiveRecord::CheckViolation, "chk_appointments_cancellation")
+      expect { savepoint { insert_appointment(status: "cancelled", cancellation_reason: nil) } }
+        .to violating(ActiveRecord::CheckViolation, "chk_appointments_cancellation")
+    end
+
+    it "rechaza datos de cancelación en una cita que no está cancelada", :aggregate_failures do
+      expect { savepoint { insert_appointment(status: "scheduled", cancelled_by: "staff", cancellation_reason: "other") } }
+        .to violating(ActiveRecord::CheckViolation, "chk_appointments_cancellation")
+      expect { savepoint { insert_appointment(status: "rescheduled", cancellation_reason: "other") } }
+        .to violating(ActiveRecord::CheckViolation, "chk_appointments_cancellation")
     end
   end
 

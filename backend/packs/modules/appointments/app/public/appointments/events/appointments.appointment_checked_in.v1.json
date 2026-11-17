@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "appointments.appointment_checked_in.v1",
+  "description": "El cliente llegó (check-in). Solo ids, estados y horas: sin notas ni datos del cliente. La organización viaja en el sobre del evento.",
+  "type": "object",
+  "required": [
+    "appointment_id",
+    "branch_id",
+    "professional_id",
+    "customer_id",
+    "starts_at",
+    "ends_at",
+    "from_status"
+  ],
+  "properties": {
+    "appointment_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "branch_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "professional_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "customer_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "starts_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ends_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "from_status": {
+      "enum": [
+        "scheduled",
+        "confirmed"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

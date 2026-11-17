@@ -67,12 +67,13 @@ CHECK (
 
 ```ruby
 class Appointments::AppointmentPolicy < Access::BasePolicy
-  def create? = can?("appointments.appointment.create", record.branch)
-  def update? = can?("appointments.appointment.update", record.branch) ||
-                own_appointment? && can?("appointments.appointment.update_own", record.branch)
+  def create? = can?("appointments.appointment.create", context_scope(:branch))
+  def update? = can?("appointments.appointment.update", context_scope(:branch)) ||
+                (can?("appointments.appointment.update_own", context_scope(:branch)) && own_appointment?)
 
   class Scope < Access::BasePolicy::Scope
-    def resolve = scope.where(branch_id: branch_ids_with("appointments.appointment.read"))
+    # `read` sees the branch's agenda; `read_own` (the professional) only their own appointments.
+    def resolve = ...
   end
 end
 ```
@@ -112,7 +113,7 @@ end
 | Horarios (`appointments.schedule.read` / `.manage` / `.read_own`) | — | — | ✅ | ✅ | ver | ver el propio |
 | Ausencias (`appointments.time_off.read` / `.manage` / `.manage_own`) | — | — | ✅ | ✅ (de los asignados a su sucursal) | ver | las propias |
 | Clientes (`platform.customer.read` / `.create` / `.update` / `.archive`; rutas por sucursal, [ADR-0033](../adr/0033-autorizacion-y-pii-de-clientes-y-servicios.md)) | — | — | ver, crear, editar, archivar | ver, crear, editar, archivar | ver, crear, editar, archivar | — hasta que existan las citas (luego, los de sus citas) |
-| Citas | conteos | conteos | CRUD | CRUD | CRUD | ver y editar las propias |
+| Citas (`appointments.appointment.read` / `.read_own` / `.create` / `.update` / `.update_own`, [ADR-0038](../adr/0038-ciclo-de-vida-de-la-cita.md)) | conteos | conteos | CRUD | CRUD | CRUD | las propias: verlas en su agenda (`read_own`), su detalle y notas, confirmar, check-in, completar y no-show (`update_own`); no cancela ni reprograma |
 | Reportes | consolidado (conteos) | consolidado (conteos) | su empresa | su sucursal | — | — |
 | Usuarios: invitar | cualquier rol (incl. `org_admin`) | roles de empresa y sucursal | staff de su empresa | staff de su sucursal | — | — |
 | API keys | ✅ | ✅ | — | — | — | — |

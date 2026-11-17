@@ -118,6 +118,11 @@ CREATE TABLE public.appointments (
     created_by_type character varying NOT NULL,
     created_by_id uuid,
     rescheduled_from_id uuid,
+    cancelled_by character varying,
+    cancellation_reason character varying,
+    CONSTRAINT chk_appointments_cancellation CHECK (((((status)::text <> 'cancelled'::text) AND (cancelled_by IS NULL) AND (cancellation_reason IS NULL)) OR (((status)::text = 'cancelled'::text) AND (cancelled_by IS NOT NULL) AND (cancellation_reason IS NOT NULL)))),
+    CONSTRAINT chk_appointments_cancellation_reason CHECK (((cancellation_reason IS NULL) OR ((cancellation_reason)::text = 'customer_request'::text) OR ((cancellation_reason)::text = 'professional_unavailable'::text) OR ((cancellation_reason)::text = 'business_decision'::text) OR ((cancellation_reason)::text = 'other'::text))),
+    CONSTRAINT chk_appointments_cancelled_by CHECK (((cancelled_by IS NULL) OR ((cancelled_by)::text = 'staff'::text) OR ((cancelled_by)::text = 'customer'::text) OR ((cancelled_by)::text = 'system'::text))),
     CONSTRAINT chk_appointments_created_by_type CHECK ((((created_by_type)::text = 'user'::text) OR ((created_by_type)::text = 'api_key'::text) OR ((created_by_type)::text = 'system'::text) OR ((created_by_type)::text = 'public_token'::text) OR ((created_by_type)::text = 'platform_staff'::text))),
     CONSTRAINT chk_appointments_created_by_user_id CHECK ((((created_by_type)::text <> 'user'::text) OR (created_by_id IS NOT NULL))),
     CONSTRAINT chk_appointments_source CHECK ((((source)::text = 'panel'::text) OR ((source)::text = 'public_booking'::text))),
@@ -2319,6 +2324,8 @@ CREATE POLICY tenant_isolation ON public.weekly_schedules USING ((organization_i
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261116210048'),
+('20261116210047'),
 ('20261113051330'),
 ('20261113051328'),
 ('20261113051326'),

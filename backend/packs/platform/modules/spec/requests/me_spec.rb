@@ -92,6 +92,14 @@ RSpec.describe "GET /api/v1/me" do
       expect(data["navigation"]).to eq([ { "module" => "sample", "key" => "things", "path" => "/things" } ])
     end
 
+    it "una entrada con varios permisos aparece con cualquiera de ellos: el profesional ve la agenda con el de las propias" do
+      enable("appointments")
+      sign_in(user_with_role("professional", world, branch: world.branch_a1))
+      me({ organization_id: organization.id, company_id: world.company_a.id, branch_id: world.branch_a1.id })
+
+      expect(data["navigation"]).to include({ "module" => "appointments", "key" => "agenda", "path" => "/agenda" })
+    end
+
     it "settings resueltos: default -> empresa -> sucursal del contexto" do
       with_tenant(organization) do
         Modules::UpdateSettings.call(company: world.company_a, key: "sample", settings: { "max_advance_days" => 30 })

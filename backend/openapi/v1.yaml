@@ -57,6 +57,25 @@ components:
         branch_id:
           format: uuid
           type: string
+        cancellation_reason:
+          description: Motivo de la cancelación como código; null si no está cancelada
+          enum:
+          - customer_request
+          - professional_unavailable
+          - business_decision
+          - other
+          -
+          nullable: true
+          type: string
+        cancelled_by:
+          description: Quién canceló; null si no está cancelada
+          enum:
+          - staff
+          - customer
+          - system
+          -
+          nullable: true
+          type: string
         currency:
           enum:
           - NIO
@@ -77,6 +96,11 @@ components:
           type: integer
         professional_id:
           format: uuid
+          type: string
+        rescheduled_from_id:
+          description: La cita que esta reprogramó; null si no viene de una reprogramación
+          format: uuid
+          nullable: true
           type: string
         resource_id:
           description: El recurso que asignó el motor; null si los servicios no exigen uno
@@ -124,6 +148,129 @@ components:
       - services
       - total_price_minor
       - currency
+      - rescheduled_from_id
+      - cancelled_by
+      - cancellation_reason
+      type: object
+    AppointmentCancelInput:
+      additionalProperties: false
+      properties:
+        reason:
+          description: Motivo como código de la lista cerrada; ausente o fuera de ella responde 422
+          enum:
+          - customer_request
+          - professional_unavailable
+          - business_decision
+          - other
+          type: string
+      type: object
+    AppointmentDetail:
+      additionalProperties: false
+      description: 'El detalle de una cita: lo mismo que `Appointment` más las notas (texto libre cifrado). Solo lo ve quien puede editar la cita.'
+      properties:
+        branch_id:
+          format: uuid
+          type: string
+        cancellation_reason:
+          description: Motivo de la cancelación como código; null si no está cancelada
+          enum:
+          - customer_request
+          - professional_unavailable
+          - business_decision
+          - other
+          -
+          nullable: true
+          type: string
+        cancelled_by:
+          description: Quién canceló; null si no está cancelada
+          enum:
+          - staff
+          - customer
+          - system
+          -
+          nullable: true
+          type: string
+        currency:
+          enum:
+          - NIO
+          - USD
+          type: string
+        customer_id:
+          format: uuid
+          type: string
+        ends_at:
+          description: UTC
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        lock_version:
+          minimum: 0
+          type: integer
+        notes:
+          description: Notas operativas de la cita (nunca datos clínicos)
+          maxLength: 500
+          nullable: true
+          type: string
+        professional_id:
+          format: uuid
+          type: string
+        rescheduled_from_id:
+          description: La cita que esta reprogramó; null si no viene de una reprogramación
+          format: uuid
+          nullable: true
+          type: string
+        resource_id:
+          description: El recurso que asignó el motor; null si los servicios no exigen uno
+          format: uuid
+          nullable: true
+          type: string
+        services:
+          items:
+            "$ref": "#/components/schemas/AppointmentService"
+          type: array
+        source:
+          enum:
+          - panel
+          - public_booking
+          type: string
+        starts_at:
+          description: UTC
+          format: date-time
+          type: string
+        status:
+          enum:
+          - scheduled
+          - confirmed
+          - checked_in
+          - completed
+          - cancelled
+          - rescheduled
+          - no_show
+          type: string
+        total_price_minor:
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+      - id
+      - branch_id
+      - professional_id
+      - resource_id
+      - customer_id
+      - starts_at
+      - ends_at
+      - status
+      - source
+      - lock_version
+      - services
+      - total_price_minor
+      - currency
+      - rescheduled_from_id
+      - cancelled_by
+      - cancellation_reason
+      - notes
       type: object
     AppointmentInput:
       additionalProperties: false
@@ -156,6 +303,36 @@ components:
       - customer_id
       - service_ids
       - professional_id
+      - starts_at
+      type: object
+    AppointmentNotesInput:
+      additionalProperties: false
+      properties:
+        lock_version:
+          description: La versión que el cliente leyó; si la cita cambió desde entonces responde 409 `resource.stale`
+          minimum: 0
+          type: integer
+        notes:
+          description: 'Texto libre, se guarda cifrado; null las borra. Obligatoria: sin la clave responde 400'
+          maxLength: 500
+          nullable: true
+          type: string
+      required:
+      - notes
+      - lock_version
+      type: object
+    AppointmentRescheduleInput:
+      additionalProperties: false
+      properties:
+        professional_id:
+          description: Un profesional asignado a la sucursal; por defecto, el de la cita. El literal `any` no se acepta (422), como al reservar
+          format: uuid
+          type: string
+        starts_at:
+          description: 'ISO 8601 con segundos y zona horaria: el nuevo inicio, que el motor debe ofrecer'
+          format: date-time
+          type: string
+      required:
       - starts_at
       type: object
     AppointmentService:
@@ -1802,6 +1979,68 @@ paths:
         format: uuid
         type: string
   "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments":
+    get:
+      description: 'Exige `appointments.appointment.read` en la sucursal, o `appointments.appointment.read_own` (el profesional), que solo ve sus propias citas. `from` y `to` son fechas locales de la sucursal (incluidas), hasta 31 días. Todas las citas en cualquier estado, ordenadas por `starts_at`. Sin paginar: por encima de 1000 citas responde 422 (`appointments.agenda_invalid`, `too_many_appointments`) en vez de truncar. Sin notas ni datos del cliente.'
+      parameters:
+      - description: Primer día (local), `YYYY-MM-DD`
+        in: query
+        name: from
+        required: true
+        schema:
+          format: date
+          type: string
+      - description: Último día (local), `YYYY-MM-DD`
+        in: query
+        name: to
+        required: true
+        schema:
+          format: date
+          type: string
+      - description: Solo las de ese profesional
+        in: query
+        name: professional_id
+        required: false
+        schema:
+          format: uuid
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/Appointment"
+                    type: array
+                required:
+                - data
+                type: object
+          description: las citas del rango
+        '400':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: sin `from`
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin permiso de lectura de citas
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: un rango de más de 31 días (`appointments.agenda_invalid`)
+      security:
+      - cookieAuth: []
+      summary: 'Agenda: las citas de la sucursal entre dos fechas locales'
+      tags:
+      - Citas
     parameters:
     - in: path
       name: organization_id
@@ -1889,6 +2128,505 @@ paths:
       security:
       - cookieAuth: []
       summary: Reserva una cita en la sucursal desde el panel
+      tags:
+      - Citas
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}":
+    get:
+      description: 'Exige poder editar la cita: `appointments.appointment.update` en la sucursal, o `appointments.appointment.update_own` si es una cita propia (el profesional vinculado al usuario y asignado a la sucursal). Incluye `notes`.'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/AppointmentDetail"
+                required:
+                - data
+                type: object
+          description: la cita con sus notas
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: una cita de otra sucursal
+      security:
+      - cookieAuth: []
+      summary: Detalle de una cita, con sus notas
+      tags:
+      - Citas
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: appointment_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    patch:
+      description: 'Mismo permiso que el detalle. `lock_version` es obligatorio: si la cita cambió desde que se leyó (otra edición o un cambio de estado), 409 `resource.stale`. Las notas de una cita reprogramada se editan en la cita nueva (409 `appointments.invalid_transition`). Unas notas de más de 500 caracteres son la validación genérica de una edición (422 `validation.failed`), no el `appointments.booking_invalid` de la reserva.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AppointmentNotesInput"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/AppointmentDetail"
+                required:
+                - data
+                type: object
+          description: las notas guardadas y la versión nueva
+        '409':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: una cita reprogramada (`appointments.invalid_transition`)
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: notas de más de 500 caracteres
+      security:
+      - cookieAuth: []
+      summary: Edita las notas de una cita
+      tags:
+      - Citas
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}/cancel"
+  : parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: appointment_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: 'Exige `appointments.appointment.update` en la sucursal (el profesional no cancela, ni siquiera las propias). Desde `scheduled` o `confirmed`; libera el hueco. `reason` es un código de la lista cerrada; queda `cancelled_by: staff`. `Idempotency-Key` es opcional.'
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AppointmentCancelInput"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Appointment"
+                required:
+                - data
+                type: object
+          description: la cita cancelada
+        '409':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: una cita completada (`appointments.invalid_transition`)
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: un motivo fuera de la lista (`appointments.cancellation_invalid`)
+      security:
+      - cookieAuth: []
+      summary: Cancela una cita
+      tags:
+      - Citas
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}/check_in"
+  : parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: appointment_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: 'Exige `appointments.appointment.update` en la sucursal, o `appointments.appointment.update_own` si la cita es propia. Desde `confirmed` o `scheduled` pasa a `checked_in`; desde cualquier otro estado, 409 `appointments.invalid_transition` (`status: not_allowed`). Sube `lock_version` y publica el evento del cambio. `Idempotency-Key` es opcional.'
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Appointment"
+                required:
+                - data
+                type: object
+          description: la cita en `checked_in`
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un profesional sobre una cita ajena
+        '409':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: desde `cancelled` (`appointments.invalid_transition`)
+      security:
+      - cookieAuth: []
+      summary: Registra la llegada del cliente (check-in)
+      tags:
+      - Citas
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}/complete"
+  : parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: appointment_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: 'Exige `appointments.appointment.update` en la sucursal, o `appointments.appointment.update_own` si la cita es propia. Desde `checked_in` pasa a `completed`; desde cualquier otro estado, 409 `appointments.invalid_transition` (`status: not_allowed`). Sube `lock_version` y publica el evento del cambio. `Idempotency-Key` es opcional.'
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Appointment"
+                required:
+                - data
+                type: object
+          description: la cita en `completed`
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un profesional sobre una cita ajena
+        '409':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: desde `scheduled` (`appointments.invalid_transition`)
+      security:
+      - cookieAuth: []
+      summary: Completa una cita con check-in
+      tags:
+      - Citas
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}/confirm"
+  : parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: appointment_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: 'Exige `appointments.appointment.update` en la sucursal, o `appointments.appointment.update_own` si la cita es propia. Desde `scheduled` pasa a `confirmed`; desde cualquier otro estado, 409 `appointments.invalid_transition` (`status: not_allowed`). Sube `lock_version` y publica el evento del cambio. `Idempotency-Key` es opcional.'
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Appointment"
+                required:
+                - data
+                type: object
+          description: la cita en `confirmed`
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un profesional sobre una cita ajena
+        '409':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: desde `completed` (`appointments.invalid_transition`)
+      security:
+      - cookieAuth: []
+      summary: Confirma una cita
+      tags:
+      - Citas
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}/no_show"
+  : parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: appointment_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: 'Exige `appointments.appointment.update` en la sucursal, o `appointments.appointment.update_own` si la cita es propia. Desde `scheduled` o `confirmed` pasa a `no_show`; desde cualquier otro estado, 409 `appointments.invalid_transition` (`status: not_allowed`); antes de la hora de inicio, `status: too_early`. Sube `lock_version` y publica el evento del cambio. `Idempotency-Key` es opcional.'
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Appointment"
+                required:
+                - data
+                type: object
+          description: la cita en `no_show`
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un profesional sobre una cita ajena
+        '409':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: desde `completed` (`appointments.invalid_transition`)
+      security:
+      - cookieAuth: []
+      summary: Marca que el cliente no se presentó (solo después del inicio)
+      tags:
+      - Citas
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments/{appointment_id}/reschedule"
+  : parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: appointment_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: 'Exige `appointments.appointment.update` en la sucursal y `Idempotency-Key`. La cita (`scheduled` o `confirmed`) pasa a `rescheduled` y se reserva una nueva enlazada (`rescheduled_from_id`) en la misma transacción, con el mismo cliente, servicios, notas y precio por servicio de la original y la duración actual del catálogo. El nuevo hueco se valida como una reserva del panel: ocupado, 409 `appointments.slot_unavailable` y la original no cambia; si otra petición ya la reprogramó, 409 `appointments.invalid_transition`. Un 409 no consume la clave. Sin `professional_id` se usa el de la cita; si ya no está asignado a la sucursal, 422 `appointments.availability_invalid` (`professional_id: not_assigned`). Como la reserva nueva se valida igual que un `POST` de reserva, un servicio archivado o un cliente inactivo desde la reserva original responden 422 `appointments.availability_invalid` (`service_ids`) o `appointments.booking_invalid` (`customer_id`).'
+      parameters:
+      - "$ref": "#/components/parameters/IdempotencyKeyRequired"
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AppointmentRescheduleInput"
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Appointment"
+                required:
+                - data
+                type: object
+          description: la cita nueva
+        '409':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: ya estaba reprogramada (`appointments.invalid_transition`)
+      security:
+      - cookieAuth: []
+      summary: Reprograma una cita
       tags:
       - Citas
   "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/availability":

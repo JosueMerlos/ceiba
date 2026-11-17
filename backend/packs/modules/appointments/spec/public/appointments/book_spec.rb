@@ -276,6 +276,7 @@ RSpec.describe Appointments::Book do
 
     it "la auditoría guarda el dinero y las líneas del snapshot, y la cita de origen de una reprogramación", :aggregate_failures do
       original = create(:appointment, professional:, branch:, customer:, starts_at: starts_at + 2.hours, status: "rescheduled")
+      create(:appointment_service, appointment: original, service:)
 
       appointment = book(rescheduled_from: original)
 
@@ -309,13 +310,36 @@ RSpec.describe Appointments::Book do
   end
 
   describe "reprogramación" do
+    def moved_original(price_minor: 12_345, currency: "USD", line_service: service)
+      @moved_original ||= create(:appointment, professional:, branch:, customer:, starts_at: starts_at + 2.hours, status: "rescheduled").tap do |original|
+        create(:appointment_service, appointment: original, service: line_service, price_minor:, currency:)
+      end
+    end
+
     it "guarda rescheduled_from_id y lo publica", :aggregate_failures do
-      original = create(:appointment, professional:, branch:, customer:, starts_at: starts_at + 2.hours, status: "rescheduled")
+      appointment = book(rescheduled_from: moved_original)
 
-      appointment = book(rescheduled_from: original)
+      expect(appointment.reload.rescheduled_from_id).to eq(moved_original.id)
+      expect(booked_events.last.payload["rescheduled_from_id"]).to eq(moved_original.id)
+    end
 
-      expect(appointment.reload.rescheduled_from_id).to eq(original.id)
-      expect(booked_events.last.payload["rescheduled_from_id"]).to eq(original.id)
+    it "conserva el precio y la moneda de cada línea del snapshot de la original, en el total auditado y con la duración del catálogo", :aggregate_failures do
+      appointment = book(rescheduled_from: moved_original)
+
+      expect(lines_of(appointment).map { [ it.price_minor, it.currency, it.duration_minutes ] }).to eq([ [ 12_345, "USD", 30 ] ])
+      expect(audits.sole.metadata).to include("total_price_minor" => 12_345, "currency" => "USD")
+    end
+
+    it "no acepta precios del llamador: el de una reprogramación sale siempre del snapshot de la original" do
+      expect { book(rescheduled_from: moved_original, price_lines: { service.id => { price_minor: 1, currency: "NIO" } }) }
+        .to raise_error(ArgumentError, /unknown keyword: :price_lines/)
+    end
+
+    it "una original cuyo snapshot no cubre exactamente los servicios reservados es un error del llamador y no reserva nada", :aggregate_failures do
+      original = moved_original(line_service: create(:service, company:))
+
+      expect { book(rescheduled_from: original) }.to raise_error(ArgumentError, /the original's lines must cover exactly the booked services/)
+      expect(booked_events).to be_empty
     end
   end
 end

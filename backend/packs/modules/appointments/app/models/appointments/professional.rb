@@ -34,6 +34,8 @@ module Appointments
       where(company_id: branch.company_id,
             id: ProfessionalBranchAssignment.where(company_id: branch.company_id, branch_id: branch.id).select(:professional_id))
     }
+    # The records of one person (user) assigned to the branch; none for a blank user, so an unlinked record never matches.
+    scope :of_user, ->(user_id, branch:) { user_id.blank? ? none : assigned_to(branch).where(user_id:) }
 
     def archived? = !archived_at.nil?
 

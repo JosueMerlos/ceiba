@@ -41,3 +41,4 @@ Cada decisión relevante tiene su ADR ([plantilla](../templates/adr.md)). Un ADR
 | [0035](0035-motor-de-disponibilidad-caso-base.md) | Motor de disponibilidad: núcleo puro con cargador de consultas fijas, agenda única por persona, rejilla del reloj local y regla de DST | aceptada |
 | [0036](0036-motor-de-disponibilidad-completo-y-superficie-publica.md) | Motor de disponibilidad completo (servicios, buffers, `:any`, recursos) y su superficie pública anónima | aceptada |
 | [0037](0037-reserva-atomica.md) | Reserva atómica: `Book` como único creador, `tsrange`, candados por persona y por tipo de recurso | aceptada |
+| [0038](0038-ciclo-de-vida-de-la-cita.md) | Ciclo de vida de la cita: `Transition` como único escritor del estado, cancelación con códigos y reprogramación con el precio original | aceptada |

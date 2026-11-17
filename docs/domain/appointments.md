@@ -44,7 +44,8 @@ time_offs
 appointments
   id, organization_id, company_id, branch_id, customer_id, professional_id, resource_id NULL,
   starts_at, ends_at, blocks_from, blocks_to,          -- blocks_* incluye buffers (snapshot)
-  status, source, rescheduled_from_id NULL, notes, lock_version, created_by (actor), timestamps
+  status, source, rescheduled_from_id NULL, notes, lock_version, created_by (actor),
+  cancelled_by NULL, cancellation_reason NULL, timestamps
 appointment_services
   appointment_id, service_id, position, duration_minutes, buffer_before, buffer_after, price_minor, currency
 ```
@@ -89,6 +90,34 @@ Todas son tablas tenant (`create_tenant_table`) con FKs compuestas hacia sus pad
 - **Endpoint** `POST …/appointments/branches/:branch_id/appointments` con `Idempotency-Key` obligatoria y el permiso `appointments.appointment.create` a alcance de sucursal. Responde `201` con la cita, sus líneas y el total, sin datos personales del cliente; un `409` de agenda no consume la clave.
 - **Evento** `appointments.appointment_booked.v1`: solo ids y horas, sin `notes` ni datos del cliente.
 
+### Cómo quedó implementado (M1.06)
+
+- **La máquina de estados es un dato** ([ADR-0038](../adr/0038-ciclo-de-vida-de-la-cita.md)). `Appointments::Transitions` dice, para cada acción (`confirm`, `check_in`, `complete`, `no_show`, `cancel`, `reschedule`), su destino, sus orígenes, su evento, si la cubre `update_own` y si exige que la cita haya empezado.
+- **`Appointments::Transition` es el único escritor de `status`.**
+  - Bloquea la fila con `Appointment.lock.find` (escopado al tenant), revisa la regla contra el estado bloqueado y hace un `UPDATE … WHERE status IN (<orígenes>)`. Cero filas es `409 appointments.invalid_transition`: `not_allowed`, o `too_early` en un `no_show` antes del inicio.
+  - El `UPDATE` sube `lock_version` y `updated_at`.
+  - El evento y la auditoría (estado anterior y nuevo) van en el mismo savepoint.
+  - El cop `Ceiba/AppointmentStatusWrite` prohíbe escribir `status` fuera de `transition.rb`.
+- **Cancelar** guarda `cancelled_by` (`staff`, `customer`, `system`) y `cancellation_reason`, un código de lista cerrada (`customer_request`, `professional_unavailable`, `business_decision`, `other`), sin texto libre.
+  - Un CHECK exige ambos si y solo si la cita está `cancelled`.
+  - El panel cancela como `staff`.
+  - El filtro global de parámetros oculta el motivo en la auditoría (`*reason`), pero queda en la fila y en el evento.
+- **Reprogramar**, todo en una transacción:
+  1. Bloquea la original.
+  2. La pasa a `rescheduled`.
+  3. Llama a `Book` con `rescheduled_from`. La cita nueva conserva el cliente, los servicios en orden, las notas y el precio de cada línea (que `Book` deriva del snapshot de la original); la duración es la actual. Nace `scheduled` y con el `source` de quien reprograma.
+
+  Un `409` de `Book` lo revierte todo. Una segunda reprogramación simultánea recibe `invalid_transition`. El orden de los candados es fila, persona y recurso.
+- **Permisos:**
+  - `update` cubre todas las acciones, el detalle y las notas.
+  - `update_own` cubre `confirm`, `check_in`, `complete`, `no_show`, el detalle y las notas de las citas propias: la ficha vinculada al usuario y asignada a la sucursal.
+  - El `professional` tiene `read_own` en lugar de `read`, y su agenda solo lista sus citas. La navegación acepta varios permisos por entrada.
+- **Endpoints** (sucursal de la ruta; una cita de otra sucursal o empresa es `404`):
+  - `GET …/appointments?from&to&professional_id`: la agenda, de 1 a 31 días locales, en cualquier estado, sin cursor y con un límite duro de 1000 → `422 appointments.agenda_invalid`;
+  - `GET` y `PATCH …/appointments/:appointment_id`: detalle con `notes`, y edición de notas con `lock_version` obligatorio → `409 resource.stale`; las de una cita `rescheduled` no se editan (`409 appointments.invalid_transition`);
+  - `POST …/appointments/:appointment_id/{confirm,check_in,complete,no_show,cancel,reschedule}`: `reschedule` exige `Idempotency-Key` y responde `201` con la cita nueva; las demás la aceptan.
+- **Eventos** `appointments.appointment_{confirmed,checked_in,completed,no_show,cancelled,rescheduled}.v1`: solo ids, estados y horas; `cancelled` lleva los códigos y `rescheduled` lleva `new_appointment_id`.
+
 ## Restricciones críticas
 
 ```sql
@@ -131,7 +160,7 @@ stateDiagram-v2
   no_show --> [*]
 ```
 
-- Transiciones en `Appointments::Transitions` (tabla de transiciones válidas y su permiso requerido). Ningún controlador actualiza `status` directamente.
+- Transiciones en `Appointments::Transitions` (tabla de transiciones válidas y su permiso requerido) y aplicadas solo por `Appointments::Transition`. Ningún controlador actualiza `status` directamente (cop `Ceiba/AppointmentStatusWrite`).
 - Cada transición: bloqueo de la fila, `UPDATE … WHERE status IN (<origen válido>)` verificando las filas afectadas, auditoría y evento en el outbox, todo en **una** transacción.
 - `no_show` solo se permite después de `starts_at`; `completed`, después de `checked_in`.
 
@@ -140,9 +169,10 @@ stateDiagram-v2
 | Servicio | Responsabilidad |
 | --- | --- |
 | `Appointments::Availability.call(company:, branch:, services:, professional:, from_date:, to_date:, now:)` (`professional` es un profesional o `:any`) | Devuelve un `Result(slots:, duration_minutes:, buffer_before_minutes:, buffer_after_minutes:, price_minor:, currency:, step_minutes:)`; cada hueco es `Slot(starts_at, ends_at, professional_id, resource_id)` en UTC, con `ends_at = starts_at + duración` (sin buffers) |
-| `Appointments::Book.call(company:, branch:, customer_id:, services:, professional:, starts_at:, source:, notes: nil, actor:, now:, rescheduled_from: nil)` | **Único** creador de citas; `professional:` es un `Availability::ProfessionalChoice` concreto (`any` es `InvalidBooking`). Dentro de un savepoint toma los candados (persona y tipo de recurso), revalida contra el motor, comprueba la persona entre empresas, inserta la cita y su snapshot de `appointment_services`, publica `appointment_booked.v1` y audita. Errores: `SlotUnavailable` y `PersonUnavailable` (409), `InvalidBooking` y `Availability::InvalidRequest` (422) |
-| `Appointments::Reschedule.call(appointment:, starts_at:, professional:)` | Bloquea, marca `rescheduled` y llama a `Book` con `rescheduled_from_id` |
-| `Appointments::Transition.call(appointment:, to:, actor:)` | Confirmar, check-in, completar, no-show, cancelar |
+| `Appointments::Book.call(company:, branch:, customer_id:, services:, professional:, starts_at:, source:, notes: nil, actor:, now:, rescheduled_from: nil)` | **Único** creador de citas; con `rescheduled_from`, el precio y la moneda de cada línea salen del snapshot de la original (nunca del llamador); `professional:` es un `Availability::ProfessionalChoice` concreto (`any` es `InvalidBooking`). Dentro de un savepoint toma los candados (persona y tipo de recurso), revalida contra el motor, comprueba la persona entre empresas, inserta la cita y su snapshot de `appointment_services`, publica `appointment_booked.v1` y audita. Errores: `SlotUnavailable` y `PersonUnavailable` (409), `InvalidBooking` y `Availability::InvalidRequest` (422) |
+| `Appointments::Transition.call(appointment:, action:, actor:, now:, attributes: {}, &follow_up)` | **Único** escritor del estado: bloquea la fila, aplica la regla de `Transitions` con un `UPDATE` condicionado, sube `lock_version`, publica y audita. Error: `InvalidTransition` (409) |
+| `Appointments::Cancel.call(appointment:, reason:, cancelled_by:, actor:, now:)` | Cancela con el código de motivo y quién; `InvalidCancellation` (422) si el motivo falta o no es de la lista |
+| `Appointments::Reschedule.call(appointment:, company:, branch:, starts_at:, professional:, source:, actor:, now:)` | Bloquea, marca `rescheduled` y llama a `Book` con `rescheduled_from` y el precio original, todo en una transacción; devuelve la cita nueva |
 
 ## Motor de disponibilidad
 

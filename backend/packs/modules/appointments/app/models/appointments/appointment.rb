@@ -7,7 +7,13 @@ module Appointments
 
     SOURCES = %w[panel public_booking].freeze
 
+    # Closed lists, mirrored by CHECKs: who cancelled and why are codes, never free text.
+    CANCELLED_BY = %w[staff customer system].freeze
+    CANCELLATION_REASONS = %w[customer_request professional_unavailable business_decision other].freeze
+
     acts_as_tenant :organization, class_name: "Tenancy::Organization"
+
+    NOTES_MAX_LENGTH = 500
 
     # Free text that may reveal something private.
     encrypts :notes

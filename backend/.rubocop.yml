@@ -11,6 +11,7 @@ require:
   - ./lib/rubocop/cop/ceiba/directory_writes
   - ./lib/rubocop/cop/ceiba/module_gate_skips
   - ./lib/rubocop/cop/ceiba/appointment_creation
+  - ./lib/rubocop/cop/ceiba/appointment_status_write
 
 plugins:
   - rubocop-rails
@@ -151,6 +152,17 @@ Ceiba/AppointmentCreation:
     - "**/spec/**/*"
   AllowedFiles:
     - "packs/modules/appointments/app/public/appointments/book.rb"
+
+# Appointments::Transition is the only writer of an appointment's status (lock, transition table, event and audit). The model is
+# private to the appointments pack, so the cop only looks there; specs set statuses with the factory.
+Ceiba/AppointmentStatusWrite:
+  Enabled: true
+  Include:
+    - "packs/modules/appointments/**/*.rb"
+  Exclude:
+    - "packs/modules/appointments/spec/**/*"
+  AllowedFiles:
+    - packs/modules/appointments/app/public/appointments/transition.rb
 
 # Nobody bypasses tenant isolation (ActsAsTenant.without_tenant, unscoped...) outside this list. Every file added here is
 # a privileged path and needs review (CODEOWNERS). Tenancy.with_context is the only thing that sets the tenant.

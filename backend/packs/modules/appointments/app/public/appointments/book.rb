@@ -10,7 +10,6 @@ module Appointments
   # person overlapping in another company of the group, which the engine does not see; InvalidBooking and
   # Availability::InvalidRequest (422) are requests that were wrong to begin with.
   class Book
-    NOTES_MAX_LENGTH = 500
     WINDOW_BY_SOURCE = { "panel" => :staff, "public_booking" => :customer }.freeze
     AUDITED_FIELDS = %w[branch_id professional_id resource_id customer_id starts_at ends_at status source notes rescheduled_from_id].freeze
     RESOURCE_FK = "fk_appointments_resource".freeze
@@ -73,7 +72,7 @@ module Appointments
       errors = []
       errors << { field: :customer_id, code: :invalid } unless Customers::Lookup.active_id?(id: @customer_id, company: @company)
       errors << { field: :source, code: :invalid } unless Appointment::SOURCES.include?(@source)
-      errors << { field: :notes, code: :too_long } if @notes && @notes.length > NOTES_MAX_LENGTH
+      errors << { field: :notes, code: :too_long } if @notes && @notes.length > Appointment::NOTES_MAX_LENGTH
       errors.concat(starts_at_errors)
       errors << { field: :professional_id, code: :any_not_allowed } if @choice.any?
       raise InvalidBooking, errors if errors.any?
@@ -103,7 +102,21 @@ module Appointments
       result = Availability.call(company: @company, branch: @branch, services: @services, professional: @choice, from_date: local_date, to_date: local_date,
                                  now: @now, booking_window: WINDOW_BY_SOURCE.fetch(@source), eligibility:)
       slot = result.slots.find { it.starts_at == @starts_at } || raise(SlotUnavailable)
-      [ slot, result.plan ]
+      [ slot, reprice(result.plan) ]
+    end
+
+    # A reschedule keeps what the customer was quoted: the price and currency of each line come from the original's snapshot, never
+    # from the caller; the duration and the buffers stay the catalog's, which the engine just validated.
+    def reprice(plan)
+      return plan unless @rescheduled_from
+
+      quoted = @rescheduled_from.services_snapshot.to_h { [ it.service_id, it ] }
+      unless quoted.keys.sort == plan.lines.map(&:service_id).sort
+        raise ArgumentError, "the original's lines must cover exactly the booked services"
+      end
+
+      lines = plan.lines.map { |line| line.with(price_minor: quoted.fetch(line.service_id).price_minor, currency: quoted.fetch(line.service_id).currency) }
+      plan.with(lines:, currency: lines.first.currency)
     end
 
     # The engine reads one company's agenda; the same person (user) may have another record elsewhere in the organization, and

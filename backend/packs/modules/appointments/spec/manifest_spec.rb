@@ -9,8 +9,8 @@ RSpec.describe "Manifiesto de appointments" do
 
   it "declara los permisos de la matriz de 04 con el prefijo del módulo" do
     expect(manifest.permission_keys).to contain_exactly(
-      "appointments.appointment.read", "appointments.appointment.create", "appointments.appointment.update",
-      "appointments.appointment.update_own", "appointments.appointment.count", "appointments.service.read", "appointments.service.manage",
+      "appointments.appointment.read", "appointments.appointment.read_own", "appointments.appointment.create",
+      "appointments.appointment.update", "appointments.appointment.update_own", "appointments.appointment.count", "appointments.service.read", "appointments.service.manage",
       "appointments.service.override_duration", "appointments.service.override_price",
       "appointments.professional.read", "appointments.professional.manage", "appointments.professional.assign", "appointments.professional.read_own",
       "appointments.resource.read", "appointments.resource.manage",
@@ -26,13 +26,13 @@ RSpec.describe "Manifiesto de appointments" do
       "branch_manager" => include("appointments.appointment.create", "appointments.service.override_duration")
         .and(satisfy { |keys| keys.exclude?("appointments.service.manage") && keys.exclude?("appointments.service.override_price") }),
       "receptionist" => include("appointments.appointment.create", "appointments.service.read"),
-      "professional" => include("appointments.appointment.read", "appointments.appointment.update_own", "appointments.service.read")
+      "professional" => include("appointments.appointment.read_own", "appointments.appointment.update_own", "appointments.service.read")
     )
   end
 
   it "el profesional solo ve su perfil y su horario, gestiona sus ausencias y lee los recursos: nada de gestión ajena" do
     expect(manifest.role_grants.fetch("professional")).to contain_exactly(
-      "appointments.appointment.read", "appointments.appointment.update_own", "appointments.service.read",
+      "appointments.appointment.read_own", "appointments.appointment.update_own", "appointments.service.read",
       "appointments.professional.read_own", "appointments.resource.read", "appointments.schedule.read_own", "appointments.time_off.manage_own"
     )
   end
@@ -109,13 +109,22 @@ RSpec.describe "Manifiesto de appointments" do
 
   it "tiene navegación hacia la agenda, protegida por permiso" do
     expect(manifest.navigation).to include(
-      { key: "agenda", path: "/agenda", permission: "appointments.appointment.read" },
+      { key: "agenda", path: "/agenda", permission: %w[appointments.appointment.read appointments.appointment.read_own] },
       { key: "summary", path: "/agenda/summary", permission: "appointments.appointment.count" }
     )
   end
 
-  it "publica el evento de cita reservada, con su esquema registrado", :aggregate_failures do
-    expect(manifest.publishes).to eq(%w[appointments.appointment_booked.v1])
-    expect(Events::Schemas.names).to include("appointments.appointment_booked.v1")
+  it "publica la reserva y un evento por transición, todos con su esquema registrado", :aggregate_failures do
+    expect(manifest.publishes).to contain_exactly(
+      "appointments.appointment_booked.v1", "appointments.appointment_confirmed.v1", "appointments.appointment_checked_in.v1",
+      "appointments.appointment_completed.v1", "appointments.appointment_no_show.v1", "appointments.appointment_cancelled.v1",
+      "appointments.appointment_rescheduled.v1"
+    )
+    expect(Events::Schemas.names).to include(*manifest.publishes)
+  end
+
+  # The platform events suite only finds names written literally in Events.publish; the transitions publish theirs from a table.
+  it "declara exactamente los eventos que publica la tabla de transiciones" do
+    expect(Appointments::Transitions.events).to match_array(manifest.publishes - %w[appointments.appointment_booked.v1])
   end
 end

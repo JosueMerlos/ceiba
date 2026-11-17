@@ -62,7 +62,7 @@ const APPOINTMENT_PERMISSIONS: Record<Role, string[]> = {
     "appointments.service.read",
   ],
   professional: [
-    "appointments.appointment.read",
+    "appointments.appointment.read_own",
     "appointments.appointment.update_own",
     "appointments.service.read",
   ],
@@ -89,7 +89,8 @@ export function meFixture({
   const active = modules.includes("appointments");
   const permissions = active ? APPOINTMENT_PERMISSIONS[role] : [];
   const navigation = [
-    ...(permissions.includes("appointments.appointment.read")
+    ...(permissions.includes("appointments.appointment.read") ||
+    permissions.includes("appointments.appointment.read_own")
       ? [{ module: "appointments", key: "agenda", path: "/agenda" }]
       : []),
     ...(permissions.includes("appointments.appointment.count")

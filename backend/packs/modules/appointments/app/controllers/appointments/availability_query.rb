@@ -6,7 +6,6 @@ module Appointments
     include RequestParams
 
     QUERY_PARAMS = %w[service_ids professional_id from to].freeze
-    DATE_FORMAT = /\A\d{4}-\d{2}-\d{2}\z/
 
     private
 
@@ -19,29 +18,6 @@ module Appointments
       { service_ids: uuid_list(values["service_ids"], :service_ids), professional_id: professional_param(values["professional_id"]),
         from: date(values["from"], :from), to: date(values["to"], :to) }
         .merge(extra_uuids.to_h { |name| [ name, uuid(values[name.to_s], name) ] })
-    end
-
-    # Rack keeps the last value of a repeated parameter and the rest vanish silently; the raw query string still shows them.
-    def reject_repeated_query_params(names)
-      raw = Rack::Utils.parse_query(request.query_string)
-      repeated = names.find { raw[it].is_a?(Array) }
-      raise ActionController::BadRequest, "#{repeated} must be a single value" if repeated
-    end
-
-    def required_query_param(name)
-      value = params[name]
-      raise ActionController::ParameterMissing, name if value.blank?
-      raise ActionController::BadRequest, "#{name} must be a single value" unless value.is_a?(String)
-
-      value
-    end
-
-    def date(value, name)
-      raise ActionController::BadRequest, "#{name} must be a date as YYYY-MM-DD" unless DATE_FORMAT.match?(value)
-
-      Date.strptime(value, "%Y-%m-%d")
-    rescue Date::Error
-      raise ActionController::BadRequest, "#{name} must be a valid date as YYYY-MM-DD"
     end
   end
 end

@@ -292,9 +292,13 @@ OpenapiComponents.register(
       lock_version: { type: :integer, minimum: 0 },
       services: { type: :array, items: { "$ref" => "#/components/schemas/AppointmentService" } },
       total_price_minor: { type: :integer, format: :int64, minimum: 0 },
-      currency: { type: :string, enum: %w[NIO USD] }
+      currency: { type: :string, enum: %w[NIO USD] },
+      rescheduled_from_id: { type: :string, format: :uuid, nullable: true, description: "La cita que esta reprogramó; null si no viene de una reprogramación" },
+      cancelled_by: { type: :string, enum: Appointments::Appointment::CANCELLED_BY + [ nil ], nullable: true, description: "Quién canceló; null si no está cancelada" },
+      cancellation_reason: { type: :string, enum: Appointments::Appointment::CANCELLATION_REASONS + [ nil ], nullable: true, description: "Motivo de la cancelación como código; null si no está cancelada" }
     },
-    required: %i[id branch_id professional_id resource_id customer_id starts_at ends_at status source lock_version services total_price_minor currency],
+    required: %i[id branch_id professional_id resource_id customer_id starts_at ends_at status source lock_version services total_price_minor currency
+                 rescheduled_from_id cancelled_by cancellation_reason],
     additionalProperties: false
   },
   AppointmentInput: {
@@ -308,6 +312,57 @@ OpenapiComponents.register(
       notes: { type: :string, maxLength: 500, nullable: true, description: "Texto libre, se guarda cifrado" }
     },
     required: %i[customer_id service_ids professional_id starts_at],
+    additionalProperties: false
+  },
+  AppointmentDetail: {
+    type: :object,
+    description: "El detalle de una cita: lo mismo que `Appointment` más las notas (texto libre cifrado). Solo lo ve quien puede editar la cita.",
+    properties: {
+      id: { type: :string, format: :uuid },
+      branch_id: { type: :string, format: :uuid },
+      professional_id: { type: :string, format: :uuid },
+      resource_id: { type: :string, format: :uuid, nullable: true, description: "El recurso que asignó el motor; null si los servicios no exigen uno" },
+      customer_id: { type: :string, format: :uuid },
+      starts_at: { type: :string, format: "date-time", description: "UTC" },
+      ends_at: { type: :string, format: "date-time", description: "UTC" },
+      status: { type: :string, enum: %w[scheduled confirmed checked_in completed cancelled rescheduled no_show] },
+      source: { type: :string, enum: %w[panel public_booking] },
+      lock_version: { type: :integer, minimum: 0 },
+      services: { type: :array, items: { "$ref" => "#/components/schemas/AppointmentService" } },
+      total_price_minor: { type: :integer, format: :int64, minimum: 0 },
+      currency: { type: :string, enum: %w[NIO USD] },
+      rescheduled_from_id: { type: :string, format: :uuid, nullable: true, description: "La cita que esta reprogramó; null si no viene de una reprogramación" },
+      cancelled_by: { type: :string, enum: Appointments::Appointment::CANCELLED_BY + [ nil ], nullable: true, description: "Quién canceló; null si no está cancelada" },
+      notes: { type: :string, nullable: true, maxLength: 500, description: "Notas operativas de la cita (nunca datos clínicos)" },
+      cancellation_reason: { type: :string, enum: Appointments::Appointment::CANCELLATION_REASONS + [ nil ], nullable: true, description: "Motivo de la cancelación como código; null si no está cancelada" }
+    },
+    required: %i[id branch_id professional_id resource_id customer_id starts_at ends_at status source lock_version services total_price_minor currency
+                 rescheduled_from_id cancelled_by cancellation_reason notes],
+    additionalProperties: false
+  },
+  AppointmentCancelInput: {
+    type: :object,
+    properties: {
+      reason: { type: :string, enum: Appointments::Appointment::CANCELLATION_REASONS, description: "Motivo como código de la lista cerrada; ausente o fuera de ella responde 422" }
+    },
+    additionalProperties: false
+  },
+  AppointmentRescheduleInput: {
+    type: :object,
+    properties: {
+      starts_at: { type: :string, format: "date-time", description: "ISO 8601 con segundos y zona horaria: el nuevo inicio, que el motor debe ofrecer" },
+      professional_id: { type: :string, format: :uuid, description: "Un profesional asignado a la sucursal; por defecto, el de la cita. El literal `any` no se acepta (422), como al reservar" }
+    },
+    required: %i[starts_at],
+    additionalProperties: false
+  },
+  AppointmentNotesInput: {
+    type: :object,
+    properties: {
+      notes: { type: :string, nullable: true, maxLength: 500, description: "Texto libre, se guarda cifrado; null las borra. Obligatoria: sin la clave responde 400" },
+      lock_version: { type: :integer, minimum: 0, description: "La versión que el cliente leyó; si la cita cambió desde entonces responde 409 `resource.stale`" }
+    },
+    required: %i[notes lock_version],
     additionalProperties: false
   }
 )

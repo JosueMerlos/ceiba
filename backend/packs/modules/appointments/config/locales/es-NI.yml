@@ -49,6 +49,9 @@ es-NI:
         slot_unavailable: "El horario ya no está disponible"
         person_unavailable: "La persona ya tiene otra cita a esa hora"
         booking_invalid: "No se puede reservar la cita con esos datos"
+        invalid_transition: "La cita no admite ese cambio de estado"
+        cancellation_invalid: "No se puede cancelar la cita con esos datos"
+        agenda_invalid: "No se puede listar la agenda con esos datos"
   appointments:
     availability:
       errors:
@@ -71,6 +74,23 @@ es-NI:
           too_early: "`from` no puede ser anterior a ayer en la hora local de la sucursal"
         to:
           invalid_range: "el rango debe ir de `from` a `to` (sin que `to` sea anterior) y no superar el máximo de días permitido"
+    transition:
+      errors:
+        status:
+          not_allowed: "la cita ya no está en un estado que admita ese cambio: actualiza la agenda"
+          too_early: "la cita todavía no ha empezado"
+          rescheduled: "la cita fue reprogramada: edita la cita nueva"
+    agenda:
+      errors:
+        to:
+          before_from: "la fecha final no puede ser anterior a la inicial"
+          too_far: "el rango puede ser de hasta 31 días"
+          too_many_appointments: "hay demasiadas citas en el rango: pide menos días"
+    cancellation:
+      errors:
+        reason:
+          blank: "indica el motivo de la cancelación"
+          invalid: "el motivo debe ser customer_request, professional_unavailable, business_decision u other"
     booking:
       errors:
         customer_id:

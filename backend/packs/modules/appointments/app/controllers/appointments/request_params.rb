@@ -1,13 +1,14 @@
 module Appointments
-  # Parsing of the request values the booking and availability controllers share. Each reader raises the 400 the API contract
+  # Parsing of the request values the appointments controllers share (booking, agenda, availability). Each reader raises the 400 the API contract
   # promises: `typed_params` only reads the body and never lists, so these read what it cannot.
   module RequestParams
     UUID_FORMAT = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
+    DATE_FORMAT = /\A\d{4}-\d{2}-\d{2}\z/
     ISO_8601_WITH_OFFSET = /\A(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})\z/
     # Room to let the use case report "too many" for a short overlong list, a bound for a hostile one.
     MAX_LIST_ITEMS = Availability::MAX_SERVICES * 2
     UUID_WITH_SEPARATOR_LENGTH = 37
-    private_constant :UUID_FORMAT, :ISO_8601_WITH_OFFSET, :MAX_LIST_ITEMS, :UUID_WITH_SEPARATOR_LENGTH
+    private_constant :UUID_FORMAT, :DATE_FORMAT, :ISO_8601_WITH_OFFSET, :MAX_LIST_ITEMS, :UUID_WITH_SEPARATOR_LENGTH
 
     private
 
@@ -44,6 +45,32 @@ module Appointments
       offset = match[7]
       written = offset == "Z" ? parsed.getutc : parsed.getlocal(offset)
       [ written.year, written.month, written.day, written.hour, written.min, written.sec ] == match.captures.first(6).map(&:to_i)
+    end
+
+    # Rack keeps the last value of a repeated parameter and the rest vanish silently; the raw query string still shows them.
+    def reject_repeated_query_params(names)
+      raw = Rack::Utils.parse_query(request.query_string)
+      repeated = names.find { raw[it].is_a?(Array) }
+      raise ActionController::BadRequest, "#{repeated} must be a single value" if repeated
+    end
+
+    def required_query_param(name) = optional_query_param(name) || raise(ActionController::ParameterMissing, name)
+
+    # nil when absent or blank.
+    def optional_query_param(name)
+      value = params[name]
+      return if value.blank?
+      raise ActionController::BadRequest, "#{name} must be a single value" unless value.is_a?(String)
+
+      value
+    end
+
+    def date(value, name)
+      raise ActionController::BadRequest, "#{name} must be a date as YYYY-MM-DD" unless DATE_FORMAT.match?(value)
+
+      Date.strptime(value, "%Y-%m-%d")
+    rescue Date::Error
+      raise ActionController::BadRequest, "#{name} must be a valid date as YYYY-MM-DD"
     end
 
     def checked_string(value, name)
