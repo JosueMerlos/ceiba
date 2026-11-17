@@ -2,6 +2,14 @@ export { ApiError, isApiError } from "./api-error";
 export type { FieldError, Problem } from "./api-error";
 export { createApiClient, unwrap } from "./client";
 export type { ApiClient, ApiClientOptions } from "./client";
+export {
+  toBrandingFormData,
+  updateBranding,
+  useBrandingQuery,
+  usePublicBrandingQuery,
+  useUpdateBrandingMutation,
+} from "./branding";
+export type { Branding, BrandingChanges, BrandingFile } from "./branding";
 export { createCsrfStore, csrfStore } from "./csrf";
 export type { CsrfStore } from "./csrf";
 export {

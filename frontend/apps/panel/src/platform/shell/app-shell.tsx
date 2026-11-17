@@ -1,9 +1,11 @@
 import { useTranslation } from "@ceiba/i18n";
 import { AppLayout, CeibaMark, NavItem } from "@ceiba/ui";
+import { Palette } from "lucide-react";
 import { Link, NavLink, Outlet } from "react-router";
 import { navigationFor } from "../../modules/registry";
 import { ContextSelector } from "../context/context-selector";
 import { useMe } from "../me/me-provider";
+import { useCan } from "../permissions/can";
 import { SilentBoundary } from "./silent-boundary";
 import { UserMenu } from "./user-menu";
 
@@ -12,6 +14,8 @@ export function AppShell() {
   const { t } = useTranslation(["shell", "common"]);
   const me = useMe();
   const items = navigationFor(me);
+  // Platform screens are not module navigation (/me only offers modules): they show by permission.
+  const canBrand = useCan()("platform.branding.update");
 
   return (
     <AppLayout
@@ -30,16 +34,26 @@ export function AppShell() {
         </Link>
       }
       navigation={
-        items.length > 0
-          ? items.map(({ key, path, labelKey, icon: Icon }) => (
+        items.length > 0 || canBrand ? (
+          <>
+            {items.map(({ key, path, labelKey, icon: Icon }) => (
               <NavItem key={key} asChild>
                 <NavLink to={path} end>
                   <Icon aria-hidden="true" />
                   {t(labelKey, { ns: "shell" })}
                 </NavLink>
               </NavItem>
-            ))
-          : null
+            ))}
+            {canBrand ? (
+              <NavItem asChild>
+                <NavLink to="/settings/branding" end>
+                  <Palette aria-hidden="true" />
+                  {t("shell:nav.branding")}
+                </NavLink>
+              </NavItem>
+            ) : null}
+          </>
+        ) : null
       }
       actions={
         <>

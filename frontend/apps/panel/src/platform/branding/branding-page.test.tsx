@@ -33,6 +33,9 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+// Tests that read the multipart body avoid files: jsdom's File cannot cross into undici (the fetch behind MSW), so the
+// real file payload is covered by the api-client test, which runs without jsdom.
+
 const png = (name = "logo.png", type = "image/png") =>
   new File([new Uint8Array([137, 80])], name, { type });
 
@@ -88,20 +91,23 @@ describe("pantalla de marca", () => {
     expect((screen.getByRole("radio", { name: /Nunito/ }) as HTMLInputElement).checked).toBe(true);
   });
 
-  it("guarda con multipart, token CSRF y el archivo elegido", async () => {
+  it("guarda con multipart y token CSRF, con los textos que el usuario escribió", async () => {
     manager();
     stubBranding();
-    let received: { form: FormData; csrf: string | null } | undefined;
+    let received: { form: FormData; csrf: string | null; contentType: string | null } | undefined;
     server.use(
       http.patch(brandingUrl, async ({ request }) => {
-        received = { form: await request.formData(), csrf: request.headers.get("x-csrf-token") };
+        received = {
+          form: await request.formData(),
+          csrf: request.headers.get("x-csrf-token"),
+          contentType: request.headers.get("content-type"),
+        };
         return HttpResponse.json(brandingFixture({ brand_name: "Salón Estilo" }));
       }),
     );
     const { user } = await renderApp({ route: ROUTE });
     await user.type(await screen.findByLabelText("Nombre comercial"), "Salón Estilo");
     await user.type(screen.getByLabelText("Color principal"), "#8B2F5C");
-    await user.upload(screen.getByLabelText("Logo"), png());
 
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
@@ -109,7 +115,8 @@ describe("pantalla de marca", () => {
     expect(received!.csrf).toBe("csrf-de-prueba");
     expect(received!.form.get("brand_name")).toBe("Salón Estilo");
     expect(received!.form.get("primary_color")).toBe("#8B2F5C");
-    expect((received!.form.get("logo") as File).name).toBe("logo.png");
+    expect(received!.contentType).toMatch(/^multipart\/form-data; boundary=/);
+    expect(received!.form.has("logo")).toBe(false);
     expect(await screen.findByText("Marca guardada")).toBeTruthy();
   });
 
@@ -155,7 +162,7 @@ describe("pantalla de marca", () => {
     expect(patch).not.toHaveBeenCalled();
   });
 
-  it("quitar un archivo guardado envía remove[] y la vista previa local se libera al reemplazar", async () => {
+  it("quitar un archivo guardado envía remove[]; la vista previa local se libera al reemplazar y al quitar", async () => {
     manager();
     stubBranding(
       brandingFixture({
@@ -177,13 +184,15 @@ describe("pantalla de marca", () => {
     await user.click(await screen.findByRole("button", { name: "Quitar Logo" }));
     await user.upload(screen.getByLabelText("Banner"), png("a.png"));
     await user.upload(screen.getByLabelText("Banner"), png("b.png"));
+    await user.click(screen.getByRole("button", { name: "Quitar Banner" }));
 
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview-1");
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     await waitFor(() => expect(form).toBeDefined());
     expect(form!.getAll("remove[]")).toEqual(["logo"]);
-    expect((form!.get("banner") as File).name).toBe("b.png");
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview-2");
+    expect(form!.has("banner")).toBe(false);
   });
 
   it("el panel de edición se contrae y se expande con aria-expanded", async () => {
@@ -197,6 +206,6 @@ describe("pantalla de marca", () => {
 
     const collapsed = screen.getByRole("button", { name: "Mostrar el panel de edición" });
     expect(collapsed.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByLabelText("Nombre comercial")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Nombre comercial" })).toBeNull();
   });
 });

@@ -15,6 +15,7 @@ export const shell = {
   nav: {
     agenda: "Agenda",
     summary: "Resumen de citas",
+    branding: "Marca",
   },
   noContext: {
     title: "Todavía no tiene acceso a ninguna empresa",
