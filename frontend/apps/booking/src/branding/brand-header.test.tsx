@@ -1,6 +1,6 @@
 import { createI18n, I18nextProvider } from "@ceiba/i18n";
 import { render, screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+import { http, HttpResponse, type JsonBodyType } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 import { App } from "../App";
 import { server } from "../test/server";
@@ -21,7 +21,7 @@ const branding = (overrides: Record<string, unknown> = {}) => ({
   },
 });
 
-const serve = (slug: string, body: unknown, status = 200) =>
+const serve = (slug: string, body: JsonBodyType, status = 200) =>
   server.use(
     http.get(`*/api/public/v1/c/${slug}/branding`, () => HttpResponse.json(body, { status })),
   );
@@ -48,8 +48,14 @@ describe("página pública con marca", () => {
         primary_color: "#8B2F5C",
         assets: {
           logo: { x1: "/api/storage/logo-x1.webp", x2: "/api/storage/logo-x2.webp" },
-          banner: { wide: "/api/storage/banner-wide.webp", standard: "/api/storage/banner-4x3.webp" },
-          favicon: { icon32: "/api/storage/favicon-32.png", icon180: "/api/storage/favicon-180.png" },
+          banner: {
+            wide: "/api/storage/banner-wide.webp",
+            standard: "/api/storage/banner-4x3.webp",
+          },
+          favicon: {
+            icon32: "/api/storage/favicon-32.png",
+            icon180: "/api/storage/favicon-180.png",
+          },
         },
       }),
     );
@@ -94,7 +100,9 @@ describe("página pública con marca", () => {
 
     await renderAt("/c/no-existe");
 
-    expect(await screen.findByRole("heading", { name: "No encontramos este negocio" })).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "No encontramos este negocio" }),
+    ).toBeTruthy();
     expect(root.getAttribute("style") ?? "").not.toContain("--brand");
   });
 
