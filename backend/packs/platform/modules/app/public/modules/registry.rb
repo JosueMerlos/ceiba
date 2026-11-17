@@ -55,7 +55,7 @@ module Modules
         api_scopes: declared.api_scopes.to_h { |scope, keys| [ scope.to_s, Array(keys).map(&:to_s).freeze ] }.freeze,
         settings_schema: deep_freeze(validated.settings_schema), settings_levels: declared.settings_levels.map(&:to_s).freeze,
         publishes: declared.publishes.map(&:to_s).freeze, subscribes: declared.subscribes.to_h { |event, subscriber| [ event.to_s, subscriber.to_s ] }.freeze,
-        navigation: declared.navigation.map { |item| item.to_h.symbolize_keys.slice(:key, :path, :permission).freeze }.freeze,
+        navigation: declared.navigation.map { |item| navigation_item(item) }.freeze,
         on_enable: declared.on_enable&.to_s, on_disable: declared.on_disable&.to_s, schemer: validated.schemer
       )
     end
@@ -88,6 +88,13 @@ module Modules
       end
       done << key
       nil
+    end
+
+    # A list of permissions (any of them shows the entry) is copied and frozen like the rest of the manifest.
+    def navigation_item(item)
+      entry = item.to_h.symbolize_keys.slice(:key, :path, :permission)
+      entry[:permission] = entry[:permission].map(&:to_s).freeze if entry[:permission].is_a?(Array)
+      entry.freeze
     end
 
     def deep_freeze(value)

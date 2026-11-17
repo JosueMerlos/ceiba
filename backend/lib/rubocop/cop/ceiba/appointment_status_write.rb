@@ -12,7 +12,7 @@ module RuboCop
       # writer named `status` (`update_column(:status, ...)`, `[:status] =`) and `status=`. The Include of .rubocop.yml limits it
       # to the appointments pack (the model is private to it), where no other record has a status.
       # Known limits: a hash or SQL built elsewhere and passed as a variable, a dynamic attribute name, `send(:status=)` and raw SQL through
-      # the connection (`execute`) are not followed.
+      # the connection (`execute`) are not followed. Creating a record (`create`, `new`) is Ceiba/AppointmentCreation's.
       #
       # @example
       #   # bad
@@ -24,7 +24,7 @@ module RuboCop
         MSG = "El estado de una cita solo lo cambia Appointments::Transition (`%<method>s` se salta el bloqueo, la tabla de " \
               "transiciones, el evento y la auditoría)."
 
-        HASH_WRITERS = %i[update update! update_columns update_all assign_attributes attributes= upsert].freeze
+        HASH_WRITERS = %i[update update! update_columns update_all assign_attributes attributes= upsert insert insert!].freeze
         ROWS_WRITERS = %i[upsert_all insert_all insert_all!].freeze
         ATTRIBUTE_WRITERS = %i[update_column update_attribute update_attribute! write_attribute []=].freeze
         RESTRICT_ON_SEND = (HASH_WRITERS + ROWS_WRITERS + ATTRIBUTE_WRITERS + %i[status=]).freeze

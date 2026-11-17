@@ -889,7 +889,7 @@ export interface paths {
         head?: never;
         /**
          * Edita las notas de una cita
-         * @description Mismo permiso que el detalle. `lock_version` es obligatorio: si la cita cambió desde que se leyó (otra edición o un cambio de estado), 409 `resource.stale`.
+         * @description Mismo permiso que el detalle. `lock_version` es obligatorio: si la cita cambió desde que se leyó (otra edición o un cambio de estado), 409 `resource.stale`. Las notas de una cita reprogramada se editan en la cita nueva (409 `appointments.invalid_transition`). Unas notas de más de 500 caracteres son la validación genérica de una edición (422 `validation.failed`), no el `appointments.booking_invalid` de la reserva.
          */
         patch: {
             parameters: {
@@ -923,13 +923,13 @@ export interface paths {
                         };
                     };
                 };
-                /** @description una versión vieja (`resource.stale`) */
+                /** @description una cita reprogramada (`appointments.invalid_transition`) */
                 409: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/problem+json": components["schemas"]["Problem"];
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
                     };
                 };
                 /** @description notas de más de 500 caracteres */
@@ -5008,7 +5008,7 @@ export interface components {
         AppointmentRescheduleInput: {
             /**
              * Format: uuid
-             * @description Un profesional asignado a la sucursal; por defecto, el de la cita
+             * @description Un profesional asignado a la sucursal; por defecto, el de la cita. El literal `any` no se acepta (422), como al reservar
              */
             professional_id?: string;
             /**

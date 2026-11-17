@@ -351,7 +351,7 @@ OpenapiComponents.register(
     type: :object,
     properties: {
       starts_at: { type: :string, format: "date-time", description: "ISO 8601 con segundos y zona horaria: el nuevo inicio, que el motor debe ofrecer" },
-      professional_id: { type: :string, format: :uuid, description: "Un profesional asignado a la sucursal; por defecto, el de la cita" }
+      professional_id: { type: :string, format: :uuid, description: "Un profesional asignado a la sucursal; por defecto, el de la cita. El literal `any` no se acepta (422), como al reservar" }
     },
     required: %i[starts_at],
     additionalProperties: false

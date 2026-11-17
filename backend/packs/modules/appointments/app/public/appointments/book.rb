@@ -18,7 +18,7 @@ module Appointments
     def self.call(...) = new(...).call
 
     def initialize(company:, branch:, customer_id:, services:, professional:, starts_at:, source:, notes: nil, actor: Current.principal,
-                   now: Time.current, rescheduled_from: nil, price_lines: nil)
+                   now: Time.current, rescheduled_from: nil)
       @company = company
       @branch = branch
       @customer_id = customer_id
@@ -30,9 +30,6 @@ module Appointments
       @actor = actor || Access::Principal::System.new
       @now = now
       @rescheduled_from = rescheduled_from
-      raise ArgumentError, "price_lines needs rescheduled_from: only a reschedule keeps a quoted price" if price_lines && !rescheduled_from
-
-      @price_lines = price_lines
     end
 
     def call
@@ -108,13 +105,17 @@ module Appointments
       [ slot, reprice(result.plan) ]
     end
 
-    # A reschedule keeps what the customer was quoted: `price_lines` ({ service_id => { price_minor:, currency: } }) replaces the
-    # catalog's price and currency line by line; the duration and the buffers stay the catalog's, which the engine just validated.
+    # A reschedule keeps what the customer was quoted: the price and currency of each line come from the original's snapshot, never
+    # from the caller; the duration and the buffers stay the catalog's, which the engine just validated.
     def reprice(plan)
-      return plan unless @price_lines
-      raise ArgumentError, "price_lines must cover exactly the booked services" unless @price_lines.keys.sort == plan.lines.map(&:service_id).sort
+      return plan unless @rescheduled_from
 
-      lines = plan.lines.map { |line| line.with(**@price_lines.fetch(line.service_id).slice(:price_minor, :currency)) }
+      quoted = @rescheduled_from.services_snapshot.to_h { [ it.service_id, it ] }
+      unless quoted.keys.sort == plan.lines.map(&:service_id).sort
+        raise ArgumentError, "the original's lines must cover exactly the booked services"
+      end
+
+      lines = plan.lines.map { |line| line.with(price_minor: quoted.fetch(line.service_id).price_minor, currency: quoted.fetch(line.service_id).currency) }
       plan.with(lines:, currency: lines.first.currency)
     end
 

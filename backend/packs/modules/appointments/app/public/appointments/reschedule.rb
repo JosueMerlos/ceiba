@@ -34,13 +34,13 @@ module Appointments
 
     private
 
-    # `original` is the row Transition locked, so the snapshot and the notes are the ones being moved.
+    # `original` is the row Transition locked, so the snapshot (services and quoted prices, which Book reads) and the notes are the
+    # ones being moved.
     def book(original)
       lines = original.services_snapshot.to_a
       Book.call(company: @company, branch: @branch, customer_id: original.customer_id, starts_at: @starts_at, professional: @choice,
                 services: Service.where(company_id: @company.id).in_order(lines.map(&:service_id)), source: @source, notes: original.notes,
-                actor: @actor, now: @now, rescheduled_from: original,
-                price_lines: lines.to_h { [ it.service_id, { price_minor: it.price_minor, currency: it.currency } ] })
+                actor: @actor, now: @now, rescheduled_from: original)
     end
   end
 end

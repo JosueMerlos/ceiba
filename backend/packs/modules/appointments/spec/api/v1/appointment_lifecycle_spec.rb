@@ -132,7 +132,9 @@ RSpec.describe "API v1: ciclo de vida de la cita" do
 
     patch "Edita las notas de una cita" do
       tags "Citas"
-      description "Mismo permiso que el detalle. `lock_version` es obligatorio: si la cita cambió desde que se leyó (otra edición o un cambio de estado), 409 `resource.stale`."
+      description "Mismo permiso que el detalle. `lock_version` es obligatorio: si la cita cambió desde que se leyó (otra edición o un cambio de estado), 409 `resource.stale`. " \
+                  "Las notas de una cita reprogramada se editan en la cita nueva (409 `appointments.invalid_transition`). Unas notas de más de 500 caracteres son " \
+                  "la validación genérica de una edición (422 `validation.failed`), no el `appointments.booking_invalid` de la reserva."
       consumes "application/json"
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
@@ -153,6 +155,14 @@ RSpec.describe "API v1: ciclo de vida de la cita" do
         schema "$ref" => "#/components/schemas/Problem"
 
         run_test! { |response| expect(response.parsed_body["code"]).to eq("resource.stale") }
+      end
+
+      response "409", "una cita reprogramada (`appointments.invalid_transition`)" do
+        let!(:prepared) { set_status("rescheduled") }
+
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("appointments.invalid_transition") }
       end
 
       response "422", "notas de más de 500 caracteres" do

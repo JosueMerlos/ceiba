@@ -48,11 +48,11 @@ module Api
 
         def authorize_action = authorize(appointment, :"#{action_name}?", policy_class: ::Appointments::AppointmentPolicy)
 
-        # A professional the client names is searched among the branch's (404 otherwise), as when booking. By default it is the
+        # A professional the client names is searched among the branch's (404 otherwise), as when booking (`any` is Book's 422). By default it is the
         # appointment's own, even if no longer assigned there: the engine then answers 422 `not_assigned`, which tells the client
         # to pick another one.
         def reschedule_professional(id)
-          return ::Appointments::Availability::ProfessionalChoice.resolve(uuid(id, :professional_id), within: assigned_professionals) if id.present?
+          return ::Appointments::Availability::ProfessionalChoice.resolve(professional_param(id), within: assigned_professionals) if id.present?
 
           ::Appointments::Availability::ProfessionalChoice.of(::Appointments::Professional.where(company_id:).find(appointment.professional_id))
         end

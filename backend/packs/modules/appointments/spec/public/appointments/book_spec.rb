@@ -276,6 +276,7 @@ RSpec.describe Appointments::Book do
 
     it "la auditoría guarda el dinero y las líneas del snapshot, y la cita de origen de una reprogramación", :aggregate_failures do
       original = create(:appointment, professional:, branch:, customer:, starts_at: starts_at + 2.hours, status: "rescheduled")
+      create(:appointment_service, appointment: original, service:)
 
       appointment = book(rescheduled_from: original)
 

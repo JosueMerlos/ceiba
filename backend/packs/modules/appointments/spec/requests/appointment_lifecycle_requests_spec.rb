@@ -439,7 +439,7 @@ RSpec.describe "Ciclo de vida de la cita: peticiones" do
       patch detail_path(appointment), params: { notes: "otra cosa", lock_version: reload(appointment).lock_version }, headers: signed_in.csrf_headers, as: :json
 
       expect([ response.status, problem["code"] ]).to eq([ 409, "appointments.invalid_transition" ])
-      expect(problem["errors"]).to include(a_hash_including("field" => "status", "code" => "rescheduled"))
+      expect(problem["errors"]).to include({ "field" => "status", "code" => "rescheduled", "message" => "la cita fue reprogramada: edita la cita nueva" })
       expect(reload(appointment).notes).to eq("Trae su tinte")
       expect(audit_count).to eq(audits_before)
     end
