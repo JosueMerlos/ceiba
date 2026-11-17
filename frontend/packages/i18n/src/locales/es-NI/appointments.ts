@@ -75,7 +75,6 @@ export const appointments = {
       save: "Guardar cambios",
       errors: {
         nameRequired: "Escriba el nombre del servicio.",
-        nameTooLong: "El nombre no puede pasar de 120 caracteres.",
         durationInvalid: "La duración debe ser un número entero de minutos, mayor que cero.",
         bufferInvalid: "El tiempo libre debe ser un número entero de minutos, de cero en adelante.",
         priceInvalid: "Escriba un precio válido, por ejemplo 250 o 250.50.",
@@ -155,7 +154,6 @@ export const appointments = {
       create: "Crear sucursal",
       errors: {
         nameRequired: "Escriba el nombre de la sucursal.",
-        nameTooLong: "El nombre no puede pasar de 120 caracteres.",
       },
     },
     branchSchedule: {

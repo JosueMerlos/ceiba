@@ -37,7 +37,7 @@ describe("AsidePortal", () => {
 
     await screen.findByText("Pantalla");
     expect(screen.queryByRole("complementary", { name: "Panel contextual de prueba" })).toBeNull();
-    expect(document.querySelector("[data-slot=app-aside]")?.childElementCount ?? 0).toBe(0);
+    expect(document.querySelector("[data-slot=app-aside] > div")?.childElementCount).toBe(0);
   });
 
   it("fuera del marco (sin ranura) no dibuja nada y no falla", async () => {
