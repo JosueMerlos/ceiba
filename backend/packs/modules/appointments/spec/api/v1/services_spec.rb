@@ -36,17 +36,20 @@ RSpec.describe "API v1: servicios del catálogo" do
       tags "Servicios"
       description "Exige `appointments.service.read` en la empresa (los roles de sucursal la tienen por `from_descendants`). " \
                   "Devuelve los servicios no archivados, activos e inactivos; el filtro opcional `active` (`true` o `false`) deja solo " \
-                  "los de ese estado. Los archivados no aparecen. Va en orden de creación (el cursor es el id); `position` " \
+                  "los de ese estado. Los archivados no aparecen salvo con `archived=true`, que lista SOLO los archivados. Va en orden de creación (el cursor es el id); `position` " \
                   "es el orden de presentación que el cliente aplica. Paginado por cursor."
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
       parameter name: :active, in: :query, schema: { type: :boolean }, required: false
+      parameter name: :archived, in: :query, schema: { type: :boolean }, required: false,
+                description: "`true` lista SOLO los archivados; `false` (por defecto) solo los no archivados"
       parameter name: :limit, in: :query, schema: { type: :integer, minimum: 1, maximum: 100 }, required: false
       parameter name: :after, in: :query, schema: { type: :string }, required: false
 
       let!(:barba) { service_in(world.company_a, name: "Barba", position: 2) }
       let!(:corte) { service_in(world.company_a, name: "Corte", position: 1) }
-      let!(:archived) { service_in(world.company_a, name: "Viejo", archived_at: Time.current) }
+      let!(:archived_service) { service_in(world.company_a, name: "Viejo", archived_at: Time.current) }
+      let!(:archived_foreign) { service_in(world.company_b, name: "Viejo foráneo", archived_at: Time.current) }
       let!(:inactive) { service_in(world.company_a, name: "Pausado", active: false) }
       let!(:foreign) { service_in(world.company_b, name: "Foráneo") }
 
@@ -74,6 +77,33 @@ RSpec.describe "API v1: servicios del catálogo" do
         schema list_schema
 
         run_test! { |response| expect(response.parsed_body["data"].pluck("id")).to eq([ barba.id, corte.id ]) }
+      end
+
+      response "200", "con archived=true solo los archivados de la empresa (nunca los de otra)" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:archived) { true }
+        schema list_schema
+
+        run_test! do |response|
+          expect(response.parsed_body["data"].pluck("id")).to eq([ archived_service.id ])
+          expect(response.parsed_body["data"].first["archived_at"]).to be_present
+        end
+      end
+
+      response "200", "con archived=false se comporta como sin el parámetro" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:archived) { false }
+        schema list_schema
+
+        run_test! { |response| expect(response.parsed_body["data"].pluck("id")).to eq([ barba.id, corte.id, inactive.id ]) }
+      end
+
+      response "400", "archived debe ser true o false" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:archived) { "foo" }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test!
       end
 
       response "400", "active debe ser true o false" do
@@ -422,6 +452,79 @@ RSpec.describe "API v1: servicios del catálogo" do
         run_test! do |response|
           expect(response.parsed_body["code"]).to eq("resource.not_found")
           expect(stored(foreign.id).archived_at).to be_nil
+        end
+      end
+    end
+  end
+
+  path "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services/{id}/restore" do
+    parameter name: :organization_id, in: :path, schema: { type: :string, format: :uuid }, required: true
+    parameter name: :company_id, in: :path, schema: { type: :string, format: :uuid }, required: true
+    parameter name: :id, in: :path, schema: { type: :string, format: :uuid }, required: true, description: "ID del servicio archivado"
+
+    let!(:service) { service_in(world.company_a, name: "Corte", archived_at: Time.zone.local(2026, 1, 1)) }
+    let(:id) { service.id }
+    let(:foreign) { service_in(world.company_b, name: "Foráneo", archived_at: Time.zone.local(2026, 1, 1)) }
+
+    post "Restaura un servicio archivado" do
+      tags "Servicios"
+      description "Exige `appointments.service.manage` en la empresa. Pone `archived_at` en null y el servicio vuelve al catálogo con el mismo `id`; " \
+                  "el estado `active` no cambia. Sobre un servicio vigente no hace nada (200, sin auditoría nueva). Un servicio de otra empresa responde 404."
+      produces "application/json", "application/problem+json"
+      security [ { cookieAuth: [] } ]
+      parameter name: "X-CSRF-Token", in: :header, type: :string, required: true, description: "`csrf_token` de la sesión (login o GET /auth/session)"
+
+      response "200", "vuelve a los vigentes con su mismo id y queda auditado" do
+        let!(:signed_in) { sign_in(manager) }
+        schema single_schema
+
+        run_test! do |response|
+          expect(response.parsed_body["data"]).to include("id" => service.id, "archived_at" => nil)
+          expect(stored(service.id).archived_at).to be_nil
+          expect(audit_events("service.restored").map(&:auditable_id)).to eq([ service.id ])
+          get "/api/v1/organizations/#{organization_id}/companies/#{company_id}/appointments/services"
+          expect(response.parsed_body["data"].pluck("id")).to eq([ service.id ])
+        end
+      end
+
+      response "200", "restaurar uno vigente no cambia nada ni audita" do
+        let!(:signed_in) { sign_in(manager) }
+        let!(:service) { service_in(world.company_a, name: "Corte") }
+        schema single_schema
+
+        run_test! do |response|
+          expect(response.parsed_body["data"]).to include("id" => service.id, "archived_at" => nil)
+          expect(audit_events("service.restored")).to be_empty
+        end
+      end
+
+      response "401", "sin sesión válida" do
+        let!(:signed_in) { Struct.new(:csrf_token).new("sin-sesion") }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test!
+      end
+
+      %w[branch_manager receptionist professional].each do |role|
+        response "403", "el #{role} no puede restaurar y el servicio sigue archivado" do
+          let!(:signed_in) { sign_in(user_with_role(role, world, branch: world.branch_a1)) }
+          schema "$ref" => "#/components/schemas/Problem"
+
+          run_test! do |response|
+            expect(response.parsed_body["code"]).to eq("access.forbidden")
+            expect(stored(service.id).archived_at).to be_present
+          end
+        end
+      end
+
+      response "404", "un servicio archivado de otra empresa no se restaura" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:id) { foreign.id }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! do |response|
+          expect(response.parsed_body["code"]).to eq("resource.not_found")
+          expect(stored(foreign.id).archived_at).to be_present
         end
       end
     end

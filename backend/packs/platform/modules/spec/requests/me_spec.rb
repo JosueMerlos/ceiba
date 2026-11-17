@@ -100,6 +100,26 @@ RSpec.describe "GET /api/v1/me" do
       expect(data["navigation"]).to include({ "module" => "appointments", "key" => "agenda", "path" => "/agenda" })
     end
 
+    it "el company_manager ve las pantallas de catálogo de citas: servicios, profesionales, recursos y sucursales" do
+      enable("appointments")
+      me({ organization_id: organization.id, company_id: world.company_a.id })
+
+      expect(data["navigation"]).to include(
+        { "module" => "appointments", "key" => "services", "path" => "/services" },
+        { "module" => "appointments", "key" => "professionals", "path" => "/professionals" },
+        { "module" => "appointments", "key" => "resources", "path" => "/resources" },
+        { "module" => "appointments", "key" => "branches", "path" => "/branches" }
+      )
+    end
+
+    it "el profesional no recibe la pantalla de sucursales (solo tiene el horario propio)" do
+      enable("appointments")
+      sign_in(user_with_role("professional", world, branch: world.branch_a1))
+      me({ organization_id: organization.id, company_id: world.company_a.id, branch_id: world.branch_a1.id })
+
+      expect(data["navigation"].pluck("key")).not_to include("branches")
+    end
+
     it "settings resueltos: default -> empresa -> sucursal del contexto" do
       with_tenant(organization) do
         Modules::UpdateSettings.call(company: world.company_a, key: "sample", settings: { "max_advance_days" => 30 })

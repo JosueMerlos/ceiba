@@ -28,6 +28,122 @@ RSpec.describe "API v1: overrides de servicio por sucursal" do
   def override_count = with_tenant(world.organization) { Appointments::BranchServiceOverride.count }
   def audit_events(action) = with_tenant(world.organization) { Audit::Event.where(action:).to_a }
 
+  list_schema = {
+    type: :object, required: %w[data page], additionalProperties: false, properties: {
+      data: { type: :array, items: { "$ref" => "#/components/schemas/ServiceOverride" } },
+      page: { "$ref" => "#/components/schemas/PageInfo" }
+    }
+  }
+
+  path "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/service_overrides" do
+    parameter name: :organization_id, in: :path, schema: { type: :string, format: :uuid }, required: true
+    parameter name: :company_id, in: :path, schema: { type: :string, format: :uuid }, required: true
+    parameter name: :branch_id, in: :path, schema: { type: :string, format: :uuid }, required: true, description: "Sucursal cuyos overrides se listan"
+
+    get "Lista los overrides de servicio de una sucursal" do
+      tags "Servicios"
+      description "Exige `appointments.service.read` en la sucursal de la ruta. Devuelve SOLO los overrides de esa sucursal, con la moneda del " \
+                  "servicio. Paginado por cursor."
+      produces "application/json", "application/problem+json"
+      security [ { cookieAuth: [] } ]
+      parameter name: :limit, in: :query, schema: { type: :integer, minimum: 1, maximum: 100 }, required: false
+      parameter name: :after, in: :query, schema: { type: :string }, required: false
+
+      let!(:other_service) { create_in(world.organization, :service, company: world.company_a, name: "Barba") }
+      let!(:mine) { override_in(service, world.branch_a1, duration_minutes: 45, price_minor: 25_000) }
+      let!(:mine_too) { override_in(other_service, world.branch_a1, duration_minutes: 20) }
+      let!(:sibling) { override_in(service, world.branch_a2, duration_minutes: 50) }
+
+      response "200", "solo los overrides de la sucursal de la ruta" do
+        let!(:signed_in) { sign_in(manager) }
+        schema list_schema
+
+        run_test! do |response|
+          expect(response.parsed_body["data"].pluck("id")).to eq([ mine.id, mine_too.id ])
+          expect(response.parsed_body["data"].first).to include("branch_id" => branch_id, "service_id" => service.id, "duration_minutes" => 45,
+                                                               "price_minor" => 25_000, "currency" => "NIO")
+        end
+      end
+
+      response "200", "el receptionist lee (appointments.service.read)" do
+        let!(:signed_in) { sign_in(user_with_role("receptionist", world, branch: world.branch_a1)) }
+        schema list_schema
+
+        run_test! { |response| expect(response.parsed_body["data"].pluck("id")).to eq([ mine.id, mine_too.id ]) }
+      end
+
+      response "200", "el branch_manager lee los de su sucursal" do
+        let!(:signed_in) { sign_in(branch_manager) }
+        schema list_schema
+
+        run_test! { |response| expect(response.parsed_body["data"].size).to eq(2) }
+      end
+
+      response "200", "paginado por cursor" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:limit) { 1 }
+        schema list_schema
+
+        run_test! do |response|
+          expect(response.parsed_body["data"].pluck("id")).to eq([ mine.id ])
+          expect(response.parsed_body["page"]["has_more"]).to be(true)
+        end
+      end
+
+      response "200", "sin N+1: la moneda del servicio se carga de una vez" do
+        let!(:signed_in) { sign_in(manager) }
+        schema list_schema
+
+        run_test! do
+          queries = []
+          subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") { |*, payload| queries << payload[:sql] if payload[:sql].match?(/FROM "services"/) }
+          get "/api/v1/organizations/#{organization_id}/companies/#{company_id}/appointments/branches/#{branch_id}/service_overrides"
+          ActiveSupport::Notifications.unsubscribe(subscriber)
+
+          expect(queries.size).to eq(1)
+        end
+      end
+
+      response "401", "sin sesión válida" do
+        let!(:signed_in) { Struct.new(:csrf_token).new("sin-sesion") }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test!
+      end
+
+      response "403", "un rol de organización no tiene permiso de servicios" do
+        let!(:signed_in) { sign_in(user_with_role("org_admin", world)) }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test!
+      end
+
+      response "404", "una sucursal hermana a la que el branch_manager no pertenece" do
+        let!(:signed_in) { sign_in(branch_manager) }
+        let(:branch_id) { world.branch_a2.id }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test!
+      end
+
+      response "404", "una sucursal de otra empresa" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:branch_id) { world.branch_b1.id }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test!
+      end
+
+      response "404", "con el módulo de citas desactivado en la empresa (el gate)" do
+        let!(:signed_in) { sign_in(manager) }
+        let!(:module_disabled) { with_tenant(world.organization) { Modules::Disable.call(company: world.company_a, key: "appointments") } }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test!
+      end
+    end
+  end
+
   path "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/services/{service_id}/override" do
     parameter name: :organization_id, in: :path, schema: { type: :string, format: :uuid }, required: true
     parameter name: :company_id, in: :path, schema: { type: :string, format: :uuid }, required: true
