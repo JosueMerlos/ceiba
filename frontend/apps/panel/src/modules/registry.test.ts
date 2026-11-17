@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { meFixture } from "../test/fixtures";
-import { activeModules, navigationFor } from "./registry";
+import { activeModules, navigationFor, routesFor } from "./registry";
 
 describe("registro de módulos del front", () => {
   it("monta solo los módulos activos según /me", () => {
@@ -40,6 +40,13 @@ describe("registro de módulos del front", () => {
     const me = meFixture({ role: "company_manager" }).data;
 
     expect(navigationFor(me).map((item) => item.key)).toEqual(["agenda", "summary"]);
+  });
+
+  it("un profesional, que solo lee sus propias citas, también ve la agenda y monta su ruta", () => {
+    const me = meFixture({ role: "professional" }).data;
+
+    expect(navigationFor(me).map((item) => item.key)).toEqual(["agenda"]);
+    expect(routesFor(me).map((route) => route.path)).toEqual(["agenda"]);
   });
 
   it("exige que el backend también ofrezca el ítem (navigation de /me)", () => {

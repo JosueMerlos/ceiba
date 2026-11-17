@@ -112,6 +112,21 @@ RSpec.describe Appointments::Reschedule do
       .to include("total_price_minor" => 20_000, "currency" => "NIO")
   end
 
+  it "con varios servicios conserva el precio de cada uno por servicio, en su orden, y el total", :aggregate_failures do
+    beard = create(:service, company:, duration_minutes: 20, price_minor: 5_000)
+    create(:professional_service, professional:, service: beard)
+    two = Appointments::Book.call(company:, branch:, customer_id: customer.id, services: [ beard, service ], professional: choice(professional),
+                                  starts_at: ten, source: "panel", actor:, now:)
+    beard.update!(price_minor: 9_000)
+    service.update!(price_minor: 50_000)
+
+    moved = reschedule(two)
+
+    expect(moved.services_snapshot.map { [ it.service_id, it.position, it.price_minor ] })
+      .to eq([ [ beard.id, 0, 5_000 ], [ service.id, 1, 20_000 ] ])
+    expect(Audit::Event.where(action: "appointments.appointment.booked", auditable_id: moved.id).sole.metadata["total_price_minor"]).to eq(25_000)
+  end
+
   it "con un servicio archivado desde la reserva no reprograma y la original sigue scheduled", :aggregate_failures do
     original
     service.update_columns(archived_at: now)

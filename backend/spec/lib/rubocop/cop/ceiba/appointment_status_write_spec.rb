@@ -55,6 +55,29 @@ RSpec.describe RuboCop::Cop::Ceiba::AppointmentStatusWrite, :config do
       RUBY
     end
 
+    it "prohíbe update_all con SQL y parámetros (array)" do
+      expect_offense(<<~RUBY, file)
+        Appointment.where(id: id).update_all([ "status = ?", "completed" ])
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #{message('update_all')}
+      RUBY
+    end
+
+    %w[upsert_all insert_all insert_all!].each do |method|
+      it "prohíbe #{method} con filas que llevan status" do
+        expect_offense(<<~RUBY, file, method:)
+          Appointment.#{method}([ { id: id, status: "cancelled" } ])
+          ^^^^^^^^^^^^{method}^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #{message(method)}
+        RUBY
+      end
+    end
+
+    it "prohíbe update_attribute! del atributo status" do
+      expect_offense(<<~RUBY, file)
+        appointment.update_attribute!(:status, "no_show")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #{message('update_attribute!')}
+      RUBY
+    end
+
     it "prohíbe la asignación directa status=" do
       expect_offense(<<~RUBY, file)
         appointment.status = "checked_in"

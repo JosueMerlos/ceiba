@@ -131,6 +131,28 @@ RSpec.describe "Ciclo de vida de la cita: peticiones" do
       expect([ response.status, problem["code"] ]).to eq([ 404, "resource.not_found" ])
     end
 
+    it "una cita de otra empresa de la organización pedida por la URL de la propia es 404" do
+      foreign = create_in(world.organization, :appointment, professional: create_in(world.organization, :professional, company: world.company_b),
+                                                           branch: world.branch_b1, starts_at: ten)
+
+      act(foreign, "confirm")
+
+      expect([ response.status, problem["code"] ]).to eq([ 404, "resource.not_found" ])
+    end
+
+    it "repetir una transición con la misma Idempotency-Key devuelve la misma respuesta sin volver a aplicarla", :aggregate_failures do
+      appointment = booked
+      key = SecureRandom.uuid
+      act(appointment, "confirm", key:)
+      first = response.parsed_body
+
+      act(appointment, "confirm", key:)
+
+      expect([ response.status, response.headers["Idempotency-Replayed"] ]).to eq([ 200, "true" ])
+      expect(response.parsed_body).to eq(first)
+      expect(reload(appointment).lock_version).to eq(1)
+    end
+
     it "un id inexistente es 404" do
       post "#{base}/#{SecureRandom.uuid}/confirm", headers: signed_in.csrf_headers, as: :json
 
@@ -198,6 +220,14 @@ RSpec.describe "Ciclo de vida de la cita: peticiones" do
   end
 
   describe "cancelar" do
+    it "cancela también una cita confirmada" do
+      appointment = in_status("confirmed")
+
+      act(appointment, "cancel", params: { reason: "other" })
+
+      expect([ response.status, reload(appointment).status ]).to eq([ 200, "cancelled" ])
+    end
+
     it "guarda el motivo y que canceló el personal", :aggregate_failures do
       appointment = booked
 
@@ -213,7 +243,7 @@ RSpec.describe "Ciclo de vida de la cita: peticiones" do
       act(appointment, "cancel")
       expect([ response.status, problem["code"], problem.dig("errors", 0, "code") ]).to eq([ 422, "appointments.cancellation_invalid", "blank" ])
       act(appointment, "cancel", params: { reason: "nada" })
-      expect(problem.dig("errors", 0, "code")).to eq("invalid")
+      expect([ response.status, problem.dig("errors", 0, "code") ]).to eq([ 422, "invalid" ])
       expect(reload(appointment).status).to eq("scheduled")
     end
   end
@@ -278,6 +308,29 @@ RSpec.describe "Ciclo de vida de la cita: peticiones" do
       expect(keys_stored).to eq(0)
     end
 
+    it "sin professional_id, si el de la cita ya no está asignado a la sucursal, es 422 con professional_id not_assigned y no 404", :aggregate_failures do
+      appointment = booked
+      with_tenant(world.organization) do
+        Appointments::WeeklySchedule.where(professional_id: professional.id).delete_all
+        Appointments::ProfessionalBranchAssignment.where(professional_id: professional.id).delete_all
+      end
+
+      act(appointment, "reschedule", params: { starts_at: "2026-11-16T11:00:00-06:00" }, key:)
+
+      expect([ response.status, problem["code"] ]).to eq([ 422, "appointments.availability_invalid" ])
+      expect(problem["errors"]).to include(a_hash_including("field" => "professional_id", "code" => "not_assigned"))
+      expect(reload(appointment).status).to eq("scheduled")
+    end
+
+    it "repetir la clave después de perder el permiso es 403, no la respuesta guardada" do
+      act(booked, "reschedule", params: { starts_at: "2026-11-16T11:00:00-06:00" }, key:)
+      with_tenant(world.organization) { Access::Membership.where(user_id: receptionist.id).delete_all }
+
+      act(booked, "reschedule", params: { starts_at: "2026-11-16T11:00:00-06:00" }, key:)
+
+      expect(response.status).to be_in([ 403, 404 ])
+    end
+
     it "sin starts_at es 400 request.invalid" do
       act(booked, "reschedule", params: {}, key:)
 
@@ -324,11 +377,42 @@ RSpec.describe "Ciclo de vida de la cita: peticiones" do
       expect(reload(appointment).notes).to eq("Trae su tinte")
     end
 
+    it "sin la clave notes es 400 y no borra nada", :aggregate_failures do
+      appointment = booked
+
+      patch detail_path(appointment), params: { lock_version: 0 }, headers: signed_in.csrf_headers, as: :json
+
+      expect([ response.status, problem["code"] ]).to eq([ 400, "request.invalid" ])
+      expect(reload(appointment).notes).to eq("Trae su tinte")
+    end
+
+    it "guardar las mismas notas no deja auditoría de un cambio que no ocurrió", :aggregate_failures do
+      appointment = booked
+
+      patch detail_path(appointment), params: { notes: "Trae su tinte", lock_version: 0 }, headers: signed_in.csrf_headers, as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(with_tenant(world.organization) { Audit::Event.where(action: "appointments.appointment.notes_updated").count }).to eq(0)
+    end
+
+    it "un profesional edita las notas de las suyas y no las de las ajenas", :aggregate_failures do
+      session = sign_in(professional_user)
+      own = booked(person: own_professional)
+      other = booked(at: ten + 1.hour)
+
+      patch detail_path(own), params: { notes: "Propia", lock_version: 0 }, headers: session.csrf_headers, as: :json
+      expect(response).to have_http_status(:ok)
+      patch detail_path(other), params: { notes: "Ajena", lock_version: 0 }, headers: session.csrf_headers, as: :json
+      expect(response).to have_http_status(:forbidden)
+      expect([ reload(own).notes, reload(other).notes ]).to eq([ "Propia", "Trae su tinte" ])
+    end
+
     it "sin lock_version es 400 y con notas demasiado largas es 422", :aggregate_failures do
       appointment = booked
 
       patch detail_path(appointment), params: { notes: "x" }, headers: signed_in.csrf_headers, as: :json
       expect([ response.status, problem["code"] ]).to eq([ 400, "request.invalid" ])
+      expect(reload(appointment).notes).to eq("Trae su tinte")
       patch detail_path(appointment), params: { notes: "x" * 501, lock_version: 0 }, headers: signed_in.csrf_headers, as: :json
       expect([ response.status, problem["code"] ]).to eq([ 422, "validation.failed" ])
     end

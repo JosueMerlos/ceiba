@@ -79,6 +79,34 @@ RSpec.describe Appointments::Transition do
     end
   end
 
+  describe "matriz completa de acciones y estados" do
+    # Read off the state diagram of the domain by hand, independently of the transition table.
+    def origins
+      { confirm: %w[scheduled], check_in: %w[scheduled confirmed], complete: %w[checked_in], no_show: %w[scheduled confirmed],
+        cancel: %w[scheduled confirmed], reschedule: %w[scheduled confirmed] }
+    end
+
+    def statuses = %w[scheduled confirmed checked_in completed cancelled rescheduled no_show]
+
+    it "cada acción se aplica exactamente desde sus estados de origen y desde ningún otro", :aggregate_failures do
+      origins.keys.product(statuses).each_with_index do |(action, status), index|
+        appointment = create(:appointment, professional:, branch:, status:, starts_at: starts_at + index.hours)
+        attributes = action == :cancel ? { cancelled_by: "staff", cancellation_reason: "other" } : {}
+
+        applied = begin
+          # A reschedule always books its successor in the follow-up; here a made-up id stands for it.
+          follow_up = action == :reschedule ? ->(_) { { new_appointment_id: SecureRandom.uuid } } : nil
+          transition(appointment, action, now: starts_at + 2.days, attributes:, &follow_up)
+          true
+        rescue Appointments::InvalidTransition
+          false
+        end
+
+        expect(applied).to eq(origins.fetch(action).include?(status)), "#{action} desde #{status}"
+      end
+    end
+  end
+
   describe "transiciones inválidas" do
     it "cancelar una cita completada es InvalidTransition y no deja cambios, evento ni auditoría", :aggregate_failures do
       appointment = appointment_in("completed")

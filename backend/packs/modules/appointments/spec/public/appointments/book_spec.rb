@@ -309,6 +309,8 @@ RSpec.describe Appointments::Book do
   end
 
   describe "reprogramación" do
+    def moved_original = @moved_original ||= create(:appointment, professional:, branch:, customer:, starts_at: starts_at + 2.hours, status: "rescheduled")
+
     it "guarda rescheduled_from_id y lo publica", :aggregate_failures do
       original = create(:appointment, professional:, branch:, customer:, starts_at: starts_at + 2.hours, status: "rescheduled")
 
@@ -319,14 +321,20 @@ RSpec.describe Appointments::Book do
     end
 
     it "con price_lines guarda el precio y la moneda dados en cada línea, en el total auditado y con la duración del catálogo", :aggregate_failures do
-      appointment = book(price_lines: { service.id => { price_minor: 12_345, currency: "USD" } })
+      appointment = book(price_lines: { service.id => { price_minor: 12_345, currency: "USD" } }, rescheduled_from: moved_original)
 
       expect(lines_of(appointment).map { [ it.price_minor, it.currency, it.duration_minutes ] }).to eq([ [ 12_345, "USD", 30 ] ])
       expect(audits.sole.metadata).to include("total_price_minor" => 12_345, "currency" => "USD")
     end
 
+    it "price_lines sin rescheduled_from es un error del llamador: solo una reprogramación conserva un precio" do
+      expect { described_class.call(company:, branch:, customer_id: customer.id, services: [ service ], professional: choice(professional), starts_at:,
+                                    source: "panel", actor:, now:, price_lines: { service.id => { price_minor: 1, currency: "NIO" } }) }
+        .to raise_error(ArgumentError, /price_lines needs rescheduled_from/)
+    end
+
     it "price_lines que no cubre exactamente los servicios reservados es un error del llamador" do
-      expect { book(price_lines: { SecureRandom.uuid => { price_minor: 1, currency: "NIO" } }) }.to raise_error(ArgumentError, /price_lines must cover exactly the booked services/)
+      expect { book(price_lines: { SecureRandom.uuid => { price_minor: 1, currency: "NIO" } }, rescheduled_from: moved_original) }.to raise_error(ArgumentError, /price_lines must cover exactly the booked services/)
     end
   end
 end

@@ -204,6 +204,10 @@ RSpec.describe Modules::Registry do
       end
       expect(manifest.navigation.sole[:permission]).to eq(%w[loyalty.card.read loyalty.card.read_own])
 
+      expect_invalid(/navegación "cards".*al menos un permiso/m) do
+        permissions { permission "loyalty.card.read", description: "Ver" }
+        navigation [ { key: "cards", path: "/loyalty", permission: [] } ]
+      end
       expect_invalid(/navegación.*"loyalty\.card\.fantasma"/m) do
         permissions { permission "loyalty.card.read", description: "Ver" }
         navigation [ { key: "cards", path: "/loyalty", permission: %w[loyalty.card.read loyalty.card.fantasma] } ]
