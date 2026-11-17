@@ -194,7 +194,7 @@ RSpec.describe Modules::Registry do
       end
     end
 
-    it "acepta navegación con varios permisos (basta cualquiera) y rechaza la lista si uno no está declarado", :aggregate_failures do
+    it "acepta navegación con varios permisos (basta cualquiera)" do
       manifest = define(:loyalty) do
         permissions do
           permission "loyalty.card.read", description: "Ver"
@@ -203,7 +203,9 @@ RSpec.describe Modules::Registry do
         navigation [ { key: "cards", path: "/loyalty", permission: %w[loyalty.card.read loyalty.card.read_own] } ]
       end
       expect(manifest.navigation.sole[:permission]).to eq(%w[loyalty.card.read loyalty.card.read_own])
+    end
 
+    it "rechaza en la navegación una lista de permisos vacía o con uno no declarado", :aggregate_failures do
       expect_invalid(/navegación "cards".*al menos un permiso/m) do
         permissions { permission "loyalty.card.read", description: "Ver" }
         navigation [ { key: "cards", path: "/loyalty", permission: [] } ]

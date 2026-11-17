@@ -37,10 +37,9 @@ module Api
           values = typed_params(starts_at: String, professional_id: String)
           raise ActionController::ParameterMissing, :starts_at if values[:starts_at].blank?
 
-          professional_id = values[:professional_id].present? ? uuid(values[:professional_id], :professional_id) : appointment.professional_id
           moved = ::Appointments::Reschedule.call(
             appointment:, company: Current.context.company, branch: Current.context.branch, starts_at: instant(values[:starts_at], :starts_at),
-            professional: ::Appointments::Availability::ProfessionalChoice.resolve(professional_id, within: assigned_professionals), source: "panel"
+            professional: reschedule_professional(values[:professional_id]), source: "panel"
           )
           render_appointment(moved, status: :created)
         end
@@ -48,6 +47,15 @@ module Api
         private
 
         def authorize_action = authorize(appointment, :"#{action_name}?", policy_class: ::Appointments::AppointmentPolicy)
+
+        # A professional the client names is searched among the branch's (404 otherwise), as when booking. By default it is the
+        # appointment's own, even if no longer assigned there: the engine then answers 422 `not_assigned`, which tells the client
+        # to pick another one.
+        def reschedule_professional(id)
+          return ::Appointments::Availability::ProfessionalChoice.resolve(uuid(id, :professional_id), within: assigned_professionals) if id.present?
+
+          ::Appointments::Availability::ProfessionalChoice.of(::Appointments::Professional.where(company_id:).find(appointment.professional_id))
+        end
       end
     end
   end

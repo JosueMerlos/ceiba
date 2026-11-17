@@ -10,11 +10,14 @@ export function activeModules(me: Me): ModuleManifest[] {
   return modules.filter((module) => active.has(module.key));
 }
 
+const hasAny = (me: Me, permissions: readonly string[]) =>
+  permissions.some((permission) => me.permissions.includes(permission));
+
 /** Routes of active modules the user has permission for: what /me does not offer is not mounted. */
 export function routesFor(me: Me): ModuleRoute[] {
   return activeModules(me)
     .flatMap((module) => module.routes)
-    .filter((route) => me.permissions.includes(route.permission));
+    .filter((route) => hasAny(me, route.permissions));
 }
 
 /** Menu items: from active modules, with the user's permission AND offered by /me navigation. */
@@ -23,7 +26,7 @@ export function navigationFor(me: Me): (ModuleNavigation & { module: string })[]
     module.navigation
       .filter(
         (item) =>
-          me.permissions.includes(item.permission) &&
+          hasAny(me, item.permissions) &&
           me.navigation.some(
             (offered) => offered.module === module.key && offered.key === item.key,
           ),

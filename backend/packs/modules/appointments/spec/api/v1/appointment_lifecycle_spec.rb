@@ -276,7 +276,10 @@ RSpec.describe "API v1: ciclo de vida de la cita" do
       description "Exige `appointments.appointment.update` en la sucursal y `Idempotency-Key`. La cita (`scheduled` o `confirmed`) pasa a `rescheduled` y se reserva " \
                   "una nueva enlazada (`rescheduled_from_id`) en la misma transacción, con el mismo cliente, servicios, notas y precio por servicio de la original " \
                   "y la duración actual del catálogo. El nuevo hueco se valida como una reserva del panel: ocupado, 409 `appointments.slot_unavailable` y la original no " \
-                  "cambia; si otra petición ya la reprogramó, 409 `appointments.invalid_transition`. Un 409 no consume la clave."
+                  "cambia; si otra petición ya la reprogramó, 409 `appointments.invalid_transition`. Un 409 no consume la clave. " \
+                  "Sin `professional_id` se usa el de la cita; si ya no está asignado a la sucursal, 422 `appointments.availability_invalid` " \
+                  "(`professional_id: not_assigned`). Como la reserva nueva se valida igual que un `POST` de reserva, un servicio archivado o un cliente " \
+                  "inactivo desde la reserva original responden 422 `appointments.availability_invalid` (`service_ids`) o `appointments.booking_invalid` (`customer_id`)."
       consumes "application/json"
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]

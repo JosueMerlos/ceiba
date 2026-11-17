@@ -199,6 +199,7 @@ module Modules
         problem("la navegación #{label} necesita path (que empiece por \"/\")") unless item[:path].to_s.start_with?("/")
         # One permission or a list of them: any one of them shows the entry. A missing one is reported as unknown, like before.
         permissions = item[:permission].is_a?(Array) ? item[:permission] : [ item[:permission] ]
+        problem("la navegación #{label} necesita al menos un permiso") if permissions.empty?
         permissions.each do |permission|
           problem("la navegación #{label} usa el permiso #{permission.inspect}, que el módulo no declara") unless known.include?(permission.to_s)
         end

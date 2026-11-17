@@ -11,12 +11,13 @@ export const appointments: ModuleManifest = {
   routes: [
     {
       path: "agenda",
-      permission: "appointments.appointment.read",
+      // The professional reads only their own appointments.
+      permissions: ["appointments.appointment.read", "appointments.appointment.read_own"],
       element: lazyPage(load, "AgendaPage"),
     },
     {
       path: "agenda/summary",
-      permission: "appointments.appointment.count",
+      permissions: ["appointments.appointment.count"],
       element: lazyPage(load, "SummaryPage"),
     },
   ],
@@ -25,14 +26,14 @@ export const appointments: ModuleManifest = {
       key: "agenda",
       path: "/agenda",
       labelKey: "nav.agenda",
-      permission: "appointments.appointment.read",
+      permissions: ["appointments.appointment.read", "appointments.appointment.read_own"],
       icon: CalendarDays,
     },
     {
       key: "summary",
       path: "/agenda/summary",
       labelKey: "nav.summary",
-      permission: "appointments.appointment.count",
+      permissions: ["appointments.appointment.count"],
       icon: ChartNoAxesColumn,
     },
   ],

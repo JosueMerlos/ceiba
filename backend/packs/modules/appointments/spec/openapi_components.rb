@@ -359,10 +359,10 @@ OpenapiComponents.register(
   AppointmentNotesInput: {
     type: :object,
     properties: {
-      notes: { type: :string, nullable: true, maxLength: 500, description: "Texto libre, se guarda cifrado; null las borra" },
+      notes: { type: :string, nullable: true, maxLength: 500, description: "Texto libre, se guarda cifrado; null las borra. Obligatoria: sin la clave responde 400" },
       lock_version: { type: :integer, minimum: 0, description: "La versión que el cliente leyó; si la cita cambió desde entonces responde 409 `resource.stale`" }
     },
-    required: %i[lock_version],
+    required: %i[notes lock_version],
     additionalProperties: false
   }
 )

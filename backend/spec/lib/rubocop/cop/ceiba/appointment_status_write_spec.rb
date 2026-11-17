@@ -66,7 +66,7 @@ RSpec.describe RuboCop::Cop::Ceiba::AppointmentStatusWrite, :config do
       it "prohíbe #{method} con filas que llevan status" do
         expect_offense(<<~RUBY, file, method:)
           Appointment.#{method}([ { id: id, status: "cancelled" } ])
-          ^^^^^^^^^^^^{method}^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #{message(method)}
+          ^^^^^^^^^^^^{method}^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #{message(method)}
         RUBY
       end
     end

@@ -53,6 +53,8 @@ module Api
           authorize appointment, :update?, policy_class: ::Appointments::AppointmentPolicy
           values = typed_params(notes: String, lock_version: Integer)
           raise ActionController::ParameterMissing, :lock_version if values[:lock_version].nil?
+          # A body without the key must not clear the notes: only an explicit null does.
+          raise ActionController::ParameterMissing, :notes unless request.request_parameters.key?("notes")
 
           ::Appointments::UpdateNotes.call(appointment:, notes: values[:notes], lock_version: values[:lock_version])
           render_appointment(appointment, serializer: ::Appointments::AppointmentDetailSerializer)

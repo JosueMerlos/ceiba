@@ -30,6 +30,8 @@ module Appointments
       @actor = actor || Access::Principal::System.new
       @now = now
       @rescheduled_from = rescheduled_from
+      raise ArgumentError, "price_lines needs rescheduled_from: only a reschedule keeps a quoted price" if price_lines && !rescheduled_from
+
       @price_lines = price_lines
     end
 

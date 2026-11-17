@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "appointments.appointment_rescheduled.v1",
-  "description": "Se reprogramó una cita: queda `rescheduled` y la nueva (new_appointment_id) se reservó en la misma transacción; su `appointment_booked.v1` lleva `rescheduled_from_id`. Solo ids, estados y horas: sin notas ni datos del cliente. La organización viaja en el sobre del evento.",
+  "description": "Se reprogramó una cita: queda `rescheduled` y la nueva (new_appointment_id) se reservó en la misma transacción; su `appointment_booked.v1` lleva `rescheduled_from_id`. Solo ids, estados y horas: sin notas ni datos del cliente. La organización viaja en el sobre del evento. En el outbox, el `appointment_booked.v1` de la cita nueva va antes que este evento (misma transacción).",
   "type": "object",
   "required": [
     "appointment_id",
