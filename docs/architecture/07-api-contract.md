@@ -124,6 +124,7 @@
 - **`limit`:** entero entre 1 y 100 (50 por defecto). Fuera de rango o no entero → `400 pagination.invalid_limit` (se rechaza, no se recorta en silencio).
 - El orden del scope recibido se **descarta** (`reorder` por id); sus filtros se conservan. Un recurso que necesite otro orden (p. ej. citas por `starts_at`) extiende el cursor con ese hito, no con `OFFSET`.
 - Pendiente de uso real: el endpoint de ejemplo es de un solo registro; el primer listado (M1) usa `render_page`. La API está cubierta por `spec/services/api/pagination/cursor_spec.rb` y `spec/requests/api/pagination_spec.rb` (con una sonda de test, que no existe en la aplicación).
+- **Excepción documentada:** la agenda de citas (`GET …/branches/:branch_id/appointments?from&to`) no usa cursor: necesita el rango entero, así que limita el rango a 31 días y responde `422 appointments.agenda_invalid` por encima de 1000 citas en vez de truncar ([ADR-0038](../adr/0038-ciclo-de-vida-de-la-cita.md)).
 
 ## Serialización con Alba (M0.06)
 
