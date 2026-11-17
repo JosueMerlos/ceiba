@@ -11,13 +11,7 @@ RSpec.describe "API pública v1: marca de la empresa" do
 
   single_schema = { type: :object, required: %w[data], additionalProperties: false, properties: { data: { "$ref" => "#/components/schemas/Branding" } } }
 
-  def attach_logo(color: [ 47, 138, 102 ])
-    with_tenant(organization) do
-      company.logo.attach(io: StringIO.new(png_bytes(width: 300, height: 300, color:)), filename: "logo.png", content_type: "image/png", identify: false)
-      %i[x1 x2].each { company.logo.variant(it).processed }
-      company.reload
-    end
-  end
+  def attach_logo(color: [ 47, 138, 102 ]) = attach_branding_image(organization, company, :logo, color:)
 
   def fetch(headers: {}) = get("/api/public/v1/c/#{slug}/branding", headers:)
 
@@ -36,25 +30,16 @@ RSpec.describe "API pública v1: marca de la empresa" do
           with_tenant(organization) { company.update!(brand_name: "Salón Estilo", primary_color: "#1D6C4E", font_choice: "nunito") }
           attach_logo
         end
+
         schema single_schema
 
         run_test! do |response|
           data = response.parsed_body["data"]
-          expect(data).to include("brand_name" => "Salón Estilo", "primary_color" => "#1D6C4E", "font_choice" => "nunito", "banner" => nil, "favicon" => nil)
+          expect(data).to include("brand_name" => "Salón Estilo", "primary_color" => "#1D6C4E", "font_choice" => "nunito")
+          expect(data["assets"].slice("banner", "favicon")).to eq("banner" => nil, "favicon" => nil)
           expect(data.dig("assets", "logo").values).to all(start_with("/api/storage/representations/proxy/"))
           expect(response.headers["Cache-Control"]).to eq("public, no-cache")
           expect(response.headers["ETag"]).to be_present
-        end
-      end
-
-      response "200", "una empresa sin marca: todos los campos `null` (paleta de la plataforma)" do
-        schema single_schema
-
-        run_test! do |response|
-          expect(response.parsed_body["data"]).to eq(
-            "brand_name" => nil, "tagline" => nil, "primary_color" => nil, "secondary_color" => nil, "accent_color" => nil, "font_choice" => nil,
-            "assets" => { "logo" => nil, "banner" => nil, "favicon" => nil }
-          )
         end
       end
 
@@ -67,26 +52,32 @@ RSpec.describe "API pública v1: marca de la empresa" do
     end
   end
 
-  describe "puertas cerradas" do
-    it "responden exactamente el mismo cuerpo (no revelan cuál estaba cerrada)" do
-      bodies = {
-        "slug inexistente" => -> { get "/api/public/v1/c/no-existe/branding" },
-        "organización suspendida" => lambda {
-          organization.update!(status: "suspended")
-          fetch
-        },
-        "empresa inactiva" => lambda {
-          organization.update!(status: "active")
-          with_tenant(organization) { company.update!(status: "inactive") }
-          fetch
-        }
-      }.transform_values do |request|
-        request.call
-        [ response.status, response.parsed_body.except("request_id", "instance") ]
-      end
+  describe "una empresa sin marca" do
+    it "responde 200 con todos los campos null (paleta de la plataforma)" do
+      fetch
 
-      expect(bodies.values.uniq.size).to eq(1)
-      expect(bodies.values.first.first).to eq(404)
+      expect([ response.status, response.parsed_body["data"] ]).to eq(
+        [ 200, { "brand_name" => nil, "tagline" => nil, "primary_color" => nil, "secondary_color" => nil, "accent_color" => nil, "font_choice" => nil,
+                 "assets" => { "logo" => nil, "banner" => nil, "favicon" => nil } } ]
+      )
+    end
+  end
+
+  describe "puertas cerradas" do
+    def answer = [ response.status, response.parsed_body.except("request_id", "instance") ]
+
+    it "responden exactamente el mismo cuerpo (no revelan cuál estaba cerrada)" do
+      get "/api/public/v1/c/no-existe/branding"
+      unknown = answer
+      organization.update!(status: "suspended")
+      fetch
+      suspended = answer
+      organization.update!(status: "active")
+      with_tenant(organization) { company.update!(status: "inactive") }
+      fetch
+
+      expect([ suspended, answer ]).to all(eq(unknown))
+      expect(unknown.first).to eq(404)
     end
   end
 
@@ -127,7 +118,7 @@ RSpec.describe "API pública v1: marca de la empresa" do
       attach_logo
       Sidekiq::Queues.clear_all
 
-      expect { fetch }.not_to change { [ ActiveStorage::Blob.count, ActiveStorage::VariantRecord.count, Audit::Event.count, Sidekiq::Queues.jobs_by_queue.values.flatten.size ] }
+      expect { fetch }.not_to change { [ ActiveStorage::Blob.count, ActiveStorage::VariantRecord.count, with_tenant(organization) { Audit::Event.count }, Sidekiq::Queues.jobs_by_queue.values.flatten.size ] }
     end
   end
 end

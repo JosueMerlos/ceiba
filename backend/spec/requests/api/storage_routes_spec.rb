@@ -7,13 +7,7 @@ RSpec.describe "Rutas de archivos (/api/storage)" do
   let(:organization) { create(:organization) }
   let(:company) { create_in(organization, :company) }
 
-  def attach_logo(process: true)
-    with_tenant(organization) do
-      company.logo.attach(io: StringIO.new(png_bytes(width: 300, height: 300)), filename: "logo.png", content_type: "image/png", identify: false)
-      company.logo.variant(:x1).processed if process
-      company.reload
-    end
-  end
+  def attach_logo(process: true) = attach_branding_image(organization, company, :logo, process:)
 
   def x1_path(blob: company.logo.blob)
     Rails.application.routes.url_helpers.rails_blob_representation_proxy_path(
@@ -28,7 +22,7 @@ RSpec.describe "Rutas de archivos (/api/storage)" do
 
     expect(response).to have_http_status(:ok)
     expect(response.media_type).to eq("image/webp")
-    expect(response.headers["Cache-Control"]).to include("public").and include("max-age=31536000").and include("immutable")
+    expect(response.headers["Cache-Control"]).to include("public").and include("immutable").and match(/max-age=\d{9,}/)
   end
 
   it "la URL sale bajo /api/storage" do

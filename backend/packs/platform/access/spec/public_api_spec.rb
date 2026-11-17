@@ -8,10 +8,10 @@ RSpec.describe "API pública de access" do
     root.glob("**/*.rb").map { |file| file.relative_path_from(root).to_s }
   end
 
-  it "expone solo el registro de permisos, el principal, el alcance, la base de las policies, la autorización de controladores y los errores" do
+  it "expone solo el registro de permisos, el principal, el alcance, la base de las policies, la autorización de controladores, el caso de uso de la marca y los errores" do
     expect(public_files).to contain_exactly(
       "access.rb", "access/error.rb", "access/unknown_permission.rb", "access/organization_suspended.rb", "access/sync_refused.rb",
-      "access/scope.rb", "access/reach.rb", "access/grant_role.rb", "access/base_policy.rb", "access/authorization.rb",
+      "access/scope.rb", "access/reach.rb", "access/grant_role.rb", "access/update_branding.rb", "access/base_policy.rb", "access/authorization.rb",
       "access/principal.rb", "access/principal/user.rb", "access/principal/system.rb", "access/principal/api_key.rb",
       "access/principal/public_token.rb"
     )

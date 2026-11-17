@@ -11,11 +11,17 @@
 #   * Secrets must not travel in the URL (they end up in proxy logs, history, Referer): a mutation needs no query
 #     string, everything goes in the JSON body or the route.
 #
+# One narrow exception: multipart/form-data on PATCH of a company's branding (the logo, banner and favicon cannot travel as JSON).
+# It does not weaken the cross-site barrier: an HTML form can only send GET or POST, so a cross-site form never reaches a PATCH,
+# and a cross-origin `fetch` PATCH needs a CORS preflight the API never grants. Origin, SameSite and the CSRF token still apply.
+#
 # Responds with the same problem+json as the rest of the API. Reads (GET/HEAD/OPTIONS) are untouched. Loaded with require
 # because config/ is not an autoload path.
 class ApiRequestGuard
   API_PATH = %r{\A/api(/|\z)}
   SAFE_METHODS = %w[GET HEAD OPTIONS].freeze
+  UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}".freeze
+  BRANDING_PATH = %r{\A/api/v1/organizations/#{UUID}/companies/#{UUID}/branding\z}i
 
   def initialize(app)
     @app = app
@@ -33,9 +39,13 @@ class ApiRequestGuard
 
   def violation_for(request)
     return Api::QueryNotAllowed.new("Las mutaciones no admiten parámetros en la query string") if request.query_string.present?
-    return unless body?(request) && request.media_type != "application/json"
+    return unless body?(request) && request.media_type != "application/json" && !branding_upload?(request)
 
     Api::UnsupportedMediaType.new("Las mutaciones de la API solo aceptan application/json")
+  end
+
+  def branding_upload?(request)
+    request.media_type == "multipart/form-data" && request.request_method == "PATCH" && BRANDING_PATH.match?(request.path_info)
   end
 
   def body?(request) = request.content_length.to_i.positive? || request.get_header("HTTP_TRANSFER_ENCODING").present?

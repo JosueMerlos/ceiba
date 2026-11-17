@@ -19,11 +19,14 @@ RSpec.describe Access::UpdateBranding do
     branding_upload(png_bytes(width: 300, height: 300, color:), filename: name, type: "image/png")
   end
 
+  def audit_count = audit_events.size
+
   def audit_events = with_tenant(organization) { Audit::Event.where(action: "company.branding_updated").order(:id).to_a }
 
-  def variant_image(attachment, name)
-    Vips::Image.new_from_buffer(attachment.variant(name).processed.download, "")
-  end
+  # The variant as the proxy resolves it (decoded from its signed key), already rendered by the use case.
+  def variant(kind, name) = stored.branding_variants(kind).fetch(name).processed
+
+  def variant_image(kind, name) = Vips::Image.new_from_buffer(variant(kind, name).download, "")
 
   describe "textos, colores y fuente" do
     it "guarda los valores normalizados y audita el diff con before y after" do
@@ -49,7 +52,7 @@ RSpec.describe Access::UpdateBranding do
     it "sin cambios efectivos no audita" do
       call(attributes: { primary_color: "#1D6C4E" })
 
-      expect { call(attributes: { primary_color: "#1d6c4e" }) }.not_to change { audit_events.size }
+      expect { call(attributes: { primary_color: "#1d6c4e" }) }.not_to change { audit_count }
     end
 
     it "un color inválido no persiste nada y responde con el error del campo" do
@@ -64,9 +67,8 @@ RSpec.describe Access::UpdateBranding do
     it "adjunta el logo con el tipo detectado, procesa sus dos variantes y las re-codifica a WebP del alto pedido" do
       call(files: { logo: logo_upload })
 
-      logo = stored.logo
-      expect([ logo.content_type, variant_image(logo, :x1).height, variant_image(logo, :x2).height ]).to eq([ "image/png", 64, 128 ])
-      expect(logo.variant(:x1).processed.image.content_type).to eq("image/webp")
+      expect([ stored.logo.content_type, variant_image(:logo, :x1).height, variant_image(:logo, :x2).height ]).to eq([ "image/png", 64, 128 ])
+      expect(variant(:logo, :x1).image.content_type).to eq("image/webp")
     end
 
     it "procesa banner (16:9 y 4:3 en WebP) y favicon (32 y 180 en PNG)" do
@@ -74,10 +76,9 @@ RSpec.describe Access::UpdateBranding do
 
       call(files: { banner: logo_upload, favicon: png })
 
-      current = stored
-      sizes = [ variant_image(current.banner, :wide), variant_image(current.banner, :standard), variant_image(current.favicon, :icon32), variant_image(current.favicon, :icon180) ].map { [ it.width, it.height ] }
+      sizes = [ %i[banner wide], %i[banner standard], %i[favicon icon32], %i[favicon icon180] ].map { |kind, name| variant_image(kind, name) }.map { [ it.width, it.height ] }
       expect(sizes).to eq([ [ 1600, 900 ], [ 1200, 900 ], [ 32, 32 ], [ 180, 180 ] ])
-      expect(current.favicon.variant(:icon32).processed.image.content_type).to eq("image/png")
+      expect(variant(:favicon, :icon32).image.content_type).to eq("image/png")
     end
 
     it "usa el tipo detectado y no el declarado" do
@@ -98,7 +99,7 @@ RSpec.describe Access::UpdateBranding do
     it "al reemplazar el logo cambia la clave del blob, cambia la variante y purga el blob y los archivos anteriores" do
       call(files: { logo: logo_upload })
       old_blob = stored.logo.blob
-      old_variant_key = stored.logo.variant(:x1).processed.key
+      old_variant_key = variant(:logo, :x1).key
 
       call(files: { logo: logo_upload(color: [ 200, 20, 20 ], name: "nuevo.png") })
 
@@ -108,7 +109,7 @@ RSpec.describe Access::UpdateBranding do
       expect(ActiveStorage::Blob.exists?(old_blob.id)).to be(false)
       expect(ActiveStorage::Blob.service.exist?(old_blob.key)).to be(false)
       expect(ActiveStorage::Blob.service.exist?(old_variant_key)).to be(false)
-      expect(ActiveStorage::Blob.service.exist?(stored.logo.variant(:x1).processed.key)).to be(true)
+      expect(ActiveStorage::Blob.service.exist?(variant(:logo, :x1).key)).to be(true)
     end
 
     it "remove desadjunta, audita y purga el blob" do
@@ -123,7 +124,7 @@ RSpec.describe Access::UpdateBranding do
     end
 
     it "quitar un adjunto que no existe no audita" do
-      expect { call(remove: %w[logo]) }.not_to change { audit_events.size }
+      expect { call(remove: %w[logo]) }.not_to change { audit_count }
     end
 
     it "rechaza en remove lo que no es un adjunto de marca" do

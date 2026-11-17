@@ -12,6 +12,8 @@ module RateLimiting
   # call (a 404), not this layer's. Compared on the DECODED, slash-squeezed path, ignoring case and surrounding whitespace, which is how the router will
   # resolve it: a variant must not slip past with a counter of its own while still reaching the endpoint.
   PUBLIC_AVAILABILITY_PATH = %r{\A/api/public/v1/c/([^/]+)/availability/?\z}i
+  # Branding files served by Tenancy::Storage::RepresentationsController.
+  STORAGE_PATH = %r{\A/api/storage/}
   PROBE_PATHS = %w[/api/health /api/ready].freeze
   MAX_LOGIN_BODY_BYTES = 4096
 
@@ -21,10 +23,11 @@ module RateLimiting
     login_ip: { limit: 5, period: 15.minutes.to_i },
     login_email: { limit: 10, period: 15.minutes.to_i },
     public_availability: { limit: 60, period: 1.minute.to_i },
+    storage: { limit: 300, period: 1.minute.to_i },
     not_found: { limit: 10, period: 5.minutes.to_i, ban: 1.hour.to_i }
   }.freeze
   # Relaxed in development (a developer mistypes the password more than 5 times); test is not limited.
-  DEVELOPMENT_LIMITS = { catch_all: 100_000, login_ip: 1000, login_email: 1000, public_availability: 100_000, not_found: 100_000 }.freeze
+  DEVELOPMENT_LIMITS = { catch_all: 100_000, login_ip: 1000, login_email: 1000, public_availability: 100_000, storage: 100_000, not_found: 100_000 }.freeze
 
   module_function
 
@@ -69,6 +72,8 @@ module RateLimiting
   rescue ArgumentError
     nil
   end
+
+  def storage?(request) = (request.get? || request.head?) && STORAGE_PATH.match?(request.path)
 
   def login?(request) = request.post? && LOGIN_PATH.match?(request.path)
 

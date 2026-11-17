@@ -59,5 +59,52 @@ OpenapiComponents.register(
     },
     required: %i[id company_id name time_zone address phone_e164 status created_at updated_at],
     additionalProperties: false
+  },
+  BrandingAsset: {
+    type: :object, nullable: true,
+    description: "URLs de las variantes de una imagen (null si no hay imagen). Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original.",
+    additionalProperties: { type: :string, description: "Ruta relativa bajo /api/storage" },
+    example: { x1: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/logo.webp" }
+  },
+  Branding: {
+    type: :object,
+    description: "Marca de una empresa. Todo valor es null mientras no se personalice: aplica la paleta de la plataforma.",
+    properties: {
+      brand_name: { type: :string, nullable: true, maxLength: 80 },
+      tagline: { type: :string, nullable: true, maxLength: 140 },
+      primary_color: { type: :string, nullable: true, pattern: "^#[0-9A-F]{6}$", example: "#1D6C4E" },
+      secondary_color: { type: :string, nullable: true, pattern: "^#[0-9A-F]{6}$" },
+      accent_color: { type: :string, nullable: true, pattern: "^#[0-9A-F]{6}$" },
+      font_choice: { type: :string, nullable: true, enum: %w[figtree lora nunito] },
+      assets: {
+        type: :object,
+        description: "logo: x1 y x2 (alto 64 y 128, WebP); banner: wide (16:9) y standard (4:3), WebP; favicon: icon32 e icon180, PNG",
+        properties: {
+          logo: { "$ref" => "#/components/schemas/BrandingAsset" },
+          banner: { "$ref" => "#/components/schemas/BrandingAsset" },
+          favicon: { "$ref" => "#/components/schemas/BrandingAsset" }
+        },
+        required: %i[logo banner favicon], additionalProperties: false
+      }
+    },
+    required: %i[brand_name tagline primary_color secondary_color accent_color font_choice assets],
+    additionalProperties: false
+  },
+  BrandingUpdate: {
+    type: :object,
+    description: "Cuerpo multipart/form-data de PATCH de la marca. Solo cambia lo enviado; un campo vacío vuelve al default; `remove[]` quita archivos.",
+    properties: {
+      brand_name: { type: :string, maxLength: 80 },
+      tagline: { type: :string, maxLength: 140 },
+      primary_color: { type: :string, description: "#RRGGBB (se normaliza a mayúsculas)", example: "#FFFF00" },
+      secondary_color: { type: :string },
+      accent_color: { type: :string },
+      font_choice: { type: :string, enum: %w[figtree lora nunito] },
+      logo: { type: :string, format: :binary, description: "PNG, JPEG o WebP de hasta 2 MB y 4096 px por lado" },
+      banner: { type: :string, format: :binary, description: "PNG, JPEG o WebP de hasta 5 MB y 4096 px por lado" },
+      favicon: { type: :string, format: :binary, description: "PNG, JPEG o WebP de hasta 200 KB y 4096 px por lado" },
+      remove: { type: :array, items: { type: :string, enum: %w[logo banner favicon] } }
+    },
+    additionalProperties: false
   }
 )

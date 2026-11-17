@@ -261,7 +261,7 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
     end
   end
 
-  describe "regla 9: archivos de marca por IP (300 / 1 min)" do
+  describe "regla 10: archivos de marca por IP (300 / 1 min)" do
     def storage_file(from: ip)
       get "/api/storage/representations/proxy/firma/clave/logo.webp", headers: { "REMOTE_ADDR" => from }
     end

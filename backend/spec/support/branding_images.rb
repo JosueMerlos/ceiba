@@ -25,6 +25,19 @@ module BrandingImages
     ActionDispatch::Http::UploadedFile.new(tempfile:, filename:, type:)
   end
 
+  # Attaches a real image to a company the way Access::UpdateBranding does (original uploaded, no identification, no analysis:
+  # either would enqueue a job) and, unless `process: false`, renders its variants once the attach has committed. Returns the
+  # reloaded company.
+  def attach_branding_image(organization, company, kind = :logo, color: [ 47, 138, 102 ], process: true)
+    blob = ActiveStorage::Blob.create_and_upload!(
+      io: StringIO.new(png_bytes(width: 300, height: 300, color:)), filename: "#{kind}.png", content_type: "image/png", identify: false,
+      metadata: { "identified" => true, "analyzed" => true }
+    )
+    with_tenant(organization) { company.public_send(kind).attach(blob) }
+    company.branding_variants(kind).each_value(&:processed) if process
+    with_tenant(organization) { company.reload }
+  end
+
   private
 
   def png_chunk(type, data)

@@ -39,6 +39,18 @@ module Tenancy
         end
       end
 
+      # The branding fields as they are now, and as they are stored (before an unsaved assignment): the diff of an audit.
+      def branding_attributes = ATTRIBUTES.index_with { |name| public_send(name) }
+      def persisted_branding_attributes = ATTRIBUTES.index_with { |name| attribute_in_database(name) }
+
+      # The variants of an attached image by name, in publication order, as the proxy will see them: rebuilt from their signed key.
+      # A variant record is found by the digest of its transformations, and the key's JSON round trip turns symbols into strings,
+      # so only the decoded form matches the digest the proxy looks up. Rendering one is `.processed`.
+      def branding_variants(kind)
+        attachment = public_send(kind)
+        VARIANTS.fetch(kind).index_with { |name| attachment.blob.representation(attachment.variant(name).variation.key) }
+      end
+
       # Attachments touch their record with touch_later, which runs when the outermost transaction commits: after the tenant
       # block ended, where a write to a tenant table is refused. Touching right away keeps it inside the tenant.
       def touch_later(*names) = persisted? ? touch(*names) : super

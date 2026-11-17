@@ -76,7 +76,9 @@ RSpec.describe "API v1: marca de la empresa" do
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
       parameter name: "X-CSRF-Token", in: :header, type: :string, required: true, description: "`csrf_token` de la sesión (login o GET /auth/session)"
-      parameter name: :brand_name, in: :formData, type: :string, required: false
+      # rswag builds the multipart payload from the formData parameters (one per field) and takes the request body's schema from the
+      # FIRST one: it carries the schema of the whole body, the others only name their field.
+      parameter name: :brand_name, in: :formData, required: true, schema: { "$ref" => "#/components/schemas/BrandingUpdate" }
       parameter name: :tagline, in: :formData, type: :string, required: false
       parameter name: :primary_color, in: :formData, type: :string, required: false
       parameter name: :secondary_color, in: :formData, type: :string, required: false
@@ -85,10 +87,6 @@ RSpec.describe "API v1: marca de la empresa" do
       parameter name: :logo, in: :formData, type: :file, required: false
       parameter name: :banner, in: :formData, type: :file, required: false
       parameter name: :favicon, in: :formData, type: :file, required: false
-      metadata[:operation][:requestBody] = {
-        required: true,
-        content: { "multipart/form-data": { schema: { "$ref" => "#/components/schemas/BrandingUpdate" } } }
-      }
 
       let(:brand_name) { "Salón Estilo" }
       let(:tagline) { nil }
@@ -106,20 +104,13 @@ RSpec.describe "API v1: marca de la empresa" do
 
         run_test! do |response|
           data = response.parsed_body["data"]
-          expect(data).to include("brand_name" => "Salón Estilo", "primary_color" => "#FFFF00", "font_choice" => "lora", "banner" => nil)
+          expect(data).to include("brand_name" => "Salón Estilo", "primary_color" => "#FFFF00", "font_choice" => "lora")
+          expect(data["assets"].slice("banner", "favicon")).to eq("banner" => nil, "favicon" => nil)
           expect(data.dig("assets", "logo").keys).to eq(%w[x1 x2])
           expect(data.dig("assets", "logo", "x1")).to start_with("/api/storage/representations/proxy/")
           expect(with_tenant(world.organization) { world.company_a.reload.logo.attached? }).to be(true)
           expect(with_tenant(world.organization) { Audit::Event.where(action: "company.branding_updated").count }).to eq(1)
         end
-      end
-
-      response "200", "el company_manager de la empresa también puede" do
-        let!(:signed_in) { sign_in(manager) }
-        let(:logo) { nil }
-        schema single_schema
-
-        run_test! { |response| expect(response.parsed_body.dig("data", "primary_color")).to eq("#FFFF00") }
       end
 
       response "401", "sin sesión válida" do

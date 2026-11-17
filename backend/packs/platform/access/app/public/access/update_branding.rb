@@ -16,7 +16,7 @@ module Access
     def self.call(...) = new(...).call
 
     def initialize(company:, attributes:, files: {}, remove: [])
-      @company = company
+      @company = Tenancy::Directory.company_for_branding!(company.id)
       @attributes = attributes
       @files = files.compact
       @remove = remove.map(&:to_sym) - @files.keys
@@ -28,7 +28,7 @@ module Access
       ApplicationRecord.transaction(requires_new: true) do
         @company.assign_attributes(@attributes)
         content_types = validate!
-        before = snapshot
+        before = @company.persisted_branding_attributes
         assets = store(content_types)
         replaced = replace(assets) + detach_removed(assets)
         @company.save!
@@ -57,8 +57,6 @@ module Access
 
       content_types
     end
-
-    def snapshot = Tenancy::Company::Branding::ATTRIBUTES.index_with { |name| @company.attribute_in_database(name) }
 
     # The original is uploaded now (the variants are rendered from it); it is never served. `identify: false` and the
     # preset metadata stop Active Storage from identifying it again by name or enqueueing an analysis.
@@ -94,7 +92,7 @@ module Access
     end
 
     def audit(before, assets)
-      after = Tenancy::Company::Branding::ATTRIBUTES.index_with { |name| @company.public_send(name) }
+      after = @company.branding_attributes
       return if before == after && assets.empty?
 
       Audit.record(
@@ -106,7 +104,7 @@ module Access
     # Runs once the outermost transaction committed (at once if there is none). Variants are only rendered for the images that
     # were uploaded now; a failure here surfaces to the caller, the change being already committed.
     def after_commit(assets, replaced)
-      variants = assets.compact.keys.flat_map { |kind| Tenancy::Company::Branding::VARIANTS.fetch(kind).map { |name| @company.public_send(kind).variant(name) } }
+      variants = assets.compact.keys.flat_map { |kind| @company.branding_variants(kind).values }
       return if variants.empty? && replaced.empty?
 
       ActiveRecord.after_all_transactions_commit do
