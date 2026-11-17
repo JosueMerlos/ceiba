@@ -75,6 +75,8 @@ interface MeOptions {
   company?: ReturnType<typeof company>;
   branch?: ReturnType<typeof branch> | null;
   name?: string;
+  /** Platform permissions on top of the role's (e.g. "platform.branding.update"). */
+  extraPermissions?: string[];
 }
 
 /** What GET /api/v1/me would return: navigation derives from permissions and active modules, as in the backend. */
@@ -85,9 +87,10 @@ export function meFixture({
   company: co = company(ids.companyA, "Barbería El Güegüense"),
   branch: br = branch(ids.branchA, ids.companyA, "Sucursal Centro"),
   name = "Julia Reyes",
+  extraPermissions = [],
 }: MeOptions = {}): { data: Me } {
   const active = modules.includes("appointments");
-  const permissions = active ? APPOINTMENT_PERMISSIONS[role] : [];
+  const permissions = [...(active ? APPOINTMENT_PERMISSIONS[role] : []), ...extraPermissions];
   const navigation = [
     ...(permissions.includes("appointments.appointment.read") ||
     permissions.includes("appointments.appointment.read_own")
@@ -121,4 +124,20 @@ export const problem = (status: number, code: string, title = "Problema") => ({
   title,
   status,
   code,
+});
+
+type Branding = components["schemas"]["Branding"];
+
+/** What the branding endpoints return for a company with no customization (everything null). */
+export const brandingFixture = (overrides: Partial<Branding> = {}): { data: Branding } => ({
+  data: {
+    brand_name: null,
+    tagline: null,
+    primary_color: null,
+    secondary_color: null,
+    accent_color: null,
+    font_choice: null,
+    assets: { logo: null, banner: null, favicon: null },
+    ...overrides,
+  },
 });
