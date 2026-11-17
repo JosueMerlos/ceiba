@@ -13,11 +13,23 @@ module Api
           render_page(branches, serializer: ::Tenancy::BranchSerializer)
         end
 
+        # The company comes from the route, never the body; the permission is asked on the branch as it would be created (before
+        # anything is written). The new branch has no weekly hours: it is closed until they are configured.
+        def create
+          authorize ::Tenancy::Directory.branches.new(company: Current.context.company), :create?, policy_class: ::Access::BranchPolicy
+          branch = ::Tenancy::AddBranch.call(company: Current.context.company, **branch_params)
+          render json: { data: ::Tenancy::BranchSerializer.new(branch).serializable_hash }, status: :created
+        end
+
         def show
           branch = Current.context.branch
           authorize branch, :show?, policy_class: ::Access::BranchPolicy
           render json: { data: ::Tenancy::BranchSerializer.new(branch).serializable_hash }
         end
+
+        private
+
+        def branch_params = typed_params(name: String, time_zone: String, address: String, phone_e164: String)
       end
     end
   end

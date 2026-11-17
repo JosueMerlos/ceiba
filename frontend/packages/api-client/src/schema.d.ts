@@ -2925,6 +2925,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/service_overrides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                /** @description Sucursal cuyos overrides se listan */
+                branch_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Lista los overrides de servicio de una sucursal
+         * @description Exige `appointments.service.read` en la sucursal de la ruta. Devuelve SOLO los overrides de esa sucursal, con la moneda del servicio. Paginado por cursor.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    after?: string;
+                };
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description Sucursal cuyos overrides se listan */
+                    branch_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description sin N+1: la moneda del servicio se carga de una vez */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ServiceOverride"][];
+                            page: components["schemas"]["PageInfo"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un rol de organización no tiene permiso de servicios */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/services/{service_id}/override": {
         parameters: {
             query?: never;
@@ -3533,6 +3615,158 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/professionals/{professional_id}/time_offs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                /** @description ID del profesional de la empresa, con o sin sucursales */
+                professional_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Lista las ausencias de un profesional desde la empresa
+         * @description Exige `appointments.time_off.read` en el alcance de la EMPRESA (solo gerencia de empresa): un rol de sucursal o el propio profesional (`manage_own`) reciben 403. Alcanza a profesionales con y sin sucursales, por lo que permite revisar las ausencias de uno que quedó sin asignar. El profesional debe ser de la empresa de la ruta (si no, 404). Paginado por cursor.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    after?: string;
+                };
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description ID del profesional de la empresa, con o sin sucursales */
+                    professional_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description también las de un profesional asignado a una sucursal */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["TimeOff"][];
+                            page: components["schemas"]["PageInfo"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el org_admin no tiene claves de ausencias */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description con el módulo de citas desactivado en la empresa (el gate) */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/professionals/{professional_id}/time_offs/{professional_time_off_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                professional_id: string;
+                /** @description ID de la ausencia del profesional de la ruta */
+                professional_time_off_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Borra una ausencia de un profesional desde la empresa
+         * @description Exige `appointments.time_off.manage` en el alcance de la EMPRESA. La ausencia se busca SOLO entre las del profesional de la ruta. Borrado real, auditado por id sin el motivo.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    professional_id: string;
+                    /** @description ID de la ausencia del profesional de la ruta */
+                    professional_time_off_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el company_manager borra la de un profesional sin sucursales, auditada sin el motivo */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description el org_admin no borra */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un profesional de otra empresa */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services": {
         parameters: {
             query?: never;
@@ -3545,12 +3779,14 @@ export interface paths {
         };
         /**
          * Lista los servicios no archivados de la empresa
-         * @description Exige `appointments.service.read` en la empresa (los roles de sucursal la tienen por `from_descendants`). Devuelve los servicios no archivados, activos e inactivos; el filtro opcional `active` (`true` o `false`) deja solo los de ese estado. Los archivados no aparecen. Va en orden de creación (el cursor es el id); `position` es el orden de presentación que el cliente aplica. Paginado por cursor.
+         * @description Exige `appointments.service.read` en la empresa (los roles de sucursal la tienen por `from_descendants`). Devuelve los servicios no archivados, activos e inactivos; el filtro opcional `active` (`true` o `false`) deja solo los de ese estado. Los archivados no aparecen salvo con `archived=true`, que lista SOLO los archivados. Va en orden de creación (el cursor es el id); `position` es el orden de presentación que el cliente aplica. Paginado por cursor.
          */
         get: {
             parameters: {
                 query?: {
                     active?: boolean;
+                    /** @description `true` lista SOLO los archivados; `false` (por defecto) solo los no archivados */
+                    archived?: boolean;
                     limit?: number;
                     after?: string;
                 };
@@ -3892,6 +4128,87 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                /** @description ID del servicio archivado */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restaura un servicio archivado
+         * @description Exige `appointments.service.manage` en la empresa. Pone `archived_at` en null y el servicio vuelve al catálogo con el mismo `id`; el estado `active` no cambia. Sobre un servicio vigente no hace nada (200, sin auditoría nueva). Un servicio de otra empresa responde 404.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    /** @description ID del servicio archivado */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description restaurar uno vigente no cambia nada ni audita */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Service"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el professional no puede restaurar y el servicio sigue archivado */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un servicio archivado de otra empresa no se restaura */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services/{service_id}/resource_requirements": {
         parameters: {
             query?: never;
@@ -4057,7 +4374,78 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        /**
+         * Crea una sucursal en la empresa de la ruta
+         * @description Exige `platform.branch.create` en la empresa de la ruta. Atributos: `name`, `time_zone` (IANA, obligatorios), `address` y `phone_e164`. La organización y la empresa salen de la ruta, nunca del cuerpo. La sucursal nace sin horario: queda cerrada hasta que se configure. Una zona horaria inválida responde 422 con el campo `time_zone`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BranchInput"];
+                };
+            };
+            responses: {
+                /** @description organization_id y company_id del cuerpo se ignoran: la sucursal cae en la empresa de la ruta */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Branch"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el professional no puede crear sucursales y no se crea nada */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description una empresa de otra organización */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description sin nombre */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -5097,6 +5485,18 @@ export interface components {
              * @description UTC
              */
             updated_at: string;
+        };
+        /** @description Alta de una sucursal. La empresa sale de la ruta; la sucursal nace sin horario (cerrada) hasta que se configure. */
+        BranchInput: {
+            address?: string | null;
+            name: string;
+            /** @example +50588887777 */
+            phone_e164?: string | null;
+            /**
+             * @description Zona horaria IANA
+             * @example America/Managua
+             */
+            time_zone: string;
         };
         /** @description Empresa: un negocio dentro de una organización (ADR-0004) */
         Company: {
