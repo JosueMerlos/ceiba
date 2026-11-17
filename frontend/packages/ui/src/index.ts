@@ -2,6 +2,8 @@ export { cn } from "./lib/cn";
 export { Button, buttonVariants } from "./components/button";
 export type { ButtonProps } from "./components/button";
 export { CeibaMark } from "./components/ceiba-mark";
+export { ColorField } from "./components/color-field";
+export type { ColorFieldProps } from "./components/color-field";
 export {
   Dialog,
   DialogClose,
@@ -23,6 +25,8 @@ export {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./components/dropdown-menu";
+export { FileDrop } from "./components/file-drop";
+export type { FileDropProps } from "./components/file-drop";
 export {
   Form,
   FormControl,

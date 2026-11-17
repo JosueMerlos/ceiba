@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
@@ -28,16 +28,15 @@ describe("ColorField", () => {
     expect(hex.value).toBe("#FFFF00");
   });
 
-  it("el selector nativo refleja un hex válido y escribe en el mismo valor", async () => {
+  it("el selector nativo refleja un hex válido y escribe en el mismo valor", () => {
     render(<Controlled initial="#1D6C4E" />);
     const picker = screen.getByLabelText("Selector") as HTMLInputElement;
     expect(picker.type).toBe("color");
     expect(picker.value).toBe("#1d6c4e");
 
-    picker.focus();
-    await userEvent.type(screen.getByLabelText("Color principal"), "x");
+    fireEvent.change(picker, { target: { value: "#ffff00" } });
 
-    expect((screen.getByLabelText("Color principal") as HTMLInputElement).value).toBe("#1D6C4Ex");
+    expect((screen.getByLabelText("Color principal") as HTMLInputElement).value).toBe("#FFFF00");
   });
 
   it("adversarial: con un texto que no es hex el selector no lo recibe como valor", () => {
