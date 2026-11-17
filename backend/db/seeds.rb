@@ -22,6 +22,7 @@ DEMO_GROUPS = [
       }
     ],
     staff: [
+      { user: { email: "empresa@barberia-guegu.ceiba.test", full_name: "Xiomara Castellón" }, role: "company_manager", company: "barberia-guegu" },
       { user: { email: "gerente@barberia-guegu.ceiba.test", full_name: "Mauricio Téllez" }, role: "branch_manager", company: "barberia-guegu", branch: "Sucursal Centro" },
       { user: { email: "recepcion@barberia-guegu.ceiba.test", full_name: "Julia Reyes" }, role: "receptionist", company: "barberia-guegu", branch: "Sucursal Centro" },
       { user: { email: "profesional@barberia-guegu.ceiba.test", full_name: "Don Efraín Blandón" }, role: "professional", company: "barberia-guegu", branch: "Sucursal Centro" },
