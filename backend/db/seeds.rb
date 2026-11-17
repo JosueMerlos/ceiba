@@ -144,6 +144,12 @@ DEMO_CUSTOMERS = [
   { full_name: "Carmen Altamirano", phone: "+50588000003" }
 ].freeze
 
+# Demo branding (colors, font and texts, no images) for the salon; the dental clinic stays without branding to show the
+# platform palette. Applied only while the company has none, so a seeded database never overwrites what an admin chose.
+DEMO_BRANDING = {
+  "salon-estilo" => { brand_name: "Salón Estilo", tagline: "Tu estilo, tu momento", primary_color: "#8B2F5C", secondary_color: "#F4E4EC", accent_color: "#C8873A", font_choice: "nunito" }
+}.freeze
+
 # The module's demo hook is loaded by path: the root pack cannot see the module's constants.
 load Rails.root.join("packs/modules/appointments/db/seeds.rb")
 
@@ -164,6 +170,11 @@ Tenancy::Directory.organizations_for(organization_ids).order(:name).each do |org
       AppointmentsDemoSeeds.seed_company(company, people:)
       DEMO_CUSTOMERS.each { |customer| Customers::FindOrCreate.call(company_id: company.id, **customer) }
       puts "Clientes listos: #{company.name} (#{DEMO_CUSTOMERS.size})"
+      branding = DEMO_BRANDING[company.slug]
+      next unless branding && company.primary_color.nil?
+
+      Access::UpdateBranding.call(company:, attributes: branding)
+      puts "Marca lista: #{company.name}"
     end
   end
 end
