@@ -478,8 +478,8 @@ RSpec.describe "API v1: servicios del catálogo" do
         let!(:signed_in) { sign_in(manager) }
         schema single_schema
 
-        run_test! do |response|
-          expect(response.parsed_body["data"]).to include("id" => service.id, "archived_at" => nil)
+        run_test! do |restored|
+          expect(restored.parsed_body["data"]).to include("id" => service.id, "archived_at" => nil)
           expect(stored(service.id).archived_at).to be_nil
           expect(audit_events("service.restored").map(&:auditable_id)).to eq([ service.id ])
           get "/api/v1/organizations/#{organization_id}/companies/#{company_id}/appointments/services"

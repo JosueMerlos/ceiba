@@ -3,7 +3,9 @@
 scope path: "organizations/:organization_id/companies/:company_id/appointments" do
   resources :services, only: %i[index show create destroy], controller: "appointments/services"
   patch "services/:id", to: "appointments/services#update"
+  post "services/:id/restore", to: "appointments/services#restore"
 
+  get "branches/:branch_id/service_overrides", to: "appointments/service_overrides#index"
   put "branches/:branch_id/services/:service_id/override", to: "appointments/service_overrides#upsert"
   delete "branches/:branch_id/services/:service_id/override", to: "appointments/service_overrides#destroy"
 end
@@ -14,6 +16,11 @@ scope path: "organizations/:organization_id/companies/:company_id/appointments" 
   resources :professionals, only: %i[index show create destroy], param: :professional_id, controller: "appointments/professionals"
   patch "professionals/:professional_id", to: "appointments/professionals#update"
   put "professionals/:professional_id/services", to: "appointments/professional_services#update"
+
+  # Absences of a professional seen from the company: the only way to reach those of one with no branch, which the branch
+  # routes below answer 404.
+  get "professionals/:professional_id/time_offs", to: "appointments/company_time_offs#index"
+  delete "professionals/:professional_id/time_offs/:professional_time_off_id", to: "appointments/company_time_offs#destroy"
 
   # A professional's profile seen from a branch: the route a professional uses to read their own profile.
   get "branches/:branch_id/professionals/:professional_id", to: "appointments/professionals#show_in_branch"

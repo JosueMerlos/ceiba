@@ -1,13 +1,21 @@
 module Api
   module V1
     module Appointments
-      # A branch's override of a company service. Both the branch and the service are searched inside the route's company
+      # A branch's overrides of company services. Both the branch and the service are searched inside the route's company
       # (a foreign one is a 404). Authorization is by EFFECTIVE change against the current row and runs inside the write,
       # after the row is locked, so the permission is checked against what is really there.
       class ServiceOverridesController < ::Api::BaseController
         include ::Modules::RequiresModule
 
         requires_module :appointments
+
+        # The overrides of the route's branch only. The service is preloaded: the serializer reads its currency.
+        def index
+          overrides = ::Appointments::BranchServiceOverride.where(company_id: Current.context.company.id, branch_id:).includes(:service)
+          authorize overrides, :index?, policy_class: ::Appointments::ServiceOverridePolicy
+          overrides = policy_scope(overrides, policy_scope_class: ::Appointments::ServiceOverridePolicy::Scope)
+          render_page(overrides, serializer: ::Appointments::ServiceOverrideSerializer)
+        end
 
         def upsert
           service = company_services.find(params[:service_id])

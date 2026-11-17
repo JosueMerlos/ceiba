@@ -7,6 +7,7 @@ module Appointments
     def create? = can?("appointments.service.manage", context_scope(:company))
     def update? = can?("appointments.service.manage", context_scope(:company))
     def destroy? = can?("appointments.service.manage", context_scope(:company))
+    def restore? = destroy?
 
     class Scope < Access::BasePolicy::Scope
       def resolve = principal.can?("appointments.service.read", context_scope(:company)) ? scope : scope.none
