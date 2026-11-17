@@ -53,6 +53,13 @@ module AuthorizationMatrix
     "professional" => [ 200, 404, 200, 404, 404 ]
   }.freeze
 
+  # POST .../companies/:id/branches (platform.branch.create): [company A (own), company B (foreign)]. A branch role sees its
+  # company but may not create (403); a company it does not belong to is a 404; the organization roles create in both.
+  BRANCH_CREATE = {
+    "org_owner" => [ 201, 201 ], "org_admin" => [ 201, 201 ], "company_manager" => [ 201, 404 ],
+    "branch_manager" => [ 403, 404 ], "receptionist" => [ 403, 404 ], "professional" => [ 403, 404 ]
+  }.freeze
+
   # GET /organizations/:id (platform.organization.read: only owner and admin)
   ORGANIZATION_SHOW = {
     "org_owner" => 200, "org_admin" => 200, "company_manager" => 403, "branch_manager" => 403, "receptionist" => 403, "professional" => 403
@@ -169,6 +176,20 @@ RSpec.describe "Matriz de autorización", type: :request do
         end
 
         expect(statuses).to eq(AuthorizationMatrix::EXPECTED.fetch(role_key))
+      end
+    end
+
+    AuthorizationMatrix::ROLES.each do |role_key|
+      it "#{role_key}: POST de sucursal en la empresa propia y en la hermana recibe #{AuthorizationMatrix::BRANCH_CREATE.fetch(role_key).inspect}" do
+        session = sign_in(member_of(role_key))
+        base = "/api/v1/organizations/#{organization.id}/companies"
+
+        statuses = [ world.company_a, world.company_b ].map do |company|
+          post "#{base}/#{company.id}/branches", params: { name: "Nueva #{role_key}", time_zone: "America/Managua" }, headers: session.csrf_headers, as: :json
+          response.status
+        end
+
+        expect(statuses).to eq(AuthorizationMatrix::BRANCH_CREATE.fetch(role_key))
       end
     end
 
