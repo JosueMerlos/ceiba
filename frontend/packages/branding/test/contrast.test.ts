@@ -10,7 +10,10 @@ describe("relativeLuminance", () => {
   it("linealiza con el umbral 0.04045 (un canal justo bajo y sobre el umbral)", () => {
     // 0x0A = 10/255 = 0.0392 (< 0.04045, rama lineal); 0x0B = 0.0431 (rama exponencial).
     expect(relativeLuminance("#0A0000")).toBeCloseTo(0.2126 * (0.0392157 / 12.92), 6);
-    expect(relativeLuminance("#0B0000")).toBeCloseTo(0.2126 * ((0.0431373 + 0.055) / 1.055) ** 2.4, 6);
+    expect(relativeLuminance("#0B0000")).toBeCloseTo(
+      0.2126 * ((0.0431373 + 0.055) / 1.055) ** 2.4,
+      6,
+    );
   });
 });
 
@@ -30,11 +33,17 @@ describe("contrastRatio", () => {
   });
 
   it("es simétrico", () => {
-    expect(contrastRatio("#1D6C4E", "#F2F4EF")).toBeCloseTo(contrastRatio("#F2F4EF", "#1D6C4E"), 10);
+    expect(contrastRatio("#1D6C4E", "#F2F4EF")).toBeCloseTo(
+      contrastRatio("#F2F4EF", "#1D6C4E"),
+      10,
+    );
   });
 
   it("ignora mayúsculas y minúsculas", () => {
-    expect(contrastRatio("#1d6c4e", "#ffffff")).toBeCloseTo(contrastRatio("#1D6C4E", "#FFFFFF"), 10);
+    expect(contrastRatio("#1d6c4e", "#ffffff")).toBeCloseTo(
+      contrastRatio("#1D6C4E", "#FFFFFF"),
+      10,
+    );
   });
 
   it("adversarial: un valor que no es #RRGGBB lanza en vez de devolver un número engañoso", () => {
