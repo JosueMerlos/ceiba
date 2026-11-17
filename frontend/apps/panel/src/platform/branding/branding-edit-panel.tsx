@@ -86,7 +86,7 @@ export function BrandingEditPanel({
                   ref={field.ref}
                   value={field.value}
                   onValueChange={field.onChange}
-                  pickerLabel={t("fields.colorPicker", { name: t(`fields.${name}`) })}
+                  pickerLabel={t("fields.colorPicker", { name: t(`fields.${name}`).toLowerCase() })}
                   placeholder="#1D6C4E"
                 />
               </FormControl>

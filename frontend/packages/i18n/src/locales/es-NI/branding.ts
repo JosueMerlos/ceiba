@@ -12,6 +12,7 @@ export const branding = {
     inputLabel: "Su nombre",
     inputValue: "María López",
     menuItem: "Agenda",
+    menuOther: "Servicios",
     badge: "Promoción",
     fallbackTagline: "Su lema aparecerá aquí",
   },

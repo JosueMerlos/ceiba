@@ -32,7 +32,7 @@ export function BrandingPreview({ vars, name, tagline, logoUrl, bannerUrl }: Bra
         inert
         className="overflow-hidden rounded-xl border bg-background font-sans text-foreground"
       >
-        <div className="aspect-[21/8] bg-secondary">
+        <div className="h-28 bg-secondary md:h-36">
           {bannerUrl ? <img src={bannerUrl} alt="" className="size-full object-cover" /> : null}
         </div>
 
@@ -65,7 +65,7 @@ export function BrandingPreview({ vars, name, tagline, logoUrl, bannerUrl }: Bra
               <div aria-current="page">{t("preview.menuItem")}</div>
             </NavItem>
             <NavItem asChild>
-              <div>{t("preview.secondary")}</div>
+              <div>{t("preview.menuOther")}</div>
             </NavItem>
           </nav>
           <div className="grid content-start gap-4">
