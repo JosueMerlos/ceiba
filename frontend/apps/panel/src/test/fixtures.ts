@@ -102,6 +102,12 @@ export function meFixture({
     ...(permissions.includes("appointments.service.read")
       ? [{ module: "appointments", key: "services", path: "/services" }]
       : []),
+    ...(permissions.includes("appointments.professional.read")
+      ? [{ module: "appointments", key: "professionals", path: "/professionals" }]
+      : []),
+    ...(permissions.includes("appointments.resource.read")
+      ? [{ module: "appointments", key: "resources", path: "/resources" }]
+      : []),
     ...(permissions.includes("appointments.schedule.read")
       ? [{ module: "appointments", key: "branches", path: "/branches" }]
       : []),
@@ -184,4 +190,53 @@ export const scheduleSlot = (
 export const validationProblem = (field: string, code: string, message: string) => ({
   ...problem(422, "validation.failed", "Datos inválidos"),
   errors: [{ field, code, message }],
+});
+
+export const professional = (
+  id: string,
+  displayName: string,
+  overrides: Partial<components["schemas"]["Professional"]> = {},
+): components["schemas"]["Professional"] => ({
+  id,
+  display_name: displayName,
+  active: true,
+  archived_at: null,
+  branch_ids: [],
+  service_ids: [],
+  user_id: null,
+  created_at: STAMP,
+  updated_at: STAMP,
+  ...overrides,
+});
+
+export const resource = (
+  id: string,
+  name: string,
+  overrides: Partial<components["schemas"]["Resource"]> = {},
+): components["schemas"]["Resource"] => ({
+  id,
+  name,
+  kind: "chair",
+  active: true,
+  archived_at: null,
+  branch_id: ids.branchA,
+  created_at: STAMP,
+  updated_at: STAMP,
+  ...overrides,
+});
+
+export const timeOff = (
+  id: string,
+  owner: { professionalId?: string; resourceId?: string },
+  startsAt: string,
+  endsAt: string,
+  reason: string | null = null,
+): components["schemas"]["TimeOff"] => ({
+  id,
+  professional_id: owner.professionalId ?? null,
+  resource_id: owner.resourceId ?? null,
+  starts_at: startsAt,
+  ends_at: endsAt,
+  reason,
+  created_at: STAMP,
 });
