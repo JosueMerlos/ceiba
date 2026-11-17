@@ -70,6 +70,8 @@ const APPOINTMENT_PERMISSIONS: Record<Role, string[]> = {
 
 interface MeOptions {
   role?: Role;
+  /** Replaces the role's permission list (catalog screens need role mixes the base table does not model). */
+  permissions?: string[];
   modules?: string[];
   organization?: ReturnType<typeof organization>;
   company?: ReturnType<typeof company>;
@@ -80,6 +82,7 @@ interface MeOptions {
 /** What GET /api/v1/me would return: navigation derives from permissions and active modules, as in the backend. */
 export function meFixture({
   role = "receptionist",
+  permissions: explicitPermissions,
   modules = ["appointments"],
   organization: org = organization(ids.orgA, "Barbería El Güegüense"),
   company: co = company(ids.companyA, "Barbería El Güegüense"),
@@ -87,7 +90,7 @@ export function meFixture({
   name = "Julia Reyes",
 }: MeOptions = {}): { data: Me } {
   const active = modules.includes("appointments");
-  const permissions = active ? APPOINTMENT_PERMISSIONS[role] : [];
+  const permissions = active ? (explicitPermissions ?? APPOINTMENT_PERMISSIONS[role]) : [];
   const navigation = [
     ...(permissions.includes("appointments.appointment.read") ||
     permissions.includes("appointments.appointment.read_own")
@@ -95,6 +98,12 @@ export function meFixture({
       : []),
     ...(permissions.includes("appointments.appointment.count")
       ? [{ module: "appointments", key: "summary", path: "/agenda/summary" }]
+      : []),
+    ...(permissions.includes("appointments.service.read")
+      ? [{ module: "appointments", key: "services", path: "/services" }]
+      : []),
+    ...(permissions.includes("appointments.schedule.read")
+      ? [{ module: "appointments", key: "branches", path: "/branches" }]
       : []),
   ];
   return {
@@ -121,4 +130,58 @@ export const problem = (status: number, code: string, title = "Problema") => ({
   title,
   status,
   code,
+});
+
+export const service = (
+  id: string,
+  name: string,
+  overrides: Partial<components["schemas"]["Service"]> = {},
+): components["schemas"]["Service"] => ({
+  id,
+  name,
+  active: true,
+  archived_at: null,
+  buffer_after_minutes: 0,
+  buffer_before_minutes: 0,
+  currency: "NIO",
+  duration_minutes: 30,
+  position: 0,
+  price_minor: 20000,
+  created_at: STAMP,
+  updated_at: STAMP,
+  ...overrides,
+});
+
+export const serviceOverride = (
+  id: string,
+  serviceId: string,
+  branchId: string,
+  overrides: Partial<components["schemas"]["ServiceOverride"]> = {},
+): components["schemas"]["ServiceOverride"] => ({
+  id,
+  service_id: serviceId,
+  branch_id: branchId,
+  currency: "NIO",
+  duration_minutes: null,
+  price_minor: null,
+  created_at: STAMP,
+  updated_at: STAMP,
+  ...overrides,
+});
+
+export const scheduleSlot = (
+  id: string,
+  weekday: number,
+  starts: string,
+  ends: string,
+): components["schemas"]["WeeklyScheduleSlot"] => ({
+  id,
+  weekday,
+  starts_at_local: starts,
+  ends_at_local: ends,
+});
+
+export const validationProblem = (field: string, code: string, message: string) => ({
+  ...problem(422, "validation.failed", "Datos inválidos"),
+  errors: [{ field, code, message }],
 });
