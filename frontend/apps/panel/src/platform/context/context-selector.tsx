@@ -21,7 +21,7 @@ export function ContextSelector() {
       <div
         data-slot="context-skeleton"
         aria-hidden="true"
-        className="h-10 w-10 animate-pulse rounded-lg bg-muted sm:w-44"
+        className="h-11 w-11 animate-pulse rounded-xl bg-muted sm:w-full md:group-data-[collapsed=true]/frame:w-11"
       />
     );
   }
@@ -79,11 +79,11 @@ export function ContextSelector() {
     }
   }
 
-  const summary = [context.company?.name, context.branch?.name].filter(Boolean).join(" · ");
   return (
     <ContextMenu
       triggerLabel={t("context.menuLabel")}
-      summary={summary}
+      summary={context.company?.name ?? ""}
+      detail={context.branch?.name}
       levels={levels}
       onSelect={onSelect}
     />

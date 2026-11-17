@@ -169,12 +169,7 @@ describe("ToggleGroup (filtros tipo chip)", () => {
   function Filters() {
     const [value, setValue] = useState("active");
     return (
-      <ToggleGroup
-        type="single"
-        value={value}
-        onValueChange={(next) => next && setValue(next)}
-        aria-label="Filtrar por estado"
-      >
+      <ToggleGroup value={value} onValueChange={setValue} aria-label="Filtrar por estado">
         <ToggleGroupItem value="active">Activos</ToggleGroupItem>
         <ToggleGroupItem value="paused">Pausados</ToggleGroupItem>
       </ToggleGroup>
@@ -186,17 +181,17 @@ describe("ToggleGroup (filtros tipo chip)", () => {
     const user = userEvent.setup();
 
     const group = screen.getByRole("group", { name: "Filtrar por estado" });
-    expect(within(group).getByRole("button", { name: "Activos" }).getAttribute("aria-pressed")).toBe(
-      "true",
-    );
+    expect(
+      within(group).getByRole("button", { name: "Activos" }).getAttribute("aria-pressed"),
+    ).toBe("true");
     await user.click(within(group).getByRole("button", { name: "Pausados" }));
 
-    expect(within(group).getByRole("button", { name: "Pausados" }).getAttribute("aria-pressed")).toBe(
-      "true",
-    );
-    expect(within(group).getByRole("button", { name: "Activos" }).getAttribute("aria-pressed")).toBe(
-      "false",
-    );
+    expect(
+      within(group).getByRole("button", { name: "Pausados" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      within(group).getByRole("button", { name: "Activos" }).getAttribute("aria-pressed"),
+    ).toBe("false");
   });
 
   it("volver a pulsar el chip activo no deja el grupo sin selección", async () => {

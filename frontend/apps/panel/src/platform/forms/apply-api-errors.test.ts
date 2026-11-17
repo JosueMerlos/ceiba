@@ -41,11 +41,9 @@ describe("applyApiErrors", () => {
   it("un campo que el formulario no conoce va a root.serverError cuando se da fieldMap", () => {
     const setError = vi.fn();
 
-    applyApiErrors(
-      unprocessable([{ field: "desconocido", message: "no válido" }]),
-      setError,
-      { duration_minutes: "durationMinutes" },
-    );
+    applyApiErrors(unprocessable([{ field: "desconocido", message: "no válido" }]), setError, {
+      duration_minutes: "durationMinutes",
+    });
 
     expect(setError).toHaveBeenCalledWith(
       "root.serverError",

@@ -194,7 +194,9 @@ describe("marco y hoja: --sidebar-* y hoja blanca", () => {
 
   it("--sidebar-primary y --sidebar-ring siguen a la marca, como --primary y --ring", () => {
     expect(declarations.get("--sidebar-primary")).toBe("var(--brand-primary)");
-    expect(declarations.get("--sidebar-primary-foreground")).toBe("var(--brand-primary-foreground)");
+    expect(declarations.get("--sidebar-primary-foreground")).toBe(
+      "var(--brand-primary-foreground)",
+    );
     expect(declarations.get("--sidebar-ring")).toBe("var(--brand-primary)");
   });
 

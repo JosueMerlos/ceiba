@@ -5,6 +5,7 @@ import { navigationFor } from "../../modules/registry";
 import { ContextSelector } from "../context/context-selector";
 import { useMe } from "../me/me-provider";
 import { SilentBoundary } from "./silent-boundary";
+import { useSidebarCollapsed } from "./use-sidebar-collapsed";
 import { UserMenu } from "./user-menu";
 
 /** Panel layout: navigation comes ONLY from /me (active modules and permissions), never from a fixed list. */
@@ -12,43 +13,48 @@ export function AppShell() {
   const { t } = useTranslation(["shell", "common"]);
   const me = useMe();
   const items = navigationFor(me);
+  const [collapsed, setCollapsed] = useSidebarCollapsed(me.principal.id);
 
   return (
     <AppLayout
       skipLinkLabel={t("shell:skipLink")}
       navigationLabel={t("shell:navigation")}
+      collapsed={collapsed}
+      onCollapsedChange={setCollapsed}
+      collapseLabel={t("shell:sidebar.collapse")}
+      expandLabel={t("shell:sidebar.expand")}
       brand={
         <Link
           to="/"
           aria-label={t("shell:goHome")}
-          className="flex items-center gap-2.5 rounded-md focus-visible:outline-offset-4"
+          className="flex min-w-0 items-center gap-2.5 rounded-md focus-visible:outline-offset-4"
         >
-          <CeibaMark className="size-8" />
-          <span className="font-display text-xl font-semibold tracking-tight">
+          <CeibaMark className="size-7 shrink-0" />
+          <span className="truncate font-display text-xl font-bold tracking-tight md:group-data-[collapsed=true]/frame:hidden">
             {t("common:appName")}
           </span>
         </Link>
       }
+      context={
+        <SilentBoundary>
+          <ContextSelector />
+        </SilentBoundary>
+      }
       navigation={
         items.length > 0
           ? items.map(({ key, path, labelKey, icon: Icon }) => (
-              <NavItem key={key} asChild>
-                <NavLink to={path} end>
-                  <Icon aria-hidden="true" />
-                  {t(labelKey, { ns: "shell" })}
-                </NavLink>
+              <NavItem
+                key={key}
+                asChild
+                icon={<Icon aria-hidden="true" />}
+                label={t(labelKey, { ns: "shell" })}
+              >
+                <NavLink to={path} end />
               </NavItem>
             ))
           : null
       }
-      actions={
-        <>
-          <SilentBoundary>
-            <ContextSelector />
-          </SilentBoundary>
-          <UserMenu />
-        </>
-      }
+      account={<UserMenu />}
     >
       <Outlet />
     </AppLayout>

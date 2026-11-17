@@ -83,7 +83,7 @@ describe("ContextPanel", () => {
     render(<Harness initiallyOpen footer />);
     const user = userEvent.setup();
 
-    for (let step = 0; step < 6; step += 1) await user.tab();
+    for (let step = 0; step < 5; step += 1) await user.tab();
 
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Después del panel" }));
     expect(screen.getByRole("complementary").getAttribute("aria-modal")).toBeNull();

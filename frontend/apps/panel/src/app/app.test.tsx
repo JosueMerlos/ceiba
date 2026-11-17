@@ -522,7 +522,6 @@ describe("marco del panel: barra lateral contraíble", () => {
     signedInBackend();
     const first = await renderApp();
     await first.user.click(await collapseButton());
-    await first.user.click(await collapseButton());
     first.unmount();
 
     await renderApp();

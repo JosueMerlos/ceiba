@@ -12,9 +12,17 @@ export const shell = {
     suspended: "{{name}} (suspendida)",
     loadError: "No se pudo cargar el contexto de trabajo.",
   },
+  sidebar: {
+    collapse: "Contraer menú",
+    expand: "Expandir menú",
+  },
   nav: {
     agenda: "Agenda",
     summary: "Resumen de citas",
+    services: "Servicios",
+    professionals: "Profesionales",
+    resources: "Recursos",
+    branches: "Sucursales",
   },
   noContext: {
     title: "Todavía no tiene acceso a ninguna empresa",

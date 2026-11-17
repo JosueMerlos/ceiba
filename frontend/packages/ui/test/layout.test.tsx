@@ -14,9 +14,7 @@ interface HarnessProps {
 function Harness({
   initialCollapsed = false,
   aside,
-  navigation = (
-    <NavItem href="/agenda" icon={<svg data-testid="icon" />} label="Agenda" />
-  ),
+  navigation = <NavItem href="/agenda" icon={<svg data-testid="icon" />} label="Agenda" />,
   onCollapsedChange,
 }: HarnessProps) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
@@ -80,9 +78,9 @@ describe("AppLayout (marco y hoja)", () => {
     expect(expand.getAttribute("aria-expanded")).toBe("false");
     expect(onCollapsedChange).toHaveBeenLastCalledWith(true);
     await user.click(expand);
-    expect(screen.getByRole("button", { name: "Contraer menú" }).getAttribute("aria-expanded")).toBe(
-      "true",
-    );
+    expect(
+      screen.getByRole("button", { name: "Contraer menú" }).getAttribute("aria-expanded"),
+    ).toBe("true");
     expect(onCollapsedChange).toHaveBeenLastCalledWith(false);
   });
 
