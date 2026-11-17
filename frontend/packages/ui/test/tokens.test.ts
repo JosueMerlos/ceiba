@@ -105,7 +105,7 @@ describe("capa semántica: nombres de shadcn/ui", () => {
 describe("capa de componente", () => {
   it("los tokens de componente solo referencian la capa semántica", () => {
     const component = [...declarations].filter(([name]) =>
-      /^--(button|input|dialog|nav|sidebar)-/.test(name),
+      /^--((button|input|dialog|nav)-|sidebar-width)/.test(name),
     );
 
     expect(component.length).toBeGreaterThan(5);
@@ -126,6 +126,12 @@ describe("contraste WCAG AA (4.5:1) de los pares por defecto", () => {
     ["--muted-foreground", "--background"],
     ["--highlight-foreground", "--highlight"],
     ["--destructive-foreground", "--destructive"],
+    ["--sidebar-foreground", "--sidebar"],
+    ["--sidebar-foreground", "--sidebar-accent"],
+    ["--sidebar-accent-foreground", "--sidebar-accent"],
+    ["--sidebar-accent-foreground", "--sidebar"],
+    ["--sidebar-primary-foreground", "--sidebar-primary"],
+    ["--muted-foreground", "--sidebar"],
   ];
 
   it.each(pairs)("%s sobre %s", (foreground, background) => {
@@ -141,6 +147,9 @@ describe("contraste no textual (3:1)", () => {
     ["--ring", "--background"],
     ["--ring", "--card"],
     ["--nav-item-active-indicator", "--card"],
+    ["--sidebar-ring", "--sidebar"],
+    ["--sidebar-ring", "--sidebar-accent"],
+    ["--sidebar-primary", "--sidebar"],
   ];
 
   it.each(pairs)("%s sobre %s", (foreground, background) => {
@@ -155,5 +164,52 @@ describe("marca re-alcanzable en un contenedor (ADR-0031, vista previa de M2.04)
 
   it("--ring sigue a la marca", () => {
     expect(declarations.get("--ring")).toBe("var(--brand-primary)");
+  });
+});
+
+describe("marco y hoja: --sidebar-* y hoja blanca", () => {
+  const sidebar = [
+    "--sidebar",
+    "--sidebar-foreground",
+    "--sidebar-border",
+    "--sidebar-accent",
+    "--sidebar-accent-foreground",
+    "--sidebar-primary",
+    "--sidebar-primary-foreground",
+    "--sidebar-ring",
+  ];
+
+  it("la hoja es blanca: --background resuelve a #ffffff", () => {
+    expect(resolve("--background")).toBe("#ffffff");
+  });
+
+  it("el marco es el tinte verdoso de la primitiva kapok-50, y el ítem activo es blanco", () => {
+    expect(resolve("--sidebar")).toBe("#f2f4ef");
+    expect(resolve("--sidebar-accent")).toBe("#ffffff");
+  });
+
+  it("define toda la familia --sidebar-* de shadcn/ui", () => {
+    for (const name of sidebar) expect(declarations.has(name), name).toBe(true);
+  });
+
+  it("--sidebar-primary y --sidebar-ring siguen a la marca, como --primary y --ring", () => {
+    expect(declarations.get("--sidebar-primary")).toBe("var(--brand-primary)");
+    expect(declarations.get("--sidebar-primary-foreground")).toBe("var(--brand-primary-foreground)");
+    expect(declarations.get("--sidebar-ring")).toBe("var(--brand-primary)");
+  });
+
+  it("el riel contraído mide 60 px", () => {
+    expect(declarations.get("--sidebar-width-collapsed")).toBe("3.75rem");
+  });
+
+  it("la familia se declara también en [data-brand-scope]", () => {
+    expect(css).toMatch(/:root,\s*\[data-brand-scope\]\s*\{[^}]*--sidebar:/s);
+  });
+
+  it("theme.css expone bg-sidebar y las demás utilidades de la familia", () => {
+    const theme = readFileSync(join(import.meta.dirname, "../src/styles/theme.css"), "utf8");
+    for (const name of sidebar) {
+      expect(theme, name).toContain(`--color-${name.slice(2)}: var(${name});`);
+    }
   });
 });

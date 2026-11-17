@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError } from "@ceiba/api-client";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   API,
   authSession,
@@ -472,6 +472,97 @@ describe("revisión de M0.12", () => {
     expect(container.querySelector('[data-slot="context-skeleton"]')).toBeTruthy();
     await waitFor(() =>
       expect(container.querySelector('[data-slot="context-skeleton"]')).toBeNull(),
+    );
+  });
+});
+
+describe("marco del panel: barra lateral contraíble", () => {
+  const collapseButton = () => screen.findByRole("button", { name: /(Contraer|Expandir) menú/ });
+  const setViewport = (width: number) =>
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    setViewport(1440);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    setViewport(1024);
+  });
+
+  it("en pantalla ancha y sin preferencia arranca expandida", async () => {
+    signedInBackend();
+    await renderApp();
+
+    expect((await collapseButton()).getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("por debajo de 1280 px arranca contraída", async () => {
+    setViewport(1100);
+    signedInBackend();
+    await renderApp();
+
+    expect((await collapseButton()).getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("la preferencia persiste: contraer y volver a montar el panel la conserva", async () => {
+    signedInBackend();
+    const first = await renderApp();
+    await first.user.click(await collapseButton());
+    expect((await collapseButton()).getAttribute("aria-expanded")).toBe("false");
+    first.unmount();
+
+    await renderApp();
+
+    expect((await collapseButton()).getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("una preferencia explícita gana a la regla del ancho", async () => {
+    setViewport(1100);
+    signedInBackend();
+    const first = await renderApp();
+    await first.user.click(await collapseButton());
+    await first.user.click(await collapseButton());
+    first.unmount();
+
+    await renderApp();
+
+    expect((await collapseButton()).getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("si localStorage lanza error, el panel se renderiza igual y el botón funciona (adversarial)", async () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new DOMException("denied", "SecurityError");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("quota", "QuotaExceededError");
+    });
+    signedInBackend();
+    const { user } = await renderApp();
+
+    await user.click(await collapseButton());
+
+    expect((await collapseButton()).getAttribute("aria-expanded")).toBe("false");
+    expect(await mainNav()).toBeTruthy();
+  });
+
+  it("un valor guardado que no es válido se ignora (adversarial)", async () => {
+    window.localStorage.setItem(`ceiba.sidebar-collapsed.${ids.user}`, "banana");
+    signedInBackend();
+    await renderApp();
+
+    expect((await collapseButton()).getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("con la barra contraída los ítems del menú siguen teniendo nombre accesible", async () => {
+    window.localStorage.setItem(`ceiba.sidebar-collapsed.${ids.user}`, "true");
+    signedInBackend();
+    await renderApp();
+
+    const nav = await mainNav();
+
+    expect(within(nav).getByRole("link", { name: "Agenda" }).getAttribute("aria-label")).toBe(
+      "Agenda",
     );
   });
 });
