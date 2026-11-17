@@ -55,6 +55,15 @@ RSpec.describe RuboCop::Cop::Ceiba::AppointmentStatusWrite, :config do
       RUBY
     end
 
+    %w[insert insert!].each do |method|
+      it "prohíbe #{method} con una fila que lleva status" do
+        expect_offense(<<~RUBY, file, method:)
+          Appointment.#{method}({ id: id, status: "completed" })
+          ^^^^^^^^^^^^{method}^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #{message(method)}
+        RUBY
+      end
+    end
+
     it "prohíbe update_all con SQL y parámetros (array)" do
       expect_offense(<<~RUBY, file)
         Appointment.where(id: id).update_all([ "status = ?", "completed" ])

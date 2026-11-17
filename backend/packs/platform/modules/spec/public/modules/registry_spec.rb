@@ -203,6 +203,7 @@ RSpec.describe Modules::Registry do
         navigation [ { key: "cards", path: "/loyalty", permission: %w[loyalty.card.read loyalty.card.read_own] } ]
       end
       expect(manifest.navigation.sole[:permission]).to eq(%w[loyalty.card.read loyalty.card.read_own])
+      expect(manifest.navigation.sole[:permission]).to be_frozen
     end
 
     it "rechaza en la navegación una lista de permisos vacía o con uno no declarado", :aggregate_failures do

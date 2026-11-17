@@ -322,13 +322,27 @@ RSpec.describe "Ciclo de vida de la cita: peticiones" do
       expect(reload(appointment).status).to eq("scheduled")
     end
 
-    it "repetir la clave después de perder el permiso es 403, no la respuesta guardada" do
-      act(booked, "reschedule", params: { starts_at: "2026-11-16T11:00:00-06:00" }, key:)
+    it "repetir la clave después de perder la membresía es 404, no la respuesta guardada", :aggregate_failures do
+      appointment = booked
+      act(appointment, "reschedule", params: { starts_at: "2026-11-16T11:00:00-06:00" }, key:)
       with_tenant(world.organization) { Access::Membership.where(user_id: receptionist.id).delete_all }
 
-      act(booked, "reschedule", params: { starts_at: "2026-11-16T11:00:00-06:00" }, key:)
+      act(appointment, "reschedule", params: { starts_at: "2026-11-16T11:00:00-06:00" }, key:)
 
-      expect(response.status).to be_in([ 403, 404 ])
+      expect([ response.status, problem["code"] ]).to eq([ 404, "resource.not_found" ])
+      expect(response.headers["Idempotency-Replayed"]).to be_nil
+      expect(moved.map(&:rescheduled_from_id)).to eq([ appointment.id ])
+    end
+
+    it "con professional_id any es 422 appointments.booking_invalid any_not_allowed, como al reservar, y la original no cambia", :aggregate_failures do
+      appointment = booked
+
+      act(appointment, "reschedule", params: { starts_at: "2026-11-16T11:00:00-06:00", professional_id: "any" }, key:)
+
+      expect([ response.status, problem["code"] ]).to eq([ 422, "appointments.booking_invalid" ])
+      expect(problem["errors"]).to include(a_hash_including("field" => "professional_id", "code" => "any_not_allowed"))
+      expect(reload(appointment)).to have_attributes(status: "scheduled", lock_version: 0)
+      expect(moved).to be_empty
     end
 
     it "sin starts_at es 400 request.invalid" do
@@ -415,6 +429,30 @@ RSpec.describe "Ciclo de vida de la cita: peticiones" do
       expect(reload(appointment).notes).to eq("Trae su tinte")
       patch detail_path(appointment), params: { notes: "x" * 501, lock_version: 0 }, headers: signed_in.csrf_headers, as: :json
       expect([ response.status, problem["code"] ]).to eq([ 422, "validation.failed" ])
+    end
+
+    it "las notas de una cita reprogramada no se editan (409 appointments.invalid_transition): viven en la cita nueva", :aggregate_failures do
+      appointment = booked
+      act(appointment, "reschedule", params: { starts_at: "2026-11-16T11:00:00-06:00" }, key: SecureRandom.uuid)
+      audits_before = audit_count
+
+      patch detail_path(appointment), params: { notes: "otra cosa", lock_version: reload(appointment).lock_version }, headers: signed_in.csrf_headers, as: :json
+
+      expect([ response.status, problem["code"] ]).to eq([ 409, "appointments.invalid_transition" ])
+      expect(problem["errors"]).to include(a_hash_including("field" => "status", "code" => "rescheduled"))
+      expect(reload(appointment).notes).to eq("Trae su tinte")
+      expect(audit_count).to eq(audits_before)
+    end
+
+    it "las notas de una cita cancelada o completada siguen editables", :aggregate_failures do
+      cancelled = in_status("cancelled")
+      completed = in_status("completed", at: ten + 1.hour)
+
+      [ cancelled, completed ].each do |appointment|
+        patch detail_path(appointment), params: { notes: "Anotación posterior", lock_version: reload(appointment).lock_version }, headers: signed_in.csrf_headers, as: :json
+        expect([ response.status, response.parsed_body["code"] ]).to eq([ 200, nil ])
+      end
+      expect([ reload(cancelled).notes, reload(completed).notes ]).to eq([ "Anotación posterior", "Anotación posterior" ])
     end
 
     it "notas nulas las borran" do
