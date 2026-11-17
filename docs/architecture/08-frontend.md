@@ -173,7 +173,7 @@ Decidido en [ADR-0032](../adr/0032-lenguaje-visual-marco-y-hoja.md), que reempla
 - **Contraste:** si el color primario no logra 4.5:1 con el texto, se calcula el texto en blanco o negro; si ninguno cumple, se usa el color por defecto de la plataforma.
 - Fallback total: una empresa sin branding usa la paleta base.
 - Tipografía: 3 fuentes curadas, sin tipografías custom.
-- El panel aplica el branding de la empresa del contexto; booking, el de la empresa del slug.
+- El panel aplica el branding de la empresa del contexto; booking, el de la empresa del slug. Ambos lo leen de `GET /api/public/v1/c/:slug/branding` (con `ETag`: siempre revalida, ver [07](07-api-contract.md#marca-de-la-empresa-m204)); las imágenes salen de `/api/storage/…` ([ADR-0039](../adr/0039-archivos-de-branding-y-rutas-de-activestorage.md)). La CSP del panel permite `blob:` en `img-src` para la vista previa local de un archivo elegido.
 
 ## Accesibilidad y UX
 
