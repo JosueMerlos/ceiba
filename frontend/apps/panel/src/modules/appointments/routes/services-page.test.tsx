@@ -1,14 +1,16 @@
 import { screen, waitFor, within } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import {
   BRANCH_MANAGER_PERMISSIONS,
+  CATALOG,
   MANAGER_PERMISSIONS,
   READER_PERMISSIONS,
   servicesBackend,
 } from "../../../test/catalog-backend";
 import { branch, ids, meFixture, service, serviceOverride } from "../../../test/fixtures";
 import { renderApp } from "../../../test/render-app";
-import { signedInBackend } from "../../../test/server";
+import { server, signedInBackend } from "../../../test/server";
 
 const corte = service("s1", "Corte clásico", { duration_minutes: 30, price_minor: 20000 });
 const tinte = service("s2", "Tinte", { active: false });
@@ -94,6 +96,37 @@ describe("Servicios", () => {
     await user.click(within(panel).getByRole("button", { name: "Restaurar" }));
     await waitFor(() => expect(backend.restored).toEqual(["s3"]));
     await waitFor(() => expect(screen.queryByRole("complementary")).toBeNull());
+  });
+
+  it("el Restaurar del panel se deshabilita mientras la restauración está en curso", async () => {
+    asManager();
+    servicesBackend({ services: [viejo] });
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let calls = 0;
+    server.use(
+      http.post(`${CATALOG}/appointments/services/:id/restore`, async () => {
+        calls += 1;
+        await gate;
+        return HttpResponse.json({ data: { ...viejo, archived_at: null } });
+      }),
+    );
+    const { user } = await openServices();
+
+    await user.click(await screen.findByRole("button", { name: "Archivados" }));
+    await user.click(await screen.findByRole("button", { name: "Editar Peinado antiguo" }));
+    const panel = await screen.findByRole("complementary", { name: "Peinado antiguo" });
+    await user.click(within(panel).getByRole("button", { name: "Restaurar" }));
+
+    await waitFor(() =>
+      expect(within(panel).getByRole("button", { name: "Restaurar" })).toHaveProperty("disabled", true),
+    );
+    await user.click(within(panel).getByRole("button", { name: "Restaurar" }));
+    release();
+    await waitFor(() => expect(screen.queryByRole("complementary")).toBeNull());
+    expect(calls).toBe(1);
   });
 
   it("Pausados lista solo los no activos y Archivar saca el servicio de Activos", async () => {
