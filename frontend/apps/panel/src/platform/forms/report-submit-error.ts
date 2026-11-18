@@ -1,7 +1,8 @@
 import type { AnyTranslate } from "@ceiba/i18n";
 import type { FieldValues, UseFormSetError } from "react-hook-form";
-import { applyApiErrors } from "../../../platform/forms/apply-api-errors";
-import { describeError } from "../../../platform/errors/global-errors";
+import { describeError } from "../errors/global-errors";
+import { applyApiErrors } from "./apply-api-errors";
+import { SERVER_ERROR, setServerError } from "./set-server-error";
 
 /**
  * Puts a failed submit into the form: a 422 lands on its fields; anything else (403, 5xx, network) becomes the form-level
@@ -14,8 +15,5 @@ export function reportSubmitError<T extends FieldValues>(
   fieldMap?: Readonly<Record<string, string>>,
 ) {
   if (applyApiErrors(error, setError, fieldMap)) return;
-  (setError as (name: string, error: { type: string; message: string }) => void)(
-    "root.serverError",
-    { type: "server", message: describeError(error, translate) },
-  );
+  setServerError(setError, SERVER_ERROR, describeError(error, translate));
 }

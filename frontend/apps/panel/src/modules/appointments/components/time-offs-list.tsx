@@ -1,7 +1,7 @@
 import { useTranslation } from "@ceiba/i18n";
 import { Button } from "@ceiba/ui";
 import { Trash2 } from "lucide-react";
-import type { TimeOff } from "../api/professionals";
+import type { TimeOff } from "../api/shared";
 import { formatInZone } from "../lib/zoned-time";
 
 interface TimeOffsListProps {

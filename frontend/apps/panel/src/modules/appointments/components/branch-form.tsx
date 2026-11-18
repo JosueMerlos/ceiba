@@ -19,7 +19,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { reportSubmitError } from "../lib/report-submit-error";
+import { reportSubmitError } from "../../../platform/forms/report-submit-error";
 import { TIME_ZONES } from "../lib/time-zones";
 import { FormAlert } from "./form-alert";
 

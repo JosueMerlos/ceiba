@@ -14,8 +14,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import type { TimeOffInput } from "../api/professionals";
-import { reportSubmitError } from "../lib/report-submit-error";
+import type { TimeOffInput } from "../api/shared";
+import { reportSubmitError } from "../../../platform/forms/report-submit-error";
 import { localToUtcIso } from "../lib/zoned-time";
 import { FormAlert } from "./form-alert";
 

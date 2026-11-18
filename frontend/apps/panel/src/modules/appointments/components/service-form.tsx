@@ -17,7 +17,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { Service } from "../api/catalog";
 import { minorToInput, parsePriceToMinor } from "../lib/money";
-import { reportSubmitError } from "../lib/report-submit-error";
+import { reportSubmitError } from "../../../platform/forms/report-submit-error";
 import { FormAlert } from "./form-alert";
 
 /** What the form emits: the contract's own units (price in minor units, minutes as numbers). */

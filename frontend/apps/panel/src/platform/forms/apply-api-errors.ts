@@ -1,7 +1,6 @@
 import { isApiError } from "@ceiba/api-client";
 import type { FieldValues, UseFormSetError } from "react-hook-form";
-
-const SERVER_ERROR = "root.serverError";
+import { SERVER_ERROR, setServerError } from "./set-server-error";
 
 /**
  * Puts the field errors of a 422 into a react-hook-form form. Returns true when the error was a 422 and has been
@@ -18,11 +17,7 @@ export function applyApiErrors<T extends FieldValues>(
 ): boolean {
   if (!isApiError(error) || error.status !== 422) return false;
 
-  const report = (name: string, message: string) =>
-    (setError as (name: string, error: { type: string; message: string }) => void)(name, {
-      type: "server",
-      message,
-    });
+  const report = (name: string, message: string) => setServerError(setError, name, message);
 
   if (error.errors.length === 0) {
     report(SERVER_ERROR, error.title);

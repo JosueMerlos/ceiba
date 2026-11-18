@@ -21,7 +21,7 @@ import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { RESOURCE_KINDS, type Resource, type ResourceKind } from "../api/resources";
-import { reportSubmitError } from "../lib/report-submit-error";
+import { reportSubmitError } from "../../../platform/forms/report-submit-error";
 import { FormAlert } from "./form-alert";
 
 export interface ResourceFormValues {

@@ -13,7 +13,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import type { Service, ServiceOverride, ServiceOverrideInput } from "../api/catalog";
 import { minorToInput, parsePriceToMinor } from "../lib/money";
-import { reportSubmitError } from "../lib/report-submit-error";
+import { reportSubmitError } from "../../../platform/forms/report-submit-error";
 import { FormAlert } from "./form-alert";
 
 interface BranchOverrideFieldsProps {

@@ -1,13 +1,12 @@
-import { isApiError } from "@ceiba/api-client";
 import { useTranslation } from "@ceiba/i18n";
-import { LoadingState, toast } from "@ceiba/ui";
+import { toast } from "@ceiba/ui";
 import type { UseQueryResult } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
-import { describeError } from "../../../platform/errors/global-errors";
+import { useId, useState, type ReactNode } from "react";
+import { apiErrorMessages } from "../../../platform/forms/api-error-messages";
 import { useCan } from "../../../platform/permissions/can";
-import type { Branch, WeeklyScheduleSlot } from "../api/catalog";
-import type { TimeOff, TimeOffInput, WeeklyScheduleInput } from "../api/professionals";
-import { QueryError } from "./query-error";
+import type { Branch } from "../api/catalog";
+import type { TimeOff, TimeOffInput, WeeklyScheduleInput, WeeklyScheduleSlot } from "../api/shared";
+import { QueryBoundary } from "./query-boundary";
 import { TimeOffForm } from "./time-off-form";
 import { TimeOffsList } from "./time-offs-list";
 import { WeeklyScheduleEditor } from "./weekly-schedule-editor";
@@ -22,7 +21,7 @@ export function PanelSection({
   description?: string;
   children: ReactNode;
 }) {
-  const headingId = `section-${title.replace(/\W+/g, "-").toLowerCase()}`;
+  const headingId = useId();
   return (
     <section aria-labelledby={headingId} className="grid gap-3 border-t pt-4">
       <div className="grid gap-1">
@@ -57,33 +56,28 @@ export function ScheduleSection({
   const { t } = useTranslation(["appointments", "common", "errors"]);
   const [serverMessages, setServerMessages] = useState<string[]>([]);
 
-  if (slots.isPending) return <LoadingState label={t("common:loading")} />;
-  if (slots.isError) return <QueryError error={slots.error} onRetry={() => void slots.refetch()} />;
   return (
-    <WeeklyScheduleEditor
-      // Re-seed the editor when the saved week changes (its drafts are local state).
-      key={slots.data.data.map((slot) => slot.id).join(",")}
-      slots={slots.data.data}
-      readOnly={!canManage}
-      saving={save.isPending}
-      serverMessages={serverMessages}
-      onSave={(payload) =>
-        save.mutate(payload, {
-          onSuccess: () => {
-            setServerMessages([]);
-            toast.success(t("catalog.schedule.saved"));
-          },
-          onError: (error) =>
-            setServerMessages(
-              isApiError(error) && error.status === 422
-                ? error.errors.length > 0
-                  ? error.errors.map((item) => item.message)
-                  : [error.title]
-                : [describeError(error, t)],
-            ),
-        })
-      }
-    />
+    <QueryBoundary query={slots}>
+      {({ data: slotList }) => (
+        <WeeklyScheduleEditor
+          // Re-seed the editor when the saved week changes (its drafts are local state).
+          key={slotList.map((slot) => slot.id).join(",")}
+          slots={slotList}
+          readOnly={!canManage}
+          saving={save.isPending}
+          serverMessages={serverMessages}
+          onSave={(payload) =>
+            save.mutate(payload, {
+              onSuccess: () => {
+                setServerMessages([]);
+                toast.success(t("catalog.schedule.saved"));
+              },
+              onError: (error) => setServerMessages(apiErrorMessages(error, t)),
+            })
+          }
+        />
+      )}
+    </QueryBoundary>
   );
 }
 
@@ -101,32 +95,32 @@ export function TimeOffsSection({
   onCreate(values: TimeOffInput): Promise<unknown>;
   onDelete(timeOff: TimeOff, options: { onSuccess(): void }): void;
 }) {
-  const { t } = useTranslation(["appointments", "common"]);
+  const { t } = useTranslation("appointments");
 
-  if (timeOffs.isPending) return <LoadingState label={t("common:loading")} />;
-  if (timeOffs.isError) {
-    return <QueryError error={timeOffs.error} onRetry={() => void timeOffs.refetch()} />;
-  }
   return (
-    <div className="grid gap-4">
-      <TimeOffsList
-        timeOffs={timeOffs.data.data}
-        timeZone={timeZone}
-        canManage={canManage}
-        onDelete={(timeOff) =>
-          onDelete(timeOff, { onSuccess: () => toast.success(t("catalog.timeOffs.removed")) })
-        }
-      />
-      {canManage ? (
-        <TimeOffForm
-          timeZone={timeZone}
-          onSubmit={async (values) => {
-            await onCreate(values);
-            toast.success(t("catalog.timeOffs.added"));
-          }}
-        />
-      ) : null}
-    </div>
+    <QueryBoundary query={timeOffs}>
+      {({ data: list }) => (
+        <div className="grid gap-4">
+          <TimeOffsList
+            timeOffs={list}
+            timeZone={timeZone}
+            canManage={canManage}
+            onDelete={(timeOff) =>
+              onDelete(timeOff, { onSuccess: () => toast.success(t("catalog.timeOffs.removed")) })
+            }
+          />
+          {canManage ? (
+            <TimeOffForm
+              timeZone={timeZone}
+              onSubmit={async (values) => {
+                await onCreate(values);
+                toast.success(t("catalog.timeOffs.added"));
+              }}
+            />
+          ) : null}
+        </div>
+      )}
+    </QueryBoundary>
   );
 }
 

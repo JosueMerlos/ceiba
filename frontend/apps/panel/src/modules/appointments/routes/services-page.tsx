@@ -1,20 +1,10 @@
 import { useTranslation } from "@ceiba/i18n";
-import {
-  Button,
-  ContextPanel,
-  LoadingState,
-  PageHeader,
-  ToggleGroup,
-  ToggleGroupItem,
-  toast,
-} from "@ceiba/ui";
+import { Button, PageHeader, ToggleGroup, ToggleGroupItem, toast } from "@ceiba/ui";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Can, useCan } from "../../../platform/permissions/can";
-import { AsidePortal } from "../../../platform/shell/aside-slot";
 import {
   useArchiveService,
-  useCatalogScope,
   useCreateService,
   useRestoreService,
   useServicesQuery,
@@ -22,17 +12,18 @@ import {
   type Service,
   type ServiceFilter,
 } from "../api/catalog";
+import { useCatalogScope } from "../api/shared";
 import { BranchPicker } from "../components/branch-picker";
+import { CatalogAside } from "../components/catalog-aside";
 import { EmptyState } from "../components/empty-state";
-import { QueryError } from "../components/query-error";
+import { QueryBoundary } from "../components/query-boundary";
 import { ServiceForm, type ServiceFormValues } from "../components/service-form";
 import { ServicesTable } from "../components/services-table";
+import { useEntityPanel } from "../lib/use-entity-panel";
 import { useWorkingBranch } from "../lib/use-working-branch";
 import { ServiceOverrideSection } from "./service-override-section";
 
 const FILTERS: readonly ServiceFilter[] = ["active", "paused", "archived"];
-
-type Panel = { kind: "service"; id: string } | { kind: "new" } | null;
 
 export function ServicesPage() {
   const { t } = useTranslation(["appointments", "common"]);
@@ -43,21 +34,18 @@ export function ServicesPage() {
   const working = useWorkingBranch();
 
   const [filter, setFilter] = useState<ServiceFilter>("active");
-  const [panel, setPanel] = useState<Panel>(null);
   const services = useServicesQuery(filter);
   const create = useCreateService();
   const update = useUpdateService();
   const archive = useArchiveService();
   const restore = useRestoreService();
 
-  const list = services.data?.data ?? [];
-  const selected =
-    panel?.kind === "service" ? list.find((item) => item.id === panel.id) : undefined;
-  const panelOpen = panel?.kind === "new" || selected !== undefined;
+  const panel = useEntityPanel(services.data?.data ?? []);
+  const { selected } = panel;
 
   const changeFilter = (next: string) => {
     setFilter(next as ServiceFilter);
-    setPanel(null);
+    panel.close();
   };
 
   const archiveService = (service: Service) =>
@@ -71,7 +59,7 @@ export function ServicesPage() {
       return;
     }
     await create.mutateAsync({ ...values, buffer_before_minutes: 0, position: 0 });
-    setPanel(null);
+    panel.close();
   }
 
   return (
@@ -81,7 +69,7 @@ export function ServicesPage() {
         description={t("catalog.services.description")}
         actions={
           <Can permission="appointments.service.manage">
-            <Button type="button" onClick={() => setPanel({ kind: "new" })}>
+            <Button type="button" onClick={panel.openNew}>
               <Plus aria-hidden="true" />
               {t("catalog.services.new")}
             </Button>
@@ -110,50 +98,42 @@ export function ServicesPage() {
         />
       ) : null}
 
-      {services.isPending ? (
-        <LoadingState label={t("common:loading")} />
-      ) : services.isError ? (
-        <QueryError error={services.error} onRetry={() => void services.refetch()} />
-      ) : list.length === 0 ? (
-        <ServicesEmpty
-          filter={filter}
-          canManage={canManage}
-          onAdd={() => setPanel({ kind: "new" })}
-        />
-      ) : (
-        <ServicesTable
-          services={list}
-          selectedId={selected?.id ?? null}
-          canManage={canManage}
-          onSelect={(id) => setPanel({ kind: "service", id })}
-          onArchive={archiveService}
-          onRestore={restoreService}
-        />
-      )}
+      <QueryBoundary
+        query={services}
+        isEmpty={(result) => result.data.length === 0}
+        empty={<ServicesEmpty filter={filter} canManage={canManage} onAdd={panel.openNew} />}
+      >
+        {(result) => (
+          <ServicesTable
+            services={result.data}
+            selectedId={selected?.id ?? null}
+            canManage={canManage}
+            onSelect={panel.select}
+            onArchive={archiveService}
+            onRestore={restoreService}
+          />
+        )}
+      </QueryBoundary>
 
-      {panelOpen ? (
-        <AsidePortal>
-          <ContextPanel
-            id="service-panel"
-            open
-            onOpenChange={(open) => (open ? undefined : setPanel(null))}
-            title={selected ? selected.name : t("catalog.services.panelNewTitle")}
-            closeLabel={t("catalog.closePanel")}
-          >
-            <ServiceForm
-              key={selected ? `${selected.id}:${selected.updated_at}` : "new"}
-              service={selected}
-              currency={selected?.currency ?? currency}
-              readOnly={!canManage}
-              onSubmit={saveService}
-            />
-            {selected && working.branch && canRead ? (
-              <div className="border-t pt-4">
-                <ServiceOverrideSection service={selected} branch={working.branch} />
-              </div>
-            ) : null}
-          </ContextPanel>
-        </AsidePortal>
+      {panel.open ? (
+        <CatalogAside
+          id="service-panel"
+          title={selected ? selected.name : t("catalog.services.panelNewTitle")}
+          onClose={panel.close}
+        >
+          <ServiceForm
+            key={selected ? `${selected.id}:${selected.updated_at}` : "new"}
+            service={selected}
+            currency={selected?.currency ?? currency}
+            readOnly={!canManage}
+            onSubmit={saveService}
+          />
+          {selected && working.branch && canRead ? (
+            <div className="border-t pt-4">
+              <ServiceOverrideSection service={selected} branch={working.branch} />
+            </div>
+          ) : null}
+        </CatalogAside>
       ) : null}
     </>
   );

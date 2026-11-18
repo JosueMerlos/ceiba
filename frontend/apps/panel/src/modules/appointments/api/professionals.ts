@@ -1,18 +1,18 @@
 import { unwrap, useApiClient, type components } from "@ceiba/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCatalogScope } from "./catalog";
+import {
+  APPOINTMENTS_BASE as BASE,
+  CSRF,
+  LIST_PAGE,
+  useCatalogScope,
+  type TimeOffInput,
+  type WeeklyScheduleInput,
+} from "./shared";
 
 type Schemas = components["schemas"];
 export type Professional = Schemas["Professional"];
 export type ProfessionalInput = Schemas["ProfessionalInput"];
 export type ProfessionalPatch = Schemas["ProfessionalPatch"];
-export type TimeOff = Schemas["TimeOff"];
-export type TimeOffInput = Schemas["TimeOffInput"];
-export type WeeklyScheduleInput = Schemas["WeeklyScheduleInput"];
-
-// The contract declares X-CSRF-Token as required; the client middleware replaces this with the real token.
-const CSRF = { "X-CSRF-Token": "" };
-const LIST_PAGE = { limit: 100 };
 
 // Every key carries organization and company (and branch where it applies) so two companies never share an entry.
 export const professionalKeys = {
@@ -25,20 +25,9 @@ export const professionalKeys = {
     ["catalog", "professional-company-time-offs", org, company, professional] as const,
 };
 
-const BASE = "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments";
-
-function useScope() {
-  const { organizationId, companyId } = useCatalogScope();
-  return {
-    organizationId,
-    companyId,
-    path: { organization_id: organizationId, company_id: companyId },
-  };
-}
-
 export function useProfessionalsQuery() {
   const client = useApiClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useQuery({
     queryKey: professionalKeys.all(organizationId, companyId),
     queryFn: () =>
@@ -48,7 +37,7 @@ export function useProfessionalsQuery() {
 
 function useInvalidateProfessionals() {
   const queryClient = useQueryClient();
-  const { organizationId, companyId } = useScope();
+  const { organizationId, companyId } = useCatalogScope();
   return () =>
     queryClient.invalidateQueries({ queryKey: professionalKeys.all(organizationId, companyId) });
 }
@@ -56,7 +45,7 @@ function useInvalidateProfessionals() {
 // Form mutations are `silent`: the form shows the failure next to the fields, so the global toast would repeat it.
 export function useCreateProfessional() {
   const client = useApiClient();
-  const { path } = useScope();
+  const { path } = useCatalogScope();
   const invalidate = useInvalidateProfessionals();
   return useMutation({
     mutationFn: (body: ProfessionalInput) =>
@@ -68,7 +57,7 @@ export function useCreateProfessional() {
 
 export function useUpdateProfessional() {
   const client = useApiClient();
-  const { path } = useScope();
+  const { path } = useCatalogScope();
   const invalidate = useInvalidateProfessionals();
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: ProfessionalPatch }) =>
@@ -85,7 +74,7 @@ export function useUpdateProfessional() {
 
 export function useArchiveProfessional() {
   const client = useApiClient();
-  const { path } = useScope();
+  const { path } = useCatalogScope();
   const invalidate = useInvalidateProfessionals();
   return useMutation({
     mutationFn: (id: string) =>
@@ -101,7 +90,7 @@ export function useArchiveProfessional() {
 /** PUT replaces the WHOLE set of services the professional provides. */
 export function usePutProfessionalServices() {
   const client = useApiClient();
-  const { path } = useScope();
+  const { path } = useCatalogScope();
   const invalidate = useInvalidateProfessionals();
   return useMutation({
     mutationFn: ({ id, serviceIds }: { id: string; serviceIds: string[] }) =>
@@ -119,7 +108,7 @@ export function usePutProfessionalServices() {
 /** Assigns (`assign`) or removes (`unassign`) a professional in a branch; both refresh the list of professionals. */
 export function useProfessionalAssignment() {
   const client = useApiClient();
-  const { path } = useScope();
+  const { path } = useCatalogScope();
   const invalidate = useInvalidateProfessionals();
   return useMutation({
     mutationFn: ({
@@ -150,7 +139,7 @@ export function useProfessionalScheduleQuery(
   { enabled = true } = {},
 ) {
   const client = useApiClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useQuery({
     queryKey: professionalKeys.schedule(organizationId, companyId, branchId, professionalId),
     queryFn: () =>
@@ -168,7 +157,7 @@ export function useProfessionalScheduleQuery(
 export function usePutProfessionalSchedule(branchId: string, professionalId: string) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useMutation({
     mutationFn: (body: WeeklyScheduleInput) =>
       unwrap(
@@ -194,7 +183,7 @@ export function useProfessionalTimeOffsQuery(
   { enabled = true } = {},
 ) {
   const client = useApiClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useQuery({
     queryKey: professionalKeys.timeOffs(organizationId, companyId, branchId, professionalId),
     queryFn: () =>
@@ -214,7 +203,7 @@ export function useProfessionalTimeOffsQuery(
 export function useCreateProfessionalTimeOff(branchId: string, professionalId: string) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useMutation({
     mutationFn: (body: TimeOffInput) =>
       unwrap(
@@ -237,7 +226,7 @@ export function useCreateProfessionalTimeOff(branchId: string, professionalId: s
 export function useDeleteProfessionalTimeOff(branchId: string, professionalId: string) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useMutation({
     mutationFn: (timeOffId: string) =>
       unwrap(
@@ -269,7 +258,7 @@ export function useDeleteProfessionalTimeOff(branchId: string, professionalId: s
  */
 export function useCompanyTimeOffsQuery(professionalId: string, { enabled = true } = {}) {
   const client = useApiClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useQuery({
     queryKey: professionalKeys.companyTimeOffs(organizationId, companyId, professionalId),
     queryFn: () =>
@@ -287,7 +276,7 @@ export function useCompanyTimeOffsQuery(professionalId: string, { enabled = true
 export function useDeleteCompanyTimeOff(professionalId: string) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useMutation({
     mutationFn: (timeOffId: string) =>
       unwrap(

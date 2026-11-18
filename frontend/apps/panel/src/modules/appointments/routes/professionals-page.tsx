@@ -1,9 +1,8 @@
 import { useTranslation } from "@ceiba/i18n";
-import { Button, ContextPanel, LoadingState, PageHeader, toast } from "@ceiba/ui";
+import { Button, PageHeader, toast } from "@ceiba/ui";
 import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Can, useCan } from "../../../platform/permissions/can";
-import { AsidePortal } from "../../../platform/shell/aside-slot";
 import {
   useArchiveProfessional,
   useCreateProfessional,
@@ -11,29 +10,25 @@ import {
   type Professional,
 } from "../api/professionals";
 import { BranchPicker } from "../components/branch-picker";
+import { CatalogAside } from "../components/catalog-aside";
 import { EmptyState } from "../components/empty-state";
 import { ProfessionalForm, type ProfessionalFormValues } from "../components/professional-form";
 import { ProfessionalsTable } from "../components/professionals-table";
-import { QueryError } from "../components/query-error";
+import { QueryBoundary } from "../components/query-boundary";
+import { useEntityPanel } from "../lib/use-entity-panel";
 import { useWorkingBranch } from "../lib/use-working-branch";
 import { ProfessionalPanel } from "./professional-panel";
-
-type Panel = { kind: "professional"; id: string } | { kind: "new" } | null;
 
 export function ProfessionalsPage() {
   const { t } = useTranslation(["appointments", "common"]);
   const canManage = useCan()("appointments.professional.manage");
   const working = useWorkingBranch();
 
-  const [panel, setPanel] = useState<Panel>(null);
   const professionals = useProfessionalsQuery();
   const create = useCreateProfessional();
   const archive = useArchiveProfessional();
-
-  const list = professionals.data?.data ?? [];
-  const selected =
-    panel?.kind === "professional" ? list.find((item) => item.id === panel.id) : undefined;
-  const panelOpen = panel?.kind === "new" || selected !== undefined;
+  const panel = useEntityPanel(professionals.data?.data ?? []);
+  const { selected } = panel;
   const branchNames = useMemo(
     () => new Map(working.branches.map((branch) => [branch.id, branch.name])),
     [working.branches],
@@ -47,7 +42,7 @@ export function ProfessionalsPage() {
   async function createProfessional(values: ProfessionalFormValues) {
     const created = await create.mutateAsync(values);
     // The new professional has no branch yet: open their panel so the next step (services, branch) is right there.
-    setPanel({ kind: "professional", id: created.data.id });
+    panel.select(created.data.id);
   }
 
   return (
@@ -57,7 +52,7 @@ export function ProfessionalsPage() {
         description={t("catalog.professionals.description")}
         actions={
           <Can permission="appointments.professional.manage">
-            <Button type="button" onClick={() => setPanel({ kind: "new" })}>
+            <Button type="button" onClick={panel.openNew}>
               <Plus aria-hidden="true" />
               {t("catalog.professionals.new")}
             </Button>
@@ -73,58 +68,53 @@ export function ProfessionalsPage() {
         />
       ) : null}
 
-      {professionals.isPending ? (
-        <LoadingState label={t("common:loading")} />
-      ) : professionals.isError ? (
-        <QueryError error={professionals.error} onRetry={() => void professionals.refetch()} />
-      ) : list.length === 0 ? (
-        <EmptyState
-          title={t("catalog.professionals.empty.title")}
-          description={
-            canManage
-              ? t("catalog.professionals.empty.description")
-              : t("catalog.professionals.empty.readOnlyDescription")
-          }
-          action={
-            canManage
-              ? {
-                  label: t("catalog.professionals.empty.action"),
-                  onClick: () => setPanel({ kind: "new" }),
-                }
-              : undefined
-          }
-        />
-      ) : (
-        <ProfessionalsTable
-          professionals={list}
-          branchNames={branchNames}
-          selectedId={selected?.id ?? null}
-          canManage={canManage}
-          onSelect={(id) => setPanel({ kind: "professional", id })}
-          onArchive={archiveProfessional}
-        />
-      )}
+      <QueryBoundary
+        query={professionals}
+        isEmpty={(result) => result.data.length === 0}
+        empty={
+          <EmptyState
+            title={t("catalog.professionals.empty.title")}
+            description={
+              canManage
+                ? t("catalog.professionals.empty.description")
+                : t("catalog.professionals.empty.readOnlyDescription")
+            }
+            action={
+              canManage
+                ? { label: t("catalog.professionals.empty.action"), onClick: panel.openNew }
+                : undefined
+            }
+          />
+        }
+      >
+        {(result) => (
+          <ProfessionalsTable
+            professionals={result.data}
+            branchNames={branchNames}
+            selectedId={selected?.id ?? null}
+            canManage={canManage}
+            onSelect={panel.select}
+            onArchive={archiveProfessional}
+          />
+        )}
+      </QueryBoundary>
 
-      {panelOpen ? (
-        <AsidePortal>
-          <ContextPanel
-            id="professional-panel"
-            open
-            onOpenChange={(open) => (open ? undefined : setPanel(null))}
-            title={selected ? selected.display_name : t("catalog.professionals.panelNewTitle")}
-            closeLabel={t("catalog.closePanel")}
-          >
-            {selected ? (
-              <ProfessionalPanel
-                professional={selected}
-                branches={working.branches}
-                workingBranch={working.branch}
-              />
-            ) : (
-              <ProfessionalForm key="new" onSubmit={createProfessional} />
-            )}
-          </ContextPanel>
-        </AsidePortal>
+      {panel.open ? (
+        <CatalogAside
+          id="professional-panel"
+          title={selected ? selected.display_name : t("catalog.professionals.panelNewTitle")}
+          onClose={panel.close}
+        >
+          {selected ? (
+            <ProfessionalPanel
+              professional={selected}
+              branches={working.branches}
+              workingBranch={working.branch}
+            />
+          ) : (
+            <ProfessionalForm key="new" onSubmit={createProfessional} />
+          )}
+        </CatalogAside>
       ) : null}
     </>
   );

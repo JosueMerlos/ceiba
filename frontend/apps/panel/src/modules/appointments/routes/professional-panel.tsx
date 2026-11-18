@@ -1,22 +1,10 @@
 import { useTranslation } from "@ceiba/i18n";
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  toast,
-} from "@ceiba/ui";
+import { toast } from "@ceiba/ui";
 import { useState } from "react";
-import { useMe } from "../../../platform/me/me-provider";
 import { useCan } from "../../../platform/permissions/can";
 import { useServicesQuery, type Branch } from "../api/catalog";
 import {
-  useCompanyTimeOffsQuery,
   useCreateProfessionalTimeOff,
-  useDeleteCompanyTimeOff,
   useDeleteProfessionalTimeOff,
   useProfessionalAssignment,
   useProfessionalScheduleQuery,
@@ -26,12 +14,14 @@ import {
   useUpdateProfessional,
   type Professional,
 } from "../api/professionals";
+import { AssignBranchDialog } from "../components/assign-branch-dialog";
 import { OwnerBranchSections, PanelSection, useOwnerAccess } from "../components/owner-sections";
 import { ProfessionalBranches } from "../components/professional-branches";
 import { ProfessionalForm } from "../components/professional-form";
 import { ProfessionalServices } from "../components/professional-services";
 import { TimeOffsList } from "../components/time-offs-list";
 import { DEFAULT_TIME_ZONE } from "../lib/time-zones";
+import { useOrphanTimeOffs, type AssignConfirmation } from "../lib/use-orphan-time-offs";
 
 interface ProfessionalPanelProps {
   professional: Professional;
@@ -47,29 +37,18 @@ export function ProfessionalPanel({
   branches,
   workingBranch,
 }: ProfessionalPanelProps) {
-  const { t } = useTranslation(["appointments", "common"]);
-  const { context } = useMe();
+  const { t } = useTranslation("appointments");
   const can = useCan();
   const canManage = can("appointments.professional.manage");
   const canAssign = can("appointments.professional.assign");
-  const canTimeOffRead = can("appointments.time_off.read");
   const canTimeOffManage = can("appointments.time_off.manage");
 
   const update = useUpdateProfessional();
   const putServices = usePutProfessionalServices();
   const assignment = useProfessionalAssignment();
   const services = useServicesQuery("active");
-
-  // Someone with no branch has absences no branch route reaches. Only a user holding the permission at COMPANY scope
-  // (no branch in the context) may read them; for anyone else the section stays out and the notice is generic.
-  const orphan = professional.branch_ids.length === 0;
-  const companyScope = !context.branch && canTimeOffRead;
-  const pending = useCompanyTimeOffsQuery(professional.id, { enabled: orphan && companyScope });
-  const removePending = useDeleteCompanyTimeOff(professional.id);
-
-  const [confirming, setConfirming] = useState<{ branch: Branch; count: number | null } | null>(
-    null,
-  );
+  const orphan = useOrphanTimeOffs(professional);
+  const [confirming, setConfirming] = useState<AssignConfirmation | null>(null);
 
   const assign = (branch: Branch) =>
     assignment.mutate(
@@ -80,15 +59,10 @@ export function ProfessionalPanel({
   function requestAssign(branchId: string) {
     const branch = branches.find((item) => item.id === branchId);
     if (!branch) return;
-    if (!orphan) return assign(branch);
-    if (pending.isSuccess) {
-      const count = pending.data.data.length;
-      return count === 0 ? assign(branch) : setConfirming({ branch, count });
-    }
-    setConfirming({ branch, count: null });
+    const confirmation = orphan.confirmationFor(branch);
+    if (confirmation) setConfirming(confirmation);
+    else assign(branch);
   }
-
-  const assignedHere = workingBranch !== null && professional.branch_ids.includes(workingBranch.id);
 
   return (
     <>
@@ -118,8 +92,7 @@ export function ProfessionalPanel({
         <ProfessionalBranches
           branches={branches}
           assignedIds={professional.branch_ids}
-          // While the company absences load, assigning waits: the confirmation needs to know whether there are any.
-          canAssign={canAssign && !pending.isLoading}
+          canAssign={canAssign && !orphan.loading}
           onAssign={requestAssign}
           onUnassign={(branchId) =>
             assignment.mutate({ branchId, professionalId: professional.id, assign: false })
@@ -127,71 +100,38 @@ export function ProfessionalPanel({
         />
       </PanelSection>
 
-      {orphan && companyScope && pending.isSuccess && pending.data.data.length > 0 ? (
+      {orphan.visible ? (
         <PanelSection
           title={t("catalog.timeOffs.pendingTitle")}
           description={t("catalog.timeOffs.pendingDescription")}
         >
           <TimeOffsList
-            timeOffs={pending.data.data}
+            timeOffs={orphan.timeOffs}
             timeZone={workingBranch?.time_zone ?? DEFAULT_TIME_ZONE}
             canManage={canTimeOffManage}
-            onDelete={(timeOff) =>
-              removePending.mutate(timeOff.id, {
-                onSuccess: () => toast.success(t("catalog.timeOffs.removed")),
-              })
-            }
+            onDelete={orphan.remove}
           />
         </PanelSection>
       ) : null}
 
-      {workingBranch && !assignedHere ? (
-        <p className="border-t pt-4 text-sm text-muted-foreground">
-          {t("catalog.timeOffs.needBranch", { branch: workingBranch.name })}
-        </p>
-      ) : null}
-      {workingBranch && assignedHere ? (
-        <BranchSections professional={professional} branch={workingBranch} />
+      {workingBranch ? (
+        professional.branch_ids.includes(workingBranch.id) ? (
+          <BranchSections professional={professional} branch={workingBranch} />
+        ) : (
+          <p className="border-t pt-4 text-sm text-muted-foreground">
+            {t("catalog.timeOffs.needBranch", { branch: workingBranch.name })}
+          </p>
+        )
       ) : null}
 
-      <Dialog
-        open={confirming !== null}
-        onOpenChange={(open) => (open ? undefined : setConfirming(null))}
-      >
-        <DialogContent closeLabel={t("common:close")}>
-          <DialogHeader>
-            <DialogTitle>
-              {t("catalog.professionalBranches.confirm.title", {
-                branch: confirming?.branch.name ?? "",
-              })}
-            </DialogTitle>
-            <DialogDescription>
-              {confirming?.count == null
-                ? t("catalog.professionalBranches.confirm.generic", {
-                    branch: confirming?.branch.name ?? "",
-                  })
-                : t("catalog.professionalBranches.confirm.description", {
-                    count: confirming.count,
-                    branch: confirming.branch.name,
-                  })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setConfirming(null)}>
-              {t("common:cancel")}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                if (confirming) assign(confirming.branch);
-                setConfirming(null);
-              }}
-            >
-              {t("catalog.professionalBranches.confirm.action")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AssignBranchDialog
+        confirmation={confirming}
+        onCancel={() => setConfirming(null)}
+        onConfirm={({ branch }) => {
+          assign(branch);
+          setConfirming(null);
+        }}
+      />
     </>
   );
 }

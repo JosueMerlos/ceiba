@@ -6,7 +6,7 @@ import {
   type components,
 } from "@ceiba/api-client";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMe } from "../../../platform/me/me-provider";
+import { CSRF, LIST_PAGE, useCatalogScope, type WeeklyScheduleInput } from "./shared";
 
 type Schemas = components["schemas"];
 export type Service = Schemas["Service"];
@@ -16,14 +16,9 @@ export type ServiceOverride = Schemas["ServiceOverride"];
 export type ServiceOverrideInput = Schemas["ServiceOverrideInput"];
 export type Branch = Schemas["Branch"];
 export type BranchInput = Schemas["BranchInput"];
-export type WeeklyScheduleSlot = Schemas["WeeklyScheduleSlot"];
-export type WeeklyScheduleInput = Schemas["WeeklyScheduleInput"];
 
 /** Which services the list shows: paused is "not archived and not active"; archived ignores `active`. */
 export type ServiceFilter = "active" | "paused" | "archived";
-
-// The contract declares X-CSRF-Token as required; the client middleware replaces this with the real token.
-const CSRF = { "X-CSRF-Token": "" };
 
 // Every key carries organization and company (and branch where it applies): a context switch also drops the cache, but
 // the key alone must never let two companies share an entry.
@@ -36,25 +31,6 @@ export const catalogKeys = {
     ["catalog", "branch-schedule", org, company, branch] as const,
 };
 
-const LIST_PAGE = { limit: 100 };
-
-/** Organization and company the catalog belongs to: always the working context from /me, never from the URL. */
-export function useCatalogScope() {
-  const { context } = useMe();
-  if (!context.organization || !context.company) {
-    throw new Error("El catálogo necesita una organización y una empresa en el contexto");
-  }
-  return {
-    organizationId: context.organization.id,
-    companyId: context.company.id,
-    currency: context.company.currency,
-  };
-}
-
-function servicesPath(organizationId: string, companyId: string) {
-  return { organization_id: organizationId, company_id: companyId };
-}
-
 const FILTER_QUERY: Record<ServiceFilter, { archived: boolean; active?: boolean }> = {
   active: { archived: false, active: true },
   paused: { archived: false, active: false },
@@ -63,7 +39,7 @@ const FILTER_QUERY: Record<ServiceFilter, { archived: boolean; active?: boolean 
 
 export function useServicesQuery(filter: ServiceFilter) {
   const client = useApiClient();
-  const { organizationId, companyId } = useCatalogScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useQuery({
     queryKey: catalogKeys.services(organizationId, companyId, filter),
     queryFn: () =>
@@ -72,7 +48,7 @@ export function useServicesQuery(filter: ServiceFilter) {
           "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services",
           {
             params: {
-              path: servicesPath(organizationId, companyId),
+              path,
               query: { ...FILTER_QUERY[filter], ...LIST_PAGE },
             },
           },
@@ -91,14 +67,14 @@ function useInvalidateServices() {
 // Form mutations are `silent`: the form shows the failure next to the fields, so the global toast would repeat it.
 export function useCreateService() {
   const client = useApiClient();
-  const { organizationId, companyId } = useCatalogScope();
+  const { path } = useCatalogScope();
   const invalidate = useInvalidateServices();
   return useMutation({
     mutationFn: (body: ServiceInput) =>
       unwrap(
         client.POST(
           "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services",
-          { params: { path: servicesPath(organizationId, companyId), header: CSRF }, body },
+          { params: { path, header: CSRF }, body },
         ),
       ),
     meta: { silent: true },
@@ -108,7 +84,7 @@ export function useCreateService() {
 
 export function useUpdateService() {
   const client = useApiClient();
-  const { organizationId, companyId } = useCatalogScope();
+  const { path } = useCatalogScope();
   const invalidate = useInvalidateServices();
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: ServicePatch }) =>
@@ -116,7 +92,7 @@ export function useUpdateService() {
         client.PATCH(
           "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services/{id}",
           {
-            params: { path: { ...servicesPath(organizationId, companyId), id }, header: CSRF },
+            params: { path: { ...path, id }, header: CSRF },
             body,
           },
         ),
@@ -128,14 +104,14 @@ export function useUpdateService() {
 
 export function useArchiveService() {
   const client = useApiClient();
-  const { organizationId, companyId } = useCatalogScope();
+  const { path } = useCatalogScope();
   const invalidate = useInvalidateServices();
   return useMutation({
     mutationFn: (id: string) =>
       unwrap(
         client.DELETE(
           "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services/{id}",
-          { params: { path: { ...servicesPath(organizationId, companyId), id }, header: CSRF } },
+          { params: { path: { ...path, id }, header: CSRF } },
         ),
       ),
     onSuccess: invalidate,
@@ -144,14 +120,14 @@ export function useArchiveService() {
 
 export function useRestoreService() {
   const client = useApiClient();
-  const { organizationId, companyId } = useCatalogScope();
+  const { path } = useCatalogScope();
   const invalidate = useInvalidateServices();
   return useMutation({
     mutationFn: (id: string) =>
       unwrap(
         client.POST(
           "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services/{id}/restore",
-          { params: { path: { ...servicesPath(organizationId, companyId), id }, header: CSRF } },
+          { params: { path: { ...path, id }, header: CSRF } },
         ),
       ),
     onSuccess: invalidate,
@@ -160,7 +136,7 @@ export function useRestoreService() {
 
 export function useServiceOverridesQuery(branchId: string | undefined, { enabled = true } = {}) {
   const client = useApiClient();
-  const { organizationId, companyId } = useCatalogScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useQuery({
     queryKey: catalogKeys.overrides(organizationId, companyId, branchId ?? ""),
     queryFn: () =>
@@ -169,7 +145,7 @@ export function useServiceOverridesQuery(branchId: string | undefined, { enabled
           "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/service_overrides",
           {
             params: {
-              path: { ...servicesPath(organizationId, companyId), branch_id: branchId! },
+              path: { ...path, branch_id: branchId! },
               query: LIST_PAGE,
             },
           },
@@ -183,7 +159,7 @@ export function useServiceOverridesQuery(branchId: string | undefined, { enabled
 export function usePutServiceOverride(branchId: string) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const { organizationId, companyId } = useCatalogScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useMutation({
     mutationFn: ({ serviceId, body }: { serviceId: string; body: ServiceOverrideInput }) =>
       unwrap(
@@ -192,7 +168,7 @@ export function usePutServiceOverride(branchId: string) {
           {
             params: {
               path: {
-                ...servicesPath(organizationId, companyId),
+                ...path,
                 branch_id: branchId,
                 service_id: serviceId,
               },
@@ -213,7 +189,7 @@ export function usePutServiceOverride(branchId: string) {
 export function useDeleteServiceOverride(branchId: string) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const { organizationId, companyId } = useCatalogScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useMutation({
     mutationFn: (serviceId: string) =>
       unwrap(
@@ -222,7 +198,7 @@ export function useDeleteServiceOverride(branchId: string) {
           {
             params: {
               path: {
-                ...servicesPath(organizationId, companyId),
+                ...path,
                 branch_id: branchId,
                 service_id: serviceId,
               },
@@ -248,15 +224,12 @@ export function useCompanyBranchesQuery() {
 export function useCreateBranch() {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const { organizationId, companyId } = useCatalogScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useMutation({
     mutationFn: (body: BranchInput) =>
       unwrap(
         client.POST("/api/v1/organizations/{organization_id}/companies/{company_id}/branches", {
-          params: {
-            path: { organization_id: organizationId, company_id: companyId },
-            header: CSRF,
-          },
+          params: { path, header: CSRF },
           body,
         }),
       ),
@@ -268,10 +241,10 @@ export function useCreateBranch() {
 
 function scheduleQuery(
   client: ReturnType<typeof useApiClient>,
-  organizationId: string,
-  companyId: string,
+  scope: ReturnType<typeof useCatalogScope>,
   branchId: string,
 ) {
+  const { organizationId, companyId, path } = scope;
   return {
     queryKey: catalogKeys.schedule(organizationId, companyId, branchId),
     queryFn: () =>
@@ -280,7 +253,7 @@ function scheduleQuery(
           "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/schedule",
           {
             params: {
-              path: { ...servicesPath(organizationId, companyId), branch_id: branchId },
+              path: { ...path, branch_id: branchId },
             },
           },
         ),
@@ -290,9 +263,9 @@ function scheduleQuery(
 
 export function useBranchScheduleQuery(branchId: string | undefined) {
   const client = useApiClient();
-  const { organizationId, companyId } = useCatalogScope();
+  const scope = useCatalogScope();
   return useQuery({
-    ...scheduleQuery(client, organizationId, companyId, branchId ?? ""),
+    ...scheduleQuery(client, scope, branchId ?? ""),
     enabled: !!branchId,
   });
 }
@@ -303,10 +276,10 @@ export function useBranchScheduleQuery(branchId: string | undefined) {
  */
 export function useBranchSchedulesQueries(branchIds: readonly string[], { enabled = true } = {}) {
   const client = useApiClient();
-  const { organizationId, companyId } = useCatalogScope();
+  const scope = useCatalogScope();
   return useQueries({
     queries: branchIds.map((branchId) => ({
-      ...scheduleQuery(client, organizationId, companyId, branchId),
+      ...scheduleQuery(client, scope, branchId),
       enabled,
       throwOnError: false,
     })),
@@ -317,7 +290,7 @@ export function useBranchSchedulesQueries(branchIds: readonly string[], { enable
 export function usePutBranchSchedule(branchId: string) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const { organizationId, companyId } = useCatalogScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useMutation({
     mutationFn: (body: WeeklyScheduleInput) =>
       unwrap(
@@ -325,7 +298,7 @@ export function usePutBranchSchedule(branchId: string) {
           "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/schedule",
           {
             params: {
-              path: { ...servicesPath(organizationId, companyId), branch_id: branchId },
+              path: { ...path, branch_id: branchId },
               header: CSRF,
             },
             body,

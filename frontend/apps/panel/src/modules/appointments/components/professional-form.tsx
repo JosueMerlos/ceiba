@@ -16,7 +16,7 @@ import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { Professional } from "../api/professionals";
-import { reportSubmitError } from "../lib/report-submit-error";
+import { reportSubmitError } from "../../../platform/forms/report-submit-error";
 import { FormAlert } from "./form-alert";
 
 export interface ProfessionalFormValues {

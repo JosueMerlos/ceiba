@@ -1,7 +1,13 @@
 import { unwrap, useApiClient, type components } from "@ceiba/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCatalogScope } from "./catalog";
-import type { TimeOffInput, WeeklyScheduleInput } from "./professionals";
+import {
+  APPOINTMENTS_BASE as BASE,
+  CSRF,
+  LIST_PAGE,
+  useCatalogScope,
+  type TimeOffInput,
+  type WeeklyScheduleInput,
+} from "./shared";
 
 type Schemas = components["schemas"];
 export type Resource = Schemas["Resource"];
@@ -12,10 +18,6 @@ export type ResourceKind = Resource["kind"];
 /** The contract's own enum, in the order the form offers it. */
 export const RESOURCE_KINDS: readonly ResourceKind[] = ["chair", "room", "equipment"];
 
-const CSRF = { "X-CSRF-Token": "" };
-const LIST_PAGE = { limit: 100 };
-const BASE = "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments";
-
 export const resourceKeys = {
   all: (org: string, company: string, branch: string) =>
     ["catalog", "resources", org, company, branch] as const,
@@ -25,18 +27,9 @@ export const resourceKeys = {
     ["catalog", "resource-time-offs", org, company, branch, resource] as const,
 };
 
-function useScope() {
-  const { organizationId, companyId } = useCatalogScope();
-  return {
-    organizationId,
-    companyId,
-    path: { organization_id: organizationId, company_id: companyId },
-  };
-}
-
 export function useResourcesQuery(branchId: string | undefined) {
   const client = useApiClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useQuery({
     queryKey: resourceKeys.all(organizationId, companyId, branchId ?? ""),
     queryFn: () =>
@@ -51,7 +44,7 @@ export function useResourcesQuery(branchId: string | undefined) {
 
 function useInvalidateResources(branchId: string) {
   const queryClient = useQueryClient();
-  const { organizationId, companyId } = useScope();
+  const { organizationId, companyId } = useCatalogScope();
   return () =>
     queryClient.invalidateQueries({
       queryKey: resourceKeys.all(organizationId, companyId, branchId),
@@ -60,7 +53,7 @@ function useInvalidateResources(branchId: string) {
 
 export function useCreateResource(branchId: string) {
   const client = useApiClient();
-  const { path } = useScope();
+  const { path } = useCatalogScope();
   const invalidate = useInvalidateResources(branchId);
   return useMutation({
     mutationFn: (body: ResourceInput) =>
@@ -77,7 +70,7 @@ export function useCreateResource(branchId: string) {
 
 export function useUpdateResource(branchId: string) {
   const client = useApiClient();
-  const { path } = useScope();
+  const { path } = useCatalogScope();
   const invalidate = useInvalidateResources(branchId);
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: ResourcePatch }) =>
@@ -94,7 +87,7 @@ export function useUpdateResource(branchId: string) {
 
 export function useArchiveResource(branchId: string) {
   const client = useApiClient();
-  const { path } = useScope();
+  const { path } = useCatalogScope();
   const invalidate = useInvalidateResources(branchId);
   return useMutation({
     mutationFn: (id: string) =>
@@ -113,7 +106,7 @@ export function useResourceScheduleQuery(
   { enabled = true } = {},
 ) {
   const client = useApiClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useQuery({
     queryKey: resourceKeys.schedule(organizationId, companyId, branchId, resourceId),
     queryFn: () =>
@@ -131,7 +124,7 @@ export function useResourceScheduleQuery(
 export function usePutResourceSchedule(branchId: string, resourceId: string) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useMutation({
     mutationFn: (body: WeeklyScheduleInput) =>
       unwrap(
@@ -157,7 +150,7 @@ export function useResourceTimeOffsQuery(
   { enabled = true } = {},
 ) {
   const client = useApiClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useQuery({
     queryKey: resourceKeys.timeOffs(organizationId, companyId, branchId, resourceId),
     queryFn: () =>
@@ -174,7 +167,7 @@ export function useResourceTimeOffsQuery(
 export function useCreateResourceTimeOff(branchId: string, resourceId: string) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useMutation({
     mutationFn: (body: TimeOffInput) =>
       unwrap(
@@ -197,7 +190,7 @@ export function useCreateResourceTimeOff(branchId: string, resourceId: string) {
 export function useDeleteResourceTimeOff(branchId: string, resourceId: string) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const { organizationId, companyId, path } = useScope();
+  const { organizationId, companyId, path } = useCatalogScope();
   return useMutation({
     mutationFn: (timeOffId: string) =>
       unwrap(
