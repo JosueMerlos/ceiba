@@ -395,7 +395,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description company_permissions: vacío sin empresa en el contexto */
+                /** @description el contexto del usuario */
                 200: {
                     headers: {
                         [name: string]: unknown;
