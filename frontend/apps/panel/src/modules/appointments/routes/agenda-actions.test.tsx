@@ -1,0 +1,277 @@
+import { screen, waitFor, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import {
+  PROFESSIONAL_PERMISSIONS,
+  RECEPTION_PERMISSIONS,
+  agendaAppointment,
+  agendaBackend,
+} from "../../../test/agenda-backend";
+import { branch, ids, meFixture } from "../../../test/fixtures";
+import { renderApp } from "../../../test/render-app";
+import { signedInBackend } from "../../../test/server";
+
+const route = "/agenda?date=2026-11-18";
+const centro = branch(ids.branchA, ids.companyA, "Sucursal Centro");
+const CONFLICT = { status: 409, code: "appointments.slot_unavailable" };
+const slot = {
+  professional_id: "p1",
+  resource_id: null,
+  starts_at: "2026-11-18T16:00:00.000Z",
+  ends_at: "2026-11-18T16:45:00.000Z",
+};
+const ana = { id: "c1", full_name: "Ana Ruiz", phone_e164: "+50588887777" };
+
+const asReception = () =>
+  signedInBackend({
+    me: meFixture({ role: "receptionist", permissions: RECEPTION_PERMISSIONS }),
+    branches: [centro],
+  });
+const detail = (overrides = {}) => ({ ...agendaAppointment(overrides), notes: null });
+
+type User = Awaited<ReturnType<typeof renderApp>>["user"];
+
+async function fillNewAppointment(user: User) {
+  await user.click(await screen.findByRole("button", { name: "Nueva cita" }));
+  const panel = await screen.findByRole("complementary", { name: "Nueva cita" });
+  await user.click(await within(panel).findByRole("checkbox", { name: "Corte de dama" }));
+  await user.click(await within(panel).findByRole("button", { name: /10:00/ }));
+  await user.type(within(panel).getByLabelText("Buscar cliente"), "Ana");
+  await user.click(await within(panel).findByRole("button", { name: /Ana Ruiz/ }));
+  return panel;
+}
+
+async function openDetail(user: User, name: RegExp = /Ana Ruiz/) {
+  await user.click(await screen.findByRole("button", { name }));
+  return screen.findByRole("complementary", { name: "Ana Ruiz" });
+}
+
+describe("Crear una cita", () => {
+  it("envía servicios, cliente, profesional, hora en UTC e Idempotency-Key", async () => {
+    asReception();
+    const backend = agendaBackend({ availability: [slot], customers: [ana] });
+    const { user } = await renderApp({ route });
+
+    const panel = await fillNewAppointment(user);
+    const before = backend.appointmentQueries.length;
+    await user.click(within(panel).getByRole("button", { name: "Confirmar cita" }));
+
+    await waitFor(() => expect(backend.writes).toHaveLength(1));
+    expect(backend.writes[0]).toMatchObject({
+      action: "book",
+      body: {
+        customer_id: "c1",
+        service_ids: ["s1"],
+        professional_id: "p1",
+        starts_at: "2026-11-18T16:00:00.000Z",
+      },
+    });
+    expect(backend.writes[0]?.key).toBeTruthy();
+    expect(backend.availabilityQueries[0]?.get("service_ids")).toBe("s1");
+    expect(backend.availabilityQueries[0]?.get("professional_id")).toBe("p1");
+    await waitFor(() => expect(backend.appointmentQueries.length).toBeGreaterThan(before));
+    await waitFor(() =>
+      expect(screen.queryByRole("complementary", { name: "Nueva cita" })).toBeNull(),
+    );
+  });
+
+  it("si otra persona ganó el hueco avisa, refresca y conserva el formulario", async () => {
+    asReception();
+    const backend = agendaBackend({ availability: [slot], customers: [ana], writeFailure: CONFLICT });
+    const { user } = await renderApp({ route });
+
+    const panel = await fillNewAppointment(user);
+    const before = backend.appointmentQueries.length;
+    await user.click(within(panel).getByRole("button", { name: "Confirmar cita" }));
+
+    expect(await screen.findByText(/El horario ya no está disponible/)).toBeTruthy();
+    await waitFor(() => expect(backend.appointmentQueries.length).toBeGreaterThan(before));
+    expect(screen.getByRole("complementary", { name: "Nueva cita" })).toBeTruthy();
+  });
+
+  it("reintentar sin cambios reutiliza la clave para no duplicar la cita", async () => {
+    asReception();
+    const backend = agendaBackend({
+      availability: [slot],
+      customers: [ana],
+      writeFailure: { status: 500, code: "internal.error" },
+    });
+    const { user } = await renderApp({ route });
+
+    const panel = await fillNewAppointment(user);
+    const confirm = within(panel).getByRole("button", { name: "Confirmar cita" });
+    await user.click(confirm);
+    await waitFor(() => expect(backend.writes).toHaveLength(1));
+    await waitFor(() => expect(confirm.hasAttribute("disabled")).toBe(false));
+    await user.click(confirm);
+
+    await waitFor(() => expect(backend.writes).toHaveLength(2));
+    expect(backend.writes[1]?.key).toBe(backend.writes[0]?.key);
+  });
+
+  it("crea un cliente nuevo y lo deja seleccionado", async () => {
+    asReception();
+    const backend = agendaBackend({ availability: [slot] });
+    const { user } = await renderApp({ route });
+
+    await user.click(await screen.findByRole("button", { name: "Nueva cita" }));
+    const panel = await screen.findByRole("complementary", { name: "Nueva cita" });
+    await user.type(await within(panel).findByLabelText("Buscar cliente"), "Eva");
+    await user.click(await within(panel).findByRole("button", { name: "Crear cliente" }));
+    await user.type(within(panel).getByLabelText("Nombre completo"), "Eva Luna");
+    await user.type(within(panel).getByLabelText("Teléfono"), "88881234");
+    await user.click(within(panel).getByRole("button", { name: "Guardar cliente" }));
+
+    await waitFor(() =>
+      expect(backend.createdCustomers).toEqual([{ full_name: "Eva Luna", phone_e164: "88881234" }]),
+    );
+    expect(await within(panel).findByText("Eva Luna")).toBeTruthy();
+  });
+
+  it("busca por teléfono cuando se escriben dígitos", async () => {
+    asReception();
+    const backend = agendaBackend({ customers: [ana] });
+    const { user } = await renderApp({ route });
+
+    await user.click(await screen.findByRole("button", { name: "Nueva cita" }));
+    const panel = await screen.findByRole("complementary", { name: "Nueva cita" });
+    await user.type(await within(panel).findByLabelText("Buscar cliente"), "8888-7777");
+
+    await waitFor(() =>
+      expect(backend.customerQueries.at(-1)?.get("phone")).toBe("8888-7777"),
+    );
+  });
+});
+
+describe("Detalle y estados", () => {
+  it("recepción marca la llegada y la agenda se actualiza", async () => {
+    asReception();
+    const backend = agendaBackend({
+      appointments: [agendaAppointment()],
+      details: { "cita-1": detail() },
+    });
+    const { user } = await renderApp({ route });
+
+    const panel = await openDetail(user);
+    const before = backend.appointmentQueries.length;
+    await user.click(await within(panel).findByRole("button", { name: "Marcar llegada" }));
+
+    await waitFor(() => expect(backend.writes[0]).toMatchObject({ action: "check_in", id: "cita-1" }));
+    await waitFor(() => expect(backend.appointmentQueries.length).toBeGreaterThan(before));
+  });
+
+  it("cancelar exige un motivo y lo envía como código", async () => {
+    asReception();
+    const backend = agendaBackend({
+      appointments: [agendaAppointment()],
+      details: { "cita-1": detail() },
+    });
+    const { user } = await renderApp({ route });
+
+    const panel = await openDetail(user);
+    await user.click(await within(panel).findByRole("button", { name: "Cancelar cita" }));
+    const confirm = within(panel).getByRole("button", { name: "Confirmar cancelación" });
+    expect(confirm.hasAttribute("disabled")).toBe(true);
+    await user.click(within(panel).getByRole("combobox", { name: "Motivo" }));
+    await user.click(await screen.findByRole("option", { name: "Lo pidió el cliente" }));
+    await user.click(confirm);
+
+    await waitFor(() =>
+      expect(backend.writes[0]).toMatchObject({
+        action: "cancel",
+        body: { reason: "customer_request" },
+      }),
+    );
+  });
+
+  it("el profesional no ve cancelar ni reprogramar", async () => {
+    signedInBackend({
+      me: meFixture({ role: "professional", permissions: PROFESSIONAL_PERMISSIONS }),
+      branches: [centro],
+    });
+    agendaBackend({
+      appointments: [agendaAppointment()],
+      details: { "cita-1": detail() },
+      professionalsForbidden: true,
+      profiles: { p1: "Rosa Martínez" },
+    });
+    const { user } = await renderApp({ route });
+
+    const panel = await openDetail(user);
+
+    expect(await within(panel).findByRole("button", { name: "Marcar llegada" })).toBeTruthy();
+    expect(within(panel).queryByRole("button", { name: "Cancelar cita" })).toBeNull();
+    expect(within(panel).queryByRole("button", { name: "Reprogramar" })).toBeNull();
+  });
+
+  it("mover por formulario llama a reprogramar con su clave", async () => {
+    asReception();
+    const backend = agendaBackend({
+      appointments: [agendaAppointment()],
+      details: { "cita-1": detail() },
+      availability: [slot],
+    });
+    const { user } = await renderApp({ route });
+
+    const panel = await openDetail(user);
+    await user.click(await within(panel).findByRole("button", { name: "Reprogramar" }));
+    await user.click(await within(panel).findByRole("button", { name: /10:00/ }));
+    await user.click(within(panel).getByRole("button", { name: "Mover cita" }));
+
+    await waitFor(() =>
+      expect(backend.writes[0]).toMatchObject({
+        action: "reschedule",
+        id: "cita-1",
+        body: { starts_at: "2026-11-18T16:00:00.000Z", professional_id: "p1" },
+      }),
+    );
+    expect(backend.writes[0]?.key).toBeTruthy();
+  });
+
+  it("un conflicto al mover avisa y refresca la agenda", async () => {
+    asReception();
+    const backend = agendaBackend({
+      appointments: [agendaAppointment()],
+      details: { "cita-1": detail() },
+      availability: [slot],
+      writeFailure: CONFLICT,
+    });
+    const { user } = await renderApp({ route });
+
+    const panel = await openDetail(user);
+    await user.click(await within(panel).findByRole("button", { name: "Reprogramar" }));
+    await user.click(await within(panel).findByRole("button", { name: /10:00/ }));
+    const before = backend.appointmentQueries.length;
+    await user.click(within(panel).getByRole("button", { name: "Mover cita" }));
+
+    expect(await screen.findByText(/El horario ya no está disponible/)).toBeTruthy();
+    await waitFor(() => expect(backend.appointmentQueries.length).toBeGreaterThan(before));
+  });
+
+  it("muestra de dónde viene una cita reprogramada", async () => {
+    asReception();
+    const moved = agendaAppointment({ rescheduled_from_id: "origen" });
+    const origin = detail({ id: "origen", status: "rescheduled", starts_at: "2026-11-17T15:00:00.000Z" });
+    agendaBackend({
+      appointments: [moved],
+      details: { "cita-1": { ...moved, notes: null }, origen: origin },
+    });
+    const { user } = await renderApp({ route });
+
+    const panel = await openDetail(user);
+
+    expect(await within(panel).findByText(/Reprogramada desde/)).toBeTruthy();
+    expect(within(panel).getByText(/17 de noviembre/)).toBeTruthy();
+  });
+
+  it("si no puede leer la cita de origen, el detalle sigue funcionando", async () => {
+    asReception();
+    const moved = agendaAppointment({ rescheduled_from_id: "ajena" });
+    agendaBackend({ appointments: [moved], details: { "cita-1": { ...moved, notes: null } } });
+    const { user } = await renderApp({ route });
+
+    const panel = await openDetail(user);
+
+    expect(await within(panel).findByRole("button", { name: "Marcar llegada" })).toBeTruthy();
+    expect(within(panel).queryByText(/Reprogramada desde/)).toBeNull();
+  });
+});

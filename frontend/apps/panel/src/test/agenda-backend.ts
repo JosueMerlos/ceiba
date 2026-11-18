@@ -65,6 +65,12 @@ interface AgendaBackendOptions {
   services?: { id: string; name: string }[];
   archivedServices?: { id: string; name: string }[];
   resources?: { id: string; name: string; active: boolean; archived_at: string | null }[];
+  availability?: { professional_id: string; resource_id: string | null; starts_at: string; ends_at: string }[];
+  customers?: { id: string; full_name: string; phone_e164: string }[];
+  /** Forces the answer of the next write: booking, moving or changing a status. */
+  writeFailure?: { status: number; code: string };
+  /** Details by id; an id left out answers 403, like someone else's appointment for a professional. */
+  details?: Record<string, AgendaAppointment & { notes: string | null }>;
   /** Answer 403 to the listing of professionals, like the API does for the `professional` role. */
   professionalsForbidden?: boolean;
   profiles?: Record<string, string>;
@@ -80,17 +86,79 @@ export function agendaBackend({
   services = [named("s1", "Corte de dama")],
   archivedServices = [],
   resources = [{ id: "r1", name: "Sillón 1", active: true, archived_at: null }],
+  availability = [],
+  customers = [],
+  writeFailure,
+  details = {},
   professionalsForbidden = false,
   profiles = {},
   branchId = ids.branchA,
 }: AgendaBackendOptions = {}) {
-  const state = { appointmentQueries: [] as URLSearchParams[], professionalListCalls: 0 };
+  const state = {
+    appointmentQueries: [] as URLSearchParams[],
+    professionalListCalls: 0,
+    availabilityQueries: [] as URLSearchParams[],
+    customerQueries: [] as URLSearchParams[],
+    writes: [] as { action: string; id: string | null; body: unknown; key: string | null }[],
+    createdCustomers: [] as unknown[],
+    failure: writeFailure,
+  };
+  const write = async (action: string, id: string | null, request: Request) => {
+    const text = await request.text();
+    state.writes.push({
+      action,
+      id,
+      body: text ? JSON.parse(text) : null,
+      key: request.headers.get("Idempotency-Key"),
+    });
+    if (state.failure) {
+      const { status, code } = state.failure;
+      return HttpResponse.json(problem(status, code), { status });
+    }
+    return HttpResponse.json({ data: agendaAppointment({ id: id ?? "nueva" }) }, { status: 201 });
+  };
   const forbidden = () => HttpResponse.json(problem(403, "access.forbidden"), { status: 403 });
 
   server.use(
     http.get(`${BRANCH(branchId)}/appointments`, ({ request }) => {
       state.appointmentQueries.push(new URL(request.url).searchParams);
       return HttpResponse.json({ data: appointments });
+    }),
+    http.post(`${BRANCH(branchId)}/appointments`, ({ request }) => write("book", null, request)),
+    http.get(`${BRANCH(branchId)}/appointments/:id`, ({ params }) => {
+      const detail = details[String(params.id)];
+      return detail ? HttpResponse.json({ data: detail }) : forbidden();
+    }),
+    http.patch(`${BRANCH(branchId)}/appointments/:id`, async ({ params, request }) => {
+      const body = await request.json();
+      state.writes.push({ action: "notes", id: String(params.id), body, key: null });
+      return HttpResponse.json({ data: details[String(params.id)] });
+    }),
+    http.post(`${BRANCH(branchId)}/appointments/:id/:action`, ({ params, request }) =>
+      write(String(params.action), String(params.id), request),
+    ),
+    http.get(`${BRANCH(branchId)}/availability`, ({ request }) => {
+      state.availabilityQueries.push(new URL(request.url).searchParams);
+      return HttpResponse.json({
+        data: availability,
+        meta: {
+          time_zone: "America/Managua",
+          duration_minutes: 45,
+          buffer_before_minutes: 0,
+          buffer_after_minutes: 0,
+          price: { amount_minor: 20_000, currency: "NIO" },
+          step_minutes: 15,
+        },
+      });
+    }),
+    http.get(`${CATALOG}/branches/${branchId}/customers`, ({ request }) => {
+      state.customerQueries.push(new URL(request.url).searchParams);
+      return HttpResponse.json(page(customers));
+    }),
+    http.post(`${CATALOG}/branches/${branchId}/customers`, async ({ request }) => {
+      const body = (await request.json()) as { full_name: string; phone_e164: string };
+      state.createdCustomers.push(body);
+      return HttpResponse.json({ data: { id: "c-nuevo", ...body } }, { status: 201 });
     }),
     http.get(`${CATALOG}/appointments/professionals`, () => {
       state.professionalListCalls += 1;
