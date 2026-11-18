@@ -4,6 +4,12 @@ import type { Branding, BrandingChanges, BrandingFile } from "@ceiba/api-client"
 // A Record, not a list: a new image kind in the contract fails to compile here until it is handled.
 const FILE_KINDS: Record<BrandingFile, true> = { logo: true, banner: true, favicon: true };
 export const FILE_FIELDS = Object.keys(FILE_KINDS) as BrandingFile[];
+/** Per-kind size limits in bytes; the API enforces the same ones (BrandingAssets::ASSETS), this only spares a doomed upload. */
+export const FILE_MAX_BYTES: Record<BrandingFile, number> = {
+  logo: 2 * 1024 * 1024,
+  banner: 5 * 1024 * 1024,
+  favicon: 200 * 1024,
+};
 export const COLOR_FIELDS = ["primaryColor", "secondaryColor", "accentColor"] as const;
 export type ColorField = (typeof COLOR_FIELDS)[number];
 

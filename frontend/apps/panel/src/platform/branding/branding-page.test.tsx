@@ -160,7 +160,9 @@ describe("pantalla de marca", () => {
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toBe("Los archivos pesan demasiado en total. Elija unos más livianos.");
+    expect(alert.textContent).toBe(
+      "Los archivos pesan demasiado en total. Elija unos más livianos.",
+    );
   });
 
   it("un 413 del proxy que no es problem+json también se muestra como alerta", async () => {
@@ -170,12 +172,14 @@ describe("pantalla de marca", () => {
       http.patch(brandingUrl, () => new HttpResponse("Request Entity Too Large", { status: 413 })),
     );
     const { user } = await renderApp({ route: ROUTE });
-    await user.upload(await screen.findByLabelText("Logo"), png());
+    await user.type(await screen.findByLabelText("Nombre comercial"), "Salón");
 
     await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toBe("Los archivos pesan demasiado en total. Elija unos más livianos.");
+    expect(alert.textContent).toBe(
+      "Los archivos pesan demasiado en total. Elija unos más livianos.",
+    );
   });
 
   it("un archivo que supera el límite de su tipo se bloquea antes de enviar nada", async () => {

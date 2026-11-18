@@ -22,6 +22,8 @@ export const errors = {
     "auth.csrf_invalid":
       "La verificación de seguridad venció. Recargue la página e intente de nuevo.",
     "auth.origin_forbidden": "La solicitud no vino de la aplicación. Recargue la página.",
+    "request.too_large": "Los archivos pesan demasiado en total. Elija unos más livianos.",
+    "http.413": "Los archivos pesan demasiado en total. Elija unos más livianos.",
     rate_limited: "Demasiados intentos seguidos. Espere un momento e intente de nuevo.",
     "access.organization_suspended": "Esta organización está suspendida. Contacte a soporte.",
     "slot.unavailable": "El horario ya no está disponible. Elija otro.",

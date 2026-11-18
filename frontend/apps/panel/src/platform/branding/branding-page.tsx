@@ -3,6 +3,7 @@ import {
   useBrandingQuery,
   useUpdateBrandingMutation,
   type Branding,
+  type BrandingFile,
 } from "@ceiba/api-client";
 import { analyzeBranding, readSurfaces } from "@ceiba/branding";
 import { loadBrandFont } from "@ceiba/branding/react";
@@ -17,6 +18,7 @@ import { useCan } from "../permissions/can";
 import { useMe } from "../me/me-provider";
 import { BrandingEditPanel } from "./branding-edit-panel";
 import {
+  FILE_MAX_BYTES,
   formFieldFor,
   savedAssetUrl,
   toBrandingInput,
@@ -90,6 +92,7 @@ function BrandingEditor({ saved, target, companyName }: BrandingEditorProps) {
 
   const onSubmit = form.handleSubmit((submitted) => {
     setUnmapped(null);
+    if (!withinSizeLimits()) return;
     const removed = files.removed.filter((name) => saved.assets[name] !== null);
     update.mutate(toChanges(submitted, files.files, removed), {
       onSuccess: (response) => {
@@ -101,8 +104,25 @@ function BrandingEditor({ saved, target, companyName }: BrandingEditorProps) {
     });
   });
 
+  // Blocks the submit when a chosen file is over its kind's limit, with the same message the API's 422 would give.
+  function withinSizeLimits() {
+    const tooBig = (Object.keys(files.files) as BrandingFile[]).filter(
+      (kind) => files.files[kind]!.size > FILE_MAX_BYTES[kind],
+    );
+    tooBig.forEach((kind, index) =>
+      form.setError(
+        kind,
+        { type: "client", message: t("branding:errors.code.file_too_large") },
+        { shouldFocus: index === 0 },
+      ),
+    );
+    return tooBig.length === 0;
+  }
+
+  // 413: the whole body was refused (by the API or by the proxy), so no field is to blame; it is shown as a general message.
   // 422: each error goes under its field and the first one takes focus; anything else is a general message.
   function showServerErrors(error: unknown) {
+    if (isApiError(error) && error.status === 413) return setUnmapped(error);
     if (!isApiError(error) || error.status !== 422) return;
     const translate = translator(t);
     let leftover = false;
