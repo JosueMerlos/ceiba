@@ -420,7 +420,7 @@ describe("Profesionales: sin sucursales (ausencias pendientes y aviso al asignar
     const panel = await openPanel(user, "Sandra Gómez");
     const section = await within(panel).findByRole("region", { name: "Ausencias pendientes" });
 
-    expect(await within(section).findByText(/10:00/)).toBeTruthy();
+    expect((await within(section).findAllByText(/10:00/)).length).toBeGreaterThan(0);
     expect(within(section).getByText(/America\/New_York/)).toBeTruthy();
   });
 

@@ -252,6 +252,7 @@ export const appointments = {
       pendingTitle: "Ausencias pendientes",
       pendingDescription:
         "Este profesional no tiene sucursal, pero conserva ausencias registradas. Revíselas o quítelas antes de asignarlo.",
+      pendingZone: "Horas en la zona {{zone}}.",
       empty: "No hay ausencias registradas.",
       range: "{{start}} a {{end}}",
       remove: "Quitar",

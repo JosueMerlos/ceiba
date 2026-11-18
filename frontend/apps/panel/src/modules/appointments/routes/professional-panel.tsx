@@ -48,6 +48,8 @@ export function ProfessionalPanel({
   const assignment = useProfessionalAssignment();
   const services = useServicesQuery("active");
   const orphan = useOrphanTimeOffs(professional);
+  // Without a chosen branch, the zone of the company's first branch; the default only while the company has none.
+  const orphanTimeZone = workingBranch?.time_zone ?? branches[0]?.time_zone ?? DEFAULT_TIME_ZONE;
   const [confirming, setConfirming] = useState<AssignConfirmation | null>(null);
 
   const assign = (branch: Branch) =>
@@ -107,10 +109,13 @@ export function ProfessionalPanel({
         >
           <TimeOffsList
             timeOffs={orphan.timeOffs}
-            timeZone={workingBranch?.time_zone ?? DEFAULT_TIME_ZONE}
+            timeZone={orphanTimeZone}
             canManage={canTimeOffManage}
             onDelete={orphan.remove}
           />
+          <p className="mt-3 text-xs text-muted-foreground">
+            {t("catalog.timeOffs.pendingZone", { zone: orphanTimeZone })}
+          </p>
         </PanelSection>
       ) : null}
 
