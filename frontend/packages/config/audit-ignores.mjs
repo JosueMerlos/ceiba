@@ -1,8 +1,11 @@
 // Policy for advisories ignored by `pnpm audit`: pnpm has no expiry, so an ignore would otherwise be permanent.
-// Every advisory in pnpm's effective config must have its own line in pnpm-workspace.yaml:
-//   - GHSA-xxxx-xxxx-xxxx # revisar: AAAA-MM-DD | motivo: why it does not apply and what unblocks it
+// Every advisory in pnpm's effective config must have one entry in the audit.ignore block of pnpm-workspace.yaml:
+//   audit:
+//     ignore:
+//       - GHSA-xxxx-xxxx-xxxx # revisar: AAAA-MM-DD | motivo: why it does not apply and what unblocks it
 // Starting from the effective config covers every way of declaring an ignore that pnpm resolves into it (any YAML
-// spelling, environment variables, global config); the file is only read for the annotations YAML parsers discard.
+// spelling, environment variables, global config). The block is read as text because YAML parsers discard comments;
+// any other spelling of it yields no entries, so its advisories fail.
 //
 //   pnpm config get audit --json | node packages/config/audit-ignores.mjs pnpm-workspace.yaml
 import { readFileSync } from "node:fs";
@@ -16,13 +19,27 @@ function isCalendarDate(value) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
 }
 
-function annotationsById(workspaceYaml) {
-  const entries = workspaceYaml.split(/\r\n|\r|\n/).map((line) => line.match(LIST_ENTRY)?.groups);
-  return new Map(entries.filter(Boolean).map(({ id, comment }) => [id, comment]));
+function ignoreEntries(workspaceYaml) {
+  const lines = workspaceYaml.split(/\r\n|\r|\n/);
+  const start = lines.findIndex(
+    (line, index) => /^audit:\s*$/.test(line) && /^\s+ignore:\s*$/.test(lines[index + 1] ?? ""),
+  );
+  if (start === -1) return [];
+
+  const entries = [];
+  for (const line of lines.slice(start + 2)) {
+    const entry = line.match(LIST_ENTRY)?.groups;
+    if (!entry) break;
+    entries.push(entry);
+  }
+  return entries;
 }
 
-function violationFor(id, comment, today) {
-  const date = comment?.match(POLICY)?.groups.date;
+function violationFor(id, entries, today) {
+  const matches = entries.filter((entry) => entry.id === id);
+  if (matches.length > 1) return `${id}: aparece más de una vez en audit.ignore`;
+
+  const date = matches[0]?.comment?.match(POLICY)?.groups.date;
   if (!date) return `${id}: falta '# revisar: AAAA-MM-DD | motivo: ...' en su propia línea`;
   if (!isCalendarDate(date)) return `${id}: fecha de revisión inválida '${date}'`;
   return date < today ? `${id}: fecha de revisión vencida (${date})` : null;
@@ -54,9 +71,9 @@ export function parseIgnoredAdvisories(output) {
  * @returns {string[]} one message per violation; empty when every ignore complies
  */
 export function auditIgnoreViolations(workspaceYaml, ignoredAdvisories, today) {
-  const annotations = annotationsById(workspaceYaml);
-  return ignoredAdvisories
-    .map((id) => violationFor(id, annotations.get(id), today))
+  const entries = ignoreEntries(workspaceYaml);
+  return [...new Set(ignoredAdvisories)]
+    .map((id) => violationFor(id, entries, today))
     .filter((violation) => violation !== null);
 }
 

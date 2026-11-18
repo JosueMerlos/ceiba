@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # frontend-security CI job (and bin/ci): dependencies with high or critical vulnerabilities.
-# Every advisory pnpm ignores needs a line in pnpm-workspace.yaml with a reason and an unexpired review date.
+# Every advisory in pnpm's effective audit config needs an audit.ignore entry with a reason and an unexpired review date.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

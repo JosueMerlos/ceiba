@@ -17,7 +17,7 @@
 
 ## Decisión
 
-Los avisos de `pnpm audit` se ignoran uno por uno en `audit.ignore` de `frontend/pnpm-workspace.yaml`, cada uno en su línea con `# revisar: AAAA-MM-DD | motivo: ...`. Antes del audit, `frontend/bin/ci-security` pasa la configuración efectiva (`pnpm config get audit --json`) a `packages/config/audit-ignores.mjs`: cada aviso que pnpm vaya a ignorar debe tener esa línea, con motivo y con una fecha válida y no vencida. Si no, o si la configuración no se puede leer, el check falla.
+Los avisos de `pnpm audit` se ignoran uno por uno en `audit.ignore` de `frontend/pnpm-workspace.yaml`, cada uno en su línea con `# revisar: AAAA-MM-DD | motivo: ...`. Antes del audit, `frontend/bin/ci-security` pasa la configuración efectiva (`pnpm config get audit --json`) a `packages/config/audit-ignores.mjs`: cada aviso de esa configuración debe tener una única entrada en ese bloque, con motivo y con una fecha válida y no vencida. Si no, o si la configuración no se puede leer, el check falla.
 
 Se ignora GHSA-fc5q-39xc-vjpf con revisión el 2026-12-18. El nivel del audit y su alcance no cambian.
 
@@ -33,7 +33,7 @@ Se ignora GHSA-fc5q-39xc-vjpf con revisión el 2026-12-18. El nivel del audit y 
 ## Consecuencias
 
 - **Positivas:** `main` y los PR se desbloquean sin apagar el check; cada excepción queda justificada y caduca.
-- **Negativas / costos aceptados:** al vencer la fecha, `frontend-security` falla en todos los PR hasta revisar el aviso. Mientras dure el ignorado, este aviso no se reporta aunque aparezca por una ruta nueva. La fecha no tiene tope, igual que en el backend: la revisión del PR debe juzgar si es razonable. El control no cubre un `.pnpmfile.cjs` que cambie la configuración con `updateConfig`, porque `pnpm config get` no lo refleja: hoy no existe ninguno, y añadirlo exige un cambio de código revisado, igual que alterar `ci-security`.
+- **Negativas / costos aceptados:** al vencer la fecha, `frontend-security` falla en todos los PR hasta revisar el aviso. Mientras dure el ignorado, este aviso no se reporta aunque aparezca por una ruta nueva. La fecha no tiene tope, igual que en el backend: la revisión del PR debe juzgar si es razonable. El control no cubre hooks `updateConfig` de pnpm, porque `pnpm config get` no los refleja: pueden cargarse desde un `.pnpmfile.cjs`, desde la clave `pnpmfile` del workspace o desde las variables `pnpm_config_pnpmfile` y `pnpm_config_global_pnpmfile`. Hoy el repositorio no define ninguno. Se acepta porque las dos primeras vías se ven en la revisión del PR y las variables exigen controlar el entorno del job, y quien lo controla también puede alterar el propio check.
 - **Qué obliga a hacer:** revisar el aviso antes de la fecha; quitar la entrada en cuanto exista una versión corregida, o renovarla con un motivo actualizado.
 
 ## Cuándo revisarla
