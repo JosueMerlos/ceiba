@@ -115,7 +115,7 @@ RSpec.describe "API v1: overrides de servicio por sucursal" do
         let!(:signed_in) { sign_in(user_with_role("org_admin", world)) }
         schema "$ref" => "#/components/schemas/Problem"
 
-        run_test!
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("access.forbidden") }
       end
 
       response "404", "una sucursal hermana a la que el branch_manager no pertenece" do
@@ -132,6 +132,21 @@ RSpec.describe "API v1: overrides de servicio por sucursal" do
         schema "$ref" => "#/components/schemas/Problem"
 
         run_test!
+      end
+
+      response "404", "el company_manager de la empresa hermana (misma organización) no ve la empresa de la ruta" do
+        let!(:signed_in) { sign_in(user_with_role("company_manager", world, company: world.company_b)) }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("resource.not_found") }
+      end
+
+      response "404", "una empresa de otra organización" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:company_id) { build_access_world.company_a.id }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("resource.not_found") }
       end
 
       response "404", "con el módulo de citas desactivado en la empresa (el gate)" do

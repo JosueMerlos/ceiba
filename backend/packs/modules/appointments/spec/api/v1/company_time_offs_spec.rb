@@ -14,6 +14,10 @@ RSpec.describe "API v1: ausencias de un profesional por empresa" do
   let!(:modules_enabled) do
     with_tenant(world.organization) { [ world.company_a, world.company_b ].each { |company| Modules::Enable.call(company:, key: "appointments") } }
   end
+  let!(:orphan) { professional_in(world.company_a, display_name: "Sin sucursal") }
+  let(:professional_id) { orphan.id }
+  let!(:mine) { time_off_for({ professional: orphan }, reason: "Vacaciones") }
+  let!(:theirs) { time_off_for({ professional: professional_in(world.company_a, display_name: "Otra") }, reason: "Congreso") }
 
   list_schema = {
     type: :object, required: %w[data page], additionalProperties: false, properties: {
@@ -27,11 +31,6 @@ RSpec.describe "API v1: ausencias de un profesional por empresa" do
   def time_off_for(owner, **attributes) = create_in(world.organization, :time_off, **owner, **attributes)
   def stored_time_offs = with_tenant(world.organization) { Appointments::TimeOff.order(:created_at).to_a }
   def audit_events(action) = with_tenant(world.organization) { Audit::Event.where(action:).to_a }
-
-  let!(:orphan) { professional_in(world.company_a, display_name: "Sin sucursal") }
-  let(:professional_id) { orphan.id }
-  let!(:mine) { time_off_for({ professional: orphan }, reason: "Vacaciones") }
-  let!(:theirs) { time_off_for({ professional: professional_in(world.company_a, display_name: "Otra") }, reason: "Congreso") }
 
   path "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/professionals/{professional_id}/time_offs" do
     parameter name: :organization_id, in: :path, schema: { type: :string, format: :uuid }, required: true
@@ -85,7 +84,7 @@ RSpec.describe "API v1: ausencias de un profesional por empresa" do
         let!(:signed_in) { sign_in(user_with_role("receptionist", world, branch: world.branch_a1)) }
         schema "$ref" => "#/components/schemas/Problem"
 
-        run_test!
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("access.forbidden") }
       end
 
       response "403", "el propio profesional (manage_own) no entra por esta ruta" do
@@ -98,7 +97,7 @@ RSpec.describe "API v1: ausencias de un profesional por empresa" do
         let!(:signed_in) { sign_in(person) }
         schema "$ref" => "#/components/schemas/Problem"
 
-        run_test!
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("access.forbidden") }
       end
 
       %w[org_owner org_admin].each do |role|
@@ -106,13 +105,28 @@ RSpec.describe "API v1: ausencias de un profesional por empresa" do
           let!(:signed_in) { sign_in(user_with_role(role, world)) }
           schema "$ref" => "#/components/schemas/Problem"
 
-          run_test!
+          run_test! { |response| expect(response.parsed_body["code"]).to eq("access.forbidden") }
         end
       end
 
       response "404", "un profesional de otra empresa de la misma organización" do
         let!(:signed_in) { sign_in(manager) }
         let(:professional_id) { professional_in(world.company_b).id }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("resource.not_found") }
+      end
+
+      response "404", "el company_manager de la empresa hermana (misma organización) no ve la empresa de la ruta" do
+        let!(:signed_in) { sign_in(user_with_role("company_manager", world, company: world.company_b)) }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("resource.not_found") }
+      end
+
+      response "404", "una empresa de otra organización" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:company_id) { build_access_world.company_a.id }
         schema "$ref" => "#/components/schemas/Problem"
 
         run_test! { |response| expect(response.parsed_body["code"]).to eq("resource.not_found") }
@@ -159,7 +173,10 @@ RSpec.describe "API v1: ausencias de un profesional por empresa" do
         let!(:assignment) { assign(orphan, world.branch_a1) }
         schema "$ref" => "#/components/schemas/Problem"
 
-        run_test! { expect(stored_time_offs.size).to eq(2) }
+        run_test! do |response|
+          expect(response.parsed_body["code"]).to eq("access.forbidden")
+          expect(stored_time_offs.size).to eq(2)
+        end
       end
 
       %w[receptionist professional].each do |role|
@@ -167,7 +184,10 @@ RSpec.describe "API v1: ausencias de un profesional por empresa" do
           let!(:signed_in) { sign_in(user_with_role(role, world, branch: world.branch_a1)) }
           schema "$ref" => "#/components/schemas/Problem"
 
-          run_test! { expect(stored_time_offs.size).to eq(2) }
+          run_test! do |response|
+          expect(response.parsed_body["code"]).to eq("access.forbidden")
+          expect(stored_time_offs.size).to eq(2)
+        end
         end
       end
 
@@ -176,7 +196,49 @@ RSpec.describe "API v1: ausencias de un profesional por empresa" do
           let!(:signed_in) { sign_in(user_with_role(role, world)) }
           schema "$ref" => "#/components/schemas/Problem"
 
-          run_test! { expect(stored_time_offs.size).to eq(2) }
+          run_test! do |response|
+          expect(response.parsed_body["code"]).to eq("access.forbidden")
+          expect(stored_time_offs.size).to eq(2)
+        end
+        end
+      end
+
+      response "403", "el propio profesional vinculado (manage_own) no borra su ausencia por la ruta de empresa" do
+        let(:person) { create(:user) }
+        let!(:own) do
+          user_with_role("professional", world, branch: world.branch_a1, user: person)
+          professional_in(world.company_a, display_name: "Yo", user_id: person.id).tap { assign(it, world.branch_a1) }
+        end
+        let!(:own_time_off) { time_off_for({ professional: own }, reason: "Mía") }
+        let(:professional_id) { own.id }
+        let(:professional_time_off_id) { own_time_off.id }
+        let!(:signed_in) { sign_in(person) }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! do |response|
+          expect(response.parsed_body["code"]).to eq("access.forbidden")
+          expect(stored_time_offs.size).to eq(3)
+        end
+      end
+
+      response "404", "el company_manager de la empresa hermana (misma organización): la fila sobrevive" do
+        let!(:signed_in) { sign_in(user_with_role("company_manager", world, company: world.company_b)) }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! do |response|
+          expect(response.parsed_body["code"]).to eq("resource.not_found")
+          expect(stored_time_offs.size).to eq(2)
+        end
+      end
+
+      response "404", "una empresa de otra organización: la fila sobrevive" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:company_id) { build_access_world.company_a.id }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! do |response|
+          expect(response.parsed_body["code"]).to eq("resource.not_found")
+          expect(stored_time_offs.size).to eq(2)
         end
       end
 
