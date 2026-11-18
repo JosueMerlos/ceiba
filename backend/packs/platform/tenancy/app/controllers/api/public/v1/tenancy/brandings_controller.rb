@@ -6,7 +6,7 @@ module Api
         # Inside this namespace `Tenancy` is Api::Public::V1::Tenancy: the pack's own constants are always written `::Tenancy`.
         #
         # It always revalidates (`Cache-Control: public, no-cache` + ETag) so a changed brand shows up without clearing any
-        # cache, and the 304 is cheap. The ETag is the company's version: saving a brand bumps it, images included (see
+        # cache, and the 304 is cheap. The ETag is the serializer's version plus the company's version: saving a brand bumps it, images included (see
         # Tenancy::BrandingAssets#touch!). An unknown slug, a suspended organization and an inactive company all answer the same 404.
         class BrandingsController < ::Api::BaseController
           skip_authentication!
@@ -16,7 +16,7 @@ module Api
           def show
             company = Current.context.company
             expires_now
-            return unless stale?(etag: company.cache_key_with_version, public: true)
+            return unless stale?(etag: [ ::Tenancy::BrandingSerializer::VERSION, company.cache_key_with_version ], public: true)
 
             render json: { data: ::Tenancy::BrandingSerializer.new(company).serializable_hash }
           end

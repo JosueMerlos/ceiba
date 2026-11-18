@@ -3,6 +3,7 @@
 #
 #   - with a body that is not application/json   -> 415 request.unsupported_media_type
 #   - with parameters in the query string        -> 400 request.query_not_allowed
+#   - multipart with no length or above the cap  -> 413 request.too_large
 #
 # Why here and not in a before_action:
 #   * A JSON body WITHOUT Content-Type is parsed by Rack as a form and Rails' "Parameters:" log line records it as a KEY,
@@ -24,6 +25,9 @@ class ApiRequestGuard
   BRANDING_PATH = %r{\A/api/v1/organizations/#{UUID}/companies/#{UUID}/branding\z}i
   # The only mutations that may carry multipart/form-data: [method, path pattern]. Adding a route here is a security decision.
   MULTIPART_ROUTES = [ [ "PATCH", BRANDING_PATH ] ].freeze
+  # The three images at their size limits (2 + 5 + 0.2 MB) plus the text fields and the multipart framing, rounded up. Anything
+  # larger cannot be a valid request, so it is refused before Rack buffers it into a temporary file.
+  MAX_MULTIPART_BYTES = 8 * 1024 * 1024
 
   def initialize(app)
     @app = app
@@ -41,9 +45,18 @@ class ApiRequestGuard
 
   def violation_for(request)
     return Api::QueryNotAllowed.new("Las mutaciones no admiten parámetros en la query string") if request.query_string.present?
-    return unless body?(request) && request.media_type != "application/json" && !multipart_allowed?(request)
+    return unless body?(request) && request.media_type != "application/json"
+    return multipart_violation(request) if multipart_allowed?(request)
 
     Api::UnsupportedMediaType.new("Las mutaciones de la API solo aceptan application/json")
+  end
+
+  # The allowed multipart body must declare its length (a chunked body has no known size) and stay within the cap.
+  def multipart_violation(request)
+    length = request.content_length
+    return if length.present? && length.to_i <= MAX_MULTIPART_BYTES && request.get_header("HTTP_TRANSFER_ENCODING").blank?
+
+    Api::PayloadTooLarge.new("El cuerpo multipart supera el tamaño máximo permitido (#{MAX_MULTIPART_BYTES / 1.megabyte} MB)")
   end
 
   def multipart_allowed?(request)

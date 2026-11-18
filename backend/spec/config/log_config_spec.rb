@@ -7,7 +7,7 @@ RSpec.describe "Configuración del log" do
   end
 
   it "lograge cubre también los controladores que heredan de ActionController::Base (el proxy de archivos), no solo la API" do
-    expect(Array(Rails.application.config.lograge.base_controller_class)).to include("ActionController::API", "ActionController::Base")
+    expect(Array(Rails.application.config.lograge.base_controller_class).map(&:to_s)).to include("ActionController::API", "ActionController::Base")
   end
 
   it "en desarrollo el nivel por defecto es info: el SQL (debug) lleva literales con datos personales y no se escribe" do

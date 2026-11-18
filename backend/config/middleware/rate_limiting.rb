@@ -12,7 +12,7 @@ module RateLimiting
   # call (a 404), not this layer's. Compared on the DECODED, slash-squeezed path, ignoring case and surrounding whitespace, which is how the router will
   # resolve it: a variant must not slip past with a counter of its own while still reaching the endpoint.
   PUBLIC_AVAILABILITY_PATH = %r{\A/api/public/v1/c/([^/]+)/availability/?\z}i
-  # Branding files served by Tenancy::Storage::RepresentationsController.
+  # Branding files served by Tenancy::Storage::RepresentationsController (matched on the decoded, slash-squeezed path).
   STORAGE_PATH = %r{\A/api/storage/}
   PROBE_PATHS = %w[/api/health /api/ready].freeze
   MAX_LOGIN_BODY_BYTES = 4096
@@ -73,7 +73,15 @@ module RateLimiting
     nil
   end
 
-  def storage?(request) = (request.get? || request.head?) && STORAGE_PATH.match?(request.path)
+  # Same normalization as the availability route: `/api//storage/…` reaches the proxy too, so it must be counted with it.
+  def storage?(request)
+    return false unless request.get? || request.head?
+
+    path = Rack::Utils.unescape_path(request.path).squeeze("/")
+    path.valid_encoding? && STORAGE_PATH.match?(path)
+  rescue ArgumentError
+    false
+  end
 
   def login?(request) = request.post? && LOGIN_PATH.match?(request.path)
 

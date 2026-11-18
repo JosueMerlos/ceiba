@@ -5,6 +5,9 @@ module Tenancy
   class BrandingSerializer < Api::Serializer
     # The brand's own columns, in the order they are published (also the fields a caller may write).
     FIELDS = Company::Branding::ATTRIBUTES
+    # Part of the public ETag: bump it whenever the shape of the response or of its URLs changes, so a cache revalidating
+    # with an older ETag gets the new body instead of a 304 on a stale one.
+    VERSION = "1".freeze
 
     attributes(*FIELDS)
 

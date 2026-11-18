@@ -8,6 +8,13 @@ module Tenancy
     class RepresentationsController < ActiveStorage::Representations::ProxyController
       rescue_from ActiveStorage::FileNotFoundError, with: -> { head :not_found }
 
+      # The default honors `params[:disposition]`, which would let anyone make a public URL download as an attachment.
+      def show
+        http_cache_forever public: true do
+          send_blob_stream @representation, disposition: "inline"
+        end
+      end
+
       private
 
       def set_representation
