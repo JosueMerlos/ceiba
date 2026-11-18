@@ -216,7 +216,7 @@ test.describe("smoke de la agenda", () => {
       medianMs: median,
       budgetMs: LOAD_BUDGET_MS,
     };
-    console.log(`AC5 ${JSON.stringify(report)}`);
+    console.warn(`AC5 ${JSON.stringify(report)}`);
     mkdirSync(testInfo.outputDir, { recursive: true });
     writeFileSync(join(testInfo.outputDir, "ac5-load.json"), JSON.stringify(report, null, 2));
     expect(median).toBeLessThan(LOAD_BUDGET_MS);
