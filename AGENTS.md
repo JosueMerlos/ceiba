@@ -130,7 +130,17 @@ El objetivo es que un hito avance sin detenerse salvo en lo que de verdad es del
 - **Lint:** `docker compose exec api bundle exec rubocop <archivos>`; frontend:
   `docker compose exec -w /app/frontend panel pnpm lint` (ESLint), `pnpm format:check` y `pnpm typecheck` (mismo prefijo).
 - **Verificación completa antes de un push:** `make ci` (= `bin/ci`, los mismos pasos que CI); una etapa con
-  `make ci s=<etapa>`. Si tocaste endpoints o serializers: `bin/api-generate`. Si tocaste UI: `make e2e` y `make smoke`.
+  `make ci s=<etapa>`. Si tocaste endpoints o serializers: `bin/api-generate`. Si tocaste UI: `make e2e`, `make qa-ui` y
+  `make smoke`.
+- **Evidencia de UI (E2E y smokes):** vive FUERA del worktree, en la carpeta de `E2E_EVIDENCE_DIR`, agrupada por rama:
+  `<carpeta>/M2.04/` para `feat/m2.04-*`, `<carpeta>/error_500_endpoint_org/` para `fix/error_500_endpoint_org`. `make e2e`
+  (suite completa) y `make qa-ui` (`SPEC=m2.04-branding.spec.ts` para un smoke) resuelven la subcarpeta solos
+  (`infra/scripts/e2e-evidence-group.sh`). El servicio `e2e` monta esa carpeta en `/evidence`
+  ([`compose.yaml`](compose.yaml)); no se usan symlinks, que el contenedor no puede seguir. En CI no hay carpeta compartida:
+  la evidencia cae en `frontend/e2e/screenshots` (gitignorado) y viaja en el artefacto `e2e-report`.
+- **Preparación de la evidencia en este equipo (una vez):** `mkdir -p ~/projects/ceiba-evidencias` y, en `~/.zshrc`,
+  `export E2E_EVIDENCE_DIR="$HOME/projects/ceiba-evidencias"`. Compose lee la variable de tu entorno, así que aplica a
+  todos los worktrees sin editar ninguno.
 - **Base de test desfasada** ("migraciones pendientes"): `make migrate` y, si persiste, `make db-prepare`. NO uses
   `reload-test-db` aquí: ceiba usa `structure.sql` con roles `app_owner`/`app_user` (ver
   [`09-data-conventions`](docs/architecture/09-data-conventions.md#roles-de-base-de-datos)).
