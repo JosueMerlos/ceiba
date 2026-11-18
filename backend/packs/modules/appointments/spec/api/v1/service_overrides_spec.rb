@@ -43,7 +43,7 @@ RSpec.describe "API v1: overrides de servicio por sucursal" do
     get "Lista los overrides de servicio de una sucursal" do
       tags "Servicios"
       description "Exige `appointments.service.read` en la sucursal de la ruta. Devuelve SOLO los overrides de esa sucursal, con la moneda del " \
-                  "servicio. Paginado por cursor."
+                  "servicio. No incluye los de servicios archivados. Paginado por cursor."
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
       parameter name: :limit, in: :query, schema: { type: :integer, minimum: 1, maximum: 100 }, required: false

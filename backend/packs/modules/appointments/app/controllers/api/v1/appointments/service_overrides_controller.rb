@@ -9,9 +9,12 @@ module Api
 
         requires_module :appointments
 
-        # The overrides of the route's branch only. The service is preloaded: the serializer reads its currency.
+        # The overrides of the route's branch only, leaving out those of archived services (the panel cannot edit them). The
+        # service is joined to filter and preloaded (not eager-loaded, which would fold it into the join) so the serializer reads
+        # its currency without N+1.
         def index
-          overrides = ::Appointments::BranchServiceOverride.where(company_id: Current.context.company.id, branch_id:).includes(:service)
+          overrides = ::Appointments::BranchServiceOverride.where(company_id: Current.context.company.id, branch_id:)
+            .joins(:service).merge(::Appointments::Service.unarchived).preload(:service)
           authorize overrides, :index?, policy_class: ::Appointments::ServiceOverridePolicy
           overrides = policy_scope(overrides, policy_scope_class: ::Appointments::ServiceOverridePolicy::Scope)
           render_page(overrides, serializer: ::Appointments::ServiceOverrideSerializer)
