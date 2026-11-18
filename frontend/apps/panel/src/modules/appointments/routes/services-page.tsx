@@ -134,7 +134,12 @@ export function ServicesPage() {
             onSubmit={saveService}
           />
           {selected && archivedSelected && canManage ? (
-            <Button type="button" variant="outline" onClick={() => restoreService(selected)}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={restore.isPending}
+              onClick={() => restoreService(selected)}
+            >
               {t("catalog.services.restore")}
             </Button>
           ) : null}

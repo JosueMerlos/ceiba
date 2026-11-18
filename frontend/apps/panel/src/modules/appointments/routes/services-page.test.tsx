@@ -125,7 +125,9 @@ describe("Servicios", () => {
     );
     await user.click(within(panel).getByRole("button", { name: "Restaurar" }));
     release();
-    await waitFor(() => expect(screen.queryByRole("complementary")).toBeNull());
+    await waitFor(() =>
+      expect(within(panel).getByRole("button", { name: "Restaurar" })).toHaveProperty("disabled", false),
+    );
     expect(calls).toBe(1);
   });
 
