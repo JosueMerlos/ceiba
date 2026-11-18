@@ -25,6 +25,7 @@ frontend() { docker compose run --rm --no-deps -T --entrypoint "" -w /app/fronte
 
 stage_repo_checks() {
   infra/scripts/check-versions.sh && infra/scripts/check-action-pins.sh && infra/scripts/check-pr-title_test.sh \
+    && infra/scripts/e2e-evidence-group_test.sh \
     && infra/scripts/check-large-files_test.sh && infra/scripts/check-large-files.sh
 }
 stage_workflows()        { docker run --rm -v "$PWD":/repo -w /repo "$ACTIONLINT_IMAGE"; }
@@ -41,12 +42,14 @@ stage_frontend_security() { frontend bin/ci-security; }
 # Bundle budgets: critical JS of booking < 150 KiB and of panel < 220 KiB gzip (bundle-budgets.json).
 stage_frontend_bundle()  { frontend bin/ci-bundle; }
 # E2E: DB roles, full environment (API with seeds, panel, booking, proxy), smoke (infra/scripts/smoke.sh: titles, CSP,
-# HMR) and Playwright. Screenshots and report land in frontend/e2e (screenshots, playwright-report, test-results).
+# HMR) and Playwright. Screenshots land in the evidence folder (E2E_EVIDENCE_DIR, see AGENTS.md), grouped by the branch;
+# the report and traces stay in frontend/e2e (playwright-report, test-results).
 stage_e2e() {
+  mkdir -p "${E2E_EVIDENCE_DIR:-frontend/e2e/screenshots}"
   docker compose up -d --wait db redis && db_roles \
     && docker compose up -d --build --wait \
     && infra/scripts/smoke.sh \
-    && docker compose run --rm -T -e E2E_SCREENSHOT_DIR=/app/frontend/e2e/screenshots e2e
+    && docker compose run --rm -T -e E2E_EVIDENCE_GROUP="$(infra/scripts/e2e-evidence-group.sh)" e2e
 }
 stage_api_contract() {
   infra/scripts/check-api-contract_test.sh && docker compose up -d --wait db redis && db_roles \
