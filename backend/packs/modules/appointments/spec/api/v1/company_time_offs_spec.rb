@@ -26,7 +26,6 @@ RSpec.describe "API v1: ausencias de un profesional por empresa" do
 
   after { travel_back }
 
-
   list_schema = {
     type: :object, required: %w[data page], additionalProperties: false, properties: {
       data: { type: :array, items: { "$ref" => "#/components/schemas/TimeOff" } },
