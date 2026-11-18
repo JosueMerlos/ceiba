@@ -89,11 +89,19 @@ RSpec.describe Access::UpdateBranding do
       expect(stored.logo.content_type).to eq("image/png")
     end
 
-    it "audita el archivo nuevo con nombre, tamaño y checksum, sin su contenido" do
-      call(files: { logo: logo_upload })
+    it "audita el archivo nuevo con tipo, tamaño y checksum, sin su nombre ni su contenido" do
+      call(files: { logo: logo_upload(name: "foto-de-maria-lopez.png") })
 
       blob = stored.logo.blob
-      expect(audit_events.last.metadata).to eq("assets" => { "logo" => { "filename" => "logo.png", "byte_size" => blob.byte_size, "checksum" => blob.checksum } })
+      expect(audit_events.last.metadata).to eq("assets" => { "logo" => { "content_type" => "image/png", "byte_size" => blob.byte_size, "checksum" => blob.checksum } })
+    end
+
+    it "guarda el original y sus variantes con un nombre genérico, nunca el que puso el usuario" do
+      call(files: { logo: logo_upload(name: "foto-de-maria-lopez.png") })
+
+      filenames = [ stored.logo.blob, *stored.logo.blob.variant_records.map { it.image.blob } ].map { it.filename.to_s }
+      expect(filenames.first).to eq("logo.png")
+      expect(filenames.join).not_to include("maria")
     end
 
     it "al reemplazar el logo cambia la clave del blob, cambia la variante y purga el blob y los archivos anteriores" do
@@ -180,6 +188,61 @@ RSpec.describe Access::UpdateBranding do
 
       expect(stored.logo.blob).to eq(old_blob)
       expect(ActiveStorage::Blob.service.exist?(old_blob.key)).to be(true)
+    end
+  end
+
+  describe "concurrencia" do
+    it "bloquea la fila de la empresa (FOR UPDATE) antes de leer los adjuntos previos" do
+      statements = []
+      subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") { |*, payload| statements << payload[:sql] }
+
+      call(files: { logo: logo_upload })
+
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+      expect(statements).to include(a_string_matching(/FROM "companies".*FOR UPDATE/m))
+    end
+  end
+
+  describe "fallos alrededor del commit" do
+    def blob_keys_uploaded
+      keys = []
+      allow(ActiveStorage::Blob).to receive(:create_and_upload!).and_wrap_original do |original, *args, **kwargs|
+        original.call(*args, **kwargs).tap { keys << it.key }
+      end
+      keys
+    end
+
+    it "si renderizar las variantes falla tras el commit, igual purga lo reemplazado, conserva lo nuevo y no falla la petición" do
+      call(files: { logo: logo_upload })
+      old_blob = stored.logo.blob
+      allow_any_instance_of(Tenancy::BrandingAssets).to receive(:render!).and_raise(RuntimeError, "vips boom")
+      allow(Rails.error).to receive(:report)
+
+      expect { call(files: { logo: logo_upload(color: [ 1, 2, 3 ]) }) }.not_to raise_error
+
+      expect(Rails.error).to have_received(:report).with(an_instance_of(RuntimeError), hash_including(handled: true))
+      expect([ ActiveStorage::Blob.exists?(old_blob.id), ActiveStorage::Blob.service.exist?(old_blob.key) ]).to eq([ false, false ])
+      expect(ActiveStorage::Blob.service.exist?(stored.logo.blob.key)).to be(true)
+    end
+
+    it "si la transacción externa se revierte después de volver, los originales subidos se borran" do
+      keys = blob_keys_uploaded
+
+      ApplicationRecord.transaction do
+        call(files: { logo: logo_upload })
+        raise ActiveRecord::Rollback
+      end
+
+      expect(keys.size).to eq(1)
+      expect(ActiveStorage::Blob.service.exist?(keys.first)).to be(false)
+    end
+
+    it "si la transacción externa se confirma, los originales subidos se conservan" do
+      keys = blob_keys_uploaded
+
+      ApplicationRecord.transaction { call(files: { logo: logo_upload }) }
+
+      expect(ActiveStorage::Blob.service.exist?(keys.first)).to be(true)
     end
   end
 
