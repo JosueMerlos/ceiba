@@ -10,9 +10,11 @@ module Api
 
         requires_module :appointments
 
+        # Only ongoing or future absences: what is worth reviewing before the professional is assigned again. Deleting is not
+        # limited, so any absence of the professional can still be removed by id.
         def index
           authorize professional, :index?, policy_class: ::Appointments::CompanyTimeOffPolicy
-          time_offs = policy_scope(professional_time_offs, policy_scope_class: ::Appointments::CompanyTimeOffPolicy::Scope)
+          time_offs = policy_scope(professional_time_offs.current_or_future, policy_scope_class: ::Appointments::CompanyTimeOffPolicy::Scope)
           render_page(time_offs, serializer: ::Appointments::TimeOffSerializer)
         end
 
