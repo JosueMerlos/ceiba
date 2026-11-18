@@ -50,6 +50,113 @@ components:
             "$ref": "#/components/schemas/Problem"
       description: Otra petición con la misma `Idempotency-Key` sigue en curso (código `idempotency.request_in_progress`); reintenta con la misma clave
   schemas:
+    AgendaAppointment:
+      additionalProperties: false
+      description: 'Una cita del listado de la agenda: lo mismo que `Appointment` más el nombre del cliente. Del cliente solo sale el nombre, nunca teléfono, correo ni notas.'
+      properties:
+        branch_id:
+          format: uuid
+          type: string
+        cancellation_reason:
+          description: Motivo de la cancelación como código; null si no está cancelada
+          enum:
+          - customer_request
+          - professional_unavailable
+          - business_decision
+          - other
+          -
+          nullable: true
+          type: string
+        cancelled_by:
+          description: Quién canceló; null si no está cancelada
+          enum:
+          - staff
+          - customer
+          - system
+          -
+          nullable: true
+          type: string
+        currency:
+          enum:
+          - NIO
+          - USD
+          type: string
+        customer_id:
+          format: uuid
+          type: string
+        customer_name:
+          description: Nombre completo del cliente; null para quien no puede verlo
+          nullable: true
+          type: string
+        ends_at:
+          description: UTC
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        lock_version:
+          minimum: 0
+          type: integer
+        professional_id:
+          format: uuid
+          type: string
+        rescheduled_from_id:
+          description: La cita que esta reprogramó; null si no viene de una reprogramación
+          format: uuid
+          nullable: true
+          type: string
+        resource_id:
+          description: El recurso que asignó el motor; null si los servicios no exigen uno
+          format: uuid
+          nullable: true
+          type: string
+        services:
+          items:
+            "$ref": "#/components/schemas/AppointmentService"
+          type: array
+        source:
+          enum:
+          - panel
+          - public_booking
+          type: string
+        starts_at:
+          description: UTC
+          format: date-time
+          type: string
+        status:
+          enum:
+          - scheduled
+          - confirmed
+          - checked_in
+          - completed
+          - cancelled
+          - rescheduled
+          - no_show
+          type: string
+        total_price_minor:
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+      - id
+      - branch_id
+      - professional_id
+      - resource_id
+      - customer_id
+      - starts_at
+      - ends_at
+      - status
+      - source
+      - lock_version
+      - services
+      - total_price_minor
+      - currency
+      - rescheduled_from_id
+      - cancelled_by
+      - cancellation_reason
+      - customer_name
+      type: object
     Appointment:
       additionalProperties: false
       description: 'Una cita reservada. Del cliente solo va su `id`: nunca nombre, teléfono ni correo. `total_price_minor` es la suma de los servicios congelados.'
@@ -2007,7 +2114,7 @@ paths:
         type: string
   "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/appointments":
     get:
-      description: 'Exige `appointments.appointment.read` en la sucursal, o `appointments.appointment.read_own` (el profesional), que solo ve sus propias citas. `from` y `to` son fechas locales de la sucursal (incluidas), hasta 31 días. Todas las citas en cualquier estado, ordenadas por `starts_at`. Sin paginar: por encima de 1000 citas responde 422 (`appointments.agenda_invalid`, `too_many_appointments`) en vez de truncar. Sin notas ni datos del cliente.'
+      description: 'Exige `appointments.appointment.read` en la sucursal, o `appointments.appointment.read_own` (el profesional), que solo ve sus propias citas. `from` y `to` son fechas locales de la sucursal (incluidas), hasta 31 días. Todas las citas en cualquier estado, ordenadas por `starts_at`. Sin paginar: por encima de 1000 citas responde 422 (`appointments.agenda_invalid`, `too_many_appointments`) en vez de truncar. Sin notas. Del cliente solo sale `customer_name`, para quien tiene `platform.customer.read` o, en sus propias citas, para el profesional; para el resto es null.'
       parameters:
       - description: Primer día (local), `YYYY-MM-DD`
         in: query
@@ -2039,7 +2146,7 @@ paths:
                 properties:
                   data:
                     items:
-                      "$ref": "#/components/schemas/Appointment"
+                      "$ref": "#/components/schemas/AgendaAppointment"
                     type: array
                 required:
                 - data

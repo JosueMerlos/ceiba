@@ -45,7 +45,7 @@ RSpec.describe "API v1: ciclo de vida de la cita" do
   single_schema = { type: :object, required: %w[data], additionalProperties: false, properties: { data: { "$ref" => "#/components/schemas/Appointment" } } }
   detail_schema = { type: :object, required: %w[data], additionalProperties: false, properties: { data: { "$ref" => "#/components/schemas/AppointmentDetail" } } }
   list_schema = { type: :object, required: %w[data], additionalProperties: false,
-                  properties: { data: { type: :array, items: { "$ref" => "#/components/schemas/Appointment" } } } }
+                  properties: { data: { type: :array, items: { "$ref" => "#/components/schemas/AgendaAppointment" } } } }
 
   def set_status(status)
     columns = status == "cancelled" ? { cancelled_by: "staff", cancellation_reason: "other" } : {}
@@ -62,7 +62,7 @@ RSpec.describe "API v1: ciclo de vida de la cita" do
       description "Exige `appointments.appointment.read` en la sucursal, o `appointments.appointment.read_own` (el profesional), que solo ve sus propias citas. " \
                   "`from` y `to` son fechas locales de la sucursal (incluidas), hasta 31 días. Todas las citas en cualquier estado, ordenadas por `starts_at`. " \
                   "Sin paginar: por encima de #{Appointments::Agenda::LIMIT} citas responde 422 (`appointments.agenda_invalid`, `too_many_appointments`) en vez de truncar. " \
-                  "Sin notas ni datos del cliente."
+                  "Sin notas. Del cliente solo sale `customer_name`, para quien tiene `platform.customer.read` o, en sus propias citas, para el profesional; para el resto es null."
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
       parameter name: :from, in: :query, required: true, schema: { type: :string, format: :date }, description: "Primer día (local), `YYYY-MM-DD`"

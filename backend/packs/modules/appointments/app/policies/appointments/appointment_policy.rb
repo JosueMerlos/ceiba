@@ -3,11 +3,17 @@ module Appointments
   # other actions is the appointment, already searched among the branch's. The staff permission (`update`) covers every action and
   # the detail with notes; a professional acts with `update_own` only on THEIR OWN appointments (the professional record linked to
   # their user and still assigned to the branch) and only on the actions the transition table opens to them. A professional's
-  # agenda (`read_own`) lists only their own appointments.
+  # agenda (`read_own`) lists only their own appointments, which is why it alone opens the customer's name: with `read` the listing
+  # covers the whole branch, so the name then needs the customer permission.
   class AppointmentPolicy < Access::BasePolicy
     def create? = can?("appointments.appointment.create", context_scope(:branch))
 
     def index? = can?("appointments.appointment.read", context_scope(:branch)) || can?("appointments.appointment.read_own", context_scope(:branch))
+
+    def customer_names?
+      can?("platform.customer.read", context_scope(:branch)) ||
+        (can?("appointments.appointment.read_own", context_scope(:branch)) && !can?("appointments.appointment.read", context_scope(:branch)))
+    end
 
     def show? = edit?(own_allowed: true)
     def update? = edit?(own_allowed: true)

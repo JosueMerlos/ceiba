@@ -29,7 +29,7 @@ module Api
           readable = policy_scope(::Appointments::Appointment.where(company_id:), policy_scope_class: ::Appointments::AppointmentPolicy::Scope)
           appointments = ::Appointments::Agenda.call(scope: readable, branch: Current.context.branch, from_date: query[:from], to_date: query[:to],
                                                      professional_id: query[:professional_id])
-          render_appointment(appointments)
+          render json: { data: ::Appointments::AgendaAppointmentSerializer.new(appointments, params: { customer_names: customer_names(appointments) }).serializable_hash }
         end
 
         def show
@@ -64,6 +64,12 @@ module Api
 
         def authorize_booking
           authorize Current.context.branch, :create?, policy_class: ::Appointments::AppointmentPolicy
+        end
+
+        def customer_names(appointments)
+          return {} unless ::Appointments::AppointmentPolicy.new(Current.principal, Current.context.branch).customer_names?
+
+          ::Customers::Lookup.full_names(ids: appointments.map(&:customer_id).uniq, company: Current.context.company)
         end
 
         def agenda_query

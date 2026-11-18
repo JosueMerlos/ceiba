@@ -43,3 +43,4 @@ Cada decisión relevante tiene su ADR ([plantilla](../templates/adr.md)). Un ADR
 | [0037](0037-reserva-atomica.md) | Reserva atómica: `Book` como único creador, `tsrange`, candados por persona y por tipo de recurso | aceptada |
 | [0038](0038-ciclo-de-vida-de-la-cita.md) | Ciclo de vida de la cita: `Transition` como único escritor del estado, cancelación con códigos y reprogramación con el precio original | aceptada |
 | [0040](0040-excepciones-de-pnpm-audit-con-fecha-de-revision.md) | Excepciones de `pnpm audit` por aviso, con motivo y fecha de revisión obligatorios | aceptada |
+| [0041](0041-nombre-del-cliente-en-la-agenda.md) | El listado de la agenda incluye el nombre del cliente | aceptada |

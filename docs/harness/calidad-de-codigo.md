@@ -57,6 +57,7 @@ Los formateadores y autocorrectores (`rubocop -A`, `prettier --write`, `eslint -
   regla de ESLint). La PII y los campos cifrados quedan fuera de respuestas, logs, auditoría y mensajes de error. Única excepción
   explícita: los endpoints del recurso cliente devuelven teléfono, correo y notas a quien tiene `platform.customer.read`
   ([ADR-0033](../adr/0033-autorizacion-y-pii-de-clientes-y-servicios.md)); ningún otro endpoint, log, error ni auditoría los incluye.
+  El listado de la agenda añade solo el nombre del cliente, con su propia compuerta ([ADR-0041](../adr/0041-nombre-del-cliente-en-la-agenda.md)).
 - Las cargas externas usan identificadores seguros (UUIDv7, slug o token firmado), nunca ids secuenciales.
 - Nunca credenciales en el código; se leen de variables de entorno que el proceso ya tiene y se falla nombrando la clave que
   falta (ver [`seguridad.md`](seguridad.md)).

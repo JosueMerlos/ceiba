@@ -63,10 +63,11 @@ RSpec.describe Customers::Lookup do
     end
 
     it "sin ids no consulta y devuelve un hash vacío" do
+      scoped_company = company
       queries = []
       counter = ->(*, payload) { queries << payload[:sql] unless payload[:name] == "SCHEMA" }
 
-      result = ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { described_class.full_names(ids: [], company:) }
+      result = ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { described_class.full_names(ids: [], company: scoped_company) }
 
       expect([ result, queries ]).to eq([ {}, [] ])
     end
