@@ -209,6 +209,66 @@ RSpec.describe "Access.module_gate (permisos de un módulo inactivo no aplican)"
     end
   end
 
+  describe "#company_permission_keys_in (lo que /me da para las rutas de alcance empresa)" do
+    let(:service_read) { "appointments.service.read" }
+    let(:professional_read) { "appointments.professional.read" }
+    let(:time_off_read) { "appointments.time_off.read" }
+
+    before { gate_with("sample" => Set[company_a.id]) }
+
+    it "para un usuario solo de sucursal incluye las lecturas hacia arriba (from_descendants) y no las exclusivas de sucursal" do
+      grant(role_with(service_read, "branch"), company: company_a, branch: branch_a1)
+      grant(role_with(professional_read, "branch"), company: company_a, branch: branch_a1)
+      grant(role_with(time_off_read, "branch"), company: company_a, branch: branch_a1)
+
+      keys = principal.company_permission_keys_in(company_id: company_a.id)
+
+      expect(keys).to contain_exactly(service_read, professional_read)
+    end
+
+    it "excluye los permisos de un módulo inactivo en la empresa del contexto" do
+      grant(role_with(read, "company"), company: company_b)
+      grant(role_with(service_read, "company"), company: company_b)
+
+      expect(principal.company_permission_keys_in(company_id: company_b.id)).to contain_exactly(service_read)
+    end
+
+    it "no incluye los permisos de la membership de empresa de otra empresa" do
+      grant(role_with(read, "company"), company: company_a)
+      grant(role_with(service_read, "company"), company: company_b)
+
+      expect(principal.company_permission_keys_in(company_id: company_a.id)).to contain_exactly(read)
+    end
+
+    it "sin permisos activos devuelve vacío" do
+      expect(principal.company_permission_keys_in(company_id: company_a.id)).to be_empty
+    end
+
+    describe "coincide con can? al alcance de la empresa para cada permiso registrado" do
+      def expect_keys_to_match_can(subject_principal)
+        keys = subject_principal.company_permission_keys_in(company_id: company_a.id)
+
+        Access.registry.definitions.map(&:key).each do |key|
+          expect(keys.include?(key)).to eq(subject_principal.can?(key, company_scope(company_a))), "#{key}: keys=#{keys.include?(key)}"
+        end
+      end
+
+      it "para un company_manager" do
+        grant(Access::Role.find_by!(key: "company_manager"), company: company_a)
+
+        expect_keys_to_match_can(principal)
+      end
+
+      it "para un usuario solo de sucursal" do
+        grant(role_with(read, "branch"), company: company_a, branch: branch_a1)
+        grant(role_with(service_read, "branch"), company: company_a, branch: branch_a1)
+        grant(role_with(time_off_read, "branch"), company: company_a, branch: branch_a1)
+
+        expect_keys_to_match_can(principal)
+      end
+    end
+  end
+
   describe "permission_keys_in con memberships de sucursal" do
     before do
       gate_with("sample" => Set[company_a.id])

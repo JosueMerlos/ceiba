@@ -114,6 +114,15 @@ RSpec.describe "Manifiesto de appointments" do
     )
   end
 
+  it "tiene navegación hacia las pantallas de catálogo, protegidas por sus permisos de lectura" do
+    expect(manifest.navigation).to include(
+      { key: "services", path: "/services", permission: "appointments.service.read" },
+      { key: "professionals", path: "/professionals", permission: "appointments.professional.read" },
+      { key: "resources", path: "/resources", permission: "appointments.resource.read" },
+      { key: "branches", path: "/branches", permission: "appointments.schedule.read" }
+    )
+  end
+
   it "publica la reserva y un evento por transición, todos con su esquema registrado", :aggregate_failures do
     expect(manifest.publishes).to contain_exactly(
       "appointments.appointment_booked.v1", "appointments.appointment_confirmed.v1", "appointments.appointment_checked_in.v1",

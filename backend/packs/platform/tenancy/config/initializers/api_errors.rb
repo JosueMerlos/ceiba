@@ -1,6 +1,8 @@
 # Tenancy domain errors the API translates to problem+json (see Api::ErrorRegistry).
 #
-# - ProvisioningFailed: provisioning validation (422) or slug conflict (409); `errors[]` breaks down section.field.
+# - ProvisioningFailed: provisioning validation (422) or slug conflict (409); `errors[]` breaks down section.field, except for
+#   the branch section: a branch is created on its own with the branch's attributes as the body, so its fields are the plain
+#   attribute names a form already has (`time_zone`).
 # - InconsistentContext: the route mixes entities that do not fit (company from another organization...). It is 404 and NOT
 #   403, so it does not reveal the other entity exists. The message is not exposed: it names entities.
 # - TenantMismatch / TenantIsImmutable are deliberately NOT registered: they only happen if the server tried to write to
@@ -12,7 +14,9 @@ Rails.application.config.to_prepare do
     code: ->(error) { "tenancy.#{error.code}" },
     errors: lambda { |error|
       error.details.flat_map do |section, fields|
-        fields.flat_map { |field, messages| Array(messages).map { |message| { field: "#{section}.#{field}", code: "invalid", message: } } }
+        fields.flat_map do |field, messages|
+          Array(messages).map { |message| { field: section == :branch ? field.to_s : "#{section}.#{field}", code: "invalid", message: } }
+        end
       end
     }
   )

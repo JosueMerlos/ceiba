@@ -16,11 +16,12 @@ module Api
         # Declared after Access::Authorization's around action: the idempotency key needs the tenancy context.
         idempotent :create, required: false
 
-        # Active and paused services, not archived ones; `active` narrows to one state. Listed in creation order (the
-        # pagination cursor is the id); `position` is there for the client to arrange them.
+        # Active and paused services, not archived ones (`archived=true` lists ONLY the archived); `active` narrows to one state.
+        # Listed in creation order (the pagination cursor is the id); `position` is there for the client to arrange them.
         def index
           authorize company_services, :index?, policy_class: ::Appointments::ServicePolicy
-          services = policy_scope(company_services.unarchived, policy_scope_class: ::Appointments::ServicePolicy::Scope)
+          services = policy_scope(archived_filter ? company_services.archived : company_services.unarchived,
+                                  policy_scope_class: ::Appointments::ServicePolicy::Scope)
           services = services.where(active: active_filter) unless active_filter.nil?
           render_page(services, serializer: ::Appointments::ServiceSerializer)
         end
@@ -49,6 +50,12 @@ module Api
           head :no_content
         end
 
+        def restore
+          service = company_services.find(params[:id])
+          authorize service, :restore?, policy_class: ::Appointments::ServicePolicy
+          render_service(::Appointments::Catalog::RestoreService.call(service:))
+        end
+
         private
 
         def authorize_creation
@@ -67,6 +74,14 @@ module Api
           raise ActionController::BadRequest, "active debe ser true o false" unless raw.nil? || %w[true false].include?(raw)
 
           @active_filter = raw.nil? ? nil : raw == "true"
+        end
+
+        # false when absent; anything but "true" or "false" is a 400.
+        def archived_filter
+          raw = params[:archived]
+          raise ActionController::BadRequest, "archived debe ser true o false" unless raw.nil? || %w[true false].include?(raw)
+
+          raw == "true"
         end
 
         def render_service(service, status: :ok)

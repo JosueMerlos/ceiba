@@ -3,6 +3,9 @@ module Appointments
   # override as it would end up (current row plus the requested change, not yet saved): an attribute is a change only if its
   # value differs from the row's, so resending the current price is not a price change, and clearing one is.
   class ServiceOverridePolicy < Access::BasePolicy
+    # Reading overrides is reading the service catalog at the branch the route names.
+    def index? = can?("appointments.service.read", context_scope(:branch))
+
     def upsert?
       allowed = (!record.duration_minutes_changed? || can_change_duration?) && (!record.price_minor_changed? || can_change_price?)
       # A request that changes nothing still needs some override permission, so it reveals nothing to anyone else.
@@ -23,5 +26,9 @@ module Appointments
     def can_change_price? = can?("appointments.service.override_price", context_scope(:branch))
 
     def can_change_something? = can_change_duration? || can_change_price?
+
+    class Scope < Access::BasePolicy::Scope
+      def resolve = principal.can?("appointments.service.read", context_scope(:branch)) ? scope.where(branch_id: Current.context.branch.id) : scope.none
+    end
   end
 end

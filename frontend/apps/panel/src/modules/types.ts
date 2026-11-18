@@ -14,7 +14,13 @@ export interface ModuleNavigation {
   key: string;
   path: string;
   /** Key in the i18n `shell` namespace. */
-  labelKey: "nav.agenda" | "nav.summary";
+  labelKey:
+    | "nav.agenda"
+    | "nav.summary"
+    | "nav.services"
+    | "nav.professionals"
+    | "nav.resources"
+    | "nav.branches";
   /** Any one of them shows the item (and /me must offer it too). */
   permissions: readonly string[];
   icon: LucideIcon;

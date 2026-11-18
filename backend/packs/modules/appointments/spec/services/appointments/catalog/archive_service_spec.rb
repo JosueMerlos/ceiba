@@ -47,6 +47,18 @@ RSpec.describe Appointments::Catalog::ArchiveService do
     end
   end
 
+  it "decide con la fila bloqueada: archivar una copia desactualizada no repite la auditoría" do
+    with_tenant(organization) do
+      service = create(:service, company:)
+      stale = Appointments::Service.find(service.id)
+      described_class.call(service:)
+
+      described_class.call(service: stale)
+
+      expect(events("service.archived").size).to eq(1)
+    end
+  end
+
   it "no toca los demás servicios de la empresa ni los de otra empresa" do
     with_tenant(organization) do
       target = create(:service, company:)
