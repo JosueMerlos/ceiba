@@ -448,7 +448,7 @@ describe("Profesionales: sin sucursales (ausencias pendientes y aviso al asignar
     expect(backend.companyTimeOffReads).toBe(0);
   });
 
-  it("un gerente de una sola sucursal sin sucursal en el contexto no consulta la ruta de empresa: no tiene time_off.read de empresa", async () => {
+  it("un recepcionista con permisos de gestión de personal y sin sucursal en el contexto no consulta la ruta de empresa: no tiene time_off.read de empresa", async () => {
     signedInBackend({
       me: meFixture({
         role: "receptionist",
