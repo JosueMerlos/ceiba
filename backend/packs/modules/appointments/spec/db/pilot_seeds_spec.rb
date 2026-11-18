@@ -7,12 +7,12 @@ RSpec.describe "Datos del piloto interno de la agenda" do # rubocop:disable RSpe
   let(:world) { build_access_world }
   let(:branch) { world.branch_a1 }
   let(:company) { world.company_a }
-  let(:user) { create(:user) }
+  let(:user) { user_with_role("professional", world, branch: world.branch_a1) }
   # Wednesday 18 Nov 2026, 11:30 in America/Managua (UTC-6).
   let(:now) { Time.utc(2026, 11, 18, 17, 30) }
 
   before do
-    load Rails.root.join("packs/modules/appointments/db/pilot_seeds.rb")
+    require Rails.root.join("packs/modules/appointments/db/pilot_seeds.rb")
     travel_to now
     with_tenant(world.organization) do
       Modules::Enable.call(company:, key: "appointments")
@@ -55,7 +55,7 @@ RSpec.describe "Datos del piloto interno de la agenda" do # rubocop:disable RSpe
 
   it "una segunda corrida no duplica nada" do
     with_tenant(world.organization) do
-      expect { AppointmentsPilotSeeds.seed(company:, branch:, professional_user_id: user.id) }.not_to(change { appointments.count })
+      expect { AppointmentsPilotSeeds.seed(company:, branch:, professional_user_id: user.id) }.not_to change(appointments, :count)
     end
   end
 end
