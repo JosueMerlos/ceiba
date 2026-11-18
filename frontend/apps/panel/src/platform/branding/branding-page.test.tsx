@@ -146,6 +146,60 @@ describe("pantalla de marca", () => {
     expect(input.getAttribute("aria-describedby")).toContain(alert.id);
   });
 
+  it("un 413 problem+json se muestra como alerta en el formulario", async () => {
+    manager();
+    stubBranding();
+    server.use(
+      http.patch(brandingUrl, () =>
+        HttpResponse.json(problem(413, "request.too_large"), { status: 413 }),
+      ),
+    );
+    const { user } = await renderApp({ route: ROUTE });
+    await user.upload(await screen.findByLabelText("Logo"), png());
+
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe("Los archivos pesan demasiado en total. Elija unos más livianos.");
+  });
+
+  it("un 413 del proxy que no es problem+json también se muestra como alerta", async () => {
+    manager();
+    stubBranding();
+    server.use(
+      http.patch(brandingUrl, () => new HttpResponse("Request Entity Too Large", { status: 413 })),
+    );
+    const { user } = await renderApp({ route: ROUTE });
+    await user.upload(await screen.findByLabelText("Logo"), png());
+
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe("Los archivos pesan demasiado en total. Elija unos más livianos.");
+  });
+
+  it("un archivo que supera el límite de su tipo se bloquea antes de enviar nada", async () => {
+    manager();
+    stubBranding();
+    let requests = 0;
+    server.use(
+      http.patch(brandingUrl, () => {
+        requests += 1;
+        return HttpResponse.json(brandingFixture());
+      }),
+    );
+    const { user } = await renderApp({ route: ROUTE });
+    const big = new File([new Uint8Array(200 * 1024 + 1)], "favicon.png", { type: "image/png" });
+    await user.upload(await screen.findByLabelText("Ícono de pestaña"), big);
+
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe("El archivo pesa demasiado. Elija uno más liviano.");
+    expect(screen.getByLabelText("Ícono de pestaña").getAttribute("aria-invalid")).toBe("true");
+    expect(requests).toBe(0);
+  });
+
   it("adversarial: un color mal escrito se señala bajo su campo y no se envía nada", async () => {
     manager();
     stubBranding();
