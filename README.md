@@ -57,8 +57,16 @@ Servicios de `compose.yaml`: `db` (PostgreSQL 18), `redis`, `api` (Rails), `work
 | `make db-roles` | Aplica (idempotente) los roles `app_owner`/`app_user` a un volumen de BD que ya existía |
 | `make reset-db` | Recrea la base de datos desde cero (destructivo) |
 | `make test` | Suite completa: backend (RSpec) y frontend (Vitest) |
+| `make e2e` | E2E con Playwright sobre el entorno completo; las capturas van a la carpeta de evidencia |
+| `make qa-ui` (`SPEC=…`) | Smokes de UI QA de un hito (`frontend/e2e/harness`), con la evidencia agrupada por rama |
 | `make ci` | Los mismos pasos que CI, en Docker (`bin/ci`; `make ci s=backend-test` para una etapa) |
 | `make smoke` | Verificación de humo a través del proxy |
+
+La evidencia de UI (capturas, videos) se guarda fuera del repo, en `E2E_EVIDENCE_DIR`; por defecto es
+`frontend/e2e/screenshots`, que no se versiona. Con `export E2E_EVIDENCE_DIR="$HOME/projects/ceiba-evidencias"` en el perfil,
+todos los worktrees escriben en el mismo sitio, en una subcarpeta por rama: `M2.04` para `feat/m2.04-*`,
+`error_500_endpoint_org` para `fix/error_500_endpoint_org`. Las carpetas las crea `make`; no hay que preparar nada en cada
+worktree.
 
 Cualquier otro comando se ejecuta dentro del contenedor, por ejemplo `docker compose exec api bin/rails db:migrate` o `docker compose exec panel pnpm add <paquete>`.
 
