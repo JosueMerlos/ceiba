@@ -117,6 +117,24 @@ describe("BranchOverrideFields", () => {
     expect(onReset).toHaveBeenCalledOnce();
   });
 
+  it("Quitar personalización refleja la política: solo si puede editar todo lo que el override personaliza", async () => {
+    const durationOnly = await renderFields({
+      canEditPrice: false,
+      override: serviceOverride("o1", "s1", ids.branchA, { duration_minutes: 40 }),
+    });
+    expect(screen.getByRole("button", { name: "Quitar personalización" })).toBeTruthy();
+    durationOnly.unmount();
+
+    await renderFields({
+      canEditPrice: false,
+      override: serviceOverride("o1", "s1", ids.branchA, {
+        duration_minutes: 40,
+        price_minor: 25000,
+      }),
+    });
+    expect(screen.queryByRole("button", { name: "Quitar personalización" })).toBeNull();
+  });
+
   it("sin ningún permiso de override todo es texto: sin inputs ni botones", async () => {
     await renderFields({ canEditDuration: false, canEditPrice: false });
 
