@@ -102,7 +102,7 @@ export function WeeklyScheduleEditor({
               className="grid gap-2 rounded-xl border bg-card px-4 py-3 sm:grid-cols-[7rem_minmax(0,1fr)] sm:items-start"
             >
               <p className="pt-2 text-sm font-semibold">{label}</p>
-              <div className="grid gap-2">
+              <div className="grid min-w-0 gap-2">
                 {daySlots.length === 0 ? (
                   <p className="pt-2 text-sm text-muted-foreground">
                     {t("catalog.schedule.closedDay")}
@@ -115,15 +115,15 @@ export function WeeklyScheduleEditor({
                       {t("catalog.schedule.slotRange", { start: slot.start, end: slot.end })}
                     </p>
                   ) : (
-                    <div key={slot.key} className="grid gap-1">
-                      <div className="flex items-center gap-2">
+                    <div key={slot.key} className="grid min-w-0 gap-1">
+                      <div className="flex min-w-0 items-center gap-2">
                         <Input
                           type="time"
                           aria-label={t("catalog.schedule.start")}
                           aria-invalid={problem ? true : undefined}
                           value={slot.start}
                           onChange={(event) => update(slot.key, { start: event.target.value })}
-                          className="w-32"
+                          className="min-w-0 flex-1 sm:w-32 sm:flex-none"
                         />
                         <span aria-hidden="true" className="text-muted-foreground">
                           –
@@ -134,7 +134,7 @@ export function WeeklyScheduleEditor({
                           aria-invalid={problem ? true : undefined}
                           value={slot.end}
                           onChange={(event) => update(slot.key, { end: event.target.value })}
-                          className="w-32"
+                          className="min-w-0 flex-1 sm:w-32 sm:flex-none"
                         />
                         <Button
                           type="button"
