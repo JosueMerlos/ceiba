@@ -89,6 +89,46 @@ describe("ContextPanel", () => {
     expect(screen.getByRole("complementary").getAttribute("aria-modal")).toBeNull();
   });
 
+  it("si quien lo usa lo desmonta al cerrar, el foco también vuelve al disparador", async () => {
+    function Unmounting() {
+      const [open, setOpen] = useState(false);
+      return (
+        <div>
+          <button type="button" onClick={() => setOpen(true)}>
+            Editar servicio
+          </button>
+          {open ? (
+            <ContextPanel
+              id="panel-servicio"
+              open
+              onOpenChange={(next) => (next ? undefined : setOpen(false))}
+              title="Corte de cabello"
+              closeLabel="Cerrar edición"
+            >
+              x
+            </ContextPanel>
+          ) : null}
+        </div>
+      );
+    }
+    render(<Unmounting />);
+    const user = userEvent.setup();
+    const trigger = screen.getByRole("button", { name: "Editar servicio" });
+
+    await user.click(trigger);
+    await user.click(screen.getByRole("button", { name: "Cerrar edición" }));
+
+    expect(screen.queryByRole("complementary")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("el título del panel se enlaza por un id con sufijo -title", () => {
+    render(<Harness initiallyOpen />);
+
+    const heading = screen.getByRole("heading", { name: "Corte de cabello" });
+    expect(heading.id).toBe("panel-servicio-title");
+  });
+
   it("si el disparador ya no existe al cerrar, no falla (adversarial)", async () => {
     const onOpenChange = vi.fn();
     const { rerender } = render(

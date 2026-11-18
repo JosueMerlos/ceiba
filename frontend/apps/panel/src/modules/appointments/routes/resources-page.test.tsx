@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { branch, ids, meFixture, resource, scheduleSlot, timeOff } from "../../../test/fixtures";
 import { renderApp } from "../../../test/render-app";
-import { signedInBackend } from "../../../test/server";
+import { server, signedInBackend } from "../../../test/server";
 import {
   STAFF_MANAGER_PERMISSIONS,
   STAFF_READER_PERMISSIONS,
@@ -192,4 +192,41 @@ describe("Recursos", () => {
     expect(within(section).queryByLabelText("Desde")).toBeNull();
     expect(screen.queryByRole("button", { name: /Archivar/ })).toBeNull();
   });
+
+  it.each([
+    {
+      case: "sin schedule.read ni time_off.read",
+      permissions: ["appointments.resource.read", "appointments.resource.manage"],
+      requested: [],
+    },
+    {
+      case: "solo con schedule.read",
+      permissions: ["appointments.resource.read", "appointments.schedule.read"],
+      requested: ["/schedule"],
+    },
+    {
+      case: "solo con time_off.read",
+      permissions: ["appointments.resource.read", "appointments.time_off.read"],
+      requested: ["/time_offs"],
+    },
+  ])(
+    "$case, el panel pide solo lo que puede leer (sin 403 de ruido)",
+    async ({ permissions, requested }) => {
+      asManager(permissions);
+      staffBackend({ resources: [sillon] });
+      const urls: string[] = [];
+      server.events.on("request:start", ({ request }) => {
+        urls.push(new URL(request.url).pathname);
+      });
+      const { user } = await openResources();
+
+      await user.click(await screen.findByRole("button", { name: "Editar Sillón 1" }));
+      await screen.findByRole("complementary", { name: "Sillón 1" });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      server.events.removeAllListeners();
+
+      const ownerRequests = urls.filter((url) => /\/resources\/r1\//.test(url));
+      expect(ownerRequests.map((url) => url.slice(url.lastIndexOf("/")))).toEqual(requested);
+    },
+  );
 });
