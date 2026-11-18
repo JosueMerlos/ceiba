@@ -404,6 +404,26 @@ describe("Profesionales: sin sucursales (ausencias pendientes y aviso al asignar
     await waitFor(() => expect(within(section).queryByText("Cita médica")).toBeNull());
   });
 
+  it("sin sucursal elegida, las ausencias pendientes se muestran en la zona de la primera sucursal de la empresa y la nombran", async () => {
+    signedInBackend({
+      me: meFixture({
+        role: "company_manager",
+        permissions: STAFF_MANAGER_PERMISSIONS,
+        branch: null,
+      }),
+      branches: [{ ...centro, time_zone: "America/New_York" }],
+    });
+    servicesBackend();
+    staffBackend({ professionals: [sandra], companyTimeOffs: { p2: pending } });
+    const { user } = await openProfessionals();
+
+    const panel = await openPanel(user, "Sandra Gómez");
+    const section = await within(panel).findByRole("region", { name: "Ausencias pendientes" });
+
+    expect(await within(section).findByText(/10:00/)).toBeTruthy();
+    expect(within(section).getByText(/America\/New_York/)).toBeTruthy();
+  });
+
   it("si la ruta de empresa responde 403 la sección no aparece", async () => {
     asCompanyManager();
     servicesBackend();
