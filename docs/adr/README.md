@@ -43,3 +43,4 @@ Cada decisión relevante tiene su ADR ([plantilla](../templates/adr.md)). Un ADR
 | [0037](0037-reserva-atomica.md) | Reserva atómica: `Book` como único creador, `tsrange`, candados por persona y por tipo de recurso | aceptada |
 | [0038](0038-ciclo-de-vida-de-la-cita.md) | Ciclo de vida de la cita: `Transition` como único escritor del estado, cancelación con códigos y reprogramación con el precio original | aceptada |
 | [0039](0039-archivos-de-branding-y-rutas-de-activestorage.md) | Archivos de branding: subida por el PATCH autenticado y solo el proxy GET de variantes bajo `/api/storage` | aceptada |
+| [0040](0040-excepciones-de-pnpm-audit-con-fecha-de-revision.md) | Excepciones de `pnpm audit` por aviso, con motivo y fecha de revisión obligatorios | aceptada |
