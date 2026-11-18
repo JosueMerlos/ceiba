@@ -278,4 +278,49 @@ describe("pantalla de marca", () => {
     expect(collapsed.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByRole("textbox", { name: "Nombre comercial" })).toBeNull();
   });
+
+  it("el panel vive en la columna contextual: se cierra desde su botón y conserva lo escrito, el archivo y los errores al reabrirlo", async () => {
+    manager();
+    stubBranding();
+    const { user } = await renderApp({ route: ROUTE });
+    const panel = () => screen.queryByRole("complementary", { name: "Personalizar" });
+    await user.type(await screen.findByLabelText("Color principal"), "#12");
+    await user.upload(screen.getByLabelText("Logo"), png());
+    await user.click(screen.getByRole("button", { name: "Guardar cambios" }));
+    expect(await screen.findByText("Use el formato #RRGGBB, por ejemplo #1D6C4E.")).toBeTruthy();
+
+    await user.click(within(panel()!).getByRole("button", { name: "Cerrar el panel de edición" }));
+
+    expect(panel()).toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "Mostrar el panel de edición" })
+        .getAttribute("aria-expanded"),
+    ).toBe("false");
+    expect(within(preview()).getByAltText("Logo de Salon Estilo")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Mostrar el panel de edición" }));
+
+    expect((screen.getByLabelText("Color principal") as HTMLInputElement).value).toBe("#12");
+    expect(screen.getByText("Use el formato #RRGGBB, por ejemplo #1D6C4E.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Quitar Logo" })).toBeTruthy();
+  });
+
+  it("pulsar Enter en un campo del panel guarda la marca", async () => {
+    manager();
+    stubBranding();
+    let received: FormData | undefined;
+    server.use(
+      http.patch(brandingUrl, async ({ request }) => {
+        received = await request.formData();
+        return HttpResponse.json(brandingFixture({ brand_name: "Salón" }));
+      }),
+    );
+    const { user } = await renderApp({ route: ROUTE });
+
+    await user.type(await screen.findByLabelText("Nombre comercial"), "Salón{Enter}");
+
+    await waitFor(() => expect(received).toBeDefined());
+    expect(received!.get("brand_name")).toBe("Salón");
+  });
 });
