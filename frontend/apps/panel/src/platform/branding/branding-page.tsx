@@ -8,13 +8,14 @@ import {
 import { analyzeBranding, readSurfaces } from "@ceiba/branding";
 import { loadBrandFont } from "@ceiba/branding/react";
 import { translator, useTranslation } from "@ceiba/i18n";
-import { Button, Form, LoadingState, PageHeader, toast } from "@ceiba/ui";
+import { Button, ContextPanel, Form, LoadingState, PageHeader, toast } from "@ceiba/ui";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { describeError } from "../errors/global-errors";
 import { ForbiddenPage, NotFoundPage } from "../errors/status-pages";
 import { useCan } from "../permissions/can";
+import { AsidePortal } from "../shell/aside-slot";
 import { useMe } from "../me/me-provider";
 import { BrandingEditPanel } from "./branding-edit-panel";
 import {
@@ -31,6 +32,7 @@ import { useBrandingFiles } from "./use-branding-files";
 
 export const BRANDING_PERMISSION = "platform.branding.update";
 const PANEL_ID = "branding-edit-panel";
+const FORM_ID = "branding-form";
 
 /** /settings/branding: guards on the permission (the API checks it again) and loads what is saved. */
 export function BrandingPage() {
@@ -148,95 +150,99 @@ function BrandingEditor({ saved, target, companyName }: BrandingEditorProps) {
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={onSubmit}
-        noValidate
-        className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_auto]"
-      >
-        <div className="grid min-w-0 gap-6 rounded-2xl border bg-card p-5 md:p-7">
-          <PageHeader
-            title={t("branding:title")}
-            description={t("branding:description", { company: companyName })}
-            actions={
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  aria-expanded={expanded}
-                  aria-controls={PANEL_ID}
-                  onClick={() => setExpanded((current) => !current)}
-                >
-                  {expanded ? (
-                    <PanelRightClose aria-hidden="true" />
-                  ) : (
-                    <PanelRightOpen aria-hidden="true" />
-                  )}
-                  {expanded ? t("branding:panel.collapse") : t("branding:panel.expand")}
-                </Button>
-                <Button type="submit" loading={update.isPending}>
-                  {update.isPending ? t("branding:actions.saving") : t("branding:actions.save")}
-                </Button>
-              </div>
-            }
-          />
-
-          <BrandingPreview
-            vars={analysis.vars}
-            name={name}
-            tagline={values.tagline ?? ""}
-            logoUrl={previews.logo}
-            bannerUrl={previews.banner}
-          />
-
-          <div role="status" className="grid gap-2 empty:hidden">
-            {roles.map((role) => (
-              <p
-                key={role}
-                className="rounded-lg border bg-secondary px-3.5 py-2.5 text-sm text-secondary-foreground"
-              >
-                {t("branding:notices.darkText", { role: t(`branding:notices.roles.${role}`) })}
-              </p>
-            ))}
-            {analysis.notices.unreadable.map((role) => (
-              <p
-                key={`unreadable-${role}`}
-                className="rounded-lg border bg-secondary px-3.5 py-2.5 text-sm text-secondary-foreground"
-              >
-                {t("branding:notices.unreadable", { role: t(`branding:notices.roles.${role}`) })}
-              </p>
-            ))}
-            {analysis.notices.ringFallback ? (
-              <p className="rounded-lg border bg-secondary px-3.5 py-2.5 text-sm text-secondary-foreground">
-                {t("branding:notices.ringFallback")}
-              </p>
-            ) : null}
-          </div>
-
-          {unmapped ? (
-            <p
-              role="alert"
-              className="rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-sm font-medium text-destructive"
+      <PageHeader
+        title={t("branding:title")}
+        description={t("branding:description", { company: companyName })}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              aria-expanded={expanded}
+              aria-controls={PANEL_ID}
+              onClick={() => setExpanded((current) => !current)}
             >
-              {describeError(unmapped, t)}
+              {expanded ? (
+                <PanelRightClose aria-hidden="true" />
+              ) : (
+                <PanelRightOpen aria-hidden="true" />
+              )}
+              {expanded ? t("branding:panel.collapse") : t("branding:panel.expand")}
+            </Button>
+            {/* The fields live in the aside, outside this DOM subtree, so the button calls the submit itself. */}
+            <Button type="button" loading={update.isPending} onClick={onSubmit}>
+              {update.isPending ? t("branding:actions.saving") : t("branding:actions.save")}
+            </Button>
+          </div>
+        }
+      />
+
+      <div className="grid min-w-0 gap-6">
+        <BrandingPreview
+          vars={analysis.vars}
+          name={name}
+          tagline={values.tagline ?? ""}
+          logoUrl={previews.logo}
+          bannerUrl={previews.banner}
+        />
+
+        <div role="status" className="grid gap-2 empty:hidden">
+          {roles.map((role) => (
+            <p
+              key={role}
+              className="rounded-lg border bg-secondary px-3.5 py-2.5 text-sm text-secondary-foreground"
+            >
+              {t("branding:notices.darkText", { role: t(`branding:notices.roles.${role}`) })}
+            </p>
+          ))}
+          {analysis.notices.unreadable.map((role) => (
+            <p
+              key={`unreadable-${role}`}
+              className="rounded-lg border bg-secondary px-3.5 py-2.5 text-sm text-secondary-foreground"
+            >
+              {t("branding:notices.unreadable", { role: t(`branding:notices.roles.${role}`) })}
+            </p>
+          ))}
+          {analysis.notices.ringFallback ? (
+            <p className="rounded-lg border bg-secondary px-3.5 py-2.5 text-sm text-secondary-foreground">
+              {t("branding:notices.ringFallback")}
             </p>
           ) : null}
         </div>
 
-        {/* Kept mounted when collapsed: the typed values, file choices and errors survive a collapse. */}
-        <aside
-          id={PANEL_ID}
-          aria-label={t("branding:panel.title")}
-          hidden={!expanded}
-          className="min-w-0 rounded-2xl border bg-card p-5 xl:w-96"
-        >
-          <h2 className="mb-5 font-display text-lg font-semibold">{t("branding:panel.title")}</h2>
-          <BrandingEditPanel
-            previews={previews}
-            onSelectFile={(name, file) => files.select(name, file)}
-            onRemoveFile={files.remove}
-          />
-        </aside>
-      </form>
+        {unmapped ? (
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-sm font-medium text-destructive"
+          >
+            {describeError(unmapped, t)}
+          </p>
+        ) : null}
+      </div>
+
+      {/* Unmounted when closed: values and errors live in the form and the files in `files`, so reopening restores them. */}
+      {expanded ? (
+        <AsidePortal>
+          <ContextPanel
+            id={PANEL_ID}
+            open
+            onOpenChange={(open) => setExpanded(open)}
+            title={t("branding:panel.title")}
+            closeLabel={t("branding:panel.close")}
+          >
+            {/* Native form so Enter in a field saves; Form above is only the react-hook-form context. */}
+            <form id={FORM_ID} onSubmit={onSubmit} noValidate>
+              {/* A form with several text fields only submits on Enter when it has a submit button. */}
+              <button type="submit" tabIndex={-1} aria-hidden="true" className="sr-only" />
+              <BrandingEditPanel
+                previews={previews}
+                onSelectFile={(name, file) => files.select(name, file)}
+                onRemoveFile={files.remove}
+              />
+            </form>
+          </ContextPanel>
+        </AsidePortal>
+      ) : null}
     </Form>
   );
 }

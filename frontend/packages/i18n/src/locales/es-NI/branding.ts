@@ -20,6 +20,7 @@ export const branding = {
     title: "Personalizar",
     collapse: "Ocultar el panel de edición",
     expand: "Mostrar el panel de edición",
+    close: "Cerrar el panel de edición",
   },
   fields: {
     brandName: "Nombre comercial",
