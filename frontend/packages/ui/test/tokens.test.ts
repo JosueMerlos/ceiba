@@ -215,3 +215,35 @@ describe("marco y hoja: --sidebar-* y hoja blanca", () => {
     }
   });
 });
+
+describe("estados de la cita (ADR-0032): se distinguen por luminosidad, no solo por tono", () => {
+  const states = ["pending", "confirmed", "arrived", "done", "missed"];
+  const surface = (state: string) => luminance(resolve(`--appointment-${state}-bg`));
+  const text = (state: string) => luminance(resolve(`--appointment-${state}-fg`));
+
+  it.each(states)("el texto de %s cumple 4.5:1 sobre su fondo", (state) => {
+    expect(
+      contrast(`--appointment-${state}-fg`, `--appointment-${state}-bg`),
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("confirmada es la superficie más clara y llegó, la más oscura", () => {
+    const others = states.filter((state) => state !== "confirmed" && state !== "arrived");
+    for (const state of others) {
+      expect(surface("confirmed")).toBeGreaterThan(surface(state));
+      expect(surface(state) - surface("arrived")).toBeGreaterThan(0.1);
+    }
+  });
+
+  it("completada apaga el texto frente a confirmada", () => {
+    expect(text("done")).toBeGreaterThan(text("confirmed"));
+  });
+
+  it("los estados leen de la paleta, sin valores sueltos", () => {
+    for (const state of states) {
+      for (const part of ["bg", "fg", "border", "dot"]) {
+        expect(declarations.get(`--appointment-${state}-${part}`)).toMatch(/^var\(--palette-/);
+      }
+    }
+  });
+});
