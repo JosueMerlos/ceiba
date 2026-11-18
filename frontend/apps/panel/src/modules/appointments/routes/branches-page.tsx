@@ -35,8 +35,8 @@ export function BranchesPage() {
     return schedule.data.data.length > 0 ? "configured" : "closed";
   });
 
-  async function createBranch(values: BranchFormValues) {
-    const created = await create.mutateAsync(values);
+  async function createBranch(values: BranchFormValues, idempotencyKey: string) {
+    const created = await create.mutateAsync({ body: values, idempotencyKey });
     // A branch is born without hours (closed): the next step is always to set them.
     await navigate(`/branches/${created.data.id}/schedule`);
   }

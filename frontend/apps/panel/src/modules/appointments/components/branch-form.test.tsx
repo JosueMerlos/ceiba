@@ -23,7 +23,10 @@ describe("BranchForm", () => {
     await user.click(screen.getByRole("button", { name: "Crear sucursal" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
-    expect(onSubmit).toHaveBeenCalledWith({ name: "Granada", time_zone: "America/Managua" });
+    expect(onSubmit).toHaveBeenCalledWith(
+      { name: "Granada", time_zone: "America/Managua" },
+      expect.any(String),
+    );
   });
 
   it("la zona de la sucursal en contexto es el valor inicial aunque no esté en la lista corta", async () => {
@@ -36,7 +39,10 @@ describe("BranchForm", () => {
     await user.click(screen.getByRole("button", { name: "Crear sucursal" }));
 
     await waitFor(() =>
-      expect(onSubmit).toHaveBeenCalledWith({ name: "Isla", time_zone: "Pacific/Galapagos" }),
+      expect(onSubmit).toHaveBeenCalledWith(
+        { name: "Isla", time_zone: "Pacific/Galapagos" },
+        expect.any(String),
+      ),
     );
   });
 

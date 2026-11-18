@@ -202,7 +202,10 @@ describe("sucursales y horario", () => {
     await waitFor(() => expect(result.current.list.isSuccess).toBe(true));
 
     const created = await act(() =>
-      result.current.create.mutateAsync({ name: "Granada", time_zone: "America/Managua" }),
+      result.current.create.mutateAsync({
+        body: { name: "Granada", time_zone: "America/Managua" },
+        idempotencyKey: "clave-1",
+      }),
     );
 
     expect(bodies).toEqual([{ name: "Granada", time_zone: "America/Managua" }]);

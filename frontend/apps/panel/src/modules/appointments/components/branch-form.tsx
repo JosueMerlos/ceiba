@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@ceiba/ui";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { reportSubmitError } from "../../../platform/forms/report-submit-error";
@@ -31,7 +31,8 @@ export interface BranchFormValues {
 interface BranchFormProps {
   /** The context branch's zone: companies have none, so a new branch most likely shares its sibling's. */
   defaultTimeZone: string;
-  onSubmit(values: BranchFormValues): Promise<unknown>;
+  /** `idempotencyKey` is stable across attempts of this form until one succeeds. */
+  onSubmit(values: BranchFormValues, idempotencyKey: string): Promise<unknown>;
 }
 
 export function BranchForm({ defaultTimeZone, onSubmit }: BranchFormProps) {
@@ -49,13 +50,19 @@ export function BranchForm({ defaultTimeZone, onSubmit }: BranchFormProps) {
     defaultValues: { name: "", time_zone: defaultTimeZone },
   });
 
+  const idempotencyKey = useRef(crypto.randomUUID());
+
   const zones: readonly string[] = (TIME_ZONES as readonly string[]).includes(defaultTimeZone)
     ? TIME_ZONES
     : [defaultTimeZone, ...TIME_ZONES];
 
   const submit = form.handleSubmit(async (values) => {
     try {
-      await onSubmit({ name: values.name.trim(), time_zone: values.time_zone });
+      await onSubmit(
+        { name: values.name.trim(), time_zone: values.time_zone },
+        idempotencyKey.current,
+      );
+      idempotencyKey.current = crypto.randomUUID();
     } catch (error) {
       reportSubmitError(error, form.setError, t, { name: "name", time_zone: "time_zone" });
     }

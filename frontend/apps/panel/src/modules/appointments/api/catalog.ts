@@ -6,7 +6,6 @@ import {
   type components,
 } from "@ceiba/api-client";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef } from "react";
 import { CSRF, LIST_PAGE, useCatalogScope, type WeeklyScheduleInput } from "./shared";
 
 type Schemas = components["schemas"];
@@ -226,19 +225,15 @@ export function useCreateBranch() {
   const client = useApiClient();
   const queryClient = useQueryClient();
   const { organizationId, companyId, path } = useCatalogScope();
-  // One key per submit: attempts of the same submit (the same body object) share it, a new submit gets another.
-  const keys = useRef(new WeakMap<BranchInput, string>());
   return useMutation({
-    mutationFn: (body: BranchInput) => {
-      const key = keys.current.get(body) ?? crypto.randomUUID();
-      keys.current.set(body, key);
-      return unwrap(
+    // The caller owns the key: it must survive retries of the same form, which a fresh body object would not.
+    mutationFn: ({ body, idempotencyKey }: { body: BranchInput; idempotencyKey: string }) =>
+      unwrap(
         client.POST("/api/v1/organizations/{organization_id}/companies/{company_id}/branches", {
-          params: { path, header: { ...CSRF, "Idempotency-Key": key } },
+          params: { path, header: { ...CSRF, "Idempotency-Key": idempotencyKey } },
           body,
         }),
-      );
-    },
+      ),
     meta: { silent: true },
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: queryKeys.branches(organizationId, companyId) }),
