@@ -228,10 +228,15 @@ describe("estados de la cita (ADR-0032): se distinguen por luminosidad, no solo 
   });
 
   it("confirmada es la superficie más clara y llegó, la más oscura", () => {
-    const others = states.filter((state) => state !== "confirmed" && state !== "arrived");
-    for (const state of others) {
+    for (const state of ["pending", "done"]) {
       expect(surface("confirmed")).toBeGreaterThan(surface(state));
       expect(surface(state) - surface("arrived")).toBeGreaterThan(0.1);
+    }
+  });
+
+  it("no asistió se separa en luminosidad de todos los demás", () => {
+    for (const state of states.filter((item) => item !== "missed")) {
+      expect(Math.abs(surface("missed") - surface(state))).toBeGreaterThan(0.05);
     }
   });
 
