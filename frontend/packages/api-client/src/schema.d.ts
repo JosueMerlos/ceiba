@@ -4785,6 +4785,15 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
+                /** @description el cuerpo supera los 8 MiB (`request.too_large`); se rechaza antes de parsearlo */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
                 /** @description un archivo que no es una imagen PNG, JPEG o WebP (un SVG renombrado a .png) o un color inválido */
                 422: {
                     headers: {

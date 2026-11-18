@@ -70,7 +70,8 @@ Active Storage, sin SVG. Faltaba decidir cómo entran y cómo salen los archivos
 - **Negativas / costos aceptados:** guardar procesa seis variantes en la petición (imágenes pequeñas, validadas antes); un fallo
   de vips tras el commit deja el cambio guardado, se reporta (`Rails.error`) y la petición no falla, pero esa variante no se
   sirve hasta guardar de nuevo (el proxy nunca procesa); el `multipart` rompe la regla "todo es JSON" en un punto, acotado y
-  probado (8 MiB como máximo, y con `Content-Length`).
+  probado (8 MiB como máximo: Puma y Caddy lo cortan antes de almacenar el cuerpo y `ApiRequestGuard` aplica el mismo tope
+  antes de que Rack parsee el multipart).
 - **Limitación aceptada:** las URLs de variantes de una empresa inactiva o de una organización suspendida siguen sirviéndolas
   el proxy (firmadas, públicas y con caché larga e `immutable`): las imágenes de marca son públicas por diseño. Una vez
   cacheadas en un CDN o navegador no hay forma de retirarlas de las cachés compartidas; solo cambia el blob (URL nueva) o
@@ -78,6 +79,12 @@ Active Storage, sin SVG. Faltaba decidir cómo entran y cómo salen los archivos
 - **Concurrencia:** guardar la marca bloquea la fila de la empresa (`FOR UPDATE`), así que dos `PATCH` simultáneos se
   ejecutan uno tras otro. Los originales subidos solo se borran si la transacción que los creó se revierte (aunque sea la
   externa, después de volver el caso de uso); el nombre del archivo del usuario nunca se guarda (se usa `logo.png`, etc.).
+- **Ventanas aceptadas tras el commit:** el ETag público cambia al guardar (`touch!`) y las variantes se renderizan justo
+  después del commit, así que durante un instante el ETag nuevo existe sin variantes; si el render falla, la URL publicada
+  responde 404 hasta guardar de nuevo (se reporta, no se reintenta). Si dos guardados se cruzan, el render del primero puede
+  crear registros de variante después de que el segundo purgó el original: `purge` los borra en una segunda pasada antes de
+  purgar el blob, pero queda una ventana residual más pequeña (un render que aterrice después de esa pasada); un blob que
+  sobreviva a su purga se reporta con `Rails.error`, nunca en silencio.
 - **Qué obliga a hacer:** el spec de `authentication_spec` solo admite el `GET` del proxy como ruta de Active Storage; todo
   código que adjunte un archivo a un modelo debe precargar `analyzed` en el blob (si no, Active Storage encola un análisis); el
   contrato OpenAPI documenta el `PATCH` multipart pero no el proxy (no es JSON).

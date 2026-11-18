@@ -13,13 +13,11 @@
 
 	# `path /api /api/*`: /api without a trailing slash also goes to the API, not the panel
 	@api path /api /api/*
-	# Headers a client could use to claim another IP must not reach the API (it only reads X-Forwarded-For, which Caddy
-	# overwrites with the client IP). The app drops them too (NetworkTrust::UntrustedForwardingFilter).
-	# The branding PATCH is the only multipart body: cap it at the proxy as well (the app enforces the same 8 MiB before Rack
-	# parses it), so an oversized upload is cut off before it reaches Rails.
+	# The branding PATCH is the only multipart body: cap it at the proxy as well (Puma and the app enforce the same 8 MiB), so an
+	# oversized upload is cut off before it reaches Rails.
 	@branding_upload {
 		method PATCH
-		path_regexp ^/api/v1/organizations/[^/]+/companies/[^/]+/branding$
+		path_regexp (?i)^/api/v1/organizations/[^/]+/companies/[^/]+/branding$
 	}
 	request_body @branding_upload {
 		max_size 8MiB
@@ -27,6 +25,8 @@
 
 	handle @api {
 		reverse_proxy api:3000 {
+			# Headers a client could use to claim another IP must not reach the API (it only reads X-Forwarded-For, which Caddy
+			# overwrites with the client IP). The app drops them too (NetworkTrust::UntrustedForwardingFilter).
 			header_up -Forwarded
 			header_up -Client-Ip
 			header_up -X-Real-Ip

@@ -79,7 +79,14 @@ module Tenancy
     # The variants of the given kinds, resolved now (inside the tenant) to be rendered after the commit.
     def variants(kinds) = kinds.flat_map { |kind| @company.branding_variants(kind).values }
 
-    def render!(variants) = variants.each(&:processed)
+    # One failing variant must not leave the others unrendered: each is reported on its own.
+    def render!(variants)
+      variants.each do |variant|
+        variant.processed
+      rescue StandardError => error
+        Rails.error.report(error, handled: true, context: { company_id: @company.id })
+      end
+    end
 
     # Variant records and their rendered files first (their own purge would enqueue a job), then the original.
     def purge!(blobs)
@@ -102,15 +109,28 @@ module Tenancy
     def generic_filename(kind, content_type) = "#{kind}.#{Mime::Type.lookup(content_type).symbol}"
 
     def purge(blob)
+      delete_variants(blob)
+      # A save that rendered a variant while this purge ran may have created records after the first read. A window smaller
+      # than this one remains (a render landing after this second pass), so a blob that survives is reported, never silent.
+      delete_variants(blob)
+      blob.purge
+      report_leak(blob) if ActiveStorage::Blob.exists?(blob.id)
+    rescue StandardError => error
+      Rails.error.report(error, handled: true, context: { blob_id: blob.id })
+    end
+
+    def delete_variants(blob)
       blob.variant_records.includes(image_attachment: :blob).each do |variant|
         rendered = variant.image_attachment&.blob
         variant.image_attachment&.delete
         variant.delete
         rendered&.purge
       end
-      blob.purge
-    rescue StandardError => error
-      Rails.error.report(error, handled: true, context: { blob_id: blob.id })
+    end
+
+    # Active Storage's own purge swallows a foreign-key failure, so the blob would stay without a trace.
+    def report_leak(blob)
+      Rails.error.report(StandardError.new("branding blob survived its purge"), handled: true, context: { blob_id: blob.id })
     end
   end
 end

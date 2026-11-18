@@ -148,6 +148,16 @@ RSpec.describe "API v1: marca de la empresa" do
         run_test! { |response| expect(response.parsed_body["code"]).to eq("resource.not_found") }
       end
 
+      # rswag posts a hash, not a real multipart body, so the guard cannot be exercised through it; the 413 is declared here for
+      # the contract and its wire behavior (a real oversized multipart body) is covered in spec/requests (branding_requests_spec).
+      response "413", "el cuerpo supera los 8 MiB (`request.too_large`); se rechaza antes de parsearlo" do
+        schema "$ref" => "#/components/schemas/Problem"
+
+        it "declara la respuesta en el contrato" do |example|
+          expect(example.metadata.dig(:response, :code)).to eq("413")
+        end
+      end
+
       response "422", "un archivo que no es una imagen PNG, JPEG o WebP (un SVG renombrado a .png) o un color inválido" do
         let!(:signed_in) { sign_in(manager) }
         let(:logo) { svg_as_png }

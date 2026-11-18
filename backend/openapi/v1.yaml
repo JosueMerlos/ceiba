@@ -5555,6 +5555,12 @@ paths:
               schema:
                 "$ref": "#/components/schemas/Problem"
           description: la empresa es de otra empresa o de otra organización
+        '413':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el cuerpo supera los 8 MiB (`request.too_large`); se rechaza antes de parsearlo
         '422':
           content:
             application/problem+json:

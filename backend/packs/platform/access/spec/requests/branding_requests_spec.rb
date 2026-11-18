@@ -18,6 +18,14 @@ RSpec.describe "Marca de la empresa: peticiones reales" do
 
   def patch_json(params) = patch(path, params:, headers: signed_in.csrf_headers, as: :json)
 
+  it "un cuerpo multipart de más de 8 MiB responde 413 request.too_large y no guarda nada" do
+    big = Rack::Test::UploadedFile.new(StringIO.new("0" * (8.megabytes + 1)), "image/png", original_filename: "logo.png")
+
+    patch_branding({ brand_name: "Nuevo", logo: big })
+
+    expect([ response.status, response.parsed_body["code"], reloaded.brand_name ]).to eq([ 413, "request.too_large", nil ])
+  end
+
   it "guarda textos y logo enviados como multipart y devuelve la marca" do
     patch_branding({ brand_name: "Salón Estilo", primary_color: "#ffff00", logo: png_file })
 

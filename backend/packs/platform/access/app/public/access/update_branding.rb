@@ -32,7 +32,7 @@ module Access
     def call
       ApplicationRecord.transaction(requires_new: true) do
         # Registered first: whichever transaction finally rolls back (this one or an outer one) takes the originals with it.
-        ApplicationRecord.connection.current_transaction.after_rollback { @assets.discard! }
+        ApplicationRecord.current_transaction.after_rollback { @assets.discard! }
         @company.lock!
         @company.assign_attributes(@attributes)
         content_types = validate!
