@@ -18,10 +18,9 @@ export function ServiceOverrideSection({ service, branch }: { service: Service; 
   const put = usePutServiceOverride(branch.id);
   const remove = useDeleteServiceOverride(branch.id);
 
-  // Those who manage services may also override; branch roles hold the two override permissions separately.
-  const manage = can("appointments.service.manage");
-  const canEditDuration = manage || can("appointments.service.override_duration");
-  const canEditPrice = manage || can("appointments.service.override_price");
+  // Mirrors ServiceOverridePolicy: each field needs its own override permission; managing the service is not enough.
+  const canEditDuration = can("appointments.service.override_duration");
+  const canEditPrice = can("appointments.service.override_price");
 
   // Inputs are seeded from the loaded override: render only once it is known, and re-seed when it changes.
   if (!overrides.isSuccess) return null;
