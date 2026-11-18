@@ -1,23 +1,10 @@
-import { fromBranding, type FontChoice } from "@ceiba/branding";
+import type { Branding } from "@ceiba/api-client";
+import { fromBranding } from "@ceiba/branding";
 import { useApplyBranding } from "@ceiba/branding/react";
 import { useEffect, useState } from "react";
 
-interface Asset {
-  [variant: string]: string;
-}
-
-export interface PublicBranding {
-  brand_name: string | null;
-  tagline: string | null;
-  primary_color: string | null;
-  secondary_color: string | null;
-  accent_color: string | null;
-  font_choice: FontChoice | null;
-  assets: { logo: Asset | null; banner: Asset | null; favicon: Asset | null };
-}
-
 export type BrandingState =
-  { status: "loading" } | { status: "not-found" } | { status: "ready"; branding: PublicBranding };
+  { status: "loading" } | { status: "not-found" } | { status: "ready"; branding: Branding };
 
 /** The company slug of `/c/:slug`, or null on the bare entry (no company chosen). */
 export function slugFromPath(pathname: string): string | null {
@@ -42,7 +29,7 @@ export function usePublicBranding(slug: string | null): BrandingState {
       .then(async (response) => {
         if (response.status === 404) return setState({ status: "not-found" });
         if (!response.ok) throw new Error(String(response.status));
-        const { data } = (await response.json()) as { data: PublicBranding };
+        const { data } = (await response.json()) as { data: Branding };
         setState({ status: "ready", branding: data });
       })
       .catch((error: unknown) => {
@@ -59,7 +46,7 @@ export function usePublicBranding(slug: string | null): BrandingState {
   return state;
 }
 
-const EMPTY_BRANDING: PublicBranding = {
+const EMPTY_BRANDING: Branding = {
   brand_name: null,
   tagline: null,
   primary_color: null,

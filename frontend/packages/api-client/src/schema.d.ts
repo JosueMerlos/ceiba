@@ -5271,6 +5271,18 @@ export interface components {
              */
             starts_at: string;
         };
+        /**
+         * @description Variantes del banner: wide (16:9) y standard (4:3), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.
+         * @example {
+         *       "wide": "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/banner.webp"
+         *     }
+         */
+        BannerAsset: {
+            /** @description Ruta relativa bajo /api/storage */
+            standard: string;
+            /** @description Ruta relativa bajo /api/storage */
+            wide: string;
+        } | null;
         /** @description Sucursal: una ubicación de una empresa */
         Branch: {
             address: string | null;
@@ -5302,11 +5314,10 @@ export interface components {
         /** @description Marca de una empresa. Todo valor es null mientras no se personalice: aplica la paleta de la plataforma. */
         Branding: {
             accent_color: string | null;
-            /** @description logo: x1 y x2 (alto 64 y 128, WebP); banner: wide (16:9) y standard (4:3), WebP; favicon: icon32 e icon180, PNG */
             assets: {
-                banner: components["schemas"]["BrandingAsset"];
-                favicon: components["schemas"]["BrandingAsset"];
-                logo: components["schemas"]["BrandingAsset"];
+                banner: components["schemas"]["BannerAsset"];
+                favicon: components["schemas"]["FaviconAsset"];
+                logo: components["schemas"]["LogoAsset"];
             };
             brand_name: string | null;
             /** @enum {string|null} */
@@ -5316,15 +5327,6 @@ export interface components {
             secondary_color: string | null;
             tagline: string | null;
         };
-        /**
-         * @description URLs de las variantes de una imagen (null si no hay imagen). Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original.
-         * @example {
-         *       "x1": "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/logo.webp"
-         *     }
-         */
-        BrandingAsset: {
-            [key: string]: string;
-        } | null;
         /** @description Cuerpo multipart/form-data de PATCH de la marca. Solo cambia lo enviado; un campo vacío vuelve al default; `remove[]` quita archivos. */
         BrandingUpdate: {
             accent_color?: string;
@@ -5434,6 +5436,18 @@ export interface components {
              */
             phone_e164?: string;
         };
+        /**
+         * @description Variantes del favicon: icon32 e icon180, PNG. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.
+         * @example {
+         *       "icon32": "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/favicon.png"
+         *     }
+         */
+        FaviconAsset: {
+            /** @description Ruta relativa bajo /api/storage */
+            icon180: string;
+            /** @description Ruta relativa bajo /api/storage */
+            icon32: string;
+        } | null;
         FieldError: {
             /**
              * @description Tipo del error (blank, taken, invalid...)
@@ -5445,6 +5459,18 @@ export interface components {
             /** @example no puede estar en blanco */
             message: string;
         };
+        /**
+         * @description Variantes del logo: x1 (alto 64) y x2 (alto 128), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.
+         * @example {
+         *       "x1": "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/logo.webp"
+         *     }
+         */
+        LogoAsset: {
+            /** @description Ruta relativa bajo /api/storage */
+            x1: string;
+            /** @description Ruta relativa bajo /api/storage */
+            x2: string;
+        } | null;
         /** @description Respuesta de GET /api/v1/me */
         Me: {
             data: {

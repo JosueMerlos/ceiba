@@ -425,6 +425,23 @@ components:
       - professional_id
       - resource_id
       type: object
+    BannerAsset:
+      additionalProperties: false
+      description: 'Variantes del banner: wide (16:9) y standard (4:3), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.'
+      example:
+        wide: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/banner.webp"
+      nullable: true
+      properties:
+        standard:
+          description: Ruta relativa bajo /api/storage
+          type: string
+        wide:
+          description: Ruta relativa bajo /api/storage
+          type: string
+      required:
+      - wide
+      - standard
+      type: object
     Branch:
       additionalProperties: false
       description: 'Sucursal: una ubicación de una empresa'
@@ -482,14 +499,13 @@ components:
           type: string
         assets:
           additionalProperties: false
-          description: 'logo: x1 y x2 (alto 64 y 128, WebP); banner: wide (16:9) y standard (4:3), WebP; favicon: icon32 e icon180, PNG'
           properties:
             banner:
-              "$ref": "#/components/schemas/BrandingAsset"
+              "$ref": "#/components/schemas/BannerAsset"
             favicon:
-              "$ref": "#/components/schemas/BrandingAsset"
+              "$ref": "#/components/schemas/FaviconAsset"
             logo:
-              "$ref": "#/components/schemas/BrandingAsset"
+              "$ref": "#/components/schemas/LogoAsset"
           required:
           - logo
           - banner
@@ -527,15 +543,6 @@ components:
       - accent_color
       - font_choice
       - assets
-      type: object
-    BrandingAsset:
-      additionalProperties:
-        description: Ruta relativa bajo /api/storage
-        type: string
-      description: 'URLs de las variantes de una imagen (null si no hay imagen). Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original.'
-      example:
-        x1: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/logo.webp"
-      nullable: true
       type: object
     BrandingUpdate:
       additionalProperties: false
@@ -715,6 +722,23 @@ components:
           example: 8888-7777
           type: string
       type: object
+    FaviconAsset:
+      additionalProperties: false
+      description: 'Variantes del favicon: icon32 e icon180, PNG. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.'
+      example:
+        icon32: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/favicon.png"
+      nullable: true
+      properties:
+        icon180:
+          description: Ruta relativa bajo /api/storage
+          type: string
+        icon32:
+          description: Ruta relativa bajo /api/storage
+          type: string
+      required:
+      - icon32
+      - icon180
+      type: object
     FieldError:
       additionalProperties: false
       properties:
@@ -732,6 +756,23 @@ components:
       - field
       - code
       - message
+      type: object
+    LogoAsset:
+      additionalProperties: false
+      description: 'Variantes del logo: x1 (alto 64) y x2 (alto 128), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.'
+      example:
+        x1: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/logo.webp"
+      nullable: true
+      properties:
+        x1:
+          description: Ruta relativa bajo /api/storage
+          type: string
+        x2:
+          description: Ruta relativa bajo /api/storage
+          type: string
+      required:
+      - x1
+      - x2
       type: object
     Me:
       additionalProperties: false

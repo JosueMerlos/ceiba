@@ -181,6 +181,9 @@ importers:
 
   apps/booking:
     dependencies:
+      '@ceiba/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@ceiba/branding':
         specifier: workspace:*
         version: link:../../packages/branding

@@ -1,7 +1,9 @@
 import { isHexColor, type BrandingInput, type FontChoice } from "@ceiba/branding";
 import type { Branding, BrandingChanges, BrandingFile } from "@ceiba/api-client";
 
-export const FILE_FIELDS = ["logo", "banner", "favicon"] as const satisfies readonly BrandingFile[];
+// A Record, not a list: a new image kind in the contract fails to compile here until it is handled.
+const FILE_KINDS: Record<BrandingFile, true> = { logo: true, banner: true, favicon: true };
+export const FILE_FIELDS = Object.keys(FILE_KINDS) as BrandingFile[];
 export const COLOR_FIELDS = ["primaryColor", "secondaryColor", "accentColor"] as const;
 export type ColorField = (typeof COLOR_FIELDS)[number];
 
@@ -82,9 +84,16 @@ export function toChanges(
   };
 }
 
-/** Saved URL of each image used as a thumbnail (a variant, never the original). */
-export function savedAssetUrl(branding: Branding, name: BrandingFile): string | null {
-  const asset = branding.assets[name];
-  if (!asset) return null;
-  return asset.x1 ?? asset.standard ?? asset.icon32 ?? null;
+/** The variant shown as a thumbnail for each kind (a variant, never the original). */
+const THUMBNAIL_VARIANT: {
+  [K in BrandingFile]: (asset: Branding["assets"][K]) => string | undefined;
+} = {
+  logo: (asset) => asset?.x1,
+  banner: (asset) => asset?.standard,
+  favicon: (asset) => asset?.icon32,
+};
+
+/** Saved URL of each image used as a thumbnail. */
+export function savedAssetUrl<K extends BrandingFile>(branding: Branding, name: K): string | null {
+  return THUMBNAIL_VARIANT[name](branding.assets[name]) ?? null;
 }

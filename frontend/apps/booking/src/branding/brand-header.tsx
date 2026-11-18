@@ -1,9 +1,9 @@
+import type { Branding } from "@ceiba/api-client";
 import { useTranslation } from "@ceiba/i18n";
 import { CeibaMark } from "@ceiba/ui";
-import type { PublicBranding } from "./use-public-branding";
 
 /** Banner, logo, name and tagline of the company; without any of them, the platform mark. */
-export function BrandHeader({ branding }: { branding: PublicBranding }) {
+export function BrandHeader({ branding }: { branding: Branding }) {
   const { t } = useTranslation("booking");
   const { logo, banner } = branding.assets;
   const name = branding.brand_name;

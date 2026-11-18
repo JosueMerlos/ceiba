@@ -60,11 +60,26 @@ OpenapiComponents.register(
     required: %i[id company_id name time_zone address phone_e164 status created_at updated_at],
     additionalProperties: false
   },
-  BrandingAsset: {
+  LogoAsset: {
     type: :object, nullable: true,
-    description: "URLs de las variantes de una imagen (null si no hay imagen). Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original.",
-    additionalProperties: { type: :string, description: "Ruta relativa bajo /api/storage" },
+    description: "Variantes del logo: x1 (alto 64) y x2 (alto 128), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.",
+    properties: { x1: { type: :string, description: "Ruta relativa bajo /api/storage" }, x2: { type: :string, description: "Ruta relativa bajo /api/storage" } },
+    required: %i[x1 x2], additionalProperties: false,
     example: { x1: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/logo.webp" }
+  },
+  BannerAsset: {
+    type: :object, nullable: true,
+    description: "Variantes del banner: wide (16:9) y standard (4:3), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.",
+    properties: { wide: { type: :string, description: "Ruta relativa bajo /api/storage" }, standard: { type: :string, description: "Ruta relativa bajo /api/storage" } },
+    required: %i[wide standard], additionalProperties: false,
+    example: { wide: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/banner.webp" }
+  },
+  FaviconAsset: {
+    type: :object, nullable: true,
+    description: "Variantes del favicon: icon32 e icon180, PNG. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.",
+    properties: { icon32: { type: :string, description: "Ruta relativa bajo /api/storage" }, icon180: { type: :string, description: "Ruta relativa bajo /api/storage" } },
+    required: %i[icon32 icon180], additionalProperties: false,
+    example: { icon32: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/favicon.png" }
   },
   Branding: {
     type: :object,
@@ -78,11 +93,10 @@ OpenapiComponents.register(
       font_choice: { type: :string, nullable: true, enum: %w[figtree lora nunito] },
       assets: {
         type: :object,
-        description: "logo: x1 y x2 (alto 64 y 128, WebP); banner: wide (16:9) y standard (4:3), WebP; favicon: icon32 e icon180, PNG",
         properties: {
-          logo: { "$ref" => "#/components/schemas/BrandingAsset" },
-          banner: { "$ref" => "#/components/schemas/BrandingAsset" },
-          favicon: { "$ref" => "#/components/schemas/BrandingAsset" }
+          logo: { "$ref" => "#/components/schemas/LogoAsset" },
+          banner: { "$ref" => "#/components/schemas/BannerAsset" },
+          favicon: { "$ref" => "#/components/schemas/FaviconAsset" }
         },
         required: %i[logo banner favicon], additionalProperties: false
       }

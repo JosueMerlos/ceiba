@@ -4,7 +4,8 @@ import { queryKeys, useApiClient } from "./query";
 import type { components } from "./schema";
 
 export type Branding = components["schemas"]["Branding"];
-export type BrandingFile = "logo" | "banner" | "favicon";
+/** The image kinds of a brand: whatever the contract publishes under `assets`. */
+export type BrandingFile = keyof Branding["assets"];
 
 const TEXT_FIELDS = [
   "brand_name",
