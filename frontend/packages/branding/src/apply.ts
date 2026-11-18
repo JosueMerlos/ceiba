@@ -17,7 +17,7 @@ export const BRAND_VARS = [
 const MANAGED = new Set<string>(BRAND_VARS);
 
 const FALLBACK_BACKGROUND = "#FFFFFF";
-// Matches the platform sidebar tone until the token exists.
+// Matches --sidebar (kapok-50); test/surfaces-sync.test.ts fails if the token drifts from it.
 const FALLBACK_SIDEBAR = "#F2F4EF";
 
 /** Writes the vars and drops any managed one the new brand no longer sets. Other inline styles are untouched. */
