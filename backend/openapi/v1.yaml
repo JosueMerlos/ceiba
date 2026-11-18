@@ -425,6 +425,23 @@ components:
       - professional_id
       - resource_id
       type: object
+    BannerAsset:
+      additionalProperties: false
+      description: 'Variantes del banner: wide (16:9) y standard (4:3), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.'
+      example:
+        wide: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/banner.webp"
+      nullable: true
+      properties:
+        standard:
+          description: Ruta relativa bajo /api/storage
+          type: string
+        wide:
+          description: Ruta relativa bajo /api/storage
+          type: string
+      required:
+      - wide
+      - standard
+      type: object
     Branch:
       additionalProperties: false
       description: 'Sucursal: una ubicación de una empresa'
@@ -492,6 +509,106 @@ components:
       required:
       - name
       - time_zone
+      type: object
+    Branding:
+      additionalProperties: false
+      description: 'Marca de una empresa. Todo valor es null mientras no se personalice: aplica la paleta de la plataforma.'
+      properties:
+        accent_color:
+          nullable: true
+          pattern: "^#[0-9A-F]{6}$"
+          type: string
+        assets:
+          additionalProperties: false
+          properties:
+            banner:
+              "$ref": "#/components/schemas/BannerAsset"
+            favicon:
+              "$ref": "#/components/schemas/FaviconAsset"
+            logo:
+              "$ref": "#/components/schemas/LogoAsset"
+          required:
+          - logo
+          - banner
+          - favicon
+          type: object
+        brand_name:
+          maxLength: 80
+          nullable: true
+          type: string
+        font_choice:
+          enum:
+          - figtree
+          - lora
+          - nunito
+          nullable: true
+          type: string
+        primary_color:
+          example: "#1D6C4E"
+          nullable: true
+          pattern: "^#[0-9A-F]{6}$"
+          type: string
+        secondary_color:
+          nullable: true
+          pattern: "^#[0-9A-F]{6}$"
+          type: string
+        tagline:
+          maxLength: 140
+          nullable: true
+          type: string
+      required:
+      - brand_name
+      - tagline
+      - primary_color
+      - secondary_color
+      - accent_color
+      - font_choice
+      - assets
+      type: object
+    BrandingUpdate:
+      additionalProperties: false
+      description: Cuerpo multipart/form-data de PATCH de la marca. Solo cambia lo enviado; un campo vacío vuelve al default; `remove[]` quita archivos.
+      properties:
+        accent_color:
+          type: string
+        banner:
+          description: PNG, JPEG o WebP de hasta 5 MB y 4096 px por lado
+          format: binary
+          type: string
+        brand_name:
+          maxLength: 80
+          type: string
+        favicon:
+          description: PNG, JPEG o WebP de hasta 200 KB y 4096 px por lado
+          format: binary
+          type: string
+        font_choice:
+          enum:
+          - figtree
+          - lora
+          - nunito
+          type: string
+        logo:
+          description: PNG, JPEG o WebP de hasta 2 MB y 4096 px por lado
+          format: binary
+          type: string
+        primary_color:
+          description: "#RRGGBB (se normaliza a mayúsculas)"
+          example: "#FFFF00"
+          type: string
+        remove:
+          items:
+            enum:
+            - logo
+            - banner
+            - favicon
+            type: string
+          type: array
+        secondary_color:
+          type: string
+        tagline:
+          maxLength: 140
+          type: string
       type: object
     Company:
       additionalProperties: false
@@ -626,6 +743,23 @@ components:
           example: 8888-7777
           type: string
       type: object
+    FaviconAsset:
+      additionalProperties: false
+      description: 'Variantes del favicon: icon32 e icon180, PNG. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.'
+      example:
+        icon32: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/favicon.png"
+      nullable: true
+      properties:
+        icon180:
+          description: Ruta relativa bajo /api/storage
+          type: string
+        icon32:
+          description: Ruta relativa bajo /api/storage
+          type: string
+      required:
+      - icon32
+      - icon180
+      type: object
     FieldError:
       additionalProperties: false
       properties:
@@ -643,6 +777,23 @@ components:
       - field
       - code
       - message
+      type: object
+    LogoAsset:
+      additionalProperties: false
+      description: 'Variantes del logo: x1 (alto 64) y x2 (alto 128), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.'
+      example:
+        x1: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/logo.webp"
+      nullable: true
+      properties:
+        x1:
+          description: Ruta relativa bajo /api/storage
+          type: string
+        x2:
+          description: Ruta relativa bajo /api/storage
+          type: string
+      required:
+      - x1
+      - x2
       type: object
     Me:
       additionalProperties: false
@@ -1634,6 +1785,38 @@ paths:
       required: true
       schema:
         pattern: "^[a-z0-9-]{3,40}$"
+        type: string
+  "/api/public/v1/c/{slug}/branding":
+    get:
+      description: 'Anónimo. Responde con `ETag` y `Cache-Control: public, no-cache`: el navegador revalida siempre y una marca cambiada se ve sin limpiar la caché (las URLs de los archivos cambian con cada archivo nuevo). Los campos sin personalizar son `null`: se usa la paleta de la plataforma. Un slug inexistente, una organización suspendida y una empresa inactiva responden el mismo 404.'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Branding"
+                required:
+                - data
+                type: object
+          description: la marca, con las URLs versionadas de las variantes
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el slug no existe, la organización está suspendida o la empresa está inactiva
+      summary: Marca de la empresa
+      tags:
+      - Reserva pública
+    parameters:
+    - description: Slug público de la empresa
+      in: path
+      name: slug
+      required: true
+      schema:
         type: string
   "/api/v1/auth/login":
     post:
@@ -5653,6 +5836,121 @@ paths:
       schema:
         format: uuid
         type: string
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/branding":
+    get:
+      description: 'Exige `platform.branding.update` (org_admin y company_manager de la empresa). Una empresa fuera del alcance del usuario responde 404; una visible sin el permiso, 403. Los campos sin personalizar son `null`: se usa la paleta de la plataforma.'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Branding"
+                required:
+                - data
+                type: object
+          description: la marca (todo `null` si la empresa no la personalizó)
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: visible pero sin `platform.branding.update` (`access.forbidden`)
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: la empresa está fuera del alcance del usuario, o en otra organización
+      security:
+      - cookieAuth: []
+      summary: Obtiene la marca de la empresa
+      tags:
+      - Marca
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    patch:
+      description: 'Exige `platform.branding.update`. Es `multipart/form-data`: textos, colores `#RRGGBB`, `font_choice` (`figtree`, `lora` o `nunito`) y los archivos `logo`, `banner` y `favicon` (PNG, JPEG o WebP, validados por su contenido real, no por su nombre ni su tipo declarado). Solo cambia lo enviado; un campo vacío vuelve al default de la plataforma y `remove[]` quita un archivo. Archivos y datos se validan antes de guardar nada: o se aplica todo o nada.'
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              "$ref": "#/components/schemas/BrandingUpdate"
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/Branding"
+                required:
+                - data
+                type: object
+          description: la marca guardada, con las URLs versionadas de las variantes
+        '401':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: sin sesión válida
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el branch_manager no tiene `platform.branding.update` (`access.forbidden`)
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: la empresa es de otra empresa o de otra organización
+        '413':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: el cuerpo supera los 8 MiB (`request.too_large`); se rechaza antes de parsearlo
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/ValidationProblem"
+          description: un archivo que no es una imagen PNG, JPEG o WebP (un SVG renombrado a .png) o un color inválido
+      security:
+      - cookieAuth: []
+      summary: Edita la marca de la empresa
+      tags:
+      - Marca
   "/api/v1/organizations/{organization_id}/companies/{company_id}/modules/{key}":
     parameters:
     - in: path

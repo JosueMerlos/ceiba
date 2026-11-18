@@ -60,6 +60,67 @@ OpenapiComponents.register(
     required: %i[id company_id name time_zone address phone_e164 status created_at updated_at],
     additionalProperties: false
   },
+  LogoAsset: {
+    type: :object, nullable: true,
+    description: "Variantes del logo: x1 (alto 64) y x2 (alto 128), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.",
+    properties: { x1: { type: :string, description: "Ruta relativa bajo /api/storage" }, x2: { type: :string, description: "Ruta relativa bajo /api/storage" } },
+    required: %i[x1 x2], additionalProperties: false,
+    example: { x1: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/logo.webp" }
+  },
+  BannerAsset: {
+    type: :object, nullable: true,
+    description: "Variantes del banner: wide (16:9) y standard (4:3), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.",
+    properties: { wide: { type: :string, description: "Ruta relativa bajo /api/storage" }, standard: { type: :string, description: "Ruta relativa bajo /api/storage" } },
+    required: %i[wide standard], additionalProperties: false,
+    example: { wide: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/banner.webp" }
+  },
+  FaviconAsset: {
+    type: :object, nullable: true,
+    description: "Variantes del favicon: icon32 e icon180, PNG. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.",
+    properties: { icon32: { type: :string, description: "Ruta relativa bajo /api/storage" }, icon180: { type: :string, description: "Ruta relativa bajo /api/storage" } },
+    required: %i[icon32 icon180], additionalProperties: false,
+    example: { icon32: "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/favicon.png" }
+  },
+  Branding: {
+    type: :object,
+    description: "Marca de una empresa. Todo valor es null mientras no se personalice: aplica la paleta de la plataforma.",
+    properties: {
+      brand_name: { type: :string, nullable: true, maxLength: 80 },
+      tagline: { type: :string, nullable: true, maxLength: 140 },
+      primary_color: { type: :string, nullable: true, pattern: "^#[0-9A-F]{6}$", example: "#1D6C4E" },
+      secondary_color: { type: :string, nullable: true, pattern: "^#[0-9A-F]{6}$" },
+      accent_color: { type: :string, nullable: true, pattern: "^#[0-9A-F]{6}$" },
+      font_choice: { type: :string, nullable: true, enum: %w[figtree lora nunito] },
+      assets: {
+        type: :object,
+        properties: {
+          logo: { "$ref" => "#/components/schemas/LogoAsset" },
+          banner: { "$ref" => "#/components/schemas/BannerAsset" },
+          favicon: { "$ref" => "#/components/schemas/FaviconAsset" }
+        },
+        required: %i[logo banner favicon], additionalProperties: false
+      }
+    },
+    required: %i[brand_name tagline primary_color secondary_color accent_color font_choice assets],
+    additionalProperties: false
+  },
+  BrandingUpdate: {
+    type: :object,
+    description: "Cuerpo multipart/form-data de PATCH de la marca. Solo cambia lo enviado; un campo vacío vuelve al default; `remove[]` quita archivos.",
+    properties: {
+      brand_name: { type: :string, maxLength: 80 },
+      tagline: { type: :string, maxLength: 140 },
+      primary_color: { type: :string, description: "#RRGGBB (se normaliza a mayúsculas)", example: "#FFFF00" },
+      secondary_color: { type: :string },
+      accent_color: { type: :string },
+      font_choice: { type: :string, enum: %w[figtree lora nunito] },
+      logo: { type: :string, format: :binary, description: "PNG, JPEG o WebP de hasta 2 MB y 4096 px por lado" },
+      banner: { type: :string, format: :binary, description: "PNG, JPEG o WebP de hasta 5 MB y 4096 px por lado" },
+      favicon: { type: :string, format: :binary, description: "PNG, JPEG o WebP de hasta 200 KB y 4096 px por lado" },
+      remove: { type: :array, items: { type: :string, enum: %w[logo banner favicon] } }
+    },
+    additionalProperties: false
+  },
   BranchInput: {
     type: :object,
     description: "Alta de una sucursal. La empresa sale de la ruta; la sucursal nace sin horario (cerrada) hasta que se configure.",

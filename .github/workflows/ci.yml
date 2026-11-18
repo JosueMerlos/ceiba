@@ -158,6 +158,9 @@ jobs:
           sudo apt-get -o Acquire::Retries=5 update -qq
           sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends postgresql-client-18
           echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
+      # Branding images are validated and their variants rendered with vips (ruby-vips loads libvips at runtime).
+      - name: libvips (validación y variantes de imágenes)
+        run: sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends libvips42t64
       - name: Roles de base de datos (app_owner, app_user)
         run: infra/db/init-roles.sh
       - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0

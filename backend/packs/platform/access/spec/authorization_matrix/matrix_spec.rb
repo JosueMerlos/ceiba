@@ -73,6 +73,13 @@ module AuthorizationMatrix
     "org_owner" => 200, "org_admin" => 200, "company_manager" => 403, "branch_manager" => 403, "receptionist" => 403, "professional" => 403
   }.freeze
 
+  # GET and PATCH .../companies/:id/branding (platform.branding.update: org_admin and company_manager): [company A (own), company B (foreign)].
+  # org_owner reaches both companies but has no branding permission (403); a role outside the company's reach is a 404.
+  BRANDING = {
+    "org_owner" => [ 403, 403 ], "org_admin" => [ 200, 200 ], "company_manager" => [ 200, 404 ],
+    "branch_manager" => [ 403, 404 ], "receptionist" => [ 403, 404 ], "professional" => [ 403, 404 ]
+  }.freeze
+
   # Listing contents: [companies of GET .../companies, branches of .../companies/A/branches, branches of .../companies/B/branches]
   # (a number = that response, e.g. 404 if the route is not visible to the role).
   INDEXES = {
@@ -247,6 +254,24 @@ RSpec.describe "Matriz de autorización", type: :request do
       end
 
       expect(statuses).to eq(AuthorizationMatrix::ORGANIZATION_SHOW)
+    end
+
+    AuthorizationMatrix::ROLES.each do |role_key|
+      it "#{role_key}: GET y PATCH de la marca de las empresas A y B dan #{AuthorizationMatrix::BRANDING.fetch(role_key).inspect}" do
+        session = sign_in(member_of(role_key))
+        urls = [ world.company_a, world.company_b ].map { |company| "/api/v1/organizations/#{organization.id}/companies/#{company.id}/branding" }
+
+        shown = urls.map do |url|
+          get url
+          response.status
+        end
+        patched = urls.map do |url|
+          patch url, params: { brand_name: "Marca" }, headers: session.csrf_headers, as: :json
+          response.status
+        end
+
+        expect([ shown, patched ]).to eq([ AuthorizationMatrix::BRANDING.fetch(role_key), AuthorizationMatrix::BRANDING.fetch(role_key) ])
+      end
     end
 
     AuthorizationMatrix::ROLES.each do |role_key|

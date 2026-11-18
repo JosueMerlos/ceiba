@@ -23,6 +23,7 @@ export const shell = {
     professionals: "Profesionales",
     resources: "Recursos",
     branches: "Sucursales",
+    branding: "Marca",
   },
   noContext: {
     title: "Todavía no tiene acceso a ninguna empresa",

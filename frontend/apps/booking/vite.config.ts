@@ -18,6 +18,8 @@ export default defineConfig({
   build: { manifest: true },
   test: {
     environment: "jsdom",
+    environmentOptions: { jsdom: { url: "http://localhost:8080/" } },
+    setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     testTimeout: 15_000,
   },

@@ -37,3 +37,8 @@ plugin :tmp_restart
 # Specify the PID file. Defaults to tmp/pids/server.pid in development.
 # In other environments, only set the PID file if requested.
 pidfile ENV["PIDFILE"] if ENV["PIDFILE"]
+
+# Puma buffers the whole request body before Rack and the app's middleware see it, so this is the real cap against an oversized
+# upload (the proxy and ApiRequestGuard enforce the same figure at their own layer). 8 MiB is the largest body the API accepts:
+# the three branding images at their limits plus the multipart framing. Larger bodies, chunked ones included, get a 413.
+http_content_length_limit 8 * 1024 * 1024

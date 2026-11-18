@@ -261,6 +261,37 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
     end
   end
 
+  describe "regla 10: archivos de marca por IP (300 / 1 min)" do
+    def storage_file(from: ip)
+      get "/api/storage/representations/proxy/firma/clave/logo.webp", headers: { "REMOTE_ADDR" => from }
+    end
+
+    it "la petición 301 de la misma IP responde 429 con Retry-After y RateLimit-*" do
+      300.times { storage_file }
+      expect(response).to have_http_status(:not_found)
+
+      storage_file
+
+      expect_rate_limited(retry_after: 59, limit: 300)
+    end
+
+    it "reconoce también la ruta con barras repetidas o codificadas, que el router resuelve igual" do
+      paths = %w[/api//storage/x /api///storage/x /api/%73torage/x /api/storage/x]
+
+      matches = paths.map { |path| RateLimiting.storage?(Rack::Request.new(Rack::MockRequest.env_for(path))) }
+
+      expect(matches).to all(be(true))
+    end
+
+    it "otra IP no se ve afectada" do
+      301.times { storage_file }
+
+      storage_file(from: "203.0.113.11")
+
+      expect(response).not_to have_http_status(:too_many_requests)
+    end
+  end
+
   describe "regla 5: disponibilidad pública por IP y empresa (60 / 1 min)" do
     def availability(slug: "mi-barberia", from: ip, suffix: "")
       get "/api/public/v1/c/#{slug}/availability#{suffix}", params: { branch_id: "x" }, headers: { "REMOTE_ADDR" => from }

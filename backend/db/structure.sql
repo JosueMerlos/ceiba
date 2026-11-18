@@ -69,6 +69,48 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: active_storage_attachments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.active_storage_attachments (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    name character varying NOT NULL,
+    record_type character varying NOT NULL,
+    record_id uuid NOT NULL,
+    blob_id uuid NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: active_storage_blobs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.active_storage_blobs (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    key character varying NOT NULL,
+    filename character varying NOT NULL,
+    content_type character varying,
+    metadata text,
+    service_name character varying NOT NULL,
+    byte_size bigint NOT NULL,
+    checksum character varying,
+    created_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: active_storage_variant_records; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.active_storage_variant_records (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    blob_id uuid NOT NULL,
+    variation_digest character varying NOT NULL
+);
+
+
+--
 -- Name: appointment_services; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -254,7 +296,17 @@ CREATE TABLE public.companies (
     status character varying DEFAULT 'active'::character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    brand_name character varying(80),
+    tagline character varying(140),
+    primary_color character varying(7),
+    secondary_color character varying(7),
+    accent_color character varying(7),
+    font_choice character varying,
+    CONSTRAINT chk_companies_accent_color_format CHECK (((accent_color IS NULL) OR ((accent_color)::text ~ '^#[0-9A-F]{6}$'::text))),
     CONSTRAINT chk_companies_currency CHECK ((((currency)::text = 'NIO'::text) OR ((currency)::text = 'USD'::text))),
+    CONSTRAINT chk_companies_font_choice CHECK (((font_choice IS NULL) OR ((font_choice)::text = 'figtree'::text) OR ((font_choice)::text = 'lora'::text) OR ((font_choice)::text = 'nunito'::text))),
+    CONSTRAINT chk_companies_primary_color_format CHECK (((primary_color IS NULL) OR ((primary_color)::text ~ '^#[0-9A-F]{6}$'::text))),
+    CONSTRAINT chk_companies_secondary_color_format CHECK (((secondary_color IS NULL) OR ((secondary_color)::text ~ '^#[0-9A-F]{6}$'::text))),
     CONSTRAINT chk_companies_slug_format CHECK (((slug)::text ~ '^[a-z0-9-]{3,40}$'::text)),
     CONSTRAINT chk_companies_status CHECK ((((status)::text = 'active'::text) OR ((status)::text = 'inactive'::text)))
 );
@@ -655,6 +707,30 @@ CREATE TABLE public.weekly_schedules (
     CONSTRAINT chk_ws_range CHECK ((starts_at_local < ends_at_local)),
     CONSTRAINT chk_ws_weekday CHECK (((weekday >= 0) AND (weekday <= 6)))
 );
+
+
+--
+-- Name: active_storage_attachments active_storage_attachments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.active_storage_attachments
+    ADD CONSTRAINT active_storage_attachments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: active_storage_blobs active_storage_blobs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.active_storage_blobs
+    ADD CONSTRAINT active_storage_blobs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: active_storage_variant_records active_storage_variant_records_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.active_storage_variant_records
+    ADD CONSTRAINT active_storage_variant_records_pkey PRIMARY KEY (id);
 
 
 --
@@ -1384,6 +1460,34 @@ CREATE INDEX idx_ws_resource_branch ON public.weekly_schedules USING btree (reso
 
 
 --
+-- Name: index_active_storage_attachments_on_blob_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_active_storage_attachments_on_blob_id ON public.active_storage_attachments USING btree (blob_id);
+
+
+--
+-- Name: index_active_storage_attachments_uniqueness; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_active_storage_attachments_uniqueness ON public.active_storage_attachments USING btree (record_type, record_id, name, blob_id);
+
+
+--
+-- Name: index_active_storage_blobs_on_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_active_storage_blobs_on_key ON public.active_storage_blobs USING btree (key);
+
+
+--
+-- Name: index_active_storage_variant_records_uniqueness; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_active_storage_variant_records_uniqueness ON public.active_storage_variant_records USING btree (blob_id, variation_digest);
+
+
+--
 -- Name: index_branch_module_settings_on_organization_id_and_company_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2019,6 +2123,22 @@ ALTER TABLE ONLY public.sessions
 
 
 --
+-- Name: active_storage_variant_records fk_rails_993965df05; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.active_storage_variant_records
+    ADD CONSTRAINT fk_rails_993965df05 FOREIGN KEY (blob_id) REFERENCES public.active_storage_blobs(id);
+
+
+--
+-- Name: active_storage_attachments fk_rails_c3b3935057; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.active_storage_attachments
+    ADD CONSTRAINT fk_rails_c3b3935057 FOREIGN KEY (blob_id) REFERENCES public.active_storage_blobs(id);
+
+
+--
 -- Name: resources fk_resources_branch; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2324,6 +2444,9 @@ CREATE POLICY tenant_isolation ON public.weekly_schedules USING ((organization_i
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261117210801'),
+('20261117210800'),
+('20261117210720'),
 ('20261116210048'),
 ('20261116210047'),
 ('20261113051330'),

@@ -18,7 +18,7 @@ RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
  && echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt trixie-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
  && apt-get update -qq \
  && apt-get install -y --no-install-recommends \
-      build-essential git libpq-dev libyaml-dev pkg-config postgresql-client-18 tzdata \
+      build-essential git libpq-dev libvips42t64 libyaml-dev pkg-config postgresql-client-18 tzdata \
  && rm -rf /var/lib/apt/lists/*
 
 # Non-root user with the host's UID/GID. `--non-unique` allows reusing a GID that already exists in the base image

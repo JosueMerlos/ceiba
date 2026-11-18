@@ -22,7 +22,13 @@ Rails.application.routes.draw do
 
     # Public API v1: anonymous, by company slug. Each pack contributes its controllers under Api::Public::V1::<Pack>.
     scope path: "public/v1", module: "api/public/v1" do
+      draw(:tenancy_public)
       draw(:appointments_public)
+    end
+
+    # Files: only the proxy of a rendered branding variant, under /api so the proxy reaches Rails.
+    scope path: "storage" do
+      draw(:tenancy_storage)
     end
   end
 end

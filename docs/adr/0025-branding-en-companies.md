@@ -13,6 +13,7 @@
 - URL pública `/c/:slug` en el dominio de la plataforma; dominio propio como upsell (P3).
 - Sin tipografía custom; PNG, JPG o WebP, **sin SVG** en el MVP; validación de contraste ≥ 4.5:1 con fallback.
 - Correos con nombre de remitente y logo de la empresa, desde el dominio de la plataforma.
+- Cómo entran y salen los archivos (subida por el `PATCH` autenticado, variantes servidas por el proxy bajo `/api/storage`, sin trabajos de Active Storage): [ADR-0039](0039-archivos-de-branding-y-rutas-de-activestorage.md).
 
 ## Consecuencias
 

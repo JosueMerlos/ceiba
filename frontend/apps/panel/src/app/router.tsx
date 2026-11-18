@@ -1,4 +1,5 @@
 import { createBrowserRouter, createMemoryRouter, type RouteObject } from "react-router";
+import { lazyPage } from "../modules/lazy-page";
 import { LoginPage } from "../platform/auth/login-page";
 import { RequireSession } from "../platform/auth/require-session";
 import { RouteError } from "../platform/errors/status-pages";
@@ -9,6 +10,11 @@ export type History = { type: "browser" } | { type: "memory"; initialEntries: st
 
 const pages: RouteObject[] = [
   { index: true, element: <HomePage /> },
+  // Platform settings screen (not a business module): its own chunk, loaded on demand.
+  {
+    path: "settings/branding",
+    element: lazyPage(() => import("../platform/branding/branding-page"), "BrandingPage"),
+  },
   { path: "*", element: <ModuleRoutes /> },
 ];
 

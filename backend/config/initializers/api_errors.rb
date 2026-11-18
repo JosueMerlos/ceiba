@@ -23,6 +23,7 @@ Rails.application.config.to_prepare do
   registry.register(ActionController::NotImplemented, status: :not_implemented, code: "request.not_implemented")
   registry.register(Api::QueryNotAllowed, status: :bad_request, code: "request.query_not_allowed")
   registry.register(Api::UnsupportedMediaType, status: :unsupported_media_type, code: "request.unsupported_media_type")
+  registry.register(Api::PayloadTooLarge, status: :payload_too_large, code: "request.too_large")
   registry.register(ActionController::BadRequest, status: :bad_request, code: "request.bad_request")
   registry.register(ActionDispatch::Http::Parameters::ParseError, status: :bad_request, code: "request.malformed")
 end

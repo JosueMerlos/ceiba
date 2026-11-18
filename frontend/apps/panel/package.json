@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ceiba/api-client": "workspace:*",
+    "@ceiba/branding": "workspace:*",
     "@ceiba/i18n": "workspace:*",
     "@ceiba/ui": "workspace:*",
     "@hookform/resolvers": "7.0.6",
