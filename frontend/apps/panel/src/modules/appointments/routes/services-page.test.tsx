@@ -75,6 +75,27 @@ describe("Servicios", () => {
     expect(screen.queryByRole("button", { name: "Archivados" })).toBeNull();
   });
 
+  it("un servicio archivado abre el panel de solo lectura, sin override, y solo ofrece Restaurar", async () => {
+    asManager();
+    const backend = servicesBackend({
+      services: [viejo],
+      overrides: [serviceOverride("o3", "s3", ids.branchA, { duration_minutes: 10 })],
+    });
+    const { user } = await openServices();
+
+    await user.click(await screen.findByRole("button", { name: "Archivados" }));
+    await user.click(await screen.findByRole("button", { name: "Editar Peinado antiguo" }));
+    const panel = await screen.findByRole("complementary", { name: "Peinado antiguo" });
+
+    expect(within(panel).getByLabelText("Nombre")).toHaveProperty("disabled", true);
+    expect(within(panel).queryByRole("button", { name: "Guardar cambios" })).toBeNull();
+    expect(within(panel).queryByRole("region", { name: "En Sucursal Centro" })).toBeNull();
+
+    await user.click(within(panel).getByRole("button", { name: "Restaurar" }));
+    await waitFor(() => expect(backend.restored).toEqual(["s3"]));
+    await waitFor(() => expect(screen.queryByRole("complementary")).toBeNull());
+  });
+
   it("Pausados lista solo los no activos y Archivar saca el servicio de Activos", async () => {
     asManager();
     const backend = servicesBackend({ services: [corte, tinte] });
