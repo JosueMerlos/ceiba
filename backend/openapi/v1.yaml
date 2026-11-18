@@ -4598,7 +4598,7 @@ paths:
             application/problem+json:
               schema:
                 "$ref": "#/components/schemas/Problem"
-          description: el org_admin no borra
+          description: el propio profesional vinculado (manage_own) no borra su ausencia por la ruta de empresa
         '404':
           content:
             application/problem+json:
@@ -5141,8 +5141,9 @@ paths:
         format: uuid
         type: string
     post:
-      description: 'Exige `platform.branch.create` en la empresa de la ruta. Atributos: `name`, `time_zone` (IANA, obligatorios), `address` y `phone_e164`. La organización y la empresa salen de la ruta, nunca del cuerpo. La sucursal nace sin horario: queda cerrada hasta que se configure. Una zona horaria inválida responde 422 con el campo `time_zone`.'
+      description: 'Exige `platform.branch.create` en la empresa de la ruta. Atributos: `name`, `time_zone` (IANA, obligatorios), `address` y `phone_e164`. La organización y la empresa salen de la ruta, nunca del cuerpo. La sucursal nace sin horario: queda cerrada hasta que se configure. Una zona horaria inválida responde 422 con el campo `time_zone`. Acepta `Idempotency-Key`.'
       parameters:
+      - "$ref": "#/components/parameters/IdempotencyKey"
       - description: "`csrf_token` de la sesión (login o GET /auth/session)"
         in: header
         name: X-CSRF-Token

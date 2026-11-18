@@ -25,10 +25,11 @@ RSpec.describe "API v1: alta de sucursales" do
       tags "Sucursales"
       description "Exige `platform.branch.create` en la empresa de la ruta. Atributos: `name`, `time_zone` (IANA, obligatorios), `address` y `phone_e164`. " \
                   "La organización y la empresa salen de la ruta, nunca del cuerpo. La sucursal nace sin horario: queda cerrada hasta que se configure. " \
-                  "Una zona horaria inválida responde 422 con el campo `time_zone`."
+                  "Una zona horaria inválida responde 422 con el campo `time_zone`. Acepta `Idempotency-Key`."
       consumes "application/json"
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
+      parameter "$ref" => "#/components/parameters/IdempotencyKey"
       parameter name: "X-CSRF-Token", in: :header, type: :string, required: true, description: "`csrf_token` de la sesión (login o GET /auth/session)"
       parameter name: :body, in: :body, required: true, schema: { "$ref" => "#/components/schemas/BranchInput" }
 

@@ -3742,7 +3742,7 @@ export interface paths {
                     };
                     content?: never;
                 };
-                /** @description el org_admin no borra */
+                /** @description el propio profesional vinculado (manage_own) no borra su ausencia por la ruta de empresa */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -4376,12 +4376,14 @@ export interface paths {
         put?: never;
         /**
          * Crea una sucursal en la empresa de la ruta
-         * @description Exige `platform.branch.create` en la empresa de la ruta. Atributos: `name`, `time_zone` (IANA, obligatorios), `address` y `phone_e164`. La organización y la empresa salen de la ruta, nunca del cuerpo. La sucursal nace sin horario: queda cerrada hasta que se configure. Una zona horaria inválida responde 422 con el campo `time_zone`.
+         * @description Exige `platform.branch.create` en la empresa de la ruta. Atributos: `name`, `time_zone` (IANA, obligatorios), `address` y `phone_e164`. La organización y la empresa salen de la ruta, nunca del cuerpo. La sucursal nace sin horario: queda cerrada hasta que se configure. Una zona horaria inválida responde 422 con el campo `time_zone`. Acepta `Idempotency-Key`.
          */
         post: {
             parameters: {
                 query?: never;
                 header: {
+                    /** @description Clave única (p. ej. un UUID) que hace seguro reintentar la creación: misma clave y mismo cuerpo repiten la respuesta (cabecera `Idempotency-Replayed: true`) y no crean otro recurso; la misma clave con otro método, ruta o cuerpo da `409 idempotency.key_reused`. Vale 24 horas, por organización y principal. */
+                    "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
                     /** @description `csrf_token` de la sesión (login o GET /auth/session) */
                     "X-CSRF-Token": string;
                 };
