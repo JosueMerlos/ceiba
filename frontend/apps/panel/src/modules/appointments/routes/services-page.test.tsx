@@ -121,12 +121,18 @@ describe("Servicios", () => {
     await user.click(within(panel).getByRole("button", { name: "Restaurar" }));
 
     await waitFor(() =>
-      expect(within(panel).getByRole("button", { name: "Restaurar" })).toHaveProperty("disabled", true),
+      expect(within(panel).getByRole("button", { name: "Restaurar" })).toHaveProperty(
+        "disabled",
+        true,
+      ),
     );
     await user.click(within(panel).getByRole("button", { name: "Restaurar" }));
     release();
     await waitFor(() =>
-      expect(within(panel).getByRole("button", { name: "Restaurar" })).toHaveProperty("disabled", false),
+      expect(within(panel).getByRole("button", { name: "Restaurar" })).toHaveProperty(
+        "disabled",
+        false,
+      ),
     );
     expect(calls).toBe(1);
   });
