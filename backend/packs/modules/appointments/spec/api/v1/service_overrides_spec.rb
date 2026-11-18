@@ -65,6 +65,15 @@ RSpec.describe "API v1: overrides de servicio por sucursal" do
         end
       end
 
+      response "200", "excluye los overrides de servicios archivados" do
+        let!(:signed_in) { sign_in(manager) }
+        let!(:archived_service) { create_in(world.organization, :service, company: world.company_a, name: "Viejo", archived_at: Time.current) }
+        let!(:archived_override) { override_in(archived_service, world.branch_a1, duration_minutes: 10) }
+        schema list_schema
+
+        run_test! { |response| expect(response.parsed_body["data"].pluck("id")).to eq([ mine.id, mine_too.id ]) }
+      end
+
       response "200", "el receptionist lee (appointments.service.read)" do
         let!(:signed_in) { sign_in(user_with_role("receptionist", world, branch: world.branch_a1)) }
         schema list_schema
