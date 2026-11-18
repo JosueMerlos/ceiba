@@ -197,6 +197,14 @@ function BrandingEditor({ saved, target, companyName }: BrandingEditorProps) {
                 {t("branding:notices.darkText", { role: t(`branding:notices.roles.${role}`) })}
               </p>
             ))}
+            {analysis.notices.unreadable.map((role) => (
+              <p
+                key={`unreadable-${role}`}
+                className="rounded-lg border bg-secondary px-3.5 py-2.5 text-sm text-secondary-foreground"
+              >
+                {t("branding:notices.unreadable", { role: t(`branding:notices.roles.${role}`) })}
+              </p>
+            ))}
             {analysis.notices.ringFallback ? (
               <p className="rounded-lg border bg-secondary px-3.5 py-2.5 text-sm text-secondary-foreground">
                 {t("branding:notices.ringFallback")}

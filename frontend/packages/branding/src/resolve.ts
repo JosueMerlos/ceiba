@@ -32,6 +32,8 @@ export interface BrandNotices {
   darkText: BrandRole[];
   /** The primary is too faint for a focus ring against a surface: the ring uses the palette instead. */
   ringFallback: boolean;
+  /** Roles whose color admits no readable text at all: the platform's pair is kept instead. */
+  unreadable: BrandRole[];
 }
 
 // What each role's text is on the platform palette: only the primary is light text on a dark fill.
@@ -60,7 +62,7 @@ export function analyzeBranding(
   surfaces: Surfaces,
 ): { vars: BrandVars; notices: BrandNotices } {
   const vars: BrandVars = {};
-  const notices: BrandNotices = { darkText: [], ringFallback: false };
+  const notices: BrandNotices = { darkText: [], ringFallback: false, unreadable: [] };
 
   for (const role of Object.keys(COLOR_FIELDS) as BrandRole[]) {
     const color = input[COLOR_FIELDS[role]];
@@ -68,7 +70,10 @@ export function analyzeBranding(
 
     // Without a readable text color the pair is omitted: the platform's default is kept for both.
     const foreground = pickForeground(color);
-    if (foreground === null) continue;
+    if (foreground === null) {
+      notices.unreadable.push(role);
+      continue;
+    }
 
     vars[`--brand-${role}`] = color;
     vars[`--brand-${role}-foreground`] = foreground === "dark" ? DARK_FOREGROUND : LIGHT_FOREGROUND;

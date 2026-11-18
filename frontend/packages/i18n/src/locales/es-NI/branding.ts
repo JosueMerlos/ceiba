@@ -53,6 +53,8 @@ export const branding = {
   },
   notices: {
     darkText: "Con el {{role}} el texto se mostrará oscuro para que se lea.",
+    unreadable:
+      "El {{role}} no permite un texto legible encima: se usará el de la plataforma. Elija un tono más claro u oscuro.",
     ringFallback:
       "El borde de foco usará el verde de Ceiba porque ese color casi no se distingue del fondo.",
     roles: {
