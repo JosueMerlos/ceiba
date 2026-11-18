@@ -44,6 +44,8 @@ DEMO_GROUPS = [
       }
     ],
     staff: [
+      # Company manager of a company no E2E counts branches of: the catalog spec creates a branch there on every run.
+      { user: { email: "empresa@clinica-sonrisa.ceiba.test", full_name: "Fernanda Obando" }, role: "company_manager", company: "clinica-sonrisa" },
       { user: { email: "admin@salud-estilo.ceiba.test", full_name: "Elena Cruz" }, role: "org_admin" },
       { user: { email: "marta@salud-estilo.ceiba.test", full_name: "Marta Solís" }, role: "company_manager", company: "salon-estilo" },
       { user: { email: "gerente@salud-estilo.ceiba.test", full_name: "Carlos Navas" }, role: "branch_manager", company: "salon-estilo", branch: "Estilo Altamira" },
