@@ -41,7 +41,6 @@ export function ProfessionalPanel({
   const can = useCan();
   const canManage = can("appointments.professional.manage");
   const canAssign = can("appointments.professional.assign");
-  const canTimeOffManage = can("appointments.time_off.manage");
 
   const update = useUpdateProfessional();
   const putServices = usePutProfessionalServices();
@@ -110,7 +109,7 @@ export function ProfessionalPanel({
           <TimeOffsList
             timeOffs={orphan.timeOffs}
             timeZone={orphanTimeZone}
-            canManage={canTimeOffManage}
+            canManage={orphan.canRemove}
             onDelete={orphan.remove}
           />
           <p className="mt-3 text-xs text-muted-foreground">

@@ -1,7 +1,6 @@
 import { useTranslation } from "@ceiba/i18n";
 import { toast } from "@ceiba/ui";
 import { useMe } from "../../../platform/me/me-provider";
-import { useCan } from "../../../platform/permissions/can";
 import type { Branch } from "../api/catalog";
 import {
   useCompanyTimeOffsQuery,
@@ -18,14 +17,14 @@ export interface AssignConfirmation {
 
 /**
  * Absences of a professional with no branch: no branch route reaches them. Only a user holding the permission at COMPANY
- * scope (no branch in the context) may read them; for anyone else the section stays out and the notice is generic.
+ * scope may read them (a branch membership's keys do not count, even with no branch in the context); for anyone else the
+ * section stays out and the notice is generic.
  */
 export function useOrphanTimeOffs(professional: Professional) {
   const { t } = useTranslation("appointments");
-  const { context } = useMe();
-  const can = useCan();
+  const { company_permissions: companyPermissions } = useMe();
   const orphan = professional.branch_ids.length === 0;
-  const companyScope = !context.branch && can("appointments.time_off.read");
+  const companyScope = companyPermissions.includes("appointments.time_off.read");
   const query = useCompanyTimeOffsQuery(professional.id, { enabled: orphan && companyScope });
   const removeMutation = useDeleteCompanyTimeOff(professional.id);
   const timeOffs: readonly TimeOff[] = query.data?.data ?? [];
@@ -33,6 +32,8 @@ export function useOrphanTimeOffs(professional: Professional) {
   return {
     visible: orphan && companyScope && query.isSuccess && timeOffs.length > 0,
     timeOffs,
+    /** Deleting needs the manage key at company scope too. */
+    canRemove: companyPermissions.includes("appointments.time_off.manage"),
     /** While they load, assigning waits: the confirmation needs to know whether there are any. */
     loading: query.isLoading,
     remove: (timeOff: TimeOff) =>
