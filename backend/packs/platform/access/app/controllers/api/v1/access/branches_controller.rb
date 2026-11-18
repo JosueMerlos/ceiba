@@ -41,7 +41,8 @@ module Api
           authorize ::Tenancy::Directory.branches.new(company: Current.context.company), :create?, policy_class: ::Access::BranchPolicy
         end
 
-        def branch_params = typed_params(name: String, time_zone: String, address: String, phone_e164: String)
+        # time_zone is required: an omitted key is validated as nil (422) instead of silently taking the column default.
+        def branch_params = { time_zone: nil }.merge(typed_params(name: String, time_zone: String, address: String, phone_e164: String))
       end
     end
   end

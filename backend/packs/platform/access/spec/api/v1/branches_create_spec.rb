@@ -26,7 +26,7 @@ RSpec.describe "API v1: alta de sucursales" do
       tags "Sucursales"
       description "Exige `platform.branch.create` en la empresa de la ruta. Atributos: `name`, `time_zone` (IANA, obligatorios), `address` y `phone_e164`. " \
                   "La organización y la empresa salen de la ruta, nunca del cuerpo. La sucursal nace sin horario: queda cerrada hasta que se configure. " \
-                  "Una zona horaria inválida responde 422 con el campo `time_zone`. Acepta `Idempotency-Key`."
+                  "Una zona horaria inválida u omitida responde 422 con el campo `time_zone`. Acepta `Idempotency-Key` (la misma clave con otro cuerpo responde 409 `idempotency.key_reused`)."
       consumes "application/json"
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]

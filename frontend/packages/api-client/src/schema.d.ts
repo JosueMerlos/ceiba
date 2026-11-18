@@ -4376,7 +4376,7 @@ export interface paths {
         put?: never;
         /**
          * Crea una sucursal en la empresa de la ruta
-         * @description Exige `platform.branch.create` en la empresa de la ruta. Atributos: `name`, `time_zone` (IANA, obligatorios), `address` y `phone_e164`. La organización y la empresa salen de la ruta, nunca del cuerpo. La sucursal nace sin horario: queda cerrada hasta que se configure. Una zona horaria inválida responde 422 con el campo `time_zone`. Acepta `Idempotency-Key`.
+         * @description Exige `platform.branch.create` en la empresa de la ruta. Atributos: `name`, `time_zone` (IANA, obligatorios), `address` y `phone_e164`. La organización y la empresa salen de la ruta, nunca del cuerpo. La sucursal nace sin horario: queda cerrada hasta que se configure. Una zona horaria inválida u omitida responde 422 con el campo `time_zone`. Acepta `Idempotency-Key` (la misma clave con otro cuerpo responde 409 `idempotency.key_reused`).
          */
         post: {
             parameters: {
@@ -4399,7 +4399,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description organization_id y company_id del cuerpo se ignoran: la sucursal cae en la empresa de la ruta */
+                /** @description con organization_id y company_id en el cuerpo la sucursal igualmente cae en la empresa de la ruta */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -4408,6 +4408,15 @@ export interface paths {
                         "application/json": {
                             data: components["schemas"]["Branch"];
                         };
+                    };
+                };
+                /** @description `Idempotency-Key` inválida (`idempotency.key_invalid`) */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
                 /** @description sin sesión válida */
@@ -4430,6 +4439,15 @@ export interface paths {
                 };
                 /** @description una empresa de otra organización */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description la misma `Idempotency-Key` con otro cuerpo (`idempotency.key_reused`) */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
