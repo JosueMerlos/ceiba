@@ -24,6 +24,8 @@ import { useWorkingBranch } from "../lib/use-working-branch";
 import { ServiceOverrideSection } from "./service-override-section";
 
 const FILTERS: readonly ServiceFilter[] = ["active", "paused", "archived"];
+// Archived services can only be restored, which is managing: whoever just reads has no use for that view.
+const MANAGE_ONLY_FILTERS: readonly ServiceFilter[] = ["archived"];
 
 export function ServicesPage() {
   const { t } = useTranslation(["appointments", "common"]);
@@ -42,6 +44,9 @@ export function ServicesPage() {
 
   const panel = useEntityPanel(services.data?.data ?? []);
   const { selected } = panel;
+
+  const filters = FILTERS.filter((item) => canManage || !MANAGE_ONLY_FILTERS.includes(item));
+  const archivedSelected = selected?.archived_at != null;
 
   const changeFilter = (next: string) => {
     setFilter(next as ServiceFilter);
@@ -83,7 +88,7 @@ export function ServicesPage() {
         aria-label={t("catalog.services.filtersLabel")}
         className="mb-4"
       >
-        {FILTERS.map((item) => (
+        {filters.map((item) => (
           <ToggleGroupItem key={item} value={item}>
             {t(`catalog.services.filters.${item}`)}
           </ToggleGroupItem>
@@ -125,10 +130,15 @@ export function ServicesPage() {
             key={selected ? `${selected.id}:${selected.updated_at}` : "new"}
             service={selected}
             currency={selected?.currency ?? currency}
-            readOnly={!canManage}
+            readOnly={!canManage || archivedSelected}
             onSubmit={saveService}
           />
-          {selected && working.branch && canRead ? (
+          {selected && archivedSelected && canManage ? (
+            <Button type="button" variant="outline" onClick={() => restoreService(selected)}>
+              {t("catalog.services.restore")}
+            </Button>
+          ) : null}
+          {selected && !archivedSelected && working.branch && canRead ? (
             <div className="border-t pt-4">
               <ServiceOverrideSection service={selected} branch={working.branch} />
             </div>
