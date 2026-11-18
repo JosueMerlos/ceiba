@@ -9,6 +9,7 @@ RSpec.describe "API v1: alta de sucursales" do
   let(:organization_id) { world.organization.id }
   let(:company_id) { world.company_a.id }
   let("X-CSRF-Token") { signed_in.csrf_token }
+  let("Idempotency-Key") { SecureRandom.uuid }
   let(:body) { { name: "Sucursal Masaya", time_zone: "America/Managua", address: "Frente al parque", phone_e164: "+50588887777" } }
 
   def audit_events(action) = with_tenant(world.organization) { Audit::Event.where(action:).to_a }
@@ -57,7 +58,7 @@ RSpec.describe "API v1: alta de sucursales" do
         end
       end
 
-      response "201", "organization_id y company_id del cuerpo se ignoran: la sucursal cae en la empresa de la ruta" do
+      response "201", "con organization_id y company_id en el cuerpo la sucursal igualmente cae en la empresa de la ruta" do
         let!(:signed_in) { sign_in(user_with_role("company_manager", world, company: world.company_a)) }
         let(:body) { super().merge(organization_id: SecureRandom.uuid, company_id: world.company_b.id) }
         schema single_schema
@@ -115,6 +116,36 @@ RSpec.describe "API v1: alta de sucursales" do
           expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "time_zone"))
           expect(branches_of(world.company_a).map(&:name)).not_to include("Sucursal Masaya")
         end
+      end
+
+      response "422", "sin time_zone (obligatoria): error en ese campo y no se crea nada" do
+        let!(:signed_in) { sign_in(user_with_role("company_manager", world, company: world.company_a)) }
+        let(:body) { super().except(:time_zone) }
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! do |response|
+          expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "time_zone"))
+          expect(branches_of(world.company_a).map(&:name)).not_to include("Sucursal Masaya")
+        end
+      end
+
+      response "409", "la misma `Idempotency-Key` con otro cuerpo (`idempotency.key_reused`)" do
+        let!(:signed_in) { sign_in(user_with_role("company_manager", world, company: world.company_a)) }
+        let!(:first_creation) do
+          post "/api/v1/organizations/#{organization_id}/companies/#{company_id}/branches", params: body.merge(name: "Otra"),
+                                                                                              headers: { "X-CSRF-Token" => signed_in.csrf_token, "Idempotency-Key" => send("Idempotency-Key") }, as: :json
+        end
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("idempotency.key_reused") }
+      end
+
+      response "400", "`Idempotency-Key` inválida (`idempotency.key_invalid`)" do
+        let!(:signed_in) { sign_in(user_with_role("company_manager", world, company: world.company_a)) }
+        let("Idempotency-Key") { "" }
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! { |response| expect(response.parsed_body["code"]).to eq("idempotency.key_invalid") }
       end
 
       response "422", "sin nombre" do
