@@ -1,5 +1,6 @@
 import type { BrandingFile } from "@ceiba/api-client";
 import { FONT_CHOICES, FONT_FAMILIES, type FontChoice } from "@ceiba/branding";
+import { loadBrandFont } from "@ceiba/branding/react";
 import { useTranslation } from "@ceiba/i18n";
 import {
   ColorField,
@@ -20,7 +21,6 @@ import {
   isValidColorInput,
   type BrandingFormValues,
 } from "./branding-form";
-import { loadBrandFont } from "./fonts";
 
 const FILE_ACCEPT = "image/png,image/jpeg,image/webp";
 

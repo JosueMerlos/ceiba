@@ -1,4 +1,4 @@
-import type { FontChoice } from "@ceiba/branding";
+import type { FontChoice } from "../fonts";
 
 // Each font is a separate on-demand chunk: a company that keeps Figtree (the platform's own face) downloads nothing.
 const loaders: Partial<Record<FontChoice, () => Promise<unknown>>> = {

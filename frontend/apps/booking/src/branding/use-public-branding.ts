@@ -1,13 +1,6 @@
-import {
-  applyBranding,
-  clearBranding,
-  isHexColor,
-  readSurfaces,
-  resolveBrandVars,
-  type FontChoice,
-} from "@ceiba/branding";
+import { fromBranding, type FontChoice } from "@ceiba/branding";
+import { useApplyBranding } from "@ceiba/branding/react";
 import { useEffect, useState } from "react";
-import { loadBrandFont } from "./fonts";
 
 interface Asset {
   [variant: string]: string;
@@ -31,8 +24,6 @@ export function slugFromPath(pathname: string): string | null {
   const match = /^\/c\/([^/]+)/.exec(pathname);
   return match ? decodeURIComponent(match[1]!) : null;
 }
-
-const color = (value: string | null) => (value !== null && isHexColor(value) ? value : null);
 
 /**
  * Fetches the company's public brand and themes the document with it. A plain fetch (not TanStack Query) keeps the
@@ -63,27 +54,7 @@ export function usePublicBranding(slug: string | null): BrandingState {
   }, [slug]);
 
   const branding = state.status === "ready" ? state.branding : null;
-
-  useEffect(() => {
-    if (!branding) return;
-    const root = document.documentElement;
-    applyBranding(
-      root,
-      resolveBrandVars(
-        {
-          primaryColor: color(branding.primary_color),
-          secondaryColor: color(branding.secondary_color),
-          accentColor: color(branding.accent_color),
-          fontChoice: branding.font_choice,
-        },
-        readSurfaces(root),
-      ),
-    );
-    if (branding.font_choice) void loadBrandFont(branding.font_choice);
-    return () => clearBranding(root);
-  }, [branding]);
-
-  useFavicon(branding?.assets.favicon?.icon32);
+  useApplyBranding(branding ? fromBranding(branding) : null, branding?.assets.favicon?.icon32);
 
   return state;
 }
@@ -97,23 +68,3 @@ const EMPTY_BRANDING: PublicBranding = {
   font_choice: null,
   assets: { logo: null, banner: null, favicon: null },
 };
-
-function useFavicon(href: string | undefined) {
-  useEffect(() => {
-    if (!href) return;
-    const existing = document.head.querySelector<HTMLLinkElement>('link[rel~="icon"]');
-    const link = existing ?? Object.assign(document.createElement("link"), { rel: "icon" });
-    const previous = { href: link.getAttribute("href"), type: link.getAttribute("type") };
-    if (!existing) document.head.append(link);
-    link.setAttribute("href", href);
-    // The company favicon is always a PNG variant; a leftover type="image/svg+xml" would make the browser ignore it.
-    link.setAttribute("type", "image/png");
-    return () => {
-      if (!existing) return link.remove();
-      for (const [attribute, value] of Object.entries(previous)) {
-        if (value === null) link.removeAttribute(attribute);
-        else link.setAttribute(attribute, value);
-      }
-    };
-  }, [href]);
-}

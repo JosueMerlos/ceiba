@@ -5,6 +5,7 @@ import {
   type Branding,
 } from "@ceiba/api-client";
 import { analyzeBranding, readSurfaces } from "@ceiba/branding";
+import { loadBrandFont } from "@ceiba/branding/react";
 import { translator, useTranslation } from "@ceiba/i18n";
 import { Button, Form, LoadingState, PageHeader, toast } from "@ceiba/ui";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
@@ -24,7 +25,6 @@ import {
   type BrandingFormValues,
 } from "./branding-form";
 import { BrandingPreview } from "./branding-preview";
-import { loadBrandFont } from "./fonts";
 import { useBrandingFiles } from "./use-branding-files";
 
 export const BRANDING_PERMISSION = "platform.branding.update";

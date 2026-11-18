@@ -60,9 +60,6 @@ export function toBrandingInput(values: BrandingFormValues): BrandingInput {
   };
 }
 
-export const brandingToInput = (branding: Branding): BrandingInput =>
-  toBrandingInput(toFormValues(branding));
-
 /** Empty or valid #RRGGBB: an empty color is allowed (it returns to the platform palette). */
 export const isValidColorInput = (value: string): boolean => value === "" || isHexColor(value);
 

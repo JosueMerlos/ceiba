@@ -11,8 +11,6 @@
   },
   "dependencies": {
     "@ceiba/branding": "workspace:*",
-    "@fontsource-variable/lora": "5.3.0",
-    "@fontsource-variable/nunito": "5.3.0",
     "@ceiba/i18n": "workspace:*",
     "@ceiba/ui": "workspace:*",
     "react": "19.3.1",

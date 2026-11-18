@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadBrandFont } from "./fonts";
+import { loadBrandFont } from "../../src/react/fonts";
 
 describe("loadBrandFont", () => {
   it("Figtree es la tipografía de la plataforma: no hay nada que cargar", async () => {
