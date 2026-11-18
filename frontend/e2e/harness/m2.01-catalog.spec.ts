@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { shot, signIn } from "../tests/helpers";
 
 // UI QA smoke for the catalog panel. It complements tests/catalog.spec.ts (AC1/AC2/AC6) with AC3, AC4, AC5, the shell
