@@ -98,6 +98,11 @@ export function BranchOverrideFields({
   const effectiveDuration = initialDuration ?? service.duration_minutes;
   const effectivePrice = initialPrice ?? service.price_minor;
   const editable = canEditDuration || canEditPrice;
+  // Mirrors the server's destroy policy: reset only if every field the override sets is editable by the user.
+  const canReset =
+    override != null &&
+    (override.duration_minutes == null || canEditDuration) &&
+    (override.price_minor == null || canEditPrice);
 
   return (
     <section
@@ -186,7 +191,7 @@ export function BranchOverrideFields({
               <Button type="submit" loading={form.formState.isSubmitting}>
                 {t("catalog.override.save")}
               </Button>
-              {onReset && override && canEditDuration && canEditPrice ? (
+              {onReset && canReset ? (
                 <Button type="button" variant="outline" onClick={reset}>
                   {t("catalog.override.reset")}
                 </Button>
