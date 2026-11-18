@@ -5,7 +5,7 @@ module Api
       # company outside the principal's reach is a 404 before the policy runs. PATCH is multipart/form-data (the images travel in
       # it) or JSON when only text changes; a missing field is left alone, an empty one goes back to the platform default.
       class BrandingsController < ::Api::BaseController
-        FIELDS = { brand_name: String, tagline: String, primary_color: String, secondary_color: String, accent_color: String, font_choice: String }.freeze
+        FIELDS = ::Tenancy::BrandingSerializer::FIELDS.index_with { String }.freeze
 
         def show
           company = Current.context.company
@@ -28,7 +28,7 @@ module Api
         # Only real uploads: a text value in a file field is a malformed request, not a validation error. An empty one is "no file
         # selected" (a form submits it for an untouched file input).
         def uploads
-          ::Tenancy::BrandingFile::KINDS.filter_map do |kind|
+          ::Tenancy::BrandingAssets::KINDS.filter_map do |kind|
             value = request.request_parameters[kind.to_s]
             next if value.nil? || value == ""
             raise ActionController::BadRequest, "#{kind} debe ser un archivo" unless value.is_a?(ActionDispatch::Http::UploadedFile)
@@ -41,7 +41,7 @@ module Api
           value = request.request_parameters["remove"]
           return [] if value.nil?
 
-          kinds = ::Tenancy::BrandingFile::KINDS.map(&:to_s)
+          kinds = ::Tenancy::BrandingAssets::KINDS.map(&:to_s)
           raise ActionController::BadRequest, "remove debe ser una lista de #{kinds.join(', ')}" unless value.is_a?(Array) && value.all? { kinds.include?(it) }
 
           value

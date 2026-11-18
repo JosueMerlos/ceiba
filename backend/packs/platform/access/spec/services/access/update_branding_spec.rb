@@ -123,6 +123,27 @@ RSpec.describe Access::UpdateBranding do
       expect(audit_events.last.metadata).to eq("assets" => { "logo" => nil })
     end
 
+    it "subir, reemplazar y quitar una imagen sube la versión de la empresa (lo que sigue el ETag público)" do
+      versions = []
+      versions << stored.cache_key_with_version
+      call(files: { logo: logo_upload })
+      versions << stored.cache_key_with_version
+      call(files: { logo: logo_upload(color: [ 200, 20, 20 ]) })
+      versions << stored.cache_key_with_version
+      call(remove: %w[logo])
+      versions << stored.cache_key_with_version
+
+      expect(versions.uniq.size).to eq(4)
+    end
+
+    it "una petición sin cambios no sube la versión de la empresa" do
+      before = stored.cache_key_with_version
+
+      call(remove: %w[logo])
+
+      expect(stored.cache_key_with_version).to eq(before)
+    end
+
     it "quitar un adjunto que no existe no audita" do
       expect { call(remove: %w[logo]) }.not_to change { audit_count }
     end

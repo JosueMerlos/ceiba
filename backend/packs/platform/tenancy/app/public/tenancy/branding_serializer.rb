@@ -3,12 +3,20 @@ module Tenancy
   # the company has not customized it (the platform default applies). `assets` carries one object per attached image with the
   # URLs of its variants: they are versioned (a replaced image is a new blob, so a new URL) and never point at the original.
   class BrandingSerializer < Api::Serializer
-    attributes :brand_name, :tagline, :primary_color, :secondary_color, :accent_color, :font_choice
+    # The brand's own columns, in the order they are published (also the fields a caller may write).
+    FIELDS = Company::Branding::ATTRIBUTES
+
+    attributes(*FIELDS)
 
     attribute :assets do |company|
-      Company::Branding::VARIANTS.keys.to_h do |kind|
-        [ kind, company.public_send(kind).attached? ? company.branding_variants(kind).transform_values { |variant| BrandingSerializer.variant_path(kind, variant) } : nil ]
-      end
+      BrandingAssets::KINDS.index_with { |kind| BrandingSerializer.assets_for(company, kind) }
+    end
+
+    # URLs of the variants of one image, or nil when the company has none.
+    def self.assets_for(company, kind)
+      return unless company.public_send(kind).attached?
+
+      company.branding_variants(kind).transform_values { |variant| variant_path(kind, variant) }
     end
 
     # The file name in the URL is generic: the one the user uploaded is never published.

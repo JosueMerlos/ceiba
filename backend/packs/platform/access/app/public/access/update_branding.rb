@@ -17,10 +17,11 @@ module Access
 
     def initialize(company:, attributes:, files: {}, remove: [])
       @company = Tenancy::Directory.company_for_branding!(company.id)
+      @assets = Tenancy::BrandingAssets.new(@company)
       @attributes = attributes
       @files = files.compact
       @remove = remove.map(&:to_sym) - @files.keys
-      unknown = (@files.keys + @remove) - Tenancy::BrandingFile::KINDS
+      unknown = (@files.keys + @remove) - Tenancy::BrandingAssets::KINDS
       raise ArgumentError, "adjuntos de marca desconocidos: #{unknown.join(', ')}" if unknown.any?
     end
 
@@ -29,16 +30,17 @@ module Access
         @company.assign_attributes(@attributes)
         content_types = validate!
         before = @company.persisted_branding_attributes
-        assets = store(content_types)
-        replaced = replace(assets) + detach_removed(assets)
+        staged = @assets.stage(@files, content_types:)
+        replaced = @assets.attach(staged)
+        removed = @assets.detach(@remove)
         @company.save!
-        @company.touch if assets.value?(nil)
-        audit(before, assets)
-        after_commit(assets, replaced)
+        @assets.touch!
+        audit(before, staged.merge(removed.transform_values { nil }))
+        after_commit(staged.keys, replaced + removed.values)
       end
       @company
     rescue StandardError
-      discard(@uploaded || [])
+      @assets.discard!
       raise
     end
 
@@ -58,39 +60,6 @@ module Access
       content_types
     end
 
-    # The original is uploaded now (the variants are rendered from it); it is never served. `identify: false` and the
-    # preset metadata stop Active Storage from identifying it again by name or enqueueing an analysis.
-    def store(content_types)
-      @uploaded = []
-      @files.slice(*content_types.keys).to_h do |kind, upload|
-        blob = ActiveStorage::Blob.create_and_upload!(
-          io: upload.tempfile, filename: upload.original_filename, content_type: content_types.fetch(kind), identify: false,
-          metadata: { "identified" => true, "analyzed" => true }
-        )
-        @uploaded << blob
-        [ kind, blob ]
-      end
-    end
-
-    # Assigning an attached blob swaps the attachment on save; the previous blob is returned to be purged.
-    def replace(assets)
-      assets.filter_map do |kind, blob|
-        previous = @company.public_send(kind).blob if @company.public_send(kind).attached?
-        @company.public_send(:"#{kind}=", blob)
-        previous
-      end
-    end
-
-    def detach_removed(assets)
-      @remove.filter_map do |kind|
-        attachment = @company.public_send(kind)
-        next unless attachment.attached?
-
-        assets[kind] = nil
-        attachment.blob.tap { attachment.detach }
-      end
-    end
-
     def audit(before, assets)
       after = @company.branding_attributes
       return if before == after && assets.empty?
@@ -103,34 +72,14 @@ module Access
 
     # Runs once the outermost transaction committed (at once if there is none). Variants are only rendered for the images that
     # were uploaded now; a failure here surfaces to the caller, the change being already committed.
-    def after_commit(assets, replaced)
-      variants = assets.compact.keys.flat_map { |kind| @company.branding_variants(kind).values }
+    def after_commit(uploaded_kinds, replaced)
+      variants = @assets.variants(uploaded_kinds)
       return if variants.empty? && replaced.empty?
 
       ActiveRecord.after_all_transactions_commit do
-        variants.each(&:processed)
-        replaced.each { |blob| purge(blob) }
+        @assets.render!(variants)
+        @assets.purge!(replaced)
       end
-    end
-
-    # Variant records and their rendered files first (their own purge would enqueue a job), then the original.
-    def purge(blob)
-      blob.variant_records.includes(image_attachment: :blob).each do |variant|
-        rendered = variant.image_attachment&.blob
-        variant.image_attachment&.delete
-        variant.delete
-        rendered&.purge
-      end
-      blob.purge
-    rescue StandardError => error
-      Rails.error.report(error, handled: true, context: { blob_id: blob.id })
-    end
-
-    # The original of a rolled-back change: the row goes with the transaction, the file would stay.
-    def discard(blobs)
-      blobs.each { |blob| blob.service.delete(blob.key) }
-    rescue StandardError => error
-      Rails.error.report(error, handled: true)
     end
   end
 end

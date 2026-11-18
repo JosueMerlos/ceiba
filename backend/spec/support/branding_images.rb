@@ -33,7 +33,10 @@ module BrandingImages
       io: StringIO.new(png_bytes(width: 300, height: 300, color:)), filename: "#{kind}.png", content_type: "image/png", identify: false,
       metadata: { "identified" => true, "analyzed" => true }
     )
-    with_tenant(organization) { company.public_send(kind).attach(blob) }
+    with_tenant(organization) do
+      company.public_send(kind).attach(blob)
+      company.touch
+    end
     company.branding_variants(kind).each_value(&:processed) if process
     with_tenant(organization) { company.reload }
   end

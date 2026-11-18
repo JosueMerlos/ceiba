@@ -74,5 +74,8 @@ module Backend
     config.active_storage.variant_processor = :vips
     config.active_storage.analyzers = []
     config.active_storage.track_variants = true
+    # An attachment would touch its record when the outermost transaction commits, after the tenant block ended, where a write
+    # to a tenant table is refused. Tenancy::BrandingAssets#touch! bumps the company's version explicitly, inside the tenant.
+    config.active_storage.touch_attachment_records = false
   end
 end

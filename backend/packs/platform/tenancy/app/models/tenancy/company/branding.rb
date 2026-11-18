@@ -4,8 +4,8 @@ module Tenancy
     # images. NULL everywhere means "not customized": the platform default applies.
     #
     # The images are Active Storage attachments with NO background jobs (`dependent: false`, no analyzers, no preprocessed
-    # variants): the sidekiq adapter would enqueue them outside the outbox. The variants are the only thing ever served; they are
-    # rendered synchronously by Access::UpdateBranding and re-encoded (so the original, with its metadata, is never exposed).
+    # variants): the sidekiq adapter would enqueue them outside the outbox. Their kinds and variants come from
+    # Tenancy::BrandingAssets, which also does the work around them.
     module Branding
       extend ActiveSupport::Concern
 
@@ -25,17 +25,10 @@ module Tenancy
         validates(*COLOR_ATTRIBUTES, format: { with: COLOR_FORMAT }, allow_nil: true)
         validates :font_choice, inclusion: { in: FONT_CHOICES }, allow_nil: true
 
-        has_one_attached :logo, dependent: false do |attachable|
-          attachable.variant :x1, resize_to_limit: [ nil, 64 ], format: :webp, saver: { strip: true }
-          attachable.variant :x2, resize_to_limit: [ nil, 128 ], format: :webp, saver: { strip: true }
-        end
-        has_one_attached :banner, dependent: false do |attachable|
-          attachable.variant :wide, resize_to_fill: [ 1600, 900 ], format: :webp, saver: { strip: true }
-          attachable.variant :standard, resize_to_fill: [ 1200, 900 ], format: :webp, saver: { strip: true }
-        end
-        has_one_attached :favicon, dependent: false do |attachable|
-          attachable.variant :icon32, resize_to_fill: [ 32, 32 ], format: :png, saver: { strip: true }
-          attachable.variant :icon180, resize_to_fill: [ 180, 180 ], format: :png, saver: { strip: true }
+        ::Tenancy::BrandingAssets::ASSETS.each do |kind, asset|
+          has_one_attached kind, dependent: false do |attachable|
+            asset.fetch(:variants).each { |name, transformations| attachable.variant name, **transformations }
+          end
         end
       end
 
@@ -48,15 +41,8 @@ module Tenancy
       # so only the decoded form matches the digest the proxy looks up. Rendering one is `.processed`.
       def branding_variants(kind)
         attachment = public_send(kind)
-        VARIANTS.fetch(kind).index_with { |name| attachment.blob.representation(attachment.variant(name).variation.key) }
+        ::Tenancy::BrandingAssets.variant_names(kind).index_with { |name| attachment.blob.representation(attachment.variant(name).variation.key) }
       end
-
-      # Attachments touch their record with touch_later, which runs when the outermost transaction commits: after the tenant
-      # block ended, where a write to a tenant table is refused. Touching right away keeps it inside the tenant.
-      def touch_later(*names) = persisted? ? touch(*names) : super
-
-      # Variant names per attachment, in the order they are rendered and published.
-      VARIANTS = { logo: %i[x1 x2], banner: %i[wide standard], favicon: %i[icon32 icon180] }.freeze
     end
   end
 end

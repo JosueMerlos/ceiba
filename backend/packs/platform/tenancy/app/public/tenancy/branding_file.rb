@@ -9,8 +9,6 @@ module Tenancy
   # Returns the DETECTED content type: it is the one to store, so Active Storage never identifies the file again by its name.
   module BrandingFile
     ALLOWED_TYPES = %w[image/png image/jpeg image/webp].freeze
-    MAX_BYTES = { logo: 2.megabytes, banner: 5.megabytes, favicon: 200.kilobytes }.freeze
-    KINDS = MAX_BYTES.keys.freeze
     MAX_SIDE = 4096
 
     # `code` is stable (it ends in the problem's errors[]): invalid_file_type, file_too_large or image_too_large.
@@ -27,7 +25,7 @@ module Tenancy
 
     def call(upload, kind:)
       file = upload.tempfile
-      limit = MAX_BYTES.fetch(kind)
+      limit = BrandingAssets.max_bytes(kind)
       raise Rejected.new(:file_too_large, limit: ActiveSupport::NumberHelper.number_to_human_size(limit)) if file.size > limit
 
       content_type = detect(file)
