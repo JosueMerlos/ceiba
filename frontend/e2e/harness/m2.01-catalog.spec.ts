@@ -227,12 +227,8 @@ test("360 px: servicios y panel sin desborde horizontal", async ({ page }, testI
   expect(problems).toEqual([]);
 });
 
-// KNOWN BUG (reported, not fixed here): with a slot on a day, the two time inputs (w-32) plus the remove button do not
-// fit a 360 px card and the page gets ~28 px of horizontal scroll. test.fail() keeps the suite green while it exists
-// and turns red the moment it is fixed, so the marker gets removed.
 test("360 px: horario semanal con franjas sin desborde horizontal", async ({ page }, testInfo) => {
   test.skip(!branchScheduleUrl, "requires the branch from AC5");
-  test.fail(true, "bug: weekly schedule editor overflows 360 px when a day has slots");
   const problems = watch(page);
   await page.setViewportSize({ width: 360, height: 740 });
   await signIn(page, COMPANY_MANAGER);
