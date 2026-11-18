@@ -75,6 +75,46 @@ describe("auditIgnoreViolations", () => {
     expect(violations(yaml)).toEqual([`${ID}: ${MISSING_POLICY}`]);
   });
 
+  describe("cuando la anotación no pertenece a la entrada real de audit.ignore", () => {
+    const annotated = `${ID} # revisar: 2026-12-18 | motivo: solo tooling`;
+    const otherList = `minimumReleaseAgeExclude:\n  - ${annotated}\n`;
+
+    it.each([
+      [
+        "una entrada vencida cubierta desde otra lista",
+        workspace(`${ID} # revisar: 2020-01-01 | motivo: x`) + otherList,
+        `${ID}: fecha de revisión vencida (2020-01-01)`,
+      ],
+      [
+        "una entrada sin anotar cubierta desde otra lista",
+        workspace(ID) + otherList,
+        `${ID}: ${MISSING_POLICY}`,
+      ],
+      [
+        "una lista en línea cubierta desde otra lista",
+        `audit: { ignore: [${ID}] }\n${otherList}`,
+        `${ID}: ${MISSING_POLICY}`,
+      ],
+      [
+        "un ignorado externo cubierto desde otra lista",
+        `packages:\n  - apps/*\n${otherList}`,
+        `${ID}: ${MISSING_POLICY}`,
+      ],
+    ])("rechaza %s", (_case, yaml, message) => {
+      expect(violations(yaml)).toEqual([message]);
+    });
+
+    it("rechaza un aviso repetido en audit.ignore", () => {
+      const yaml = workspace(`${ID} # revisar: 2020-01-01 | motivo: x`, annotated);
+
+      expect(violations(yaml)).toEqual([`${ID}: aparece más de una vez en audit.ignore`]);
+    });
+
+    it("reporta una sola vez un aviso repetido en la configuración efectiva", () => {
+      expect(violations(workspace(ID), [ID, ID])).toEqual([`${ID}: ${MISSING_POLICY}`]);
+    });
+  });
+
   it("acepta saltos de línea CRLF y CR", () => {
     const yaml = workspace(`${ID} # revisar: 2026-12-18 | motivo: solo tooling`);
 
