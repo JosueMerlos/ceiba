@@ -39,4 +39,36 @@ RSpec.describe Customers::Lookup do
       expect(described_class.active_id?(id: customer.id, company:)).to be_in([ true, false ])
     end
   end
+
+  describe ".full_names" do
+    it "devuelve id => nombre de los clientes pedidos, y solo el nombre" do
+      first = create(:customer, company:, full_name: "Ana Ruiz")
+      second = create(:customer, company:, full_name: "Luis Mora")
+      create(:customer, company:, full_name: "No pedida")
+
+      expect(described_class.full_names(ids: [ first.id, second.id ], company:)).to eq(first.id => "Ana Ruiz", second.id => "Luis Mora")
+    end
+
+    it "incluye a los clientes archivados: sus citas siguen existiendo" do
+      customer = create(:customer, company:, full_name: "Ana Ruiz")
+      Customers::Archive.call(customer:)
+
+      expect(described_class.full_names(ids: [ customer.id ], company:)).to eq(customer.id => "Ana Ruiz")
+    end
+
+    it "ignora los clientes de otra empresa de la misma organización" do
+      foreign = create(:customer, company: sibling)
+
+      expect(described_class.full_names(ids: [ foreign.id ], company:)).to eq({})
+    end
+
+    it "sin ids no consulta y devuelve un hash vacío" do
+      queries = []
+      counter = ->(*, payload) { queries << payload[:sql] unless payload[:name] == "SCHEMA" }
+
+      result = ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { described_class.full_names(ids: [], company:) }
+
+      expect([ result, queries ]).to eq([ {}, [] ])
+    end
+  end
 end
