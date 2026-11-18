@@ -395,7 +395,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description el contexto del usuario */
+                /** @description company_permissions: vacío sin empresa en el contexto */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2939,7 +2939,7 @@ export interface paths {
         };
         /**
          * Lista los overrides de servicio de una sucursal
-         * @description Exige `appointments.service.read` en la sucursal de la ruta. Devuelve SOLO los overrides de esa sucursal, con la moneda del servicio. Paginado por cursor.
+         * @description Exige `appointments.service.read` en la sucursal de la ruta. Devuelve SOLO los overrides de esa sucursal, con la moneda del servicio. No incluye los de servicios archivados. Paginado por cursor.
          */
         get: {
             parameters: {
@@ -3629,7 +3629,7 @@ export interface paths {
         };
         /**
          * Lista las ausencias de un profesional desde la empresa
-         * @description Exige `appointments.time_off.read` en el alcance de la EMPRESA (solo gerencia de empresa): un rol de sucursal o el propio profesional (`manage_own`) reciben 403. Alcanza a profesionales con y sin sucursales, por lo que permite revisar las ausencias de uno que quedó sin asignar. El profesional debe ser de la empresa de la ruta (si no, 404). Paginado por cursor.
+         * @description Exige `appointments.time_off.read` en el alcance de la EMPRESA (solo gerencia de empresa). Devuelve SOLO las ausencias vigentes o futuras (`ends_at` posterior a ahora); el borrado no se limita. Un rol de sucursal o el propio profesional (`manage_own`) reciben 403. Alcanza a profesionales con y sin sucursales, por lo que permite revisar las ausencias de uno que quedó sin asignar. El profesional debe ser de la empresa de la ruta (si no, 404). Paginado por cursor.
          */
         get: {
             parameters: {
@@ -5611,6 +5611,8 @@ export interface components {
         /** @description Respuesta de GET /api/v1/me */
         Me: {
             data: {
+                /** @description Permisos que el usuario tiene en el alcance de la EMPRESA del contexto (sin los de sus memberships de sucursal, que solo valen en su sucursal). Vacío sin empresa en el contexto. Sirve para saber si una ruta de empresa está abierta; el frontend los refleja, no decide. */
+                company_permissions: string[];
                 /** @description Lo elegido; cada nivel es null si no hay (usuario sin memberships, sin sucursal elegida) */
                 context: {
                     branch: components["schemas"]["Branch"] | null;

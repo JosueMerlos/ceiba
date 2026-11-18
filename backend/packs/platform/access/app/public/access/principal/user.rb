@@ -60,6 +60,14 @@ module Access
         @grants.keys_within(company_id:, branch_id:).select { |key| Access.registered?(key) && module_active_in_context?(key, company_id) }.sort
       end
 
+      # Permissions it holds at the scope of the COMPANY itself (not those that only apply to some of its branches), with the
+      # same module filter as `permission_keys_in`. What the frontend needs to know whether a company-wide route is open.
+      def company_permission_keys_in(company_id:)
+        return [] unless active?
+
+        @grants.company_scope_keys(company_id).select { |key| Access.registered?(key) && module_active_in_context?(key, company_id) }.sort
+      end
+
       def member? = active? && @grants.member?
 
       # Route visibility: does any membership contain this company / branch (or sit inside it)? Not authorization

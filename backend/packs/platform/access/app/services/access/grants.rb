@@ -77,6 +77,13 @@ module Access
       keys
     end
 
+    # The keys that `allows?` would grant at the scope of the COMPANY itself: organization ones, the company's and the
+    # upward read ones. Unlike `keys_within`, it does NOT merge in the keys of branch memberships, which only apply to
+    # their own branch.
+    def company_scope_keys(company_id)
+      @organization_keys | @company_keys.fetch(company_id, NO_KEYS) | @upward_company_keys.fetch(company_id, NO_KEYS)
+    end
+
     def reach(key)
       Reach.new(
         organization: @organization_keys.include?(key),

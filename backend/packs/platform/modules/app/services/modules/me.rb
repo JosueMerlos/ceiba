@@ -1,6 +1,9 @@
 module Modules
   # Builds the GET /api/v1/me response: chosen context, active modules with resolved settings, permissions and navigation.
   #
+  # `company_permissions` are the keys held at the COMPANY scope: unlike `permissions`, they leave out those that only apply
+  # to a branch the user has a membership in, so the frontend can tell whether a company-wide route is open.
+  #
   # Context choice: what the params request (explicit: if not visible, 404/403 like any route); else the remembered one
   # (Modules::ContextCookie) and, if unusable (access lost, organization suspended), the user's first organization by id.
   # Within the organization, without a requested company the first one the user sees (by id) is taken. With no membership the
@@ -24,7 +27,7 @@ module Modules
       rescue ActiveRecord::RecordNotFound, Access::OrganizationSuspended
         next # a stale remembered or default context is not a user error
       end
-      [ payload(EMPTY_CONTEXT, [], [], []), nil ]
+      [ payload(EMPTY_CONTEXT, [], [], [], []), nil ]
     end
 
     private
@@ -56,12 +59,13 @@ module Modules
     end
 
     def company_payload(context, company, selection)
-      return [ payload({ organization: context.organization, company: nil, branch: nil }, [], [], []), selection_for(context, nil) ] unless company
+      return [ payload({ organization: context.organization, company: nil, branch: nil }, [], [], [], []), selection_for(context, nil) ] unless company
 
       modules = ActiveModules.call(company:, branch: context.branch)
       permissions = @principal.permission_keys_in(company_id: company.id, branch_id: context.branch&.id)
+      company_permissions = @principal.company_permission_keys_in(company_id: company.id)
       navigation = navigation_for(modules, permissions)
-      [ payload({ organization: context.organization, company:, branch: context.branch }, modules, permissions, navigation), selection_for(context, company, selection) ]
+      [ payload({ organization: context.organization, company:, branch: context.branch }, modules, permissions, navigation, company_permissions), selection_for(context, company, selection) ]
     end
 
     def selection_for(context, company, _selection = nil)
@@ -75,7 +79,7 @@ module Modules
       end
     end
 
-    def payload(context, modules, permissions, navigation)
+    def payload(context, modules, permissions, navigation, company_permissions)
       {
         principal: { id: @principal.id, name: @principal.full_name, email: @principal.email },
         context: {
@@ -84,7 +88,7 @@ module Modules
           branch: context[:branch] && Tenancy::BranchSerializer.new(context[:branch]).serializable_hash
         },
         modules: modules.map { |entry| { key: entry.manifest.key, version: entry.manifest.version, settings: entry.settings } },
-        permissions:, navigation:
+        permissions:, company_permissions:, navigation:
       }
     end
   end

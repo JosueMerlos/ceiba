@@ -61,6 +61,11 @@ OpenapiComponents.register(
             type: :array, items: { type: :string },
             description: "Permisos que el usuario ejerce en el contexto, de los módulos activos y de la plataforma. El frontend los refleja; no decide."
           },
+          company_permissions: {
+            type: :array, items: { type: :string },
+            description: "Permisos que el usuario tiene en el alcance de la EMPRESA del contexto (sin los de sus memberships de sucursal, que solo valen en su sucursal). " \
+                         "Vacío sin empresa en el contexto. Sirve para saber si una ruta de empresa está abierta; el frontend los refleja, no decide."
+          },
           navigation: {
             type: :array,
             items: {
@@ -70,7 +75,7 @@ OpenapiComponents.register(
             }
           }
         },
-        required: %i[principal context modules permissions navigation], additionalProperties: false
+        required: %i[principal context modules permissions company_permissions navigation], additionalProperties: false
       }
     },
     required: %i[data], additionalProperties: false
