@@ -4,6 +4,8 @@ require "swagger_helper"
 RSpec.describe "API v1: yo (contexto, módulos, permisos y navegación)" do
   let(:world) { build_access_world }
 
+  before { with_tenant(world.organization) { Modules::Enable.call(company: world.company_a, key: "appointments") } }
+
   path "/api/v1/me" do
     get "Contexto del usuario autenticado" do
       tags "Contexto"
@@ -24,7 +26,6 @@ RSpec.describe "API v1: yo (contexto, módulos, permisos y navegación)" do
         let(:company_id) { world.company_a.id }
         let(:branch_id) { world.branch_a1.id }
 
-        before { with_tenant(world.organization) { Modules::Enable.call(company: world.company_a, key: "appointments") } }
 
         schema "$ref" => "#/components/schemas/Me"
 
@@ -42,7 +43,6 @@ RSpec.describe "API v1: yo (contexto, módulos, permisos y navegación)" do
         let(:company_id) { world.company_a.id }
         let(:branch_id) { world.branch_a1.id }
 
-        before { with_tenant(world.organization) { Modules::Enable.call(company: world.company_a, key: "appointments") } }
 
         schema "$ref" => "#/components/schemas/Me"
 
@@ -54,7 +54,6 @@ RSpec.describe "API v1: yo (contexto, módulos, permisos y navegación)" do
       response "200", "company_permissions: un branch_manager de una sola sucursal, sin sucursal en el contexto, no tiene claves de ausencias de empresa" do
         let!(:signed_in) { sign_in(user_with_role("branch_manager", world, branch: world.branch_a1)) }
 
-        before { with_tenant(world.organization) { Modules::Enable.call(company: world.company_a, key: "appointments") } }
 
         schema "$ref" => "#/components/schemas/Me"
 
@@ -70,7 +69,6 @@ RSpec.describe "API v1: yo (contexto, módulos, permisos y navegación)" do
       response "200", "company_permissions: el receptionist (solo sucursal) no tiene claves de ausencias de empresa" do
         let!(:signed_in) { sign_in(user_with_role("receptionist", world, branch: world.branch_a1)) }
 
-        before { with_tenant(world.organization) { Modules::Enable.call(company: world.company_a, key: "appointments") } }
 
         schema "$ref" => "#/components/schemas/Me"
 
@@ -81,7 +79,6 @@ RSpec.describe "API v1: yo (contexto, módulos, permisos y navegación)" do
         response "200", "company_permissions: el #{role} tiene solo lo que su membership de organización concede, sin claves de ausencias" do
           let!(:signed_in) { sign_in(user_with_role(role, world)) }
 
-          before { with_tenant(world.organization) { Modules::Enable.call(company: world.company_a, key: "appointments") } }
 
           schema "$ref" => "#/components/schemas/Me"
 

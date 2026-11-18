@@ -13,10 +13,6 @@ RSpec.describe "API v1: ausencias de un profesional por empresa" do
   let(:company_id) { world.company_a.id }
   let(:manager) { user_with_role("company_manager", world, company: world.company_a) }
   let("X-CSRF-Token") { signed_in.csrf_token }
-  # Mid-way through the default absence (09:00-13:00 on the 16th), so "ongoing" is well defined.
-  before { travel_to Time.utc(2026, 11, 16, 11) }
-
-  after { travel_back }
   let!(:modules_enabled) do
     with_tenant(world.organization) { [ world.company_a, world.company_b ].each { |company| Modules::Enable.call(company:, key: "appointments") } }
   end
@@ -24,6 +20,12 @@ RSpec.describe "API v1: ausencias de un profesional por empresa" do
   let(:professional_id) { orphan.id }
   let!(:mine) { time_off_for({ professional: orphan }, reason: "Vacaciones") }
   let!(:theirs) { time_off_for({ professional: professional_in(world.company_a, display_name: "Otra") }, reason: "Congreso") }
+
+  # Mid-way through the default absence (09:00-13:00 on the 16th), so "ongoing" is well defined.
+  before { travel_to Time.utc(2026, 11, 16, 11) }
+
+  after { travel_back }
+
 
   list_schema = {
     type: :object, required: %w[data page], additionalProperties: false, properties: {
