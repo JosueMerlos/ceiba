@@ -210,7 +210,7 @@ describe("sucursales y horario", () => {
     await waitFor(() => expect(lists).toBe(2));
   });
 
-  it("crear sucursal manda una Idempotency-Key UUID por intento de alta: la misma para el mismo envío, otra para un envío nuevo", async () => {
+  it("crear sucursal manda como Idempotency-Key la que recibe en la variable", async () => {
     const keys: (string | null)[] = [];
     server.use(
       http.post(`${BASE}/branches`, ({ request }) => {
@@ -223,17 +223,11 @@ describe("sucursales y horario", () => {
     );
     const { wrapper } = setup();
     const { result } = renderHook(() => useCreateBranch(), { wrapper });
-    const submit = { name: "Granada", time_zone: "America/Managua" };
+    const body = { name: "Granada", time_zone: "America/Managua" };
 
-    await act(() => result.current.mutateAsync(submit));
-    await act(() => result.current.mutateAsync(submit));
-    await act(() => result.current.mutateAsync({ ...submit }));
+    await act(() => result.current.mutateAsync({ body, idempotencyKey: "clave-1" }));
 
-    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-    expect(keys).toHaveLength(3);
-    expect(keys.every((key) => uuid.test(key ?? ""))).toBe(true);
-    expect(keys[0]).toBe(keys[1]);
-    expect(keys[2]).not.toBe(keys[0]);
+    expect(keys).toEqual(["clave-1"]);
   });
 
   it("el PUT del horario manda las franjas y el 422 llega como ApiError con el campo slots", async () => {

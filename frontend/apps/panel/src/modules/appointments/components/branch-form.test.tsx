@@ -40,6 +40,27 @@ describe("BranchForm", () => {
     );
   });
 
+  it("reintentar el mismo formulario tras un error reenvía la misma Idempotency-Key; tras el éxito, otra", async () => {
+    const onSubmit = vi
+      .fn()
+      .mockRejectedValueOnce(new ApiError(409, "idempotency.request_in_progress", "En curso", []))
+      .mockResolvedValue(undefined);
+    const { user } = await renderForm({ onSubmit });
+
+    await user.type(screen.getByLabelText("Nombre"), "Granada");
+    await user.click(screen.getByRole("button", { name: "Crear sucursal" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    await user.click(screen.getByRole("button", { name: "Crear sucursal" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
+    await user.click(screen.getByRole("button", { name: "Crear sucursal" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(3));
+
+    const keys = onSubmit.mock.calls.map((call) => call[1]);
+    expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[0]);
+  });
+
   it("no envía con el nombre en blanco (solo espacios)", async () => {
     const { user, onSubmit } = await renderForm();
 
