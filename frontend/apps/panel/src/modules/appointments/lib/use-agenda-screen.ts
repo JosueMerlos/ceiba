@@ -41,6 +41,8 @@ export type AgendaMode = "professionals" | "resources" | "week";
 
 const DEFAULT_STEP_MINUTES = 15;
 const CLOCK_TICK_MS = 60_000;
+const IDLE_TIMEOUT_MS = 1_500;
+const IDLE_FALLBACK_MS = 200;
 const MOVABLE = new Set<AgendaAppointment["status"]>(["scheduled", "confirmed"]);
 
 function useNow() {
@@ -50,6 +52,22 @@ function useNow() {
     return () => clearInterval(timer);
   }, []);
   return now;
+}
+
+/** True once the browser is idle after `ready`: secondary data must not compete with the first paint and click. */
+function useIdleAfter(ready: boolean) {
+  const [idle, setIdle] = useState(false);
+  useEffect(() => {
+    if (!ready) return;
+    const done = () => setIdle(true);
+    if ("requestIdleCallback" in window) {
+      const handle = window.requestIdleCallback(done, { timeout: IDLE_TIMEOUT_MS });
+      return () => window.cancelIdleCallback(handle);
+    }
+    const timer = setTimeout(done, IDLE_FALLBACK_MS);
+    return () => clearTimeout(timer);
+  }, [ready]);
+  return idle;
 }
 
 function useStepMinutes() {
@@ -198,8 +216,8 @@ export function useAgendaScreen({ branch, mode, date, weekProfessionalId }: Agen
     [visible, timeZone, columnOf, serviceLabel, canMove, mode, t],
   );
 
-  // Loaded after the appointments so that shading never delays the first useful paint.
-  const appointmentsReady = appointments.isSuccess;
+  // Loaded once the appointments are on screen, so that shading never delays the first useful paint or click.
+  const appointmentsReady = useIdleAfter(appointments.isSuccess);
   const branchSchedule = useAgendaBranchSchedule(branch.id, readsSchedules && appointmentsReady);
   const branchSlots = branchSchedule.data?.data ?? null;
   const columnIds = useMemo(() => columns.map((column) => column.id), [columns]);

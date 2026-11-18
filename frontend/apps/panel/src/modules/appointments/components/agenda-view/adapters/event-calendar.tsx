@@ -23,6 +23,8 @@ const THREE_LINES_FROM_MINUTES = 60;
 // finished leaving would stop receiving clicks, so mounts wait for pending unmounts.
 let teardown: Promise<unknown> = Promise.resolve();
 
+type CalendarOption = Parameters<Calendar["setOption"]>[0];
+
 const VIEW = { day: "resourceTimeGridDay", week: "timeGridWeek" } as const;
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text?: string) {
@@ -74,9 +76,10 @@ function columnHeader(resource: AgendaViewResource) {
 
 /** `@event-calendar/core` behind AgendaView. It runs in UTC and receives the branch's wall clock as floating times. */
 export default function EventCalendarAdapter(props: AgendaViewProps) {
-  const { mode, date, timeZone, resources, events, blocks, range, stepMinutes, now } = props;
+  const { mode, date, resources, events, blocks, range, stepMinutes, now } = props;
   const host = useRef<HTMLDivElement>(null);
   const [calendar, setCalendar] = useState<Calendar | null>(null);
+  const applied = useRef(new Map<string, unknown>());
   const drawnRange = useRef<MinuteRange>({ startMinute: 0, endMinute: 24 * 60 });
   // The library keeps the callbacks of the first render; they read the current props through this ref.
   const latest = useRef(props);
@@ -191,24 +194,30 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
   }, []);
 
   useEffect(() => {
-    const instance = calendar;
-    if (!instance) return;
-    instance.setOption("view", VIEW[mode]);
-    instance.setOption("date", date);
-    instance.setOption("snapDuration", { minutes: stepMinutes });
-    // The library recomputes on every option and fails on an empty range, so the new one must never cross the old one.
-    const limits = [
+    if (!calendar) {
+      applied.current.clear();
+      return;
+    }
+    // Every option makes the library recompute the whole grid, so only what really changed is sent.
+    const apply = (name: CalendarOption, value: unknown) => {
+      if (applied.current.get(name) === value) return;
+      applied.current.set(name, value);
+      calendar.setOption(name, value as never);
+    };
+    apply("view", VIEW[mode]);
+    apply("date", date);
+    apply("snapDuration", `00:${String(stepMinutes).padStart(2, "0")}`);
+    // An empty range makes the library fail, so the new limits must never cross the old ones.
+    const limits: [CalendarOption, string][] = [
       ["slotMinTime", clockOfMinutes(range.startMinute)],
       ["slotMaxTime", clockOfMinutes(range.endMinute)],
-    ] as const;
+    ];
     const movesPastEnd = range.startMinute >= drawnRange.current.endMinute;
-    for (const [name, value] of movesPastEnd ? [...limits].reverse() : limits) {
-      instance.setOption(name, value);
-    }
+    for (const [name, value] of movesPastEnd ? limits.reverse() : limits) apply(name, value);
     drawnRange.current = range;
-    instance.setOption("resources", calendarResources);
-    instance.setOption("events", calendarEvents);
-  }, [calendar, mode, date, timeZone, stepMinutes, range, calendarResources, calendarEvents]);
+    apply("resources", calendarResources);
+    apply("events", calendarEvents);
+  }, [calendar, mode, date, stepMinutes, range, calendarResources, calendarEvents]);
 
   return <div ref={host} data-slot="agenda-view" className="agenda-view" />;
 }

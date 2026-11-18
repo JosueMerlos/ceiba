@@ -128,6 +128,16 @@ describe("Agenda: recepción", () => {
     expect(screen.getByRole("button", { name: /Luz Mora/ }).textContent).toContain("Servicio");
   });
 
+  it("sombrea lo cerrado cuando llegan los horarios, sin bloquear la primera pintura", async () => {
+    asReception();
+    agendaBackend({ appointments: [agendaAppointment()] });
+    await renderApp({ route });
+
+    await screen.findByRole("button", { name: /Ana Ruiz/ });
+    // The demo backend gives nobody hours of their own, so both columns end up closed.
+    await waitFor(() => expect(document.querySelector(".agenda-block")).not.toBeNull());
+  });
+
   it("cambia de día y pide el rango nuevo", async () => {
     asReception();
     const backend = agendaBackend();

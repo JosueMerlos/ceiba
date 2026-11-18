@@ -265,7 +265,10 @@ export function useOwnerAvailability(
   });
   const stamp = results.map((result) => result.dataUpdatedAt).join();
   const idsKey = ownerIds.join();
+  // Published all at once: each partial result would redraw the whole calendar.
+  const loading = results.some((result) => result.isLoading);
   return useMemo(() => {
+    if (loading) return new Map<string, OwnerAvailability>();
     const entries = ownerIds.flatMap((id, index) => {
       const data = results[index]?.data;
       return data ? [[id, data] as const] : [];
@@ -273,5 +276,5 @@ export function useOwnerAvailability(
     return new Map<string, OwnerAvailability>(entries);
     // `stamp` stands for the query results, which are a new array on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stamp, idsKey]);
+  }, [stamp, idsKey, loading]);
 }

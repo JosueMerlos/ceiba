@@ -1,7 +1,7 @@
 import { isApiError } from "@ceiba/api-client";
 import { useTranslation } from "@ceiba/i18n";
 import { Button, LoadingState, PageHeader, toast } from "@ceiba/ui";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useContextSelection } from "../../../platform/context/context-provider";
 import { apiErrorMessages } from "../../../platform/forms/api-error-messages";
@@ -14,7 +14,7 @@ import { AppointmentDetailPanel } from "../components/agenda/appointment-detail-
 import { NewAppointmentPanel } from "../components/agenda/new-appointment-panel";
 import { AgendaLegend } from "../components/agenda-legend";
 import { AgendaToolbar } from "../components/agenda-toolbar";
-import { AgendaView } from "../components/agenda-view/agenda-view";
+import { AgendaView, preloadAgendaView } from "../components/agenda-view/agenda-view";
 import type { AgendaSlot } from "../components/agenda-view/types";
 import { BranchPicker } from "../components/branch-picker";
 import { QueryBoundary } from "../components/query-boundary";
@@ -79,6 +79,7 @@ function BranchAgenda({ branch }: { branch: Branch }) {
   const { t } = useTranslation("appointments");
   const can = useCan();
   const panelId = useId();
+  useEffect(preloadAgendaView, []);
   const [params, setParams] = useSearchParams();
   // The sheet keeps one side panel at a time, and on wide screens it starts with the arrivals.
   const [panel, setPanel] = useState<SidePanel>(() =>

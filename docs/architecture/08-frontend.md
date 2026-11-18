@@ -32,7 +32,7 @@ Las dependencias entre paquetes son explícitas en cada `package.json`. Una app 
 | Formularios | react-hook-form + zod | Esquemas zod alineados con los errores `422` de la API |
 | Estilos | Tailwind + shadcn/ui | Componentes copiados al repo (`packages/ui`), no una dependencia opaca |
 | Fechas | `date-fns` + `@date-fns/tz` | Siempre con la zona de la **sucursal**, nunca la del navegador |
-| Agenda | `AgendaView` propio sobre librería **gratuita** (react-big-calendar u otra evaluada en M2.02) | Ver abajo |
+| Agenda | `AgendaView` propio sobre `@event-calendar/core` 5.19.0 (MIT, elegida en M2.02) | Ver abajo |
 | i18n | react-i18next, locale `es-NI` | Todos los textos se extraen desde el día 1 |
 | Tests | Vitest + Testing Library + MSW; Playwright para E2E | [12](12-testing-strategy.md) |
 
@@ -146,6 +146,8 @@ interface AgendaViewProps {
 - La página habla **solo** con `AgendaView`; la librería concreta vive en `AgendaView/adapters/<lib>.tsx`.
 - Criterios para elegir la librería en M2.02: licencia MIT o similar, vista diaria por recursos, drag & drop, buen manejo de zonas horarias, mantenimiento activo y peso.
 - Si ninguna cumple, plan B: una vista diaria por recursos **propia** (grilla CSS), que para una vista de un solo día es razonable.
+- **Elegida en M2.02: `@event-calendar/core`** (comparación en las [notas del hito](../milestones/F2-agenda-interna/M2.02-agenda-del-staff.md#notas-de-cierre)). El adaptador la hace correr en UTC y le entrega la hora de pared de la sucursal, así que nada depende de la zona del navegador. Vive en su propio chunk, que la página precarga junto con sus datos.
+- Horarios y ausencias se piden cuando el navegador queda libre tras pintar las citas: sombrear lo cerrado no compite con el primer clic.
 
 ## Booking (`apps/booking`)
 
