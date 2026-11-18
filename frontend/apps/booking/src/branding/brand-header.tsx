@@ -36,7 +36,7 @@ export function BrandHeader({ branding }: { branding: PublicBranding }) {
           <img
             src={logo.x1}
             srcSet={logo.x2 ? `${logo.x1} 1x, ${logo.x2} 2x` : undefined}
-            alt={t("logoAlt", { name: name ?? "" }).trim()}
+            alt={name ? t("logoAlt", { name }) : t("logoAltGeneric")}
             className="h-16 w-auto max-w-40 shrink-0 object-contain"
           />
         )}

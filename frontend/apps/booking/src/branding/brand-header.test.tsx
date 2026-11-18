@@ -117,9 +117,16 @@ describe("logo sin nombre de marca", () => {
   it("usa un texto alternativo genérico en lugar de dejarlo incompleto", async () => {
     serve(
       "sin-nombre",
-      branding({ assets: { logo: { x1: "/api/storage/logo-x1.webp", x2: null }, banner: null, favicon: null } }),
+      branding({
+        assets: {
+          logo: { x1: "/api/storage/logo-x1.webp", x2: null },
+          banner: null,
+          favicon: null,
+        },
+      }),
     );
     await renderAt("/c/sin-nombre");
-    expect(await screen.findByRole("img", { name: "Logo del negocio" })).toBeInTheDocument();
+    const logo = await screen.findByRole("img", { name: "Logo del negocio" });
+    expect(logo.getAttribute("src")).toBe("/api/storage/logo-x1.webp");
   });
 });
