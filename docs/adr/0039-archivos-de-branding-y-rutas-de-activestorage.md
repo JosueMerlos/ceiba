@@ -49,7 +49,8 @@ Active Storage, sin SVG. Faltaba decidir cómo entran y cómo salen los archivos
    purgas. Un spec comprueba que nada se encola.
 7. **URLs versionadas y revalidación:** un archivo nuevo es un blob nuevo, así que sus URLs cambian; el proxy responde con
    `Cache-Control: public, max-age=…, immutable`. El endpoint público de marca (`GET /api/public/v1/c/:slug/branding`)
-   responde `Cache-Control: public, no-cache` con `ETag` (versión de la empresa y blobs adjuntos): el navegador siempre
+   responde `Cache-Control: public, no-cache` con `ETag` (versión del serializer y versión de la empresa, que sube con cada
+   cambio de marca o de imagen): el navegador siempre
    revalida (un `304` barato) y nunca muestra una marca vieja tras un cambio.
 8. **Almacenamiento:** `local` por defecto; `ACTIVE_STORAGE_SERVICE=r2` activa el servicio S3-compatible de `storage.yml`
    (gem `aws-sdk-s3`, claves por `ENV.fetch`, que falla nombrando la que falte).
@@ -79,6 +80,12 @@ Active Storage, sin SVG. Faltaba decidir cómo entran y cómo salen los archivos
 - **Concurrencia:** guardar la marca bloquea la fila de la empresa (`FOR UPDATE`), así que dos `PATCH` simultáneos se
   ejecutan uno tras otro. Los originales subidos solo se borran si la transacción que los creó se revierte (aunque sea la
   externa, después de volver el caso de uso); el nombre del archivo del usuario nunca se guarda (se usa `logo.png`, etc.).
+- **Excepción aceptada a "nada de llamadas externas dentro de una transacción"** (decisión del desarrollador, 2026-11-18): la
+  subida del original al almacenamiento (hasta 5 MB; R2 en producción) ocurre dentro de la transacción de la petición, que
+  envuelve toda petición de la API (`Tenancy.with_context`), y mantiene ocupada una conexión de BD mientras dura. Se acepta
+  porque escribir el archivo no es un efecto de negocio (nadie lo ve hasta el commit) y un rollback lo descarta; sacarlo de la
+  transacción obligaría a sacar el endpoint del patrón de contexto de ruta que comparten todos los demás. Si la latencia de
+  R2 llega a agotar el pool de conexiones, se revisa: subir antes de abrir la transacción.
 - **Ventanas aceptadas tras el commit:** el ETag público cambia al guardar (`touch!`) y las variantes se renderizan justo
   después del commit, así que durante un instante el ETag nuevo existe sin variantes; si el render falla, la URL publicada
   responde 404 hasta guardar de nuevo (se reporta, no se reintenta). Si dos guardados se cruzan, el render del primero puede
