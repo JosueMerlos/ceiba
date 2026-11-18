@@ -104,6 +104,16 @@ RSpec.describe "API pública v1: marca de la empresa" do
       expect([ response.headers["ETag"], response.parsed_body.dig("data", "assets", "logo", "x1") ]).to all(satisfy { |value| !before.include?(value) })
     end
 
+    it "si cambia la versión del esquema de la respuesta, el ETag cambia aunque la empresa no (no se da un 304 con un cuerpo de otra forma)" do
+      fetch
+      etag = response.headers["ETag"]
+      stub_const("Tenancy::BrandingSerializer::VERSION", "otra-forma")
+
+      fetch(headers: { "If-None-Match" => etag })
+
+      expect(response).to have_http_status(:ok)
+    end
+
     it "tras cambiar solo un color, el ETag cambia" do
       fetch
       etag = response.headers["ETag"]

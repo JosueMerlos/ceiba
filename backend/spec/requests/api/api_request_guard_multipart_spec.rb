@@ -48,4 +48,26 @@ RSpec.describe ApiRequestGuard do
 
     expect(response.status).to eq(400)
   end
+
+  describe "tamaño del cuerpo multipart (se rechaza antes de que Rack lo lea)" do
+    def sized_request(length, extra = {})
+      env = { "CONTENT_TYPE" => multipart_type, input: "" }.merge(extra)
+      env["CONTENT_LENGTH"] = length.to_s if length
+      Rack::MockRequest.new(guard).request("PATCH", branding_path, env)
+    end
+
+    it "con Content-Length mayor de 8 MiB responde 413 problem+json request.too_large" do
+      response = sized_request(8.megabytes + 1)
+
+      expect([ response.status, response.media_type, JSON.parse(response.body)["code"] ]).to eq([ 413, "application/problem+json", "request.too_large" ])
+    end
+
+    it "sin Content-Length (Transfer-Encoding) responde 413: no se sabe cuánto va a llegar" do
+      expect(sized_request(nil, "HTTP_TRANSFER_ENCODING" => "chunked").status).to eq(413)
+    end
+
+    it "con exactamente 8 MiB deja pasar" do
+      expect(sized_request(8.megabytes).status).to eq(200)
+    end
+  end
 end

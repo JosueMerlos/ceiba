@@ -25,6 +25,14 @@ RSpec.describe "Rutas de archivos (/api/storage)" do
     expect(response.headers["Cache-Control"]).to include("public").and include("immutable").and match(/max-age=\d{9,}/)
   end
 
+  it "siempre se sirve inline: ignora el disposition que pida el cliente" do
+    attach_logo
+
+    get "#{x1_path}?disposition=attachment"
+
+    expect(response.headers["Content-Disposition"]).to start_with("inline")
+  end
+
   it "la URL sale bajo /api/storage" do
     attach_logo
 

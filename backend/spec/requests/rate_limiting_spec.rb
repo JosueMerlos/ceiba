@@ -275,6 +275,14 @@ RSpec.describe "Rate limiting (Rack::Attack)" do
       expect_rate_limited(retry_after: 59, limit: 300)
     end
 
+    it "reconoce también la ruta con barras repetidas o codificadas, que el router resuelve igual" do
+      paths = %w[/api//storage/x /api///storage/x /api/%73torage/x /api/storage/x]
+
+      matches = paths.map { |path| RateLimiting.storage?(Rack::Request.new(Rack::MockRequest.env_for(path))) }
+
+      expect(matches).to all(be(true))
+    end
+
     it "otra IP no se ve afectada" do
       301.times { storage_file }
 
