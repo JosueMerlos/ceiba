@@ -111,6 +111,7 @@ export function agendaBackend({
     customerQueries: [] as URLSearchParams[],
     writes: [] as { action: string; id: string | null; body: unknown; key: string | null }[],
     createdCustomers: [] as unknown[],
+    scheduleOwners: [] as string[],
     failure: writeFailure,
   };
   const write = async (action: string, id: string | null, request: Request) => {
@@ -186,9 +187,10 @@ export function agendaBackend({
     }),
     http.get(`${BRANCH(branchId)}/resources`, () => HttpResponse.json(page(resources))),
     http.get(`${BRANCH(branchId)}/schedule`, () => HttpResponse.json({ data: [] })),
-    http.get(`${BRANCH(branchId)}/professionals/:id/schedule`, () =>
-      HttpResponse.json({ data: [] }),
-    ),
+    http.get(`${BRANCH(branchId)}/professionals/:id/schedule`, ({ params }) => {
+      state.scheduleOwners.push(String(params.id));
+      return HttpResponse.json({ data: [] });
+    }),
     http.get(`${BRANCH(branchId)}/resources/:id/schedule`, () => HttpResponse.json({ data: [] })),
     http.get(`${BRANCH(branchId)}/professionals/:id/time_offs`, () => HttpResponse.json(page([]))),
     http.get(`${BRANCH(branchId)}/resources/:id/time_offs`, () => HttpResponse.json(page([]))),

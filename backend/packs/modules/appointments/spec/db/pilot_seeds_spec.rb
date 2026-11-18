@@ -53,6 +53,27 @@ RSpec.describe "Datos del piloto interno de la agenda" do # rubocop:disable RSpe
     end
   end
 
+  describe "si la siembra falla a mitad" do
+    let(:other_company) { world.company_b }
+    let(:other_branch) { world.branch_b1 }
+
+    def seed_other = AppointmentsPilotSeeds.seed(company: other_company, branch: other_branch, professional_user_id: nil)
+
+    it "no deja nada a medias y la siguiente corrida la completa", :aggregate_failures do
+      with_tenant(world.organization) do
+        Modules::Enable.call(company: other_company, key: "appointments")
+        allow(AppointmentsPilotSeeds).to receive(:book_week).and_raise(ActiveRecord::RecordInvalid)
+
+        expect { seed_other }.to raise_error(ActiveRecord::RecordInvalid)
+        expect(Appointments::Service.where(company_id: other_company.id)).not_to exist
+
+        allow(AppointmentsPilotSeeds).to receive(:book_week).and_call_original
+        expect(seed_other).to be(true)
+        expect(Appointments::Appointment.where(branch_id: other_branch.id)).to exist
+      end
+    end
+  end
+
   it "una segunda corrida no duplica nada" do
     with_tenant(world.organization) do
       expect { AppointmentsPilotSeeds.seed(company:, branch:, professional_user_id: user.id) }.not_to change(appointments, :count)

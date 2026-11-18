@@ -184,6 +184,34 @@ describe("Agenda: recepción", () => {
     });
   });
 
+  it("la semana solo carga los horarios del profesional elegido", async () => {
+    asReception();
+    const backend = agendaBackend();
+    await renderApp({ route: `${route}&view=week` });
+
+    await waitFor(() => expect(backend.scheduleOwners).toContain("p1"));
+    expect(backend.scheduleOwners).not.toContain("p2");
+  });
+
+  it("la semana sin profesionales asignados lo explica en vez de quedarse cargando", async () => {
+    asReception();
+    agendaBackend({ professionals: [] });
+    await renderApp({ route: `${route}&view=week` });
+
+    expect(await screen.findByText("No hay profesionales asignados a esta sucursal.")).toBeTruthy();
+  });
+
+  it("una fecha imposible en la URL abre el día de hoy", async () => {
+    asReception();
+    const backend = agendaBackend();
+    await renderApp({ route: "/agenda?date=2026-13-45" });
+
+    await screen.findByRole("heading", { level: 1, name: /Agenda del/ });
+    await waitFor(() =>
+      expect(backend.appointmentQueries[0]?.get("from")).toBe(todayInZone("America/Managua")),
+    );
+  });
+
   it("se refresca cada 30 s y al volver a enfocar la ventana", async () => {
     asReception();
     const backend = agendaBackend();
@@ -234,6 +262,19 @@ describe("Agenda: profesional", () => {
     expect(screen.queryByRole("button", { name: "Nueva cita" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Por recurso" })).toBeNull();
     expect(backend.professionalListCalls).toBe(0);
+  });
+
+  it("la vista por recurso en la URL no se aplica a quien no puede usarla", async () => {
+    asProfessional();
+    agendaBackend({
+      appointments: [agendaAppointment()],
+      professionalsForbidden: true,
+      profiles: { p1: "Rosa Martínez" },
+    });
+    await renderApp({ route: `${route}&view=resources` });
+
+    expect(await column("Rosa Martínez")).toBeTruthy();
+    expect(screen.queryByRole("group", { name: "Sin recurso" })).toBeNull();
   });
 
   it("sin citas ese día ve un aviso y no una pantalla de error", async () => {
