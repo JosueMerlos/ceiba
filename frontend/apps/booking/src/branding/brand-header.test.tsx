@@ -95,6 +95,15 @@ describe("página pública con marca", () => {
     expect(container.querySelector("picture")).toBeNull();
   });
 
+  it("Figtree es la tipografía de la plataforma: no escribe --brand-font", async () => {
+    serve("figtree-co", branding({ font_choice: "figtree", primary_color: "#8B2F5C" }));
+
+    await renderAt("/c/figtree-co");
+
+    await waitFor(() => expect(cssVar("--brand-primary")).toBe("#8B2F5C"));
+    expect(cssVar("--brand-font")).toBe("");
+  });
+
   it("empresa inexistente (404): pantalla de no encontrada con la paleta base", async () => {
     serve("no-existe", { status: 404, code: "resource.not_found" }, 404);
 
