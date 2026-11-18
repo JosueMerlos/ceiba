@@ -1,7 +1,8 @@
 # A simulated salon week for the internal pilot and for measuring the agenda under load. Loaded BY PATH from the demo:agenda_pilot
 # task (the module is invisible to the root pack); never part of db:seed, so the demo fixtures the E2E rely on stay untouched.
-# Idempotent: a company that already has services is left alone. Must run inside a tenant context.
+# All or nothing, so a company that already has services is complete and is left alone. Must run inside a tenant context.
 module AppointmentsPilotSeeds
+  # Durations of at most an hour, because each professional's appointments start on the hour.
   SERVICES = [ [ "Corte de dama", 45, 25_000 ], [ "Tinte completo", 60, 80_000 ], [ "Manicure", 30, 18_000 ], [ "Peinado de evento", 60, 35_000 ] ].freeze
   PROFESSIONALS = [ "Rosa Martínez", "Luis Pérez", "Ana Gómez", "Pedro Hernández", "Karla Mendieta" ].freeze
   CUSTOMERS = [ "María José López", "Fernanda Ruiz", "Karla Mendoza", "Sofía Castillo", "Javier Espinoza", "Carlos Téllez", "Ernesto Rivas",
@@ -17,11 +18,13 @@ module AppointmentsPilotSeeds
   def seed(company:, branch:, professional_user_id:)
     return false if Appointments::Service.exists?(company_id: company.id)
 
-    services = create_services(company)
-    people = create_professionals(company, branch, services, professional_user_id)
-    create_chairs(company, branch, services)
-    Appointments::Staff::ReplaceSchedule.call(owner: branch, branch_id: branch.id, slots: slots)
-    book_week(company, branch, services, people, create_customers(company))
+    ApplicationRecord.transaction(requires_new: true) do
+      services = create_services(company)
+      people = create_professionals(company, branch, services, professional_user_id)
+      create_chairs(company, branch, services)
+      Appointments::Staff::ReplaceSchedule.call(owner: branch, branch_id: branch.id, slots: slots)
+      book_week(company, branch, services, people, create_customers(company))
+    end
     true
   end
 

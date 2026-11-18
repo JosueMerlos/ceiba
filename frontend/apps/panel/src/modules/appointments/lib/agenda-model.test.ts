@@ -53,19 +53,16 @@ describe("citas visibles en la grilla", () => {
 });
 
 describe("columnas de profesionales", () => {
-  const person = (id: string, branch_ids: string[], display_name = id) => ({
-    id,
-    display_name,
-    branch_ids,
-  });
+  const person = (id: string, branch_ids: string[]) => ({ id, branch_ids });
+  const names: Record<string, string> = { p1: "Rosa", p3: "Ana" };
+  const nameOf = (id: string) => names[id] ?? "Profesional";
 
   it("une los asignados a la sucursal con los que tienen citas aunque ya no estén asignados", () => {
     const columns = mergeProfessionalColumns({
       branchId: "b1",
-      professionals: [person("p1", ["b1"], "Rosa"), person("p2", ["b2"], "Luis")],
+      professionals: [person("p1", ["b1"]), person("p2", ["b2"])],
       appointments: [appointment({ professional_id: "p3" })],
-      profiles: { p3: "Ana" },
-      fallbackName: "Profesional",
+      nameOf,
     });
     expect(columns).toEqual([
       { id: "p1", title: "Rosa" },
@@ -78,8 +75,7 @@ describe("columnas de profesionales", () => {
       branchId: "b1",
       professionals: [],
       appointments: [appointment({ professional_id: "p9" })],
-      profiles: {},
-      fallbackName: "Profesional",
+      nameOf,
     });
     expect(columns).toEqual([{ id: "p9", title: "Profesional" }]);
   });

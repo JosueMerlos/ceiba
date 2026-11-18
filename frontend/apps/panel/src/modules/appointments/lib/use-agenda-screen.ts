@@ -1,49 +1,39 @@
 import { useTranslation } from "@ceiba/i18n";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMe } from "../../../platform/me/me-provider";
-import { useCan } from "../../../platform/permissions/can";
 import {
   useAgendaAppointments,
-  useAgendaBranchSchedule,
   useAgendaProfessionals,
   useAgendaResources,
   useAgendaServiceNames,
-  useOwnerAvailability,
   useProfessionalProfiles,
   type AgendaAppointment,
 } from "../api/agenda";
 import type { Branch } from "../api/catalog";
-import type { AgendaViewEvent, AgendaViewResource } from "../components/agenda-view/types";
+import { appointmentActions } from "./agenda-actions";
+import { toCalendarEvents, toCalendarResources } from "./agenda-calendar";
+import { AGENDA_LENSES, type AgendaMode } from "./agenda-lens";
 import {
   NO_RESOURCE,
-  closedBlocks,
   mergeProfessionalColumns,
-  openForProfessional,
-  openForResource,
-  timeRange,
   upcomingArrivals,
   visibleAppointments,
   type AgendaColumn,
-  type BlockColumn,
 } from "./agenda-model";
-import { STATUS_TONE } from "./agenda-status";
+import { useAgendaPermissions } from "./agenda-permissions";
 import {
   addDays,
   mondayOf,
   shortClock,
   toWallClock,
   todayInZone,
-  weekdayOf,
   type PlainDate,
 } from "./agenda-time";
-
-export type AgendaMode = "professionals" | "resources" | "week";
+import { useAgendaAvailability } from "./use-agenda-availability";
 
 const DEFAULT_STEP_MINUTES = 15;
 const CLOCK_TICK_MS = 60_000;
-const IDLE_TIMEOUT_MS = 1_500;
-const IDLE_FALLBACK_MS = 200;
-const MOVABLE = new Set<AgendaAppointment["status"]>(["scheduled", "confirmed"]);
+const WEEK_DAYS = 7;
 
 function useNow() {
   const [now, setNow] = useState(() => new Date());
@@ -54,27 +44,10 @@ function useNow() {
   return now;
 }
 
-/** True once the browser is idle after `ready`: secondary data must not compete with the first paint and click. */
-function useIdleAfter(ready: boolean) {
-  const [idle, setIdle] = useState(false);
-  useEffect(() => {
-    if (!ready) return;
-    const done = () => setIdle(true);
-    if ("requestIdleCallback" in window) {
-      const handle = window.requestIdleCallback(done, { timeout: IDLE_TIMEOUT_MS });
-      return () => window.cancelIdleCallback(handle);
-    }
-    const timer = setTimeout(done, IDLE_FALLBACK_MS);
-    return () => clearTimeout(timer);
-  }, [ready]);
-  return idle;
-}
-
 function useStepMinutes() {
   const { modules } = useMe();
-  const settings = modules.find((item) => item.key === "appointments")?.settings as
-    { slot_step_minutes?: number } | undefined;
-  return settings?.slot_step_minutes ?? DEFAULT_STEP_MINUTES;
+  const step = modules.find((item) => item.key === "appointments")?.settings.slot_step_minutes;
+  return typeof step === "number" ? step : DEFAULT_STEP_MINUTES;
 }
 
 interface AgendaScreenOptions {
@@ -87,30 +60,25 @@ interface AgendaScreenOptions {
 /** Everything the agenda page draws, derived from the API and from what this user may read. */
 export function useAgendaScreen({ branch, mode, date, weekProfessionalId }: AgendaScreenOptions) {
   const { t } = useTranslation("appointments");
-  const can = useCan();
+  const permissions = useAgendaPermissions();
   const now = useNow();
   const stepMinutes = useStepMinutes();
   const timeZone = branch.time_zone;
   const today = todayInZone(timeZone, now);
+  const lens = AGENDA_LENSES[mode];
+  const isWeek = mode === "week";
+  const { readsBranch } = permissions;
 
-  const readsBranch = can("appointments.appointment.read");
-  const canMove = can("appointments.appointment.update");
-  const readsSchedules = can("appointments.schedule.read");
-  const readsOwnSchedule = can("appointments.schedule.read_own");
-  const readsAbsences = can("appointments.time_off.read");
-  const readsResources = readsBranch && can("appointments.resource.read");
-
-  const professionals = useAgendaProfessionals(can("appointments.professional.read"));
+  const professionals = useAgendaProfessionals(permissions.readsProfessionals);
   const assigned = useMemo(
     () => (professionals.data ?? []).filter((item) => item.branch_ids.includes(branch.id)),
     [professionals.data, branch.id],
   );
 
-  const isWeek = mode === "week";
   const days = useMemo(() => {
     if (!isWeek) return [date];
     const monday = mondayOf(date);
-    return Array.from({ length: 7 }, (_, index) => addDays(monday, index));
+    return Array.from({ length: WEEK_DAYS }, (_, index) => addDays(monday, index));
   }, [isWeek, date]);
 
   // Staff look at one person's week; a professional's listing is already only theirs.
@@ -121,188 +89,123 @@ export function useAgendaScreen({ branch, mode, date, weekProfessionalId }: Agen
     enabled: !isWeek || !readsBranch || !!professionalId,
   });
   const todays = useAgendaAppointments(branch.id, today, today);
-
-  const visible = useMemo(
-    () => visibleAppointments(appointments.data?.data ?? []),
-    [appointments.data],
-  );
-  const serviceNames = useAgendaServiceNames();
+  const all = appointments.data?.data;
+  const todaysAll = todays.data?.data;
+  const visible = useMemo(() => visibleAppointments(all ?? []), [all]);
 
   const unknownProfessionals = useMemo(() => {
     const known = new Set((professionals.data ?? []).map((item) => item.id));
-    const everyone = [...visible, ...(todays.data?.data ?? [])];
+    const everyone = [...visible, ...(todaysAll ?? [])];
     return [...new Set(everyone.map((item) => item.professional_id))].filter(
       (id) => !known.has(id),
     );
-  }, [professionals.data, visible, todays.data]);
+  }, [professionals.data, visible, todaysAll]);
   const profiles = useProfessionalProfiles(branch.id, unknownProfessionals);
 
   const professionalName = useMemo(() => {
     const names = new Map((professionals.data ?? []).map((item) => [item.id, item.display_name]));
-    return (id: string) => names.get(id) ?? profiles[id] ?? t("agenda.professionalFallback");
+    return (id: string) => names.get(id) ?? profiles.get(id) ?? t("agenda.professionalFallback");
   }, [professionals.data, profiles, t]);
 
-  const resources = useAgendaResources(branch.id, readsResources);
+  const resources = useAgendaResources(branch.id, permissions.readsResources);
   const activeResources = useMemo(
     () => (resources.data ?? []).filter((item) => item.active && !item.archived_at),
     [resources.data],
   );
 
   const columns = useMemo((): AgendaColumn[] => {
-    if (mode === "resources") {
-      const known = new Set(activeResources.map((item) => item.id));
-      const unplaced = visible.some((item) => !item.resource_id || !known.has(item.resource_id));
-      return [
-        ...activeResources.map(({ id, name }) => ({ id, title: name })),
-        ...(unplaced ? [{ id: NO_RESOURCE, title: t("agenda.noResource") }] : []),
-      ];
+    if (professionalId) return [{ id: professionalId, title: professionalName(professionalId) }];
+    if (lens.ownerKind === "professional") {
+      return mergeProfessionalColumns({
+        branchId: branch.id,
+        professionals: professionals.data ?? [],
+        appointments: visible,
+        nameOf: professionalName,
+      });
     }
-    return mergeProfessionalColumns({
-      branchId: branch.id,
-      professionals: professionals.data ?? [],
-      appointments: visible,
-      profiles,
-      fallbackName: t("agenda.professionalFallback"),
-    });
-  }, [mode, activeResources, visible, branch.id, professionals.data, profiles, t]);
+    const known = new Set(activeResources.map((item) => item.id));
+    const unplaced = visible.some((item) => !item.resource_id || !known.has(item.resource_id));
+    return [
+      ...activeResources.map(({ id, name }) => ({ id, title: name })),
+      ...(unplaced ? [{ id: NO_RESOURCE, title: t("agenda.noResource") }] : []),
+    ];
+  }, [
+    professionalId,
+    lens,
+    branch.id,
+    professionals.data,
+    visible,
+    professionalName,
+    activeResources,
+    t,
+  ]);
 
-  const columnOf = useMemo(() => {
-    const known = new Set(columns.map((column) => column.id));
-    return (appointment: AgendaAppointment) => {
-      if (mode !== "resources") return appointment.professional_id;
-      const id = appointment.resource_id;
-      return id && known.has(id) ? id : NO_RESOURCE;
-    };
-  }, [columns, mode]);
-
-  const viewResources = useMemo((): AgendaViewResource[] => {
-    const counts = new Map<string, number>();
-    for (const item of visible) counts.set(columnOf(item), (counts.get(columnOf(item)) ?? 0) + 1);
-    return columns.map(({ id, title }) => ({
-      id,
-      title,
-      detail: t("agenda.appointmentCount", { count: counts.get(id) ?? 0 }),
-    }));
-  }, [columns, visible, columnOf, t]);
-
-  const serviceLabel = useMemo(
-    () => (appointment: AgendaAppointment) =>
+  const serviceNames = useAgendaServiceNames();
+  const serviceLabel = useCallback(
+    (appointment: AgendaAppointment) =>
       appointment.services
         .map((line) => serviceNames.get(line.service_id) ?? t("agenda.serviceFallback"))
         .join(", "),
     [serviceNames, t],
   );
 
-  const events = useMemo(
-    (): AgendaViewEvent[] =>
-      visible.map((appointment) => {
-        const range = t("agenda.timeRange", {
-          start: shortClock(appointment.starts_at, timeZone),
-          end: shortClock(appointment.ends_at, timeZone),
-        });
-        return {
-          id: appointment.id,
-          resourceId: columnOf(appointment),
-          start: toWallClock(appointment.starts_at, timeZone),
-          end: toWallClock(appointment.ends_at, timeZone),
-          tone: STATUS_TONE[appointment.status],
-          title: appointment.customer_name ?? t("agenda.customerFallback"),
-          subtitle: serviceLabel(appointment),
-          meta: t("agenda.cardMeta", { range, status: t(`agenda.status.${appointment.status}`) }),
-          // A resource is assigned by the booking engine, so a drag cannot choose one.
-          movable: canMove && mode !== "resources" && MOVABLE.has(appointment.status),
-        };
+  const events = useMemo(() => {
+    const clock = (iso: string) => shortClock(iso, timeZone);
+    return toCalendarEvents({
+      appointments: visible,
+      columns,
+      lens,
+      timeZone,
+      canMove: (appointment) =>
+        appointmentActions(appointment, permissions.appointment, new Date()).canReschedule,
+      labelsOf: (appointment) => ({
+        title: appointment.customer_name ?? t("agenda.customerFallback"),
+        subtitle: serviceLabel(appointment),
+        meta: t("agenda.cardMeta", {
+          range: t("agenda.timeRange", {
+            start: clock(appointment.starts_at),
+            end: clock(appointment.ends_at),
+          }),
+          status: t(`agenda.status.${appointment.status}`),
+        }),
       }),
-    [visible, timeZone, columnOf, serviceLabel, canMove, mode, t],
+    });
+  }, [visible, columns, lens, timeZone, permissions.appointment, serviceLabel, t]);
+
+  const viewResources = useMemo(
+    () => toCalendarResources(columns, events, (count) => t("agenda.appointmentCount", { count })),
+    [columns, events, t],
   );
 
-  // Loaded once the appointments are on screen, so that shading never delays the first useful paint or click.
-  const appointmentsReady = useIdleAfter(appointments.isSuccess);
-  const branchSchedule = useAgendaBranchSchedule(branch.id, readsSchedules && appointmentsReady);
-  const branchSlots = branchSchedule.data?.data ?? null;
-  const columnIds = useMemo(() => columns.map((column) => column.id), [columns]);
-  const professionalIds = mode === "resources" ? [] : columnIds;
-  const resourceIds = useMemo(
-    () => (mode === "resources" ? columnIds.filter((id) => id !== NO_RESOURCE) : []),
-    [mode, columnIds],
-  );
-  const professionalAvailability = useOwnerAvailability(
-    branch.id,
-    "professional",
-    professionalIds,
-    appointmentsReady && (readsSchedules ? readsAbsences : readsOwnSchedule),
-  );
-  const resourceAvailability = useOwnerAvailability(
-    branch.id,
-    "resource",
-    resourceIds,
-    appointmentsReady && readsSchedules && readsAbsences,
-  );
-
-  const { blocks, range } = useMemo(() => {
-    const blockColumns: BlockColumn[] = [];
-    if (mode === "resources") {
-      for (const id of resourceIds) {
-        const owner = resourceAvailability.get(id);
-        if (!owner || !branchSlots) continue;
-        const openOn = (weekday: number) => openForResource(branchSlots, owner.slots, weekday);
-        blockColumns.push({ id, openOn, timeOffs: owner.timeOffs });
-      }
-    } else {
-      for (const id of professionalIds) {
-        const owner = professionalAvailability.get(id);
-        // Staff need the branch's hours too; a professional cannot read them and sees their own.
-        if (!owner || (readsSchedules && !branchSlots)) continue;
-        const openOn = (weekday: number) => openForProfessional(branchSlots, owner.slots, weekday);
-        blockColumns.push({ id, openOn, timeOffs: owner.timeOffs });
-      }
-    }
-    const openings = blockColumns.length
-      ? days.flatMap((day) => blockColumns.flatMap((column) => column.openOn(weekdayOf(day))))
-      : [];
-    const hours = timeRange({ openings, appointments: visible, timeZone });
-    return {
-      blocks: closedBlocks({ columns: blockColumns, days, timeZone, range: hours }),
-      range: hours,
-    };
-    // professionalIds is derived from columnIds.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    mode,
-    columnIds,
-    resourceIds,
-    resourceAvailability,
-    professionalAvailability,
-    branchSlots,
-    readsSchedules,
-    days,
-    visible,
+  const { blocks, range } = useAgendaAvailability({
+    branchId: branch.id,
     timeZone,
-  ]);
+    lens,
+    columns,
+    days,
+    appointments: visible,
+    appointmentsReady: appointments.isSuccess,
+  });
 
-  const arrivals = useMemo(
-    () => upcomingArrivals(todays.data?.data ?? [], now),
-    [todays.data, now],
-  );
+  const arrivals = useMemo(() => upcomingArrivals(todaysAll ?? [], now), [todaysAll, now]);
 
   return {
     appointments,
-    all: appointments.data?.data ?? [],
-    todays: todays.data?.data ?? [],
-    resources: activeResources,
+    knownAppointments: [...(all ?? []), ...(todaysAll ?? [])],
     visible,
     assigned,
+    resources: activeResources,
     columns,
     viewResources,
     events,
     blocks,
     range,
-    days,
     today,
     stepMinutes,
     weekProfessionalId: professionalId ?? null,
-    readsBranch,
-    readsResources,
+    /** The week view needs a person and the branch has nobody (or the list has not arrived). */
+    weekWithoutProfessional: isWeek && readsBranch && !professionalId,
+    professionalsLoading: professionals.isLoading,
     pendingCount: visible.filter((item) => item.status === "scheduled").length,
     nowLine: days.includes(today) ? toWallClock(now.toISOString(), timeZone) : null,
     arrivals,

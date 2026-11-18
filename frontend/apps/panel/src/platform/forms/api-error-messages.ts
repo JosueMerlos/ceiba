@@ -8,3 +8,10 @@ export function apiErrorMessages(error: unknown, translate: AnyTranslate): strin
   if (error.errors.length > 0) return error.errors.map((item) => item.message);
   return [error.title];
 }
+
+/** The text a form shows for a 422. Any other failure returns null: the global handler already announced it. */
+export function validationMessage(error: unknown, translate: AnyTranslate): string | null {
+  return isApiError(error) && error.status === 422
+    ? apiErrorMessages(error, translate).join(" ")
+    : null;
+}

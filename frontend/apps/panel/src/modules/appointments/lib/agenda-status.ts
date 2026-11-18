@@ -14,6 +14,9 @@ export const STATUS_TONE: Record<AppointmentStatus, StatusTone> = {
   rescheduled: "done",
 };
 
+/** Booked and still ahead: what can be confirmed, moved or cancelled, and who is expected to arrive. */
+export const ACTIVE_STATUSES: readonly AppointmentStatus[] = ["scheduled", "confirmed"];
+
 export const LEGEND_STATUSES: readonly AppointmentStatus[] = [
   "confirmed",
   "scheduled",

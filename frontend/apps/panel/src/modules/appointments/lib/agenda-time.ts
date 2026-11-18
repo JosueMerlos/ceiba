@@ -6,6 +6,7 @@ export type PlainDate = string;
 export type WallClock = string;
 
 const DAY_MS = 86_400_000;
+const PLAIN_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const pad = (value: number) => String(value).padStart(2, "0");
 const utcMidnight = (day: PlainDate) => Date.parse(`${day}T00:00:00Z`);
 const plainDate = (ms: number) => new Date(ms).toISOString().slice(0, 10);
@@ -22,8 +23,18 @@ export function localDateToInstant(date: Date, timeZone: string): string | null 
   return localToUtcIso(`${day}T${pad(date.getHours())}:${pad(date.getMinutes())}`, timeZone);
 }
 
+/** A real calendar day: "2026-13-45" and "2026-02-30" are not. */
+export function isPlainDate(value: string): value is PlainDate {
+  if (!PLAIN_DATE.test(value)) return false;
+  const time = utcMidnight(value);
+  return !Number.isNaN(time) && plainDate(time) === value;
+}
+
+export const dayInZone = (iso: string, timeZone: string): PlainDate =>
+  toWallClock(iso, timeZone).slice(0, 10);
+
 export const todayInZone = (timeZone: string, now: Date = new Date()): PlainDate =>
-  toWallClock(now.toISOString(), timeZone).slice(0, 10);
+  dayInZone(now.toISOString(), timeZone);
 
 export const addDays = (day: PlainDate, amount: number): PlainDate =>
   plainDate(utcMidnight(day) + amount * DAY_MS);

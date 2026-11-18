@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays,
+  isPlainDate,
   localDateToInstant,
   mondayOf,
   todayInZone,
@@ -50,6 +51,13 @@ describe("días de la sucursal", () => {
     const lateNightUtc = new Date("2026-11-19T02:00:00.000Z");
     expect(todayInZone(MANAGUA, lateNightUtc)).toBe("2026-11-18");
     expect(todayInZone("Asia/Tokyo", lateNightUtc)).toBe("2026-11-19");
+  });
+
+  it("reconoce solo días reales del calendario", () => {
+    expect(isPlainDate("2026-11-18")).toBe(true);
+    expect(isPlainDate("2026-13-45")).toBe(false);
+    expect(isPlainDate("2026-02-30")).toBe(false);
+    expect(isPlainDate("mañana")).toBe(false);
   });
 
   it("suma días cruzando meses y años", () => {

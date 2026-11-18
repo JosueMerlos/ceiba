@@ -54,8 +54,8 @@ RSpec.describe "Datos del piloto interno de la agenda" do # rubocop:disable RSpe
   end
 
   describe "si la siembra falla a mitad" do
-    let(:other_company) { world.company_b }
-    let(:other_branch) { world.branch_b1 }
+    def other_company = world.company_b
+    def other_branch = world.branch_b1
 
     def seed_other = AppointmentsPilotSeeds.seed(company: other_company, branch: other_branch, professional_user_id: nil)
 

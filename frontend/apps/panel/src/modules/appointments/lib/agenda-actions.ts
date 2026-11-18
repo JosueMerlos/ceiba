@@ -1,35 +1,47 @@
 import type { AgendaAppointment } from "./agenda-model";
+import { ACTIVE_STATUSES, type AppointmentStatus } from "./agenda-status";
 
-export type AgendaAction =
-  "confirm" | "check_in" | "complete" | "no_show" | "reschedule" | "cancel";
-export type StatusAction = Exclude<AgendaAction, "reschedule" | "cancel">;
+export type StatusAction = "confirm" | "check_in" | "complete" | "no_show";
 
-type Status = AgendaAppointment["status"];
+export interface AppointmentPermissions {
+  /** May act on any appointment of the branch. */
+  manage: boolean;
+  /** May act on their own appointments, which are the only ones they are shown. */
+  own: boolean;
+}
 
-const ACTIVE: readonly Status[] = ["scheduled", "confirmed"];
+export interface AppointmentActions {
+  status: StatusAction[];
+  canReschedule: boolean;
+  canCancel: boolean;
+}
 
 // Mirrors the backend's transition table so the panel only offers what can work; the API still decides.
-const RULES: readonly { action: AgendaAction; from: readonly Status[]; own: boolean }[] = [
-  { action: "confirm", from: ["scheduled"], own: true },
-  { action: "check_in", from: ACTIVE, own: true },
-  { action: "complete", from: ["checked_in"], own: true },
-  { action: "no_show", from: ACTIVE, own: true },
-  { action: "reschedule", from: ACTIVE, own: false },
-  { action: "cancel", from: ACTIVE, own: false },
+const STATUS_RULES: readonly { action: StatusAction; from: readonly AppointmentStatus[] }[] = [
+  { action: "confirm", from: ["scheduled"] },
+  { action: "check_in", from: ACTIVE_STATUSES },
+  { action: "complete", from: ["checked_in"] },
+  { action: "no_show", from: ACTIVE_STATUSES },
 ];
 
-export function availableActions(
+export function appointmentActions(
   appointment: Pick<AgendaAppointment, "status" | "starts_at">,
-  { manage, own }: { manage: boolean; own: boolean },
+  { manage, own }: AppointmentPermissions,
   now: Date,
-): AgendaAction[] {
+): AppointmentActions {
   const started = Date.parse(appointment.starts_at) <= now.getTime();
-  return RULES.filter(
-    (rule) =>
-      rule.from.includes(appointment.status) &&
-      (manage || (own && rule.own)) &&
-      (rule.action !== "no_show" || started),
-  ).map((rule) => rule.action);
+  const staffOnly = manage && ACTIVE_STATUSES.includes(appointment.status);
+  return {
+    status:
+      manage || own
+        ? STATUS_RULES.filter(
+            ({ action, from }) =>
+              from.includes(appointment.status) && (action !== "no_show" || started),
+          ).map(({ action }) => action)
+        : [],
+    canReschedule: staffOnly,
+    canCancel: staffOnly,
+  };
 }
 
 /** Starts overlapping the appointment itself: availability counts it as busy, yet moving it over itself is allowed. */

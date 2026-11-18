@@ -23,7 +23,8 @@ const THREE_LINES_FROM_MINUTES = 60;
 // finished leaving would stop receiving clicks, so mounts wait for pending unmounts.
 let teardown: Promise<unknown> = Promise.resolve();
 
-type CalendarOption = Parameters<Calendar["setOption"]>[0];
+// What a new calendar draws until told otherwise.
+const FULL_DAY: MinuteRange = { startMinute: 0, endMinute: 24 * 60 };
 
 const VIEW = { day: "resourceTimeGridDay", week: "timeGridWeek" } as const;
 
@@ -79,8 +80,7 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
   const { mode, date, resources, events, blocks, range, stepMinutes, now } = props;
   const host = useRef<HTMLDivElement>(null);
   const [calendar, setCalendar] = useState<Calendar | null>(null);
-  const applied = useRef(new Map<string, unknown>());
-  const drawnRange = useRef<MinuteRange>({ startMinute: 0, endMinute: 24 * 60 });
+  const drawnRange = useRef<MinuteRange>(FULL_DAY);
   // The library keeps the callbacks of the first render; they read the current props through this ref.
   const latest = useRef(props);
   useLayoutEffect(() => {
@@ -96,7 +96,6 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
       title: event.title,
       startEditable: event.movable,
       durationEditable: false,
-      extendedProps: { card: event },
     }));
     const closed = blocks.map((block, index) => ({
       id: `block-${index}`,
@@ -153,11 +152,14 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
           return { domNodes: column ? [columnHeader(column)] : [] };
         },
         eventContent: ({ event }: { event: Calendar.Event }) => {
-          const card = event.extendedProps?.card as AgendaViewEvent | undefined;
+          const card = latest.current.events.find((item) => item.id === String(event.id));
           return { domNodes: card ? [appointmentCard(card)] : [] };
         },
         eventClick: ({ event }: { event: Calendar.Event }) => {
-          if (event.extendedProps?.card) latest.current.onOpenEvent?.(String(event.id));
+          const id = String(event.id);
+          if (latest.current.events.some((item) => item.id === id)) {
+            latest.current.onOpenEvent?.(id);
+          }
         },
         dateClick: ({ date: clicked, resource }: { date: Date; resource?: { id: unknown } }) => {
           const slot = toSlot(clicked, resource);
@@ -188,36 +190,43 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
     return () => {
       unmounted = true;
       setCalendar(null);
+      drawnRange.current = FULL_DAY;
       const finished = instance;
       if (finished) teardown = teardown.then(() => destroyCalendar(finished));
     };
   }, []);
 
+  // One effect per option: each change makes the library recompute the whole grid, so only what changed is sent.
   useEffect(() => {
-    if (!calendar) {
-      applied.current.clear();
-      return;
+    calendar?.setOption("view", VIEW[mode]);
+  }, [calendar, mode]);
+  useEffect(() => {
+    calendar?.setOption("date", date);
+  }, [calendar, date]);
+  useEffect(() => {
+    calendar?.setOption("snapDuration", { minutes: stepMinutes });
+  }, [calendar, stepMinutes]);
+  const { startMinute, endMinute } = range;
+  useEffect(() => {
+    if (!calendar) return;
+    const start = clockOfMinutes(startMinute);
+    const end = clockOfMinutes(endMinute);
+    // The library fails on an empty range, so the new limits must never cross the ones on screen.
+    if (startMinute >= drawnRange.current.endMinute) {
+      calendar.setOption("slotMaxTime", end);
+      calendar.setOption("slotMinTime", start);
+    } else {
+      calendar.setOption("slotMinTime", start);
+      calendar.setOption("slotMaxTime", end);
     }
-    // Every option makes the library recompute the whole grid, so only what really changed is sent.
-    const apply = (name: CalendarOption, value: unknown) => {
-      if (applied.current.get(name) === value) return;
-      applied.current.set(name, value);
-      calendar.setOption(name, value as never);
-    };
-    apply("view", VIEW[mode]);
-    apply("date", date);
-    apply("snapDuration", `00:${String(stepMinutes).padStart(2, "0")}`);
-    // An empty range makes the library fail, so the new limits must never cross the old ones.
-    const limits: [CalendarOption, string][] = [
-      ["slotMinTime", clockOfMinutes(range.startMinute)],
-      ["slotMaxTime", clockOfMinutes(range.endMinute)],
-    ];
-    const movesPastEnd = range.startMinute >= drawnRange.current.endMinute;
-    for (const [name, value] of movesPastEnd ? limits.reverse() : limits) apply(name, value);
-    drawnRange.current = range;
-    apply("resources", calendarResources);
-    apply("events", calendarEvents);
-  }, [calendar, mode, date, stepMinutes, range, calendarResources, calendarEvents]);
+    drawnRange.current = { startMinute, endMinute };
+  }, [calendar, startMinute, endMinute]);
+  useEffect(() => {
+    calendar?.setOption("resources", calendarResources);
+  }, [calendar, calendarResources]);
+  useEffect(() => {
+    calendar?.setOption("events", calendarEvents);
+  }, [calendar, calendarEvents]);
 
   return <div ref={host} data-slot="agenda-view" className="agenda-view" />;
 }

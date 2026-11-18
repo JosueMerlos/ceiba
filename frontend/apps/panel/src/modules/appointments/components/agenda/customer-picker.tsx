@@ -1,8 +1,8 @@
 import { useTranslation } from "@ceiba/i18n";
 import { Button, Input, Label } from "@ceiba/ui";
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useState } from "react";
 import { apiErrorMessages } from "../../../../platform/forms/api-error-messages";
-import { useCreateCustomer, useCustomerSearch } from "../../api/agenda-mutations";
+import { useCreateCustomer, useCustomerSearch } from "../../api/agenda-customers";
 import { FormAlert } from "../form-alert";
 
 const SEARCH_DELAY_MS = 250;
@@ -110,8 +110,7 @@ function NewCustomerForm({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
 
-  async function save(event: FormEvent) {
-    event.preventDefault();
+  async function save() {
     const { data } = await create.mutateAsync({ full_name: name.trim(), phone_e164: phone.trim() });
     onCreated({ id: data.id, name: data.full_name });
   }
@@ -138,7 +137,8 @@ function NewCustomerForm({
         size="sm"
         loading={create.isPending}
         disabled={!name.trim() || !phone.trim()}
-        onClick={(event) => void save(event).catch(() => {})}
+        // The failure is shown above, from the mutation's state.
+        onClick={() => void save().catch(() => {})}
       >
         {t("agenda.form.saveCustomer")}
       </Button>

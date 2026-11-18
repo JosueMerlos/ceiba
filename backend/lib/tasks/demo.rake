@@ -1,4 +1,8 @@
 namespace :demo do
+  PILOT_ORGANIZATION = "Piloto interno".freeze
+  PILOT_COMPANY_SLUG = "salon-piloto".freeze
+  PILOT_BRANCH = "Sucursal Piloto".freeze
+
   desc "Crea en desarrollo la organización Piloto interno: un salón con una semana de citas (idempotente; exige SEED_DEMO_PASSWORD)"
   task agenda_pilot: :environment do
     abort "demo:agenda_pilot solo corre en desarrollo" unless Rails.env.development?
@@ -11,25 +15,32 @@ namespace :demo do
     receptionist = person.call("recepcion@piloto-interno.ceiba.test", "Julia Reyes")
     professional = person.call("profesional@piloto-interno.ceiba.test", "Rosa Martínez")
 
-    begin
-      result = Tenancy::ProvisionOrganization.call(
-        organization: { name: "Piloto interno", legal_name: "Piloto interno, S.A." },
-        company: { name: "Salón Piloto", slug: "salon-piloto", business_type: "salon", currency: "NIO" },
-        branch: { name: "Sucursal Piloto", time_zone: "America/Managua" }, extras: { owner: }
-      )
-    rescue Tenancy::ProvisioningFailed => error
-      raise unless error.code == :slug_taken
-
-      next puts("Ya existe: Piloto interno")
-    end
-
-    Tenancy.with_context(organization: result.organization, company: result.company, branch: result.branch) do
+    organization, company, branch = pilot_structure(owner)
+    Tenancy.with_context(organization:, company:, branch:) do
       { receptionist => "receptionist", professional => "professional" }.each do |user, role_key|
-        Access::GrantRole.call(user:, role_key:, organization: result.organization, company: result.company, branch: result.branch)
+        Access::GrantRole.call(user:, role_key:, organization:, company:, branch:)
       end
-      Modules::Enable.call(company: result.company, key: "appointments")
-      AppointmentsPilotSeeds.seed(company: result.company, branch: result.branch, professional_user_id: professional.id)
+      Modules::Enable.call(company:, key: "appointments")
+      created = AppointmentsPilotSeeds.seed(company:, branch:, professional_user_id: professional.id)
+      puts(created ? "Piloto interno listo" : "Ya existe: Piloto interno")
     end
-    puts "Piloto interno listo"
+  end
+
+  # An interrupted run left the organization behind, so an existing one is reused and the idempotent steps complete it.
+  def pilot_structure(owner)
+    result = Tenancy::ProvisionOrganization.call(
+      organization: { name: PILOT_ORGANIZATION, legal_name: "#{PILOT_ORGANIZATION}, S.A." },
+      company: { name: "Salón Piloto", slug: PILOT_COMPANY_SLUG, business_type: "salon", currency: "NIO" },
+      branch: { name: PILOT_BRANCH, time_zone: "America/Managua" }, extras: { owner: }
+    )
+    [ result.organization, result.company, result.branch ]
+  rescue Tenancy::ProvisioningFailed => error
+    raise unless error.code == :slug_taken
+
+    organization = Tenancy::Directory.organizations_for(Access::Principal::User.new(owner).organization_ids).find_by!(name: PILOT_ORGANIZATION)
+    Tenancy.with_context(organization:) do
+      company = Tenancy::Directory.companies.find_by!(slug: PILOT_COMPANY_SLUG)
+      [ organization, company, Tenancy::Directory.branches.find_by!(company_id: company.id, name: PILOT_BRANCH) ]
+    end
   end
 end

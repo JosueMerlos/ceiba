@@ -1,4 +1,5 @@
 import type { components } from "@ceiba/api-client";
+import { ACTIVE_STATUSES } from "./agenda-status";
 import {
   clockOfMinutes,
   minutesOfClock,
@@ -40,7 +41,6 @@ const DEFAULT_RANGE: MinuteRange = { startMinute: 8 * 60, endMinute: 18 * 60 };
 const HOUR = 60;
 const ARRIVAL_WINDOW_MS = 60 * 60_000;
 const FREED_SLOT = new Set<AgendaAppointment["status"]>(["cancelled", "rescheduled"]);
-const EXPECTED = new Set<AgendaAppointment["status"]>(["scheduled", "confirmed"]);
 
 export const visibleAppointments = (appointments: readonly AgendaAppointment[]) =>
   appointments.filter((appointment) => !FREED_SLOT.has(appointment.status));
@@ -50,24 +50,20 @@ export function mergeProfessionalColumns({
   branchId,
   professionals,
   appointments,
-  profiles,
-  fallbackName,
+  nameOf,
 }: {
   branchId: string;
-  professionals: readonly { id: string; display_name: string; branch_ids: readonly string[] }[];
+  professionals: readonly { id: string; branch_ids: readonly string[] }[];
   appointments: readonly AgendaAppointment[];
-  profiles: Readonly<Record<string, string>>;
-  fallbackName: string;
+  nameOf(id: string): string;
 }): AgendaColumn[] {
-  const columns = new Map<string, string>();
-  for (const person of professionals) {
-    if (person.branch_ids.includes(branchId)) columns.set(person.id, person.display_name);
-  }
-  const names = new Map(professionals.map((person) => [person.id, person.display_name]));
-  for (const { professional_id: id } of appointments) {
-    if (!columns.has(id)) columns.set(id, names.get(id) ?? profiles[id] ?? fallbackName);
-  }
-  return [...columns].map(([id, title]) => ({ id, title }));
+  const ids = new Set(
+    professionals
+      .filter((person) => person.branch_ids.includes(branchId))
+      .map((person) => person.id),
+  );
+  for (const { professional_id: id } of appointments) ids.add(id);
+  return [...ids].map((id) => ({ id, title: nameOf(id) }));
 }
 
 const slotsOn = (slots: readonly WeeklySlot[], weekday: number): Interval[] =>
@@ -196,7 +192,11 @@ export function upcomingArrivals(appointments: readonly AgendaAppointment[], now
   return appointments
     .filter((appointment) => {
       const start = Date.parse(appointment.starts_at);
-      return EXPECTED.has(appointment.status) && start >= from && start < from + ARRIVAL_WINDOW_MS;
+      return (
+        ACTIVE_STATUSES.includes(appointment.status) &&
+        start >= from &&
+        start < from + ARRIVAL_WINDOW_MS
+      );
     })
     .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
 }

@@ -10,7 +10,7 @@ import {
   ToggleGroupItem,
 } from "@ceiba/ui";
 import { ChevronLeft, ChevronRight, Clock, Plus } from "lucide-react";
-import type { AgendaMode } from "../lib/use-agenda-screen";
+import { AGENDA_MODES, type AgendaMode } from "../lib/agenda-lens";
 
 interface AgendaToolbarProps {
   mode: AgendaMode;
@@ -52,7 +52,10 @@ export function AgendaToolbar({
       <ToggleGroup
         value={mode}
         aria-label={t("agenda.viewLabel")}
-        onValueChange={(value) => onModeChange(value as AgendaMode)}
+        onValueChange={(value) => {
+          const next = AGENDA_MODES.find((item) => item === value);
+          if (next) onModeChange(next);
+        }}
       >
         <ToggleGroupItem value="professionals">{t("agenda.viewProfessionals")}</ToggleGroupItem>
         {canViewResources ? (
