@@ -22,6 +22,8 @@ class ApiRequestGuard
   SAFE_METHODS = %w[GET HEAD OPTIONS].freeze
   UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}".freeze
   BRANDING_PATH = %r{\A/api/v1/organizations/#{UUID}/companies/#{UUID}/branding\z}i
+  # The only mutations that may carry multipart/form-data: [method, path pattern]. Adding a route here is a security decision.
+  MULTIPART_ROUTES = [ [ "PATCH", BRANDING_PATH ] ].freeze
 
   def initialize(app)
     @app = app
@@ -39,13 +41,14 @@ class ApiRequestGuard
 
   def violation_for(request)
     return Api::QueryNotAllowed.new("Las mutaciones no admiten parámetros en la query string") if request.query_string.present?
-    return unless body?(request) && request.media_type != "application/json" && !branding_upload?(request)
+    return unless body?(request) && request.media_type != "application/json" && !multipart_allowed?(request)
 
     Api::UnsupportedMediaType.new("Las mutaciones de la API solo aceptan application/json")
   end
 
-  def branding_upload?(request)
-    request.media_type == "multipart/form-data" && request.request_method == "PATCH" && BRANDING_PATH.match?(request.path_info)
+  def multipart_allowed?(request)
+    request.media_type == "multipart/form-data" &&
+      MULTIPART_ROUTES.any? { |method, path| request.request_method == method && path.match?(request.path_info) }
   end
 
   def body?(request) = request.content_length.to_i.positive? || request.get_header("HTTP_TRANSFER_ENCODING").present?
