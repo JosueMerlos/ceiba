@@ -64,7 +64,7 @@ interface AgendaBackendOptions {
   professionals?: { id: string; display_name: string; branch_ids: string[] }[];
   services?: { id: string; name: string }[];
   archivedServices?: { id: string; name: string }[];
-  resources?: { id: string; name: string; kind?: string; active?: boolean }[];
+  resources?: { id: string; name: string; active: boolean; archived_at: string | null }[];
   /** Answer 403 to the listing of professionals, like the API does for the `professional` role. */
   professionalsForbidden?: boolean;
   profiles?: Record<string, string>;
@@ -79,14 +79,13 @@ export function agendaBackend({
   ],
   services = [named("s1", "Corte de dama")],
   archivedServices = [],
-  resources = [{ id: "r1", name: "Sillón 1" }],
+  resources = [{ id: "r1", name: "Sillón 1", active: true, archived_at: null }],
   professionalsForbidden = false,
   profiles = {},
   branchId = ids.branchA,
 }: AgendaBackendOptions = {}) {
   const state = { appointmentQueries: [] as URLSearchParams[], professionalListCalls: 0 };
-  const forbidden = () =>
-    HttpResponse.json(problem(403, "access.forbidden"), { status: 403 });
+  const forbidden = () => HttpResponse.json(problem(403, "access.forbidden"), { status: 403 });
 
   server.use(
     http.get(`${BRANCH(branchId)}/appointments`, ({ request }) => {
@@ -113,9 +112,7 @@ export function agendaBackend({
       HttpResponse.json({ data: [] }),
     ),
     http.get(`${BRANCH(branchId)}/resources/:id/schedule`, () => HttpResponse.json({ data: [] })),
-    http.get(`${BRANCH(branchId)}/professionals/:id/time_offs`, () =>
-      HttpResponse.json(page([])),
-    ),
+    http.get(`${BRANCH(branchId)}/professionals/:id/time_offs`, () => HttpResponse.json(page([]))),
     http.get(`${BRANCH(branchId)}/resources/:id/time_offs`, () => HttpResponse.json(page([]))),
   );
   return state;

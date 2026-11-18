@@ -1,0 +1,171 @@
+/* The calendar's look, in the design system's tokens. The library's classes are only touched here. */
+.agenda-view {
+  --ec-border-color: var(--border);
+  --ec-today-bg-color: transparent;
+  --ec-bg-color: var(--background);
+  min-width: 42.5rem;
+  font-size: 0.875rem;
+}
+
+.agenda-view .ec-event {
+  padding: 0;
+  overflow: hidden;
+  color: inherit;
+  background: transparent;
+  border-radius: 0.625rem;
+  box-shadow: none;
+}
+
+.agenda-view .ec-event-body {
+  height: 100%;
+}
+
+.agenda-view .agenda-block {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--muted) 0,
+    var(--muted) 0.25rem,
+    transparent 0.25rem,
+    transparent 0.5rem
+  );
+  opacity: 1;
+}
+
+.agenda-view .agenda-now {
+  z-index: 3;
+  height: 2px !important;
+  background: var(--destructive);
+  opacity: 1;
+}
+
+.agenda-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  width: 100%;
+  height: 100%;
+  padding: 0.25rem 0.5rem;
+  overflow: hidden;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  color: var(--agenda-fg);
+  background: var(--agenda-bg);
+  border: 1px solid var(--agenda-border);
+  border-radius: 0.625rem;
+}
+
+.agenda-view .ec-event:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.agenda-card[data-tone="pending"] {
+  --agenda-bg: var(--appointment-pending-bg);
+  --agenda-fg: var(--appointment-pending-fg);
+  --agenda-border: var(--appointment-pending-border);
+  --agenda-dot: var(--appointment-pending-dot);
+  border-style: dashed;
+}
+
+.agenda-card[data-tone="confirmed"] {
+  --agenda-bg: var(--appointment-confirmed-bg);
+  --agenda-fg: var(--appointment-confirmed-fg);
+  --agenda-border: var(--appointment-confirmed-border);
+  --agenda-dot: var(--appointment-confirmed-dot);
+}
+
+.agenda-card[data-tone="arrived"] {
+  --agenda-bg: var(--appointment-arrived-bg);
+  --agenda-fg: var(--appointment-arrived-fg);
+  --agenda-border: var(--appointment-arrived-border);
+  --agenda-dot: var(--appointment-arrived-dot);
+}
+
+.agenda-card[data-tone="done"] {
+  --agenda-bg: var(--appointment-done-bg);
+  --agenda-fg: var(--appointment-done-fg);
+  --agenda-border: var(--appointment-done-border);
+  --agenda-dot: var(--appointment-done-dot);
+}
+
+.agenda-card[data-tone="missed"] {
+  --agenda-bg: var(--appointment-missed-bg);
+  --agenda-fg: var(--appointment-missed-fg);
+  --agenda-border: var(--appointment-missed-border);
+  --agenda-dot: var(--appointment-missed-dot);
+}
+
+.agenda-card__title {
+  display: flex;
+  gap: 0.375rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.agenda-card__dot {
+  flex: none;
+  width: 0.4375rem;
+  height: 0.4375rem;
+  background: var(--agenda-dot);
+  border-radius: 50%;
+}
+
+.agenda-card__name,
+.agenda-card__line,
+.agenda-card__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agenda-card__name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.agenda-card__line,
+.agenda-card__meta {
+  font-size: 0.75rem;
+}
+
+.agenda-column {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  min-width: 0;
+  padding: 0.5rem 0.25rem;
+  text-align: left;
+}
+
+.agenda-column__avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.875rem;
+  height: 1.875rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--muted-foreground);
+  background: var(--sidebar);
+  border-radius: 50%;
+}
+
+.agenda-column__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.agenda-column__name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agenda-column__detail {
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}

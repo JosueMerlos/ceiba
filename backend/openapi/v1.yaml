@@ -3780,6 +3780,19 @@ paths:
   ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/resources/{resource_id}/time_offs"
   : get:
       description: Exige `appointments.time_off.read` en la sucursal. El recurso debe ser de la sucursal de la ruta. Paginado por cursor.
+      parameters:
+      - in: query
+        name: limit
+        required: false
+        schema:
+          maximum: 100
+          minimum: 1
+          type: integer
+      - in: query
+        name: after
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           content:

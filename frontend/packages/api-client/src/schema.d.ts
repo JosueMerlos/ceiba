@@ -2603,7 +2603,10 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    limit?: number;
+                    after?: string;
+                };
                 header?: never;
                 path: {
                     organization_id: string;

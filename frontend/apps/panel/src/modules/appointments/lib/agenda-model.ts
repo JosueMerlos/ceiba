@@ -73,7 +73,9 @@ export function mergeProfessionalColumns({
 const slotsOn = (slots: readonly WeeklySlot[], weekday: number): Interval[] =>
   slots
     .filter((slot) => slot.weekday === weekday)
-    .map((slot) => [minutesOfClock(slot.starts_at_local), minutesOfClock(slot.ends_at_local)] as const)
+    .map(
+      (slot) => [minutesOfClock(slot.starts_at_local), minutesOfClock(slot.ends_at_local)] as const,
+    )
     .sort((a, b) => a[0] - b[0]);
 
 function intersect(first: readonly Interval[], second: readonly Interval[]): Interval[] {
@@ -175,14 +177,17 @@ export function timeRange({
       const start = toWallClock(appointment.starts_at, timeZone);
       const end = toWallClock(appointment.ends_at, timeZone);
       // An appointment that crosses midnight is drawn up to the end of its first day.
-      return [minutesOfWall(start), end.slice(0, 10) === start.slice(0, 10) ? minutesOfWall(end) : 24 * HOUR];
+      return [
+        minutesOfWall(start),
+        end.slice(0, 10) === start.slice(0, 10) ? minutesOfWall(end) : 24 * HOUR,
+      ];
     }),
   ];
   if (spans.length === 0) return DEFAULT_RANGE;
-  return {
-    startMinute: Math.floor(Math.min(...spans.map(([start]) => start)) / HOUR) * HOUR,
-    endMinute: Math.ceil(Math.max(...spans.map(([, end]) => end)) / HOUR) * HOUR,
-  };
+  const startMinute = Math.floor(Math.min(...spans.map(([start]) => start)) / HOUR) * HOUR;
+  const endMinute = Math.ceil(Math.max(...spans.map(([, end]) => end)) / HOUR) * HOUR;
+  // The calendar cannot draw an empty range.
+  return { startMinute, endMinute: Math.max(endMinute, startMinute + HOUR) };
 }
 
 /** Who is expected within the next hour, soonest first. */

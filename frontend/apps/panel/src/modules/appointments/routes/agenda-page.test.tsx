@@ -40,7 +40,10 @@ describe("Agenda: recepción", () => {
     await renderApp({ route });
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: /Agenda del miércoles 18 de noviembre/ }),
+      await screen.findByRole("heading", {
+        level: 1,
+        name: /Agenda del miércoles 18 de noviembre/,
+      }),
     ).toBeTruthy();
     expect(await column("Rosa Martínez")).toBeTruthy();
     expect(await column("Luis Pérez")).toBeTruthy();
@@ -89,13 +92,29 @@ describe("Agenda: recepción", () => {
       appointments: [
         agendaAppointment({
           id: "a",
-          services: [{ service_id: "viejo", position: 0, duration_minutes: 45, price_minor: 1, currency: "NIO" }],
+          services: [
+            {
+              service_id: "viejo",
+              position: 0,
+              duration_minutes: 45,
+              price_minor: 1,
+              currency: "NIO",
+            },
+          ],
         }),
         agendaAppointment({
           id: "b",
           professional_id: "p2",
           customer_name: "Luz Mora",
-          services: [{ service_id: "nadie", position: 0, duration_minutes: 45, price_minor: 1, currency: "NIO" }],
+          services: [
+            {
+              service_id: "nadie",
+              position: 0,
+              duration_minutes: 45,
+              price_minor: 1,
+              currency: "NIO",
+            },
+          ],
         }),
       ],
     });
@@ -130,7 +149,7 @@ describe("Agenda: recepción", () => {
     });
     const { user } = await renderApp({ route });
 
-    await user.click(await screen.findByRole("radio", { name: "Por recurso" }));
+    await user.click(await screen.findByRole("button", { name: "Por recurso" }));
 
     expect(await column("Sillón 1")).toBeTruthy();
     expect(await column("Sin recurso")).toBeTruthy();
@@ -142,7 +161,7 @@ describe("Agenda: recepción", () => {
     const backend = agendaBackend();
     const { user } = await renderApp({ route });
 
-    await user.click(await screen.findByRole("radio", { name: "Semana" }));
+    await user.click(await screen.findByRole("button", { name: "Semana" }));
 
     await screen.findByRole("heading", { level: 1, name: /semana del 16 de noviembre/ });
     await waitFor(() => {
@@ -203,7 +222,7 @@ describe("Agenda: profesional", () => {
     expect(await column("Rosa Martínez")).toBeTruthy();
     await screen.findByRole("button", { name: /Ana Ruiz/ });
     expect(screen.queryByRole("button", { name: "Nueva cita" })).toBeNull();
-    expect(screen.queryByRole("radio", { name: "Por recurso" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Por recurso" })).toBeNull();
     expect(backend.professionalListCalls).toBe(0);
   });
 

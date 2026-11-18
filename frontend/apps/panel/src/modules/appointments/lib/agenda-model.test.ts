@@ -180,6 +180,22 @@ describe("rango horario visible", () => {
   });
 });
 
+describe("rango horario nunca vacío", () => {
+  it("una cita de duración cero a la hora en punto deja al menos una hora visible", () => {
+    const range = timeRange({
+      openings: [],
+      appointments: [
+        appointment({
+          starts_at: "2026-11-18T15:00:00.000Z",
+          ends_at: "2026-11-18T15:00:00.000Z",
+        }),
+      ],
+      timeZone: MANAGUA,
+    });
+    expect(range).toEqual({ startMinute: 540, endMinute: 600 });
+  });
+});
+
 describe("próximas llegadas", () => {
   const now = new Date("2026-11-18T15:00:00.000Z");
 
