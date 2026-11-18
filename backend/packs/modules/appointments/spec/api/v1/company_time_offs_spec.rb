@@ -6,11 +6,17 @@ require "swagger_helper"
 # rswag requires the `let` to be named like the header parameter (`X-CSRF-Token`).
 # rubocop:disable RSpec/VariableName, RSpec/VariableDefinition, RSpec/MultipleMemoizedHelpers
 RSpec.describe "API v1: ausencias de un profesional por empresa" do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:world) { build_access_world }
   let(:organization_id) { world.organization.id }
   let(:company_id) { world.company_a.id }
   let(:manager) { user_with_role("company_manager", world, company: world.company_a) }
   let("X-CSRF-Token") { signed_in.csrf_token }
+  # Mid-way through the default absence (09:00-13:00 on the 16th), so "ongoing" is well defined.
+  before { travel_to Time.utc(2026, 11, 16, 11) }
+
+  after { travel_back }
   let!(:modules_enabled) do
     with_tenant(world.organization) { [ world.company_a, world.company_b ].each { |company| Modules::Enable.call(company:, key: "appointments") } }
   end
@@ -39,7 +45,7 @@ RSpec.describe "API v1: ausencias de un profesional por empresa" do
 
     get "Lista las ausencias de un profesional desde la empresa" do
       tags "Ausencias"
-      description "Exige `appointments.time_off.read` en el alcance de la EMPRESA (solo gerencia de empresa): un rol de sucursal o el propio profesional " \
+      description "Exige `appointments.time_off.read` en el alcance de la EMPRESA (solo gerencia de empresa). Devuelve SOLO las ausencias vigentes o futuras (`ends_at` posterior a ahora); el borrado no se limita. Un rol de sucursal o el propio profesional " \
                   "(`manage_own`) reciben 403. Alcanza a profesionales con y sin sucursales, por lo que permite revisar las ausencias de uno que quedó " \
                   "sin asignar. El profesional debe ser de la empresa de la ruta (si no, 404). Paginado por cursor."
       produces "application/json", "application/problem+json"
@@ -55,6 +61,16 @@ RSpec.describe "API v1: ausencias de un profesional por empresa" do
           expect(response.parsed_body["data"].pluck("id")).to eq([ mine.id ])
           expect(response.parsed_body["data"].first).to include("professional_id" => orphan.id, "resource_id" => nil, "reason" => "Vacaciones")
         end
+      end
+
+      response "200", "solo las vigentes o futuras: la en curso y la futura entran, la ya terminada no" do
+        let!(:signed_in) { sign_in(manager) }
+        let!(:past) { time_off_for({ professional: orphan }, starts_at: Time.utc(2026, 11, 10, 9), ends_at: Time.utc(2026, 11, 10, 13), reason: "Pasada") }
+        let!(:ended_now) { time_off_for({ professional: orphan }, starts_at: Time.utc(2026, 11, 16, 7), ends_at: Time.utc(2026, 11, 16, 11), reason: "Termina ahora") }
+        let!(:future) { time_off_for({ professional: orphan }, starts_at: Time.utc(2026, 11, 20, 9), ends_at: Time.utc(2026, 11, 20, 13), reason: "Futura") }
+        schema list_schema
+
+        run_test! { |response| expect(response.parsed_body["data"].pluck("id")).to contain_exactly(mine.id, future.id) }
       end
 
       response "200", "también las de un profesional asignado a una sucursal" do
