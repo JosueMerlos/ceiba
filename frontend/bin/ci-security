@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # frontend-security CI job (and bin/ci): dependencies with high or critical vulnerabilities.
-# Any ignored advisory, if ever needed, must carry a review date and a reason.
+# Every advisory in pnpm's effective audit config needs an audit.ignore entry with a reason and an unexpired review date.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 pnpm install --frozen-lockfile --prefer-offline
+pnpm config get audit --json | node packages/config/audit-ignores.mjs pnpm-workspace.yaml
 pnpm audit --audit-level=high
