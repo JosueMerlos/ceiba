@@ -4,6 +4,8 @@ require "swagger_helper"
 RSpec.describe "API v1: yo (contexto, módulos, permisos y navegación)" do
   let(:world) { build_access_world }
 
+  before { with_tenant(world.organization) { Modules::Enable.call(company: world.company_a, key: "appointments") } }
+
   path "/api/v1/me" do
     get "Contexto del usuario autenticado" do
       tags "Contexto"
@@ -18,13 +20,69 @@ RSpec.describe "API v1: yo (contexto, módulos, permisos y navegación)" do
       parameter name: :company_id, in: :query, schema: { type: :string, format: :uuid }, required: false
       parameter name: :branch_id, in: :query, schema: { type: :string, format: :uuid }, required: false, description: "Requiere company_id"
 
-      response "200", "el contexto del usuario" do
+      response "200", "company_permissions: el company_manager tiene en el alcance de empresa las claves de ausencias" do
         let!(:signed_in) { sign_in(user_with_role("company_manager", world, company: world.company_a)) }
         let(:organization_id) { world.organization.id }
         let(:company_id) { world.company_a.id }
         let(:branch_id) { world.branch_a1.id }
 
-        before { with_tenant(world.organization) { Modules::Enable.call(company: world.company_a, key: "appointments") } }
+        schema "$ref" => "#/components/schemas/Me"
+
+        run_test! do |response|
+          expect(response.parsed_body["data"]["company_permissions"]).to include("appointments.time_off.read", "appointments.time_off.manage")
+        end
+      end
+
+      response "200", "company_permissions: un branch_manager de una sola sucursal, sin sucursal en el contexto, no tiene claves de ausencias de empresa" do
+        let!(:signed_in) { sign_in(user_with_role("branch_manager", world, branch: world.branch_a1)) }
+
+        schema "$ref" => "#/components/schemas/Me"
+
+        run_test! do |response|
+          data = response.parsed_body["data"]
+          expect(data["context"]["branch"]).to be_nil
+          # `permissions` merges the keys of its branch membership; `company_permissions` does not.
+          expect(data["permissions"]).to include("appointments.time_off.read")
+          expect(data["company_permissions"]).not_to include("appointments.time_off.read", "appointments.time_off.manage")
+        end
+      end
+
+      response "200", "company_permissions: el receptionist (solo sucursal) no tiene claves de ausencias de empresa" do
+        let!(:signed_in) { sign_in(user_with_role("receptionist", world, branch: world.branch_a1)) }
+
+        schema "$ref" => "#/components/schemas/Me"
+
+        run_test! { |response| expect(response.parsed_body["data"]["company_permissions"].grep(/time_off/)).to be_empty }
+      end
+
+      %w[org_owner org_admin].each do |role|
+        response "200", "company_permissions: el #{role} tiene solo lo que su membership de organización concede, sin claves de ausencias" do
+          let!(:signed_in) { sign_in(user_with_role(role, world)) }
+
+          schema "$ref" => "#/components/schemas/Me"
+
+          run_test! do |response|
+            data = response.parsed_body["data"]
+            expect(data["context"]["company"]["id"]).to eq(world.company_a.id)
+            expect(data["company_permissions"]).to include("platform.company.read")
+            expect(data["company_permissions"].grep(/time_off/)).to be_empty
+          end
+        end
+      end
+
+      response "200", "company_permissions: vacío sin empresa en el contexto" do
+        let!(:signed_in) { sign_in(create(:user)) }
+
+        schema "$ref" => "#/components/schemas/Me"
+
+        run_test! { |response| expect(response.parsed_body["data"]).to include("company_permissions" => []) }
+      end
+
+      response "200", "el contexto del usuario" do
+        let!(:signed_in) { sign_in(user_with_role("company_manager", world, company: world.company_a)) }
+        let(:organization_id) { world.organization.id }
+        let(:company_id) { world.company_a.id }
+        let(:branch_id) { world.branch_a1.id }
 
         schema "$ref" => "#/components/schemas/Me"
 

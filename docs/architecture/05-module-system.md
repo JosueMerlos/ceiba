@@ -104,6 +104,7 @@ company_modules
   "context": { "organization": {…}, "company": {…}, "branch": {…} },
   "modules": [{ "key": "appointments", "version": "1.0", "settings": {…} }],
   "permissions": ["appointments.appointment.read", "…"],
+  "company_permissions": ["appointments.time_off.read", "…"],
   "navigation": [{ "module": "appointments", "key": "agenda", "path": "/agenda" }]
 }
 ```
@@ -172,10 +173,11 @@ Pack `platform/modules` (namespace `Modules`; depende de `tenancy`, `access`, `e
 
 Errores de dominio (registrados en `Api::ErrorRegistry`): `modules.unknown_module` 404, `modules.not_entitled` 403, `modules.requirements_not_met` 409, `modules.required_by_others` 409, `modules.not_enabled` 409, `modules.invalid_settings` 422.
 
-**`GET /api/v1/me[?organization_id=&company_id=&branch_id=]`**: `{ data: { principal: {id, name, email}, context: {organization, company, branch}, modules: [{key, version, settings}], permissions: [...], navigation: [{module, key, path}] } }`. 
+**`GET /api/v1/me[?organization_id=&company_id=&branch_id=]`**: `{ data: { principal: {id, name, email}, context: {organization, company, branch}, modules: [{key, version, settings}], permissions: [...], company_permissions: [...], navigation: [{module, key, path}] } }`. 
 - *Contexto*: parámetros (explícitos: si no son visibles, 404/403 como una ruta; `company_id` exige `organization_id`) → si no, el **último usado** → si no, la primera organización del usuario (por id) y su primera empresa visible (por id). Sin sucursal elegida, `branch` es `null` y los settings son los de la empresa. Un usuario sin memberships recibe 200 con el contexto vacío. Se valida con `Access.with_context` (API pública nueva de access, el mismo resolvedor de las rutas) y corre en transacción de solo lectura.
 - *Último usado*: **cookie firmada `ceiba_context`** (`usuario:org:empresa:sucursal`, ligada al usuario: otra persona en el mismo navegador no la hereda y no hace falta borrarla en el logout, que es de `identity`; HttpOnly, SameSite=Lax, 90 días; prefijo `__Host-` con `secure_cookies`), una por navegador. Decisión: un GET no escribe en la base y es una conveniencia por dispositivo, no un dato del usuario; no es una credencial: se revalida en cada uso y si ya no hay acceso se cae al contexto por defecto; una cookie manipulada se ignora.
 - *Permisos*: los que el principal ejerce **dentro** del contexto (de la organización, de la empresa, de cualquiera de sus sucursales o, si se eligió, de esa sucursal) cuyo módulo está activo; es una lista plana, no por alcance (el frontend refleja, no decide).
+- *Permisos de empresa* (`company_permissions`, campo aditivo): las claves que el principal tiene **en el alcance de la empresa** del contexto (las de organización, las de su membership de empresa y las de lectura que suben desde sucursal), con el mismo filtro de módulos activos. A diferencia de `permissions`, NO incluye las que solo valen en una sucursal de su membership: un `branch_manager` no tiene aquí `appointments.time_off.read` aunque `permissions` la traiga sin sucursal elegida. Es lo que el panel usa para saber si una ruta de empresa está abierta (las ausencias pendientes de un profesional sin sucursales). Vacío sin empresa en el contexto.
 - *Navegación*: entradas de los manifiestos de módulos **activos** cuyo permiso está en `permissions`.
 - Autorización: `skip_authorization!` en `MeController#show` (entrada en la allowlist de `authorization_spec.rb`): devuelve lo del propio principal y el contexto ya se valida contra sus memberships.
 

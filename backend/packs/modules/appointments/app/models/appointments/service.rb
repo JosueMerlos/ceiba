@@ -31,6 +31,8 @@ module Appointments
 
     # What management lists: everything not archived, paused services included.
     scope :unarchived, -> { where(archived_at: nil) }
+    # Only the archived ones, for the screen that restores them.
+    scope :archived, -> { where.not(archived_at: nil) }
     # What can be offered for booking: not archived and not paused.
     scope :active, -> { unarchived.where(active: true) }
 

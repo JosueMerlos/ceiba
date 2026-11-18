@@ -120,5 +120,17 @@ OpenapiComponents.register(
       remove: { type: :array, items: { type: :string, enum: %w[logo banner favicon] } }
     },
     additionalProperties: false
+  },
+  BranchInput: {
+    type: :object,
+    description: "Alta de una sucursal. La empresa sale de la ruta; la sucursal nace sin horario (cerrada) hasta que se configure.",
+    properties: {
+      name: { type: :string },
+      time_zone: { type: :string, description: "Zona horaria IANA", example: "America/Managua" },
+      address: { type: :string, nullable: true },
+      phone_e164: { type: :string, nullable: true, example: "+50588887777" }
+    },
+    required: %i[name time_zone],
+    additionalProperties: false
   }
 )

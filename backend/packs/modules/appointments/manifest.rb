@@ -76,5 +76,9 @@ Modules.define :appointments do
 
   # The agenda shows with either permission: the professional sees only their own appointments in it.
   navigation  [ { key: "agenda", path: "/agenda", permission: %w[appointments.appointment.read appointments.appointment.read_own] },
-                { key: "summary", path: "/agenda/summary", permission: "appointments.appointment.count" } ]
+                { key: "summary", path: "/agenda/summary", permission: "appointments.appointment.count" },
+                { key: "services", path: "/services", permission: "appointments.service.read" },
+                { key: "professionals", path: "/professionals", permission: "appointments.professional.read" },
+                { key: "resources", path: "/resources", permission: "appointments.resource.read" },
+                { key: "branches", path: "/branches", permission: "appointments.schedule.read" } ]
 end

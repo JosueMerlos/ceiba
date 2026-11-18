@@ -27,7 +27,7 @@ describe("registro de módulos del front", () => {
   it("criterio 4: un receptionist solo ve los ítems cuyo permiso tiene", () => {
     const me = meFixture({ role: "receptionist" }).data;
 
-    expect(navigationFor(me).map((item) => item.key)).toEqual(["agenda"]);
+    expect(navigationFor(me).map((item) => item.key)).toEqual(["agenda", "services"]);
   });
 
   it("el dueño de la organización ve el resumen (conteos) pero no la agenda", () => {
@@ -39,14 +39,14 @@ describe("registro de módulos del front", () => {
   it("un gerente de empresa ve ambos", () => {
     const me = meFixture({ role: "company_manager" }).data;
 
-    expect(navigationFor(me).map((item) => item.key)).toEqual(["agenda", "summary"]);
+    expect(navigationFor(me).map((item) => item.key)).toEqual(["agenda", "summary", "services"]);
   });
 
   it("un profesional, que solo lee sus propias citas, también ve la agenda y monta su ruta", () => {
     const me = meFixture({ role: "professional" }).data;
 
-    expect(navigationFor(me).map((item) => item.key)).toEqual(["agenda"]);
-    expect(routesFor(me).map((route) => route.path)).toEqual(["agenda"]);
+    expect(navigationFor(me).map((item) => item.key)).toEqual(["agenda", "services"]);
+    expect(routesFor(me).map((route) => route.path)).toEqual(["agenda", "services"]);
   });
 
   it("exige que el backend también ofrezca el ítem (navigation de /me)", () => {

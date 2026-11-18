@@ -6,6 +6,8 @@ module Appointments
       module_function
 
       def call(service:)
+        # The row is locked and re-read before deciding, so a concurrent archive and restore cannot both audit from a stale view.
+        service.lock!
         return service if service.archived?
 
         service.archived_at = Time.current

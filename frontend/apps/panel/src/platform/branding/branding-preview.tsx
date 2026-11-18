@@ -1,6 +1,7 @@
 import { applyBranding, type BrandVars } from "@ceiba/branding";
 import { useTranslation } from "@ceiba/i18n";
 import { Button, Input, NavItem } from "@ceiba/ui";
+import { CalendarDays, Users } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 
 interface BrandingPreviewProps {
@@ -61,11 +62,15 @@ export function BrandingPreview({ vars, name, tagline, logoUrl, bannerUrl }: Bra
 
         <div className="grid gap-5 p-5 md:grid-cols-[11rem_minmax(0,1fr)]">
           <nav className="grid content-start gap-1">
-            <NavItem asChild>
-              <div aria-current="page">{t("preview.menuItem")}</div>
+            <NavItem
+              asChild
+              icon={<CalendarDays aria-hidden="true" />}
+              label={t("preview.menuItem")}
+            >
+              <div aria-current="page" />
             </NavItem>
-            <NavItem asChild>
-              <div>{t("preview.menuOther")}</div>
+            <NavItem asChild icon={<Users aria-hidden="true" />} label={t("preview.menuOther")}>
+              <div />
             </NavItem>
           </nav>
           <div className="grid content-start gap-4">

@@ -70,6 +70,10 @@ const APPOINTMENT_PERMISSIONS: Record<Role, string[]> = {
 
 interface MeOptions {
   role?: Role;
+  /** Replaces the role's permission list (catalog screens need role mixes the base table does not model). */
+  permissions?: string[];
+  /** Keys held at COMPANY scope; by default a company manager holds all of them and anyone else none (branch roles only hold them in their branch). */
+  companyPermissions?: string[];
   modules?: string[];
   organization?: ReturnType<typeof organization>;
   company?: ReturnType<typeof company>;
@@ -82,6 +86,8 @@ interface MeOptions {
 /** What GET /api/v1/me would return: navigation derives from permissions and active modules, as in the backend. */
 export function meFixture({
   role = "receptionist",
+  permissions: explicitPermissions,
+  companyPermissions: explicitCompanyPermissions,
   modules = ["appointments"],
   organization: org = organization(ids.orgA, "Barbería El Güegüense"),
   company: co = company(ids.companyA, "Barbería El Güegüense"),
@@ -90,7 +96,14 @@ export function meFixture({
   extraPermissions = [],
 }: MeOptions = {}): { data: Me } {
   const active = modules.includes("appointments");
-  const permissions = [...(active ? APPOINTMENT_PERMISSIONS[role] : []), ...extraPermissions];
+  const permissions = [
+    ...(active ? (explicitPermissions ?? APPOINTMENT_PERMISSIONS[role]) : []),
+    ...extraPermissions,
+  ];
+  // Models only company-scope grants: the upward read keys that branch roles get (from_descendants) are left out.
+  const companyPermissions = active
+    ? (explicitCompanyPermissions ?? (role === "company_manager" ? permissions : []))
+    : [];
   const navigation = [
     ...(permissions.includes("appointments.appointment.read") ||
     permissions.includes("appointments.appointment.read_own")
@@ -99,6 +112,18 @@ export function meFixture({
     ...(permissions.includes("appointments.appointment.count")
       ? [{ module: "appointments", key: "summary", path: "/agenda/summary" }]
       : []),
+    ...(permissions.includes("appointments.service.read")
+      ? [{ module: "appointments", key: "services", path: "/services" }]
+      : []),
+    ...(permissions.includes("appointments.professional.read")
+      ? [{ module: "appointments", key: "professionals", path: "/professionals" }]
+      : []),
+    ...(permissions.includes("appointments.resource.read")
+      ? [{ module: "appointments", key: "resources", path: "/resources" }]
+      : []),
+    ...(permissions.includes("appointments.schedule.read")
+      ? [{ module: "appointments", key: "branches", path: "/branches" }]
+      : []),
   ];
   return {
     data: {
@@ -106,6 +131,7 @@ export function meFixture({
       context: { organization: org, company: co, branch: br },
       modules: modules.map((key) => ({ key, version: "1.0", settings: {} })),
       permissions,
+      company_permissions: companyPermissions,
       navigation,
     },
   };
@@ -140,4 +166,107 @@ export const brandingFixture = (overrides: Partial<Branding> = {}): { data: Bran
     assets: { logo: null, banner: null, favicon: null },
     ...overrides,
   },
+});
+
+export const service = (
+  id: string,
+  name: string,
+  overrides: Partial<components["schemas"]["Service"]> = {},
+): components["schemas"]["Service"] => ({
+  id,
+  name,
+  active: true,
+  archived_at: null,
+  buffer_after_minutes: 0,
+  buffer_before_minutes: 0,
+  currency: "NIO",
+  duration_minutes: 30,
+  position: 0,
+  price_minor: 20000,
+  created_at: STAMP,
+  updated_at: STAMP,
+  ...overrides,
+});
+
+export const serviceOverride = (
+  id: string,
+  serviceId: string,
+  branchId: string,
+  overrides: Partial<components["schemas"]["ServiceOverride"]> = {},
+): components["schemas"]["ServiceOverride"] => ({
+  id,
+  service_id: serviceId,
+  branch_id: branchId,
+  currency: "NIO",
+  duration_minutes: null,
+  price_minor: null,
+  created_at: STAMP,
+  updated_at: STAMP,
+  ...overrides,
+});
+
+export const scheduleSlot = (
+  id: string,
+  weekday: number,
+  starts: string,
+  ends: string,
+): components["schemas"]["WeeklyScheduleSlot"] => ({
+  id,
+  weekday,
+  starts_at_local: starts,
+  ends_at_local: ends,
+});
+
+export const validationProblem = (field: string, code: string, message: string) => ({
+  ...problem(422, "validation.failed", "Datos inválidos"),
+  errors: [{ field, code, message }],
+});
+
+export const professional = (
+  id: string,
+  displayName: string,
+  overrides: Partial<components["schemas"]["Professional"]> = {},
+): components["schemas"]["Professional"] => ({
+  id,
+  display_name: displayName,
+  active: true,
+  archived_at: null,
+  branch_ids: [],
+  service_ids: [],
+  user_id: null,
+  created_at: STAMP,
+  updated_at: STAMP,
+  ...overrides,
+});
+
+export const resource = (
+  id: string,
+  name: string,
+  overrides: Partial<components["schemas"]["Resource"]> = {},
+): components["schemas"]["Resource"] => ({
+  id,
+  name,
+  kind: "chair",
+  active: true,
+  archived_at: null,
+  branch_id: ids.branchA,
+  created_at: STAMP,
+  updated_at: STAMP,
+  ...overrides,
+});
+
+export const timeOff = (
+  id: string,
+  owner: { professionalId?: string; resourceId?: string },
+  startsAt: string,
+  endsAt: string,
+  reason: string | null = null,
+): components["schemas"]["TimeOff"] => ({
+  id,
+  professional_id: owner.professionalId ?? null,
+  resource_id: owner.resourceId ?? null,
+  starts_at: startsAt,
+  ends_at: endsAt,
+  reason,
+  created_at: STAMP,
 });

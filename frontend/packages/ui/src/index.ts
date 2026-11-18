@@ -39,12 +39,42 @@ export {
 } from "./components/form";
 export { Input } from "./components/input";
 export { Label } from "./components/label";
+export { Badge, badgeVariants } from "./components/badge";
+export { Checkbox } from "./components/checkbox";
+export { ContextPanel } from "./components/context-panel";
+export type { ContextPanelProps } from "./components/context-panel";
 export {
   AppLayout,
   LoadingState,
   MAIN_ID,
   NavItem,
   PageHeader,
+  RailTooltip,
+  SIDEBAR_ID,
   StatusPage,
+  useAppLayout,
 } from "./components/layout";
+export {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "./components/select";
+export { Switch } from "./components/switch";
+export {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./components/table";
+export { Textarea } from "./components/textarea";
+export { ToggleGroup, ToggleGroupItem } from "./components/toggle-group";
+export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/tooltip";
 export { Toaster, toast } from "./components/toaster";
