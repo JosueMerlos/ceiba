@@ -107,7 +107,11 @@ export function useArchiveResource(branchId: string) {
   });
 }
 
-export function useResourceScheduleQuery(branchId: string, resourceId: string) {
+export function useResourceScheduleQuery(
+  branchId: string,
+  resourceId: string,
+  { enabled = true } = {},
+) {
   const client = useApiClient();
   const { organizationId, companyId, path } = useScope();
   return useQuery({
@@ -118,6 +122,7 @@ export function useResourceScheduleQuery(branchId: string, resourceId: string) {
           params: { path: { ...path, branch_id: branchId, resource_id: resourceId } },
         }),
       ),
+    enabled,
     throwOnError: false,
   });
 }
@@ -146,7 +151,11 @@ export function usePutResourceSchedule(branchId: string, resourceId: string) {
   });
 }
 
-export function useResourceTimeOffsQuery(branchId: string, resourceId: string) {
+export function useResourceTimeOffsQuery(
+  branchId: string,
+  resourceId: string,
+  { enabled = true } = {},
+) {
   const client = useApiClient();
   const { organizationId, companyId, path } = useScope();
   return useQuery({
@@ -157,6 +166,7 @@ export function useResourceTimeOffsQuery(branchId: string, resourceId: string) {
           params: { path: { ...path, branch_id: branchId, resource_id: resourceId } },
         }),
       ),
+    enabled,
     throwOnError: false,
   });
 }

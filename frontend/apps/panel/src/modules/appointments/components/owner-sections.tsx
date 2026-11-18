@@ -4,12 +4,13 @@ import { LoadingState, toast } from "@ceiba/ui";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { describeError } from "../../../platform/errors/global-errors";
+import { useCan } from "../../../platform/permissions/can";
+import type { Branch, WeeklyScheduleSlot } from "../api/catalog";
 import type { TimeOff, TimeOffInput, WeeklyScheduleInput } from "../api/professionals";
-import type { WeeklyScheduleSlot } from "../api/catalog";
-import { QueryError } from "../components/query-error";
-import { TimeOffForm } from "../components/time-off-form";
-import { TimeOffsList } from "../components/time-offs-list";
-import { WeeklyScheduleEditor } from "../components/weekly-schedule-editor";
+import { QueryError } from "./query-error";
+import { TimeOffForm } from "./time-off-form";
+import { TimeOffsList } from "./time-offs-list";
+import { WeeklyScheduleEditor } from "./weekly-schedule-editor";
 
 /** A titled block of a context panel; `region` + name makes it addressable for keyboard and screen-reader users. */
 export function PanelSection({
@@ -126,5 +127,69 @@ export function TimeOffsSection({
         />
       ) : null}
     </div>
+  );
+}
+
+/** What the user may read and change of an owner's hours and absences; the queries stay off for what they cannot read. */
+export function useOwnerAccess() {
+  const can = useCan();
+  return {
+    scheduleRead: can("appointments.schedule.read"),
+    scheduleManage: can("appointments.schedule.manage"),
+    timeOffRead: can("appointments.time_off.read"),
+    timeOffManage: can("appointments.time_off.manage"),
+  };
+}
+
+export type OwnerAccess = ReturnType<typeof useOwnerAccess>;
+
+interface OwnerBranchData {
+  schedule: UseQueryResult<{ data: WeeklyScheduleSlot[] }>;
+  saveSchedule: SaveSchedule;
+  timeOffs: UseQueryResult<{ data: TimeOff[] }>;
+  createTimeOff(values: TimeOffInput): Promise<unknown>;
+  deleteTimeOff(timeOff: TimeOff, options: { onSuccess(): void }): void;
+}
+
+/** Hours and absences of an owner (professional or resource) in one branch; each section shows only if its read permission is held. */
+export function OwnerBranchSections({
+  branch,
+  access,
+  data,
+}: {
+  branch: Branch;
+  access: OwnerAccess;
+  data: OwnerBranchData;
+}) {
+  const { t } = useTranslation("appointments");
+  return (
+    <>
+      {access.scheduleRead ? (
+        <PanelSection
+          title={t("catalog.schedule.title")}
+          description={t("catalog.timeOffs.branchHint", {
+            branch: branch.name,
+            timeZone: branch.time_zone,
+          })}
+        >
+          <ScheduleSection
+            slots={data.schedule}
+            save={data.saveSchedule}
+            canManage={access.scheduleManage}
+          />
+        </PanelSection>
+      ) : null}
+      {access.timeOffRead ? (
+        <PanelSection title={t("catalog.timeOffs.title")}>
+          <TimeOffsSection
+            timeOffs={data.timeOffs}
+            timeZone={branch.time_zone}
+            canManage={access.timeOffManage}
+            onCreate={data.createTimeOff}
+            onDelete={data.deleteTimeOff}
+          />
+        </PanelSection>
+      ) : null}
+    </>
   );
 }

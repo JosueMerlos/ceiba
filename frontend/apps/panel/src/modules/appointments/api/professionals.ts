@@ -144,18 +144,22 @@ export function useProfessionalAssignment() {
   });
 }
 
-export function useProfessionalScheduleQuery(branchId: string | undefined, professionalId: string) {
+export function useProfessionalScheduleQuery(
+  branchId: string,
+  professionalId: string,
+  { enabled = true } = {},
+) {
   const client = useApiClient();
   const { organizationId, companyId, path } = useScope();
   return useQuery({
-    queryKey: professionalKeys.schedule(organizationId, companyId, branchId ?? "", professionalId),
+    queryKey: professionalKeys.schedule(organizationId, companyId, branchId, professionalId),
     queryFn: () =>
       unwrap(
         client.GET(`${BASE}/branches/{branch_id}/professionals/{professional_id}/schedule`, {
-          params: { path: { ...path, branch_id: branchId!, professional_id: professionalId } },
+          params: { path: { ...path, branch_id: branchId, professional_id: professionalId } },
         }),
       ),
-    enabled: !!branchId,
+    enabled,
     throwOnError: false,
   });
 }
@@ -185,24 +189,24 @@ export function usePutProfessionalSchedule(branchId: string, professionalId: str
 }
 
 export function useProfessionalTimeOffsQuery(
-  branchId: string | undefined,
+  branchId: string,
   professionalId: string,
   { enabled = true } = {},
 ) {
   const client = useApiClient();
   const { organizationId, companyId, path } = useScope();
   return useQuery({
-    queryKey: professionalKeys.timeOffs(organizationId, companyId, branchId ?? "", professionalId),
+    queryKey: professionalKeys.timeOffs(organizationId, companyId, branchId, professionalId),
     queryFn: () =>
       unwrap(
         client.GET(`${BASE}/branches/{branch_id}/professionals/{professional_id}/time_offs`, {
           params: {
-            path: { ...path, branch_id: branchId!, professional_id: professionalId },
+            path: { ...path, branch_id: branchId, professional_id: professionalId },
             query: LIST_PAGE,
           },
         }),
       ),
-    enabled: enabled && !!branchId,
+    enabled,
     throwOnError: false,
   });
 }

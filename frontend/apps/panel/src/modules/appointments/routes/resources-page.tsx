@@ -19,11 +19,11 @@ import {
 } from "../api/resources";
 import { BranchPicker } from "../components/branch-picker";
 import { EmptyState } from "../components/empty-state";
+import { OwnerBranchSections, useOwnerAccess } from "../components/owner-sections";
 import { QueryError } from "../components/query-error";
 import { ResourceForm, type ResourceFormValues } from "../components/resource-form";
 import { ResourcesTable } from "../components/resources-table";
 import { useWorkingBranch } from "../lib/use-working-branch";
-import { PanelSection, ScheduleSection, TimeOffsSection } from "./owner-sections";
 
 type Panel = { kind: "resource"; id: string } | { kind: "new" } | null;
 
@@ -144,43 +144,28 @@ function BranchResources({ branch }: { branch: Branch }) {
 }
 
 function ResourceSections({ resource, branch }: { resource: Resource; branch: Branch }) {
-  const { t } = useTranslation("appointments");
-  const can = useCan();
-  const canScheduleRead = can("appointments.schedule.read");
-  const canScheduleManage = can("appointments.schedule.manage");
-  const canTimeOffRead = can("appointments.time_off.read");
-  const canTimeOffManage = can("appointments.time_off.manage");
-
-  const schedule = useResourceScheduleQuery(branch.id, resource.id);
-  const save = usePutResourceSchedule(branch.id, resource.id);
-  const timeOffs = useResourceTimeOffsQuery(branch.id, resource.id);
+  const access = useOwnerAccess();
+  const schedule = useResourceScheduleQuery(branch.id, resource.id, {
+    enabled: access.scheduleRead,
+  });
+  const saveSchedule = usePutResourceSchedule(branch.id, resource.id);
+  const timeOffs = useResourceTimeOffsQuery(branch.id, resource.id, {
+    enabled: access.timeOffRead,
+  });
   const create = useCreateResourceTimeOff(branch.id, resource.id);
   const remove = useDeleteResourceTimeOff(branch.id, resource.id);
 
   return (
-    <>
-      {canScheduleRead ? (
-        <PanelSection
-          title={t("catalog.schedule.title")}
-          description={t("catalog.timeOffs.branchHint", {
-            branch: branch.name,
-            timeZone: branch.time_zone,
-          })}
-        >
-          <ScheduleSection slots={schedule} save={save} canManage={canScheduleManage} />
-        </PanelSection>
-      ) : null}
-      {canTimeOffRead ? (
-        <PanelSection title={t("catalog.timeOffs.title")}>
-          <TimeOffsSection
-            timeOffs={timeOffs}
-            timeZone={branch.time_zone}
-            canManage={canTimeOffManage}
-            onCreate={(values) => create.mutateAsync(values)}
-            onDelete={(timeOff, options) => remove.mutate(timeOff.id, options)}
-          />
-        </PanelSection>
-      ) : null}
-    </>
+    <OwnerBranchSections
+      branch={branch}
+      access={access}
+      data={{
+        schedule,
+        saveSchedule,
+        timeOffs,
+        createTimeOff: (values) => create.mutateAsync(values),
+        deleteTimeOff: (timeOff, options) => remove.mutate(timeOff.id, options),
+      }}
+    />
   );
 }

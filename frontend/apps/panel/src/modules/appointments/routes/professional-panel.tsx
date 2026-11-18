@@ -26,12 +26,12 @@ import {
   useUpdateProfessional,
   type Professional,
 } from "../api/professionals";
+import { OwnerBranchSections, PanelSection, useOwnerAccess } from "../components/owner-sections";
 import { ProfessionalBranches } from "../components/professional-branches";
 import { ProfessionalForm } from "../components/professional-form";
 import { ProfessionalServices } from "../components/professional-services";
 import { TimeOffsList } from "../components/time-offs-list";
 import { DEFAULT_TIME_ZONE } from "../lib/time-zones";
-import { PanelSection, ScheduleSection, TimeOffsSection } from "./owner-sections";
 
 interface ProfessionalPanelProps {
   professional: Professional;
@@ -198,48 +198,28 @@ export function ProfessionalPanel({
 
 /** Hours and absences of the professional in one branch (they must be assigned to it, or the API answers 404). */
 function BranchSections({ professional, branch }: { professional: Professional; branch: Branch }) {
-  const { t } = useTranslation("appointments");
-  const can = useCan();
-  const canScheduleRead = can("appointments.schedule.read");
-  const canScheduleManage = can("appointments.schedule.manage");
-  const canTimeOffRead = can("appointments.time_off.read");
-  const canTimeOffManage = can("appointments.time_off.manage");
-
-  const schedule = useProfessionalScheduleQuery(
-    canScheduleRead ? branch.id : undefined,
-    professional.id,
-  );
-  const save = usePutProfessionalSchedule(branch.id, professional.id);
+  const access = useOwnerAccess();
+  const schedule = useProfessionalScheduleQuery(branch.id, professional.id, {
+    enabled: access.scheduleRead,
+  });
+  const saveSchedule = usePutProfessionalSchedule(branch.id, professional.id);
   const timeOffs = useProfessionalTimeOffsQuery(branch.id, professional.id, {
-    enabled: canTimeOffRead,
+    enabled: access.timeOffRead,
   });
   const create = useCreateProfessionalTimeOff(branch.id, professional.id);
   const remove = useDeleteProfessionalTimeOff(branch.id, professional.id);
 
   return (
-    <>
-      {canScheduleRead ? (
-        <PanelSection
-          title={t("catalog.schedule.title")}
-          description={t("catalog.timeOffs.branchHint", {
-            branch: branch.name,
-            timeZone: branch.time_zone,
-          })}
-        >
-          <ScheduleSection slots={schedule} save={save} canManage={canScheduleManage} />
-        </PanelSection>
-      ) : null}
-      {canTimeOffRead ? (
-        <PanelSection title={t("catalog.timeOffs.title")}>
-          <TimeOffsSection
-            timeOffs={timeOffs}
-            timeZone={branch.time_zone}
-            canManage={canTimeOffManage}
-            onCreate={(values) => create.mutateAsync(values)}
-            onDelete={(timeOff, options) => remove.mutate(timeOff.id, options)}
-          />
-        </PanelSection>
-      ) : null}
-    </>
+    <OwnerBranchSections
+      branch={branch}
+      access={access}
+      data={{
+        schedule,
+        saveSchedule,
+        timeOffs,
+        createTimeOff: (values) => create.mutateAsync(values),
+        deleteTimeOff: (timeOff, options) => remove.mutate(timeOff.id, options),
+      }}
+    />
   );
 }

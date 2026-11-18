@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, type KeyboardEvent, type ReactNode } from "react";
 import { cn } from "../lib/cn";
 import { Button } from "./button";
 
@@ -32,19 +32,17 @@ function ContextPanel({
   className,
   children,
 }: ContextPanelProps) {
-  const opener = useRef<HTMLElement | null>(null);
-  const titleId = `${id}-titulo`;
+  const titleId = `${id}-title`;
 
   useEffect(() => {
-    if (open) {
-      // Runs after the click that opened the panel, so the opener still holds focus.
-      const active = document.activeElement;
-      opener.current = active instanceof HTMLElement && active !== document.body ? active : null;
-      return;
-    }
-    const target = opener.current;
-    opener.current = null;
-    if (target?.isConnected) target.focus();
+    if (!open) return;
+    // Runs after the click that opened the panel, so the opener still holds focus.
+    const active = document.activeElement;
+    const opener = active instanceof HTMLElement && active !== document.body ? active : null;
+    // The cleanup also runs on unmount: callers usually drop the panel instead of passing `open={false}`.
+    return () => {
+      if (opener?.isConnected) opener.focus();
+    };
   }, [open]);
 
   if (!open) return null;
