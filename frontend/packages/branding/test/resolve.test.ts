@@ -87,6 +87,14 @@ describe("analyzeBranding", () => {
   it("no avisa cuando la marca ya cumple", () => {
     const { notices } = analyzeBranding({ ...NONE, primaryColor: "#1D6C4E" }, SURFACES);
 
-    expect(notices).toEqual({ darkText: [], ringFallback: false });
+    expect(notices).toEqual({ darkText: [], ringFallback: false, unreadable: [] });
+  });
+
+  it("adversarial: avisa cuando un tono medio no admite texto legible y se descarta (#777777)", () => {
+    const { vars, notices } = analyzeBranding({ ...NONE, primaryColor: "#777777" }, SURFACES);
+
+    expect(vars["--brand-primary"]).toBeUndefined();
+    expect(notices.unreadable).toEqual(["primary"]);
+    expect(notices.darkText).toEqual([]);
   });
 });

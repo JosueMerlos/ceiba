@@ -61,6 +61,18 @@ describe("pantalla de marca", () => {
     expect(within(preview()).getByText("Reservar cita")).toBeTruthy();
   });
 
+  it("avisa cuando un tono medio no admite texto legible y la vista previa usa el color de la plataforma", async () => {
+    manager();
+    stubBranding();
+    const { user } = await renderApp({ route: ROUTE });
+
+    await screen.findByRole("heading", { name: "Marca de la empresa" });
+    await user.type(screen.getByLabelText("Color principal"), "#777777");
+
+    expect(scope().style.getPropertyValue("--brand-primary")).toBe("");
+    expect(screen.getByText(/no permite un texto legible/i)).toBeTruthy();
+  });
+
   it("sin permiso: muestra 'sin acceso', no hay ítem de menú y no se pide la marca", async () => {
     signedInBackend({
       me: meFixture({ role: "receptionist", company: salon }),
