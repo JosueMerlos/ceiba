@@ -34,4 +34,58 @@ RSpec.describe Tenancy::BrandingAssets do
       expect(blobs[:banner].service.exist?(blobs[:banner].key)).to be(false)
     end
   end
+
+  describe "#render!" do
+    it "una variante que falla no impide renderizar las demás, y se reporta" do
+      failing = instance_double(ActiveStorage::VariantWithRecord)
+      healthy = instance_double(ActiveStorage::VariantWithRecord, processed: nil)
+      allow(failing).to receive(:processed).and_raise(IOError, "vips")
+      allow(Rails.error).to receive(:report)
+
+      described_class.new(create_in(create(:organization), :company)).render!([ failing, healthy ])
+
+      expect(healthy).to have_received(:processed)
+      expect(Rails.error).to have_received(:report).with(an_instance_of(IOError), hash_including(handled: true))
+    end
+  end
+
+  describe "#purge!" do
+    let(:company) { create_in(create(:organization), :company) }
+    let(:assets) { described_class.new(company) }
+    let(:blob) do
+      upload = branding_upload(png_bytes(width: 300, height: 300), filename: "logo.png", type: "image/png")
+      assets.stage({ logo: upload }, content_types: { logo: "image/png" }).fetch(:logo)
+    end
+
+    it "borra también la variante que un guardado concurrente creó mientras se purgaba" do
+      reads = 0
+      rendered = nil
+      allow(blob).to receive(:variant_records) do
+        reads += 1
+        next ActiveStorage::VariantRecord.where(blob_id: blob.id) if reads > 1
+
+        # The first read finds nothing; a concurrent save renders a variant right after it.
+        ActiveStorage::VariantRecord.none.tap do
+          late = ActiveStorage::VariantRecord.create!(blob:, variation_digest: "late")
+          late.image.attach(io: StringIO.new("rendered"), filename: "late.webp", content_type: "image/webp")
+          rendered = late.image.blob
+        end
+      end
+      allow(Rails.error).to receive(:report)
+
+      assets.purge!([ blob ])
+
+      expect([ ActiveStorage::Blob.exists?(blob.id), ActiveStorage::Blob.exists?(rendered.id), ActiveStorage::Blob.service.exist?(rendered.key) ]).to eq([ false, false, false ])
+      expect(Rails.error).not_to have_received(:report)
+    end
+
+    it "si el blob sigue existiendo tras purgarlo, lo reporta en vez de dejar la fuga en silencio" do
+      allow(blob).to receive(:purge)
+      allow(Rails.error).to receive(:report)
+
+      assets.purge!([ blob ])
+
+      expect(Rails.error).to have_received(:report).with(an_instance_of(StandardError), hash_including(handled: true, context: { blob_id: blob.id }))
+    end
+  end
 end
