@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   PROFESSIONAL_PERMISSIONS,
@@ -40,8 +40,11 @@ async function fillNewAppointment(user: User) {
   return panel;
 }
 
-async function openDetail(user: User, name: RegExp = /Ana Ruiz/) {
-  await user.click(await screen.findByRole("button", { name }));
+// A plain click: the calendar tracks pointer gestures with layout that jsdom does not have. It reports the click from
+// outside React, so the test yields to the scheduler before looking for the panel.
+async function openDetail(name: RegExp = /Ana Ruiz/) {
+  fireEvent.click(await screen.findByRole("button", { name }));
+  await new Promise((resolve) => setTimeout(resolve, 50));
   return screen.findByRole("complementary", { name: "Ana Ruiz" });
 }
 
@@ -76,14 +79,21 @@ describe("Crear una cita", () => {
 
   it("si otra persona ganó el hueco avisa, refresca y conserva el formulario", async () => {
     asReception();
-    const backend = agendaBackend({ availability: [slot], customers: [ana], writeFailure: CONFLICT });
+    const backend = agendaBackend({
+      availability: [slot],
+      customers: [ana],
+      writeFailure: CONFLICT,
+    });
     const { user } = await renderApp({ route });
 
     const panel = await fillNewAppointment(user);
     const before = backend.appointmentQueries.length;
     await user.click(within(panel).getByRole("button", { name: "Confirmar cita" }));
 
-    expect(await screen.findByText(/El horario ya no está disponible/)).toBeTruthy();
+    // Toasts outlive a test, so an earlier one may still be on screen.
+    expect((await screen.findAllByText(/El horario ya no está disponible/)).length).toBeGreaterThan(
+      0,
+    );
     await waitFor(() => expect(backend.appointmentQueries.length).toBeGreaterThan(before));
     expect(screen.getByRole("complementary", { name: "Nueva cita" })).toBeTruthy();
   });
@@ -136,9 +146,7 @@ describe("Crear una cita", () => {
     const panel = await screen.findByRole("complementary", { name: "Nueva cita" });
     await user.type(await within(panel).findByLabelText("Buscar cliente"), "8888-7777");
 
-    await waitFor(() =>
-      expect(backend.customerQueries.at(-1)?.get("phone")).toBe("8888-7777"),
-    );
+    await waitFor(() => expect(backend.customerQueries.at(-1)?.get("phone")).toBe("8888-7777"));
   });
 });
 
@@ -151,11 +159,13 @@ describe("Detalle y estados", () => {
     });
     const { user } = await renderApp({ route });
 
-    const panel = await openDetail(user);
+    const panel = await openDetail();
     const before = backend.appointmentQueries.length;
     await user.click(await within(panel).findByRole("button", { name: "Marcar llegada" }));
 
-    await waitFor(() => expect(backend.writes[0]).toMatchObject({ action: "check_in", id: "cita-1" }));
+    await waitFor(() =>
+      expect(backend.writes[0]).toMatchObject({ action: "check_in", id: "cita-1" }),
+    );
     await waitFor(() => expect(backend.appointmentQueries.length).toBeGreaterThan(before));
   });
 
@@ -167,7 +177,7 @@ describe("Detalle y estados", () => {
     });
     const { user } = await renderApp({ route });
 
-    const panel = await openDetail(user);
+    const panel = await openDetail();
     await user.click(await within(panel).findByRole("button", { name: "Cancelar cita" }));
     const confirm = within(panel).getByRole("button", { name: "Confirmar cancelación" });
     expect(confirm.hasAttribute("disabled")).toBe(true);
@@ -194,9 +204,9 @@ describe("Detalle y estados", () => {
       professionalsForbidden: true,
       profiles: { p1: "Rosa Martínez" },
     });
-    const { user } = await renderApp({ route });
+    await renderApp({ route });
 
-    const panel = await openDetail(user);
+    const panel = await openDetail();
 
     expect(await within(panel).findByRole("button", { name: "Marcar llegada" })).toBeTruthy();
     expect(within(panel).queryByRole("button", { name: "Cancelar cita" })).toBeNull();
@@ -212,7 +222,7 @@ describe("Detalle y estados", () => {
     });
     const { user } = await renderApp({ route });
 
-    const panel = await openDetail(user);
+    const panel = await openDetail();
     await user.click(await within(panel).findByRole("button", { name: "Reprogramar" }));
     await user.click(await within(panel).findByRole("button", { name: /10:00/ }));
     await user.click(within(panel).getByRole("button", { name: "Mover cita" }));
@@ -237,27 +247,34 @@ describe("Detalle y estados", () => {
     });
     const { user } = await renderApp({ route });
 
-    const panel = await openDetail(user);
+    const panel = await openDetail();
     await user.click(await within(panel).findByRole("button", { name: "Reprogramar" }));
     await user.click(await within(panel).findByRole("button", { name: /10:00/ }));
     const before = backend.appointmentQueries.length;
     await user.click(within(panel).getByRole("button", { name: "Mover cita" }));
 
-    expect(await screen.findByText(/El horario ya no está disponible/)).toBeTruthy();
+    // Toasts outlive a test, so an earlier one may still be on screen.
+    expect((await screen.findAllByText(/El horario ya no está disponible/)).length).toBeGreaterThan(
+      0,
+    );
     await waitFor(() => expect(backend.appointmentQueries.length).toBeGreaterThan(before));
   });
 
   it("muestra de dónde viene una cita reprogramada", async () => {
     asReception();
     const moved = agendaAppointment({ rescheduled_from_id: "origen" });
-    const origin = detail({ id: "origen", status: "rescheduled", starts_at: "2026-11-17T15:00:00.000Z" });
+    const origin = detail({
+      id: "origen",
+      status: "rescheduled",
+      starts_at: "2026-11-17T15:00:00.000Z",
+    });
     agendaBackend({
       appointments: [moved],
       details: { "cita-1": { ...moved, notes: null }, origen: origin },
     });
-    const { user } = await renderApp({ route });
+    await renderApp({ route });
 
-    const panel = await openDetail(user);
+    const panel = await openDetail();
 
     expect(await within(panel).findByText(/Reprogramada desde/)).toBeTruthy();
     expect(within(panel).getByText(/17 de noviembre/)).toBeTruthy();
@@ -267,9 +284,9 @@ describe("Detalle y estados", () => {
     asReception();
     const moved = agendaAppointment({ rescheduled_from_id: "ajena" });
     agendaBackend({ appointments: [moved], details: { "cita-1": { ...moved, notes: null } } });
-    const { user } = await renderApp({ route });
+    await renderApp({ route });
 
-    const panel = await openDetail(user);
+    const panel = await openDetail();
 
     expect(await within(panel).findByRole("button", { name: "Marcar llegada" })).toBeTruthy();
     expect(within(panel).queryByText(/Reprogramada desde/)).toBeNull();

@@ -23,6 +23,8 @@ export const agendaKeys = {
     to: string,
     professional?: string,
   ) => ["agenda", "appointments", org, company, branch, from, to, professional ?? "all"] as const,
+  availability: (org: string, company: string) => ["agenda", "availability", org, company] as const,
+  details: (org: string, company: string) => ["agenda", "details", org, company] as const,
   catalog: (org: string, company: string, name: string, ...rest: string[]) =>
     ["agenda", "catalog", org, company, name, ...rest] as const,
 };

@@ -25,5 +25,9 @@ export const errors = {
     rate_limited: "Demasiados intentos seguidos. Espere un momento e intente de nuevo.",
     "access.organization_suspended": "Esta organización está suspendida. Contacte a soporte.",
     "slot.unavailable": "El horario ya no está disponible. Elija otro.",
+    "appointments.slot_unavailable": "El horario ya no está disponible. Elija otro.",
+    "appointments.person_unavailable":
+      "Esa persona ya tiene una cita a esa hora en otra empresa. Elija otro horario.",
+    "appointments.invalid_transition": "La cita cambió de estado. Revise la agenda actualizada.",
   },
 } as const;

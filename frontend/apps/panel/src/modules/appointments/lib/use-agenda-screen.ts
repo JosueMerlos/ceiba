@@ -1,4 +1,4 @@
-import { formatTime, useTranslation } from "@ceiba/i18n";
+import { useTranslation } from "@ceiba/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { useMe } from "../../../platform/me/me-provider";
 import { useCan } from "../../../platform/permissions/can";
@@ -30,6 +30,7 @@ import { STATUS_TONE } from "./agenda-status";
 import {
   addDays,
   mondayOf,
+  shortClock,
   toWallClock,
   todayInZone,
   weekdayOf,
@@ -178,8 +179,8 @@ export function useAgendaScreen({ branch, mode, date, weekProfessionalId }: Agen
     (): AgendaViewEvent[] =>
       visible.map((appointment) => {
         const range = t("agenda.timeRange", {
-          start: formatTime(appointment.starts_at, timeZone),
-          end: formatTime(appointment.ends_at, timeZone),
+          start: shortClock(appointment.starts_at, timeZone),
+          end: shortClock(appointment.ends_at, timeZone),
         });
         return {
           id: appointment.id,
@@ -269,6 +270,8 @@ export function useAgendaScreen({ branch, mode, date, weekProfessionalId }: Agen
   return {
     appointments,
     all: appointments.data?.data ?? [],
+    todays: todays.data?.data ?? [],
+    resources: activeResources,
     visible,
     assigned,
     columns,

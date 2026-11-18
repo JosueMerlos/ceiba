@@ -19,7 +19,9 @@ describe("acciones de una cita", () => {
   });
 
   it("no asistió solo aparece cuando la cita ya empezó", () => {
-    expect(availableActions({ status: "confirmed", starts_at }, staff, STARTED)).toContain("no_show");
+    expect(availableActions({ status: "confirmed", starts_at }, staff, STARTED)).toContain(
+      "no_show",
+    );
     expect(availableActions({ status: "confirmed", starts_at }, staff, BEFORE)).not.toContain(
       "no_show",
     );

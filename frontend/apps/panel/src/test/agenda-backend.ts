@@ -61,11 +61,21 @@ const named = (id: string, name: string) => ({ id, name });
 
 interface AgendaBackendOptions {
   appointments?: AgendaAppointment[];
-  professionals?: { id: string; display_name: string; branch_ids: string[] }[];
+  professionals?: {
+    id: string;
+    display_name: string;
+    branch_ids: string[];
+    service_ids: string[];
+  }[];
   services?: { id: string; name: string }[];
   archivedServices?: { id: string; name: string }[];
   resources?: { id: string; name: string; active: boolean; archived_at: string | null }[];
-  availability?: { professional_id: string; resource_id: string | null; starts_at: string; ends_at: string }[];
+  availability?: {
+    professional_id: string;
+    resource_id: string | null;
+    starts_at: string;
+    ends_at: string;
+  }[];
   customers?: { id: string; full_name: string; phone_e164: string }[];
   /** Forces the answer of the next write: booking, moving or changing a status. */
   writeFailure?: { status: number; code: string };
@@ -80,8 +90,8 @@ interface AgendaBackendOptions {
 export function agendaBackend({
   appointments = [],
   professionals = [
-    { id: "p1", display_name: "Rosa Martínez", branch_ids: [ids.branchA] },
-    { id: "p2", display_name: "Luis Pérez", branch_ids: [ids.branchA] },
+    { id: "p1", display_name: "Rosa Martínez", branch_ids: [ids.branchA], service_ids: ["s1"] },
+    { id: "p2", display_name: "Luis Pérez", branch_ids: [ids.branchA], service_ids: ["s1"] },
   ],
   services = [named("s1", "Corte de dama")],
   archivedServices = [],

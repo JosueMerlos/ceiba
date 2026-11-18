@@ -1,10 +1,14 @@
 /* The calendar's look, in the design system's tokens. The library's classes are only touched here. */
 .agenda-view {
+  min-width: 42.5rem;
+  font-size: 0.875rem;
+}
+
+/* The library declares its variables on this element, so they cannot be inherited from the wrapper. */
+.agenda-view .ec {
   --ec-border-color: var(--border);
   --ec-today-bg-color: transparent;
   --ec-bg-color: var(--background);
-  min-width: 42.5rem;
-  font-size: 0.875rem;
 }
 
 .agenda-view .ec-event {

@@ -7,7 +7,7 @@ import {
   type Calendar,
 } from "@event-calendar/core";
 import "@event-calendar/core/index.css";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { initials } from "../../../../../platform/shell/initials";
 import type { MinuteRange } from "../../../lib/agenda-model";
 import { clockOfMinutes, localDateToInstant } from "../../../lib/agenda-time";
@@ -16,7 +16,12 @@ import type { AgendaViewEvent, AgendaViewProps, AgendaViewResource } from "../ty
 
 const NOW_MINUTE_MS = 60_000;
 const SLOT_HEIGHT_PX = 32;
-const COMPACT_BELOW_MINUTES = 45;
+const TWO_LINES_FROM_MINUTES = 45;
+const THREE_LINES_FROM_MINUTES = 60;
+
+// Unmounting is asynchronous and removes the library's shared event listeners: a calendar mounted before the previous one
+// finished leaving would stop receiving clicks, so mounts wait for pending unmounts.
+let teardown: Promise<unknown> = Promise.resolve();
 
 const VIEW = { day: "resourceTimeGridDay", week: "timeGridWeek" } as const;
 
@@ -40,15 +45,17 @@ function appointmentCard(event: AgendaViewEvent) {
     element("span", "agenda-card__name", event.title),
   );
   card.append(heading);
-  if (minutesBetween(event.start, event.end) >= COMPACT_BELOW_MINUTES) {
-    card.append(
-      element("span", "agenda-card__line", event.subtitle),
-      element("span", "agenda-card__meta", event.meta),
-    );
-  } else {
-    // Short appointments only fit the name; screen readers still get the rest.
-    card.append(element("span", "sr-only", `${event.subtitle}, ${event.meta}`));
+  // What fits depends on the height of the appointment; screen readers always get all of it.
+  const minutes = minutesBetween(event.start, event.end);
+  const line = element("span", "agenda-card__line", event.subtitle);
+  const meta = element("span", "agenda-card__meta", event.meta);
+  if (minutes < TWO_LINES_FROM_MINUTES) {
+    line.className = "sr-only";
+    meta.className = "sr-only";
+  } else if (minutes < THREE_LINES_FROM_MINUTES) {
+    meta.className = "sr-only";
   }
+  card.append(line, meta);
   return card;
 }
 
@@ -69,7 +76,7 @@ function columnHeader(resource: AgendaViewResource) {
 export default function EventCalendarAdapter(props: AgendaViewProps) {
   const { mode, date, timeZone, resources, events, blocks, range, stepMinutes, now } = props;
   const host = useRef<HTMLDivElement>(null);
-  const calendar = useRef<Calendar | null>(null);
+  const [calendar, setCalendar] = useState<Calendar | null>(null);
   const drawnRange = useRef<MinuteRange>({ startMinute: 0, endMinute: 24 * 60 });
   // The library keeps the callbacks of the first render; they read the current props through this ref.
   const latest = useRef(props);
@@ -122,59 +129,69 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
       const startsAt = localDateToInstant(start, latest.current.timeZone);
       return startsAt ? { startsAt, resourceId: resource ? String(resource.id) : null } : null;
     };
-    const instance = createCalendar(host.current, [ResourceTimeGrid, TimeGrid, Interaction], {
-      view: VIEW[latest.current.mode],
-      date: latest.current.date,
-      // Floating times in UTC: nothing the calendar computes can depend on the browser's zone or its DST jumps.
-      timeZone: "UTC",
-      locale: "es-NI",
-      firstDay: 1,
-      headerToolbar: { start: "", center: "", end: "" },
-      allDaySlot: false,
-      height: "auto",
-      slotDuration: "00:30",
-      slotHeight: SLOT_HEIGHT_PX,
-      slotEventOverlap: false,
-      eventDurationEditable: false,
-      resourceLabelContent: ({ resource }: { resource: { id: unknown } }) => {
-        const column = latest.current.resources.find((item) => item.id === String(resource.id));
-        return { domNodes: column ? [columnHeader(column)] : [] };
-      },
-      eventContent: ({ event }: { event: Calendar.Event }) => {
-        const card = event.extendedProps?.card as AgendaViewEvent | undefined;
-        return { domNodes: card ? [appointmentCard(card)] : [] };
-      },
-      eventClick: ({ event }: { event: Calendar.Event }) => {
-        if (event.extendedProps?.card) latest.current.onOpenEvent?.(String(event.id));
-      },
-      dateClick: ({ date: clicked, resource }: { date: Date; resource?: { id: unknown } }) => {
-        const slot = toSlot(clicked, resource);
-        if (slot) latest.current.onSelectSlot?.(slot);
-      },
-      eventDrop: (info: {
-        event: Calendar.Event;
-        newResource?: { id: unknown } | null;
-        oldEvent: Calendar.Event;
-        revert(): void;
-      }) => {
-        const resourceId = info.newResource ?? { id: info.oldEvent.resourceIds?.[0] };
-        const slot = toSlot(info.event.start as Date, resourceId);
-        const move = latest.current.onMoveEvent;
-        if (!slot || !move) return info.revert();
-        void move(String(info.event.id), slot).then((moved) => {
-          if (!moved) info.revert();
-        });
-      },
+    const target = host.current;
+    const create = () =>
+      createCalendar(target, [ResourceTimeGrid, TimeGrid, Interaction], {
+        view: VIEW[latest.current.mode],
+        date: latest.current.date,
+        // Floating times in UTC: nothing the calendar computes can depend on the browser's zone or its DST jumps.
+        timeZone: "UTC",
+        locale: "es-NI",
+        firstDay: 1,
+        headerToolbar: { start: "", center: "", end: "" },
+        allDaySlot: false,
+        height: "auto",
+        slotDuration: "00:30",
+        slotHeight: SLOT_HEIGHT_PX,
+        slotEventOverlap: false,
+        eventDurationEditable: false,
+        resourceLabelContent: ({ resource }: { resource: { id: unknown } }) => {
+          const column = latest.current.resources.find((item) => item.id === String(resource.id));
+          return { domNodes: column ? [columnHeader(column)] : [] };
+        },
+        eventContent: ({ event }: { event: Calendar.Event }) => {
+          const card = event.extendedProps?.card as AgendaViewEvent | undefined;
+          return { domNodes: card ? [appointmentCard(card)] : [] };
+        },
+        eventClick: ({ event }: { event: Calendar.Event }) => {
+          if (event.extendedProps?.card) latest.current.onOpenEvent?.(String(event.id));
+        },
+        dateClick: ({ date: clicked, resource }: { date: Date; resource?: { id: unknown } }) => {
+          const slot = toSlot(clicked, resource);
+          if (slot) latest.current.onSelectSlot?.(slot);
+        },
+        eventDrop: (info: {
+          event: Calendar.Event;
+          newResource?: { id: unknown } | null;
+          oldEvent: Calendar.Event;
+          revert(): void;
+        }) => {
+          const resourceId = info.newResource ?? { id: info.oldEvent.resourceIds?.[0] };
+          const slot = toSlot(info.event.start as Date, resourceId);
+          const move = latest.current.onMoveEvent;
+          if (!slot || !move) return info.revert();
+          void move(String(info.event.id), slot).then((moved) => {
+            if (!moved) info.revert();
+          });
+        },
+      });
+    let instance: Calendar | null = null;
+    let unmounted = false;
+    void teardown.then(() => {
+      if (unmounted) return;
+      instance = create();
+      setCalendar(instance);
     });
-    calendar.current = instance;
     return () => {
-      calendar.current = null;
-      void destroyCalendar(instance);
+      unmounted = true;
+      setCalendar(null);
+      const finished = instance;
+      if (finished) teardown = teardown.then(() => destroyCalendar(finished));
     };
   }, []);
 
   useEffect(() => {
-    const instance = calendar.current;
+    const instance = calendar;
     if (!instance) return;
     instance.setOption("view", VIEW[mode]);
     instance.setOption("date", date);
@@ -191,7 +208,7 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
     drawnRange.current = range;
     instance.setOption("resources", calendarResources);
     instance.setOption("events", calendarEvents);
-  }, [mode, date, timeZone, stepMinutes, range, calendarResources, calendarEvents]);
+  }, [calendar, mode, date, timeZone, stepMinutes, range, calendarResources, calendarEvents]);
 
   return <div ref={host} data-slot="agenda-view" className="agenda-view" />;
 }
