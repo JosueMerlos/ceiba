@@ -94,6 +94,7 @@ export function meFixture({
 }: MeOptions = {}): { data: Me } {
   const active = modules.includes("appointments");
   const permissions = active ? (explicitPermissions ?? APPOINTMENT_PERMISSIONS[role]) : [];
+  // Models only company-scope grants: the upward read keys that branch roles get (from_descendants) are left out.
   const companyPermissions = active
     ? (explicitCompanyPermissions ?? (role === "company_manager" ? permissions : []))
     : [];
