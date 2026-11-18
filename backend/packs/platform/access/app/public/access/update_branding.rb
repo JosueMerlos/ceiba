@@ -9,9 +9,13 @@ module Access
   #   are rendered right AFTER the outermost transaction commits, still inside the request: a variant's file is uploaded by an
   #   after-commit callback that reads a temporary file closed by then if the render ran inside a transaction. So no job is
   #   needed, and a rollback leaves neither variants nor purged images.
+  # - The company row is locked first thing in the transaction, so two simultaneous saves of one brand run one after the other:
+  #   each reads the attachments the previous one left, never the same ones.
   # - The change is audited in the same transaction. A request that changes nothing is not audited.
-  # - Replaced and removed blobs are purged after that same commit, synchronously. ActiveStorage's own purge enqueues jobs on
-  #   Sidekiq, outside the outbox, so it is not used.
+  # - Replaced and removed blobs are purged after that same commit, synchronously, whether or not rendering succeeded.
+  #   ActiveStorage's own purge enqueues jobs on Sidekiq, outside the outbox, so it is not used.
+  # - The uploaded originals are deleted only when the transaction they belong to rolls back, even if that is the caller's
+  #   outer one and it rolls back after this returns. Once committed they are never touched again.
   class UpdateBranding
     def self.call(...) = new(...).call
 
@@ -27,6 +31,9 @@ module Access
 
     def call
       ApplicationRecord.transaction(requires_new: true) do
+        # Registered first: whichever transaction finally rolls back (this one or an outer one) takes the originals with it.
+        ApplicationRecord.connection.current_transaction.after_rollback { @assets.discard! }
+        @company.lock!
         @company.assign_attributes(@attributes)
         content_types = validate!
         before = @company.persisted_branding_attributes
@@ -39,9 +46,6 @@ module Access
         after_commit(staged.keys, replaced + removed.values)
       end
       @company
-    rescue StandardError
-      @assets.discard!
-      raise
     end
 
     private
@@ -66,20 +70,26 @@ module Access
 
       Audit.record(
         action: "company.branding_updated", subject: @company, before:, after:,
-        metadata: assets.empty? ? {} : { assets: assets.transform_values { |blob| blob && { filename: blob.filename.to_s, byte_size: blob.byte_size, checksum: blob.checksum } } }
+        metadata: assets.empty? ? {} : { assets: assets.transform_values { |blob| blob && { content_type: blob.content_type, byte_size: blob.byte_size, checksum: blob.checksum } } }
       )
     end
 
     # Runs once the outermost transaction committed (at once if there is none). Variants are only rendered for the images that
-    # were uploaded now; a failure here surfaces to the caller, the change being already committed.
+    # were uploaded now. The change is already committed, so a render failure is reported and does not fail the request, and
+    # the replaced blobs are purged regardless.
     def after_commit(uploaded_kinds, replaced)
       variants = @assets.variants(uploaded_kinds)
       return if variants.empty? && replaced.empty?
 
-      ActiveRecord.after_all_transactions_commit do
-        @assets.render!(variants)
-        @assets.purge!(replaced)
-      end
+      ActiveRecord.after_all_transactions_commit { finish(variants, replaced) }
+    end
+
+    def finish(variants, replaced)
+      @assets.render!(variants)
+    rescue StandardError => error
+      Rails.error.report(error, handled: true, context: { company_id: @company.id })
+    ensure
+      @assets.purge!(replaced)
     end
   end
 end

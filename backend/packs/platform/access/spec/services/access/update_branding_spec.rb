@@ -215,7 +215,7 @@ RSpec.describe Access::UpdateBranding do
     it "si renderizar las variantes falla tras el commit, igual purga lo reemplazado, conserva lo nuevo y no falla la petición" do
       call(files: { logo: logo_upload })
       old_blob = stored.logo.blob
-      allow_any_instance_of(Tenancy::BrandingAssets).to receive(:render!).and_raise(RuntimeError, "vips boom")
+      allow(Tenancy::BrandingAssets).to receive(:new).and_wrap_original { |original, *args| original.call(*args).tap { |assets| allow(assets).to receive(:render!).and_raise(RuntimeError, "vips boom") } }
       allow(Rails.error).to receive(:report)
 
       expect { call(files: { logo: logo_upload(color: [ 1, 2, 3 ]) }) }.not_to raise_error

@@ -42,7 +42,7 @@ module Tenancy
     def stage(files, content_types:)
       files.slice(*content_types.keys).to_h do |kind, upload|
         blob = ActiveStorage::Blob.create_and_upload!(
-          io: upload.tempfile, filename: upload.original_filename, content_type: content_types.fetch(kind), identify: false,
+          io: upload.tempfile, filename: generic_filename(kind, content_types.fetch(kind)), content_type: content_types.fetch(kind), identify: false,
           metadata: { "identified" => true, "analyzed" => true }
         )
         @staged << blob
@@ -88,12 +88,18 @@ module Tenancy
 
     # The originals of a rolled-back change: the rows go with the transaction, the files would stay.
     def discard!
-      @staged.each { |blob| blob.service.delete(blob.key) }
-    rescue StandardError => error
-      Rails.error.report(error, handled: true)
+      @staged.each do |blob|
+        blob.service.delete(blob.key)
+      rescue StandardError => error
+        Rails.error.report(error, handled: true, context: { blob_id: blob.id })
+      end
     end
 
     private
+
+    # The name the user gave the file can identify a person, so it is never stored: not on the blob, in a variant's name or in
+    # the audit trail. What Active Storage needs is only an extension that matches the detected type.
+    def generic_filename(kind, content_type) = "#{kind}.#{Mime::Type.lookup(content_type).symbol}"
 
     def purge(blob)
       blob.variant_records.includes(image_attachment: :blob).each do |variant|
