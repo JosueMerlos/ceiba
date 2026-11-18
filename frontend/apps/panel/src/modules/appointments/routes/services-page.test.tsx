@@ -66,6 +66,15 @@ describe("Servicios", () => {
     expect(await screen.findByText("Peinado antiguo")).toBeTruthy();
   });
 
+  it("el chip Archivados solo aparece con service.manage (gate)", async () => {
+    signedInBackend({ me: meFixture({ role: "receptionist", permissions: READER_PERMISSIONS }) });
+    servicesBackend({ services: [corte] });
+    await openServices();
+
+    expect(await screen.findByRole("button", { name: "Pausados" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Archivados" })).toBeNull();
+  });
+
   it("Pausados lista solo los no activos y Archivar saca el servicio de Activos", async () => {
     asManager();
     const backend = servicesBackend({ services: [corte, tinte] });
