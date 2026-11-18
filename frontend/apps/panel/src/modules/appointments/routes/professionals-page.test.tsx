@@ -50,7 +50,10 @@ async function openProfessionals() {
   return view;
 }
 
-async function openPanel(user: Awaited<ReturnType<typeof openProfessionals>>["user"], name: string) {
+async function openPanel(
+  user: Awaited<ReturnType<typeof openProfessionals>>["user"],
+  name: string,
+) {
   await user.click(await screen.findByRole("button", { name: `Editar ${name}` }));
   return screen.findByRole("complementary", { name });
 }
@@ -62,7 +65,9 @@ describe("Profesionales: lista y gates", () => {
     staffBackend();
     const { user } = await openProfessionals();
 
-    expect(await screen.findByRole("heading", { name: "Agregue su primer profesional" })).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Agregue su primer profesional" }),
+    ).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Agregar profesional" }));
     expect(await screen.findByRole("complementary", { name: "Nuevo profesional" })).toBeTruthy();
   });
@@ -73,7 +78,9 @@ describe("Profesionales: lista y gates", () => {
     staffBackend();
     await openProfessionals();
 
-    expect(await screen.findByRole("heading", { name: "Agregue su primer profesional" })).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Agregue su primer profesional" }),
+    ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Agregar profesional" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Nuevo profesional" })).toBeNull();
   });
@@ -152,7 +159,9 @@ describe("Profesionales: panel contextual", () => {
     await user.type(within(panel).getByLabelText("Nombre para mostrar"), "Marlon Ruiz");
     await user.click(within(panel).getByRole("button", { name: "Crear profesional" }));
 
-    await waitFor(() => expect(backend.createdProfessionals).toEqual([{ display_name: "Marlon Ruiz", active: true }]));
+    await waitFor(() =>
+      expect(backend.createdProfessionals).toEqual([{ display_name: "Marlon Ruiz", active: true }]),
+    );
     expect(await screen.findByRole("button", { name: "Editar Marlon Ruiz" })).toBeTruthy();
   });
 
@@ -173,7 +182,11 @@ describe("Profesionales: panel contextual", () => {
 
   it("sucursales: asignar un profesional que ya tiene sucursales va directo, sin diálogo", async () => {
     signedInBackend({
-      me: meFixture({ role: "company_manager", permissions: STAFF_MANAGER_PERMISSIONS, branch: null }),
+      me: meFixture({
+        role: "company_manager",
+        permissions: STAFF_MANAGER_PERMISSIONS,
+        branch: null,
+      }),
       branches: [centro, norte],
     });
     servicesBackend();
@@ -184,7 +197,9 @@ describe("Profesionales: panel contextual", () => {
     const section = await within(panel).findByRole("region", { name: "Sucursales" });
     await user.click(within(section).getByRole("checkbox", { name: "Sucursal Norte" }));
 
-    await waitFor(() => expect(backend.assignments).toEqual([{ branchId: ids.branchA2, professionalId: "p1" }]));
+    await waitFor(() =>
+      expect(backend.assignments).toEqual([{ branchId: ids.branchA2, professionalId: "p1" }]),
+    );
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
@@ -198,18 +213,25 @@ describe("Profesionales: panel contextual", () => {
     const section = await within(panel).findByRole("region", { name: "Sucursales" });
     await user.click(within(section).getByRole("checkbox", { name: "Sucursal Centro" }));
 
-    await waitFor(() => expect(backend.unassignments).toEqual([{ branchId: ids.branchA, professionalId: "p1" }]));
+    await waitFor(() =>
+      expect(backend.unassignments).toEqual([{ branchId: ids.branchA, professionalId: "p1" }]),
+    );
   });
 
   it("sin professional.assign las sucursales quedan de solo lectura (gate)", async () => {
-    asCompanyManager(STAFF_MANAGER_PERMISSIONS.filter((item) => item !== "appointments.professional.assign"));
+    asCompanyManager(
+      STAFF_MANAGER_PERMISSIONS.filter((item) => item !== "appointments.professional.assign"),
+    );
     servicesBackend();
     staffBackend({ professionals: [efrain] });
     const { user } = await openProfessionals();
 
     const panel = await openPanel(user, "Don Efraín");
     const section = await within(panel).findByRole("region", { name: "Sucursales" });
-    expect(within(section).getByRole("checkbox", { name: "Sucursal Centro" })).toHaveProperty("disabled", true);
+    expect(within(section).getByRole("checkbox", { name: "Sucursal Centro" })).toHaveProperty(
+      "disabled",
+      true,
+    );
   });
 });
 
@@ -266,11 +288,15 @@ describe("Profesionales: horario por sucursal", () => {
     await within(section).findByRole("group", { name: "Lunes" });
     await user.click(within(section).getByRole("button", { name: "Guardar horario" }));
 
-    expect(await within(section).findByText(/Se cruza con el horario en otra sucursal/)).toBeTruthy();
+    expect(
+      await within(section).findByText(/Se cruza con el horario en otra sucursal/),
+    ).toBeTruthy();
   });
 
   it("sin schedule.manage el horario es de solo lectura (gate)", async () => {
-    asCompanyManager(STAFF_MANAGER_PERMISSIONS.filter((item) => item !== "appointments.schedule.manage"));
+    asCompanyManager(
+      STAFF_MANAGER_PERMISSIONS.filter((item) => item !== "appointments.schedule.manage"),
+    );
     servicesBackend();
     staffBackend({
       professionals: [efrain],
@@ -286,7 +312,13 @@ describe("Profesionales: horario por sucursal", () => {
 });
 
 describe("Profesionales: ausencias de la sucursal", () => {
-  const vacation = timeOff("t1", { professionalId: "p1" }, "2026-11-20T15:00:00.000Z", "2026-11-21T15:00:00.000Z", "Vacaciones");
+  const vacation = timeOff(
+    "t1",
+    { professionalId: "p1" },
+    "2026-11-20T15:00:00.000Z",
+    "2026-11-21T15:00:00.000Z",
+    "Vacaciones",
+  );
 
   it("lista las ausencias, crea una con la hora local convertida a UTC y borra otra", async () => {
     asCompanyManager();
@@ -298,8 +330,12 @@ describe("Profesionales: ausencias de la sucursal", () => {
     const section = await within(panel).findByRole("region", { name: "Ausencias" });
     expect(await within(section).findByText("Vacaciones")).toBeTruthy();
 
-    fireEvent.change(within(section).getByLabelText("Desde"), { target: { value: "2026-12-01T09:00" } });
-    fireEvent.change(within(section).getByLabelText("Hasta"), { target: { value: "2026-12-01T12:00" } });
+    fireEvent.change(within(section).getByLabelText("Desde"), {
+      target: { value: "2026-12-01T09:00" },
+    });
+    fireEvent.change(within(section).getByLabelText("Hasta"), {
+      target: { value: "2026-12-01T12:00" },
+    });
     await user.type(within(section).getByLabelText("Motivo (opcional)"), "Capacitación");
     await user.click(within(section).getByRole("button", { name: "Agregar ausencia" }));
 
@@ -307,7 +343,11 @@ describe("Profesionales: ausencias de la sucursal", () => {
     expect(backend.createdTimeOffs[0]).toEqual({
       owner: "p1",
       branchId: ids.branchA,
-      body: { starts_at: "2026-12-01T15:00:00.000Z", ends_at: "2026-12-01T18:00:00.000Z", reason: "Capacitación" },
+      body: {
+        starts_at: "2026-12-01T15:00:00.000Z",
+        ends_at: "2026-12-01T18:00:00.000Z",
+        reason: "Capacitación",
+      },
     });
     expect(await within(section).findByText("Capacitación")).toBeTruthy();
 
@@ -331,8 +371,20 @@ describe("Profesionales: ausencias de la sucursal", () => {
 
 describe("Profesionales: sin sucursales (ausencias pendientes y aviso al asignar)", () => {
   const pending = [
-    timeOff("c1", { professionalId: "p2" }, "2026-11-20T15:00:00.000Z", "2026-11-21T15:00:00.000Z", "Cita médica"),
-    timeOff("c2", { professionalId: "p2" }, "2026-12-05T15:00:00.000Z", "2026-12-05T20:00:00.000Z", null),
+    timeOff(
+      "c1",
+      { professionalId: "p2" },
+      "2026-11-20T15:00:00.000Z",
+      "2026-11-21T15:00:00.000Z",
+      "Cita médica",
+    ),
+    timeOff(
+      "c2",
+      { professionalId: "p2" },
+      "2026-12-05T15:00:00.000Z",
+      "2026-12-05T20:00:00.000Z",
+      null,
+    ),
   ];
 
   it("lista 'Ausencias pendientes' por la ruta de empresa y las borra", async () => {
@@ -346,7 +398,9 @@ describe("Profesionales: sin sucursales (ausencias pendientes y aviso al asignar
     expect(await within(section).findByText("Cita médica")).toBeTruthy();
 
     await user.click(within(section).getAllByRole("button", { name: /^Quitar ausencia/ })[0]!);
-    await waitFor(() => expect(backend.deletedCompanyTimeOffs).toEqual([{ owner: "p2", id: "c1" }]));
+    await waitFor(() =>
+      expect(backend.deletedCompanyTimeOffs).toEqual([{ owner: "p2", id: "c1" }]),
+    );
     await waitFor(() => expect(within(section).queryByText("Cita médica")).toBeNull());
   });
 
@@ -390,7 +444,9 @@ describe("Profesionales: sin sucursales (ausencias pendientes y aviso al asignar
     expect(backend.assignments).toHaveLength(0);
 
     await user.click(within(dialog).getByRole("button", { name: "Asignar" }));
-    await waitFor(() => expect(backend.assignments).toEqual([{ branchId: ids.branchA, professionalId: "p2" }]));
+    await waitFor(() =>
+      expect(backend.assignments).toEqual([{ branchId: ids.branchA, professionalId: "p2" }]),
+    );
   });
 
   it("cancelar el diálogo no asigna", async () => {
@@ -417,7 +473,10 @@ describe("Profesionales: sin sucursales (ausencias pendientes y aviso al asignar
 
     const panel = await openPanel(user, "Sandra Gómez");
     await waitFor(() => expect(backend.companyTimeOffReads).toBeGreaterThan(0));
-    await user.click(await within(panel).findByRole("checkbox", { name: "Sucursal Centro" }));
+    const box = await within(panel).findByRole("checkbox", { name: "Sucursal Centro" });
+    // Assigning waits until the absences are known: only then can it tell "none" from "not loaded yet".
+    await waitFor(() => expect(box).toHaveProperty("disabled", false));
+    await user.click(box);
 
     await waitFor(() => expect(backend.assignments).toHaveLength(1));
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -426,14 +485,21 @@ describe("Profesionales: sin sucursales (ausencias pendientes y aviso al asignar
   it("sin poder leerlas (403) el aviso es genérico y solo para profesionales sin sucursales", async () => {
     asCompanyManager();
     servicesBackend();
-    const backend = staffBackend({ professionals: [sandra, efrain], companyTimeOffsForbidden: true });
+    const backend = staffBackend({
+      professionals: [sandra, efrain],
+      companyTimeOffsForbidden: true,
+    });
     const { user } = await openProfessionals();
 
     const panel = await openPanel(user, "Sandra Gómez");
     await waitFor(() => expect(backend.companyTimeOffReads).toBeGreaterThan(0));
-    await user.click(await within(panel).findByRole("checkbox", { name: "Sucursal Centro" }));
+    const box = await within(panel).findByRole("checkbox", { name: "Sucursal Centro" });
+    await waitFor(() => expect(box).toHaveProperty("disabled", false));
+    await user.click(box);
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText(/Si este profesional tiene ausencias registradas/)).toBeTruthy();
+    expect(
+      within(dialog).getByText(/Si este profesional tiene ausencias registradas/),
+    ).toBeTruthy();
     expect(within(dialog).queryByText(/\d+ ausencias/)).toBeNull();
     await user.click(within(dialog).getByRole("button", { name: "Asignar" }));
     await waitFor(() => expect(backend.assignments).toHaveLength(1));
@@ -448,7 +514,9 @@ describe("Profesionales: sin sucursales (ausencias pendientes y aviso al asignar
     const panel = await openPanel(user, "Sandra Gómez");
     await user.click(await within(panel).findByRole("checkbox", { name: "Sucursal Centro" }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText(/Si este profesional tiene ausencias registradas/)).toBeTruthy();
+    expect(
+      within(dialog).getByText(/Si este profesional tiene ausencias registradas/),
+    ).toBeTruthy();
     expect(backend.companyTimeOffReads).toBe(0);
   });
 });

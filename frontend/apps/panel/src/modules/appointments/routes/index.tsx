@@ -3,3 +3,5 @@ export { AgendaPage, SummaryPage } from "./placeholders";
 export { BranchSchedulePage } from "./branch-schedule-page";
 export { BranchesPage } from "./branches-page";
 export { ServicesPage } from "./services-page";
+export { ProfessionalsPage } from "./professionals-page";
+export { ResourcesPage } from "./resources-page";

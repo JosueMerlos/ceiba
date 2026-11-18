@@ -1,4 +1,11 @@
-import { Building2, CalendarDays, ChartNoAxesColumn, Scissors } from "lucide-react";
+import {
+  Armchair,
+  Building2,
+  CalendarDays,
+  ChartNoAxesColumn,
+  Scissors,
+  UsersRound,
+} from "lucide-react";
 import { lazyPage } from "../lazy-page";
 import type { ModuleManifest } from "../types";
 
@@ -24,6 +31,16 @@ export const appointments: ModuleManifest = {
       path: "services",
       permissions: ["appointments.service.read"],
       element: lazyPage(load, "ServicesPage"),
+    },
+    {
+      path: "professionals",
+      permissions: ["appointments.professional.read"],
+      element: lazyPage(load, "ProfessionalsPage"),
+    },
+    {
+      path: "resources",
+      permissions: ["appointments.resource.read"],
+      element: lazyPage(load, "ResourcesPage"),
     },
     {
       path: "branches",
@@ -57,6 +74,20 @@ export const appointments: ModuleManifest = {
       labelKey: "nav.services",
       permissions: ["appointments.service.read"],
       icon: Scissors,
+    },
+    {
+      key: "professionals",
+      path: "/professionals",
+      labelKey: "nav.professionals",
+      permissions: ["appointments.professional.read"],
+      icon: UsersRound,
+    },
+    {
+      key: "resources",
+      path: "/resources",
+      labelKey: "nav.resources",
+      permissions: ["appointments.resource.read"],
+      icon: Armchair,
     },
     {
       key: "branches",

@@ -13,7 +13,9 @@ describe("ProfessionalServices", () => {
       <ProfessionalServices services={catalog} selectedIds={["s1"]} canManage onSave={onSave} />,
     );
 
-    expect(screen.getByRole("checkbox", { name: "Corte clásico" }).getAttribute("aria-checked")).toBe("true");
+    expect(
+      screen.getByRole("checkbox", { name: "Corte clásico" }).getAttribute("aria-checked"),
+    ).toBe("true");
     await user.click(screen.getByRole("checkbox", { name: "Barba" }));
     await user.click(screen.getByRole("checkbox", { name: "Corte clásico" }));
     await user.click(screen.getByRole("button", { name: "Guardar servicios" }));

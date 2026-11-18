@@ -51,7 +51,11 @@ describe("Recursos", () => {
   it("lista solo los recursos de la sucursal de trabajo con nombre, tipo y estado", async () => {
     asManager();
     staffBackend({
-      resources: [sillon, sala, resource("r3", "Sillón de otra sucursal", { branch_id: ids.branchA2 })],
+      resources: [
+        sillon,
+        sala,
+        resource("r3", "Sillón de otra sucursal", { branch_id: ids.branchA2 }),
+      ],
     });
     await openResources();
 
@@ -123,7 +127,13 @@ describe("Recursos", () => {
 
   it("ausencias del recurso: crea con la hora local convertida a UTC y quita otra", async () => {
     asManager();
-    const maintenance = timeOff("t1", { resourceId: "r1" }, "2026-11-20T15:00:00.000Z", "2026-11-20T18:00:00.000Z", "Mantenimiento");
+    const maintenance = timeOff(
+      "t1",
+      { resourceId: "r1" },
+      "2026-11-20T15:00:00.000Z",
+      "2026-11-20T18:00:00.000Z",
+      "Mantenimiento",
+    );
     const backend = staffBackend({ resources: [sillon], timeOffs: { r1: [maintenance] } });
     const { user } = await openResources();
 
@@ -132,8 +142,12 @@ describe("Recursos", () => {
     const section = await within(panel).findByRole("region", { name: "Ausencias" });
     expect(await within(section).findByText("Mantenimiento")).toBeTruthy();
 
-    fireEvent.change(within(section).getByLabelText("Desde"), { target: { value: "2026-12-02T08:00" } });
-    fireEvent.change(within(section).getByLabelText("Hasta"), { target: { value: "2026-12-02T09:00" } });
+    fireEvent.change(within(section).getByLabelText("Desde"), {
+      target: { value: "2026-12-02T08:00" },
+    });
+    fireEvent.change(within(section).getByLabelText("Hasta"), {
+      target: { value: "2026-12-02T09:00" },
+    });
     await user.click(within(section).getByRole("button", { name: "Agregar ausencia" }));
     await waitFor(() => expect(backend.createdTimeOffs).toHaveLength(1));
     expect(backend.createdTimeOffs[0]!.body).toEqual({
@@ -148,7 +162,11 @@ describe("Recursos", () => {
 
   it("sin sucursal en el contexto y con varias pide elegir una antes de listar (adversarial)", async () => {
     signedInBackend({
-      me: meFixture({ role: "company_manager", permissions: STAFF_MANAGER_PERMISSIONS, branch: null }),
+      me: meFixture({
+        role: "company_manager",
+        permissions: STAFF_MANAGER_PERMISSIONS,
+        branch: null,
+      }),
       branches: [centro, norte],
     });
     staffBackend({ resources: [sillon] });

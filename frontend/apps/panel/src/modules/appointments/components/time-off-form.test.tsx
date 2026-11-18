@@ -73,11 +73,13 @@ describe("TimeOffForm", () => {
   });
 
   it("un 422 de la API se muestra en el formulario y los datos se conservan", async () => {
-    const onSubmit = vi.fn().mockRejectedValue(
-      new ApiError(422, "validation.failed", "Datos inválidos", [
-        { field: "ends_at", code: "invalid", message: "Dura más de 366 días" },
-      ]),
-    );
+    const onSubmit = vi
+      .fn()
+      .mockRejectedValue(
+        new ApiError(422, "validation.failed", "Datos inválidos", [
+          { field: "ends_at", code: "invalid", message: "Dura más de 366 días" },
+        ]),
+      );
     const { user } = await renderWithI18n(
       <TimeOffForm timeZone="America/Managua" onSubmit={onSubmit} />,
     );

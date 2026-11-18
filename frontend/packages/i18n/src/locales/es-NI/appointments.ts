@@ -156,6 +156,126 @@ export const appointments = {
         nameRequired: "Escriba el nombre de la sucursal.",
       },
     },
+    professionals: {
+      title: "Profesionales",
+      description:
+        "Quienes atienden a sus clientes: los servicios que prestan, sus sucursales y su horario.",
+      new: "Nuevo profesional",
+      empty: {
+        title: "Agregue su primer profesional",
+        description:
+          "Un profesional es quien atiende las citas. Agréguelo, indique qué servicios presta y en qué sucursal trabaja.",
+        action: "Agregar profesional",
+        readOnlyDescription:
+          "Todavía no hay profesionales. Quien administra la empresa puede agregarlos.",
+      },
+      columns: {
+        name: "Profesional",
+        branches: "Sucursales",
+        services: "Servicios",
+        status: "Estado",
+        actions: "Acciones",
+      },
+      noBranches: "Sin sucursal",
+      servicesCount_one: "{{count}} servicio",
+      servicesCount_other: "{{count}} servicios",
+      status: { active: "Activo", paused: "Pausado" },
+      archive: "Archivar",
+      archiveLabel: "Archivar {{name}}",
+      archived: "Profesional archivado.",
+      panelNewTitle: "Nuevo profesional",
+      selectLabel: "Editar {{name}}",
+    },
+    professionalForm: {
+      name: "Nombre para mostrar",
+      active: "Atiende citas",
+      activeHint: "Si lo pausa, sigue en el equipo pero no se le pueden reservar citas.",
+      create: "Crear profesional",
+      save: "Guardar cambios",
+      errors: { nameRequired: "Escriba el nombre del profesional." },
+    },
+    professionalServices: {
+      title: "Servicios que presta",
+      empty: "Todavía no hay servicios activos. Cree uno en Servicios para poder asignarlo.",
+      save: "Guardar servicios",
+      saved: "Servicios guardados.",
+    },
+    professionalBranches: {
+      title: "Sucursales",
+      empty: "No hay sucursales disponibles para asignar.",
+      assigned: "Asignado.",
+      assignedDone: "Profesional asignado a la sucursal.",
+      unassignedDone: "Profesional quitado de la sucursal.",
+      confirm: {
+        title: "Asignar a {{branch}}",
+        description_one:
+          "Este profesional tiene {{count}} ausencia registrada sin sucursal. Al asignarlo, quien gestione {{branch}} verá su motivo.",
+        description_other:
+          "Este profesional tiene {{count}} ausencias registradas sin sucursal. Al asignarlo, quien gestione {{branch}} verá sus motivos.",
+        generic:
+          "Si este profesional tiene ausencias registradas sin sucursal, quien gestione {{branch}} verá sus motivos. Con su rol no puede revisarlas desde aquí.",
+        action: "Asignar",
+      },
+    },
+    resources: {
+      title: "Recursos",
+      description: "Sillones, salas y equipos de la sucursal que se reservan junto con la cita.",
+      new: "Nuevo recurso",
+      empty: {
+        title: "Agregue su primer recurso",
+        description:
+          "Los recursos son lo que se ocupa durante una cita: un sillón, una sala, un equipo. Cada uno lleva su horario.",
+        action: "Agregar recurso",
+        readOnlyDescription:
+          "Todavía no hay recursos en esta sucursal. Quien administra la empresa puede agregarlos.",
+      },
+      columns: { name: "Recurso", kind: "Tipo", status: "Estado", actions: "Acciones" },
+      kinds: { chair: "Sillón", room: "Sala", equipment: "Equipo" },
+      status: { active: "Activo", paused: "Pausado" },
+      archive: "Archivar",
+      archiveLabel: "Archivar {{name}}",
+      archived: "Recurso archivado.",
+      panelNewTitle: "Nuevo recurso",
+      selectLabel: "Editar {{name}}",
+    },
+    resourceForm: {
+      name: "Nombre",
+      kind: "Tipo",
+      active: "Disponible",
+      activeHint: "Si lo pausa, no se asigna a nuevas citas.",
+      create: "Crear recurso",
+      save: "Guardar cambios",
+      errors: { nameRequired: "Escriba el nombre del recurso." },
+    },
+    timeOffs: {
+      title: "Ausencias",
+      pendingTitle: "Ausencias pendientes",
+      pendingDescription:
+        "Este profesional no tiene sucursal, pero conserva ausencias registradas. Revíselas o quítelas antes de asignarlo.",
+      empty: "No hay ausencias registradas.",
+      range: "{{start}} a {{end}}",
+      remove: "Quitar",
+      removeLabel: "Quitar ausencia del {{start}}",
+      removed: "Ausencia quitada.",
+      added: "Ausencia agregada.",
+      needBranch:
+        "Asígnelo a {{branch}} para configurar su horario y sus ausencias en esa sucursal.",
+      branchHint: "Todo se guarda en la hora de {{branch}} ({{timeZone}}).",
+    },
+    timeOffForm: {
+      start: "Desde",
+      end: "Hasta",
+      reason: "Motivo (opcional)",
+      reasonHint: 'No registre datos de salud. Basta con un texto corto, como "Vacaciones".',
+      zoneHint: "Hora de la sucursal ({{timeZone}}).",
+      create: "Agregar ausencia",
+      errors: {
+        startRequired: "Escriba cuándo empieza.",
+        endRequired: "Escriba cuándo termina.",
+        endBeforeStart: "El fin debe ser posterior al inicio.",
+        reasonTooLong: "El motivo admite hasta 200 caracteres.",
+      },
+    },
     branchSchedule: {
       title: "Horario de {{branch}}",
       back: "Volver a sucursales",

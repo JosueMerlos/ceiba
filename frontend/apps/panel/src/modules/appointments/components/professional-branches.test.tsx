@@ -20,8 +20,12 @@ describe("ProfessionalBranches", () => {
         onUnassign={vi.fn()}
       />,
     );
-    expect(screen.getByRole("checkbox", { name: "Sucursal Centro" }).getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByRole("checkbox", { name: "Sucursal Norte" }).getAttribute("aria-checked")).toBe("false");
+    expect(
+      screen.getByRole("checkbox", { name: "Sucursal Centro" }).getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("checkbox", { name: "Sucursal Norte" }).getAttribute("aria-checked"),
+    ).toBe("false");
   });
 
   it("marcar una sucursal pide asignarla; desmarcar una asignada pide quitarla", async () => {
