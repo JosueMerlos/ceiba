@@ -64,7 +64,7 @@ describe("página pública con marca", () => {
 
     expect(await screen.findByRole("heading", { name: "Salón Estilo" })).toBeTruthy();
     expect(screen.getByText("Su estilo, su momento")).toBeTruthy();
-    expect(cssVar("--brand-primary")).toBe("#8B2F5C");
+    await waitFor(() => expect(cssVar("--brand-primary")).toBe("#8B2F5C"));
 
     const logo = screen.getByRole("img", { name: "Logo de Salón Estilo" });
     expect(logo.getAttribute("srcset")).toBe(
