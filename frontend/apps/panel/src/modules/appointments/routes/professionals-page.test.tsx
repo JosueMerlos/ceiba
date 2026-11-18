@@ -448,6 +448,26 @@ describe("Profesionales: sin sucursales (ausencias pendientes y aviso al asignar
     expect(backend.companyTimeOffReads).toBe(0);
   });
 
+  it("un gerente de una sola sucursal sin sucursal en el contexto no consulta la ruta de empresa: no tiene time_off.read de empresa", async () => {
+    signedInBackend({
+      me: meFixture({
+        role: "receptionist",
+        permissions: STAFF_MANAGER_PERMISSIONS,
+        companyPermissions: [],
+        branch: null,
+      }),
+      branches: [centro],
+    });
+    servicesBackend();
+    const backend = staffBackend({ professionals: [sandra], companyTimeOffs: { p2: pending } });
+    const { user } = await openProfessionals();
+
+    const panel = await openPanel(user, "Sandra Gómez");
+    await within(panel).findByRole("region", { name: "Sucursales" });
+    expect(within(panel).queryByRole("region", { name: "Ausencias pendientes" })).toBeNull();
+    expect(backend.companyTimeOffReads).toBe(0);
+  });
+
   it("asignar con ausencias legibles pide confirmar diciendo cuántas hay y que el gerente verá los motivos", async () => {
     asCompanyManager();
     servicesBackend();

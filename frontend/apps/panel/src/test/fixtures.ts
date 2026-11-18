@@ -72,6 +72,8 @@ interface MeOptions {
   role?: Role;
   /** Replaces the role's permission list (catalog screens need role mixes the base table does not model). */
   permissions?: string[];
+  /** Keys held at COMPANY scope; by default a company manager holds all of them and anyone else none (branch roles only hold them in their branch). */
+  companyPermissions?: string[];
   modules?: string[];
   organization?: ReturnType<typeof organization>;
   company?: ReturnType<typeof company>;
@@ -83,6 +85,7 @@ interface MeOptions {
 export function meFixture({
   role = "receptionist",
   permissions: explicitPermissions,
+  companyPermissions: explicitCompanyPermissions,
   modules = ["appointments"],
   organization: org = organization(ids.orgA, "Barbería El Güegüense"),
   company: co = company(ids.companyA, "Barbería El Güegüense"),
@@ -91,6 +94,9 @@ export function meFixture({
 }: MeOptions = {}): { data: Me } {
   const active = modules.includes("appointments");
   const permissions = active ? (explicitPermissions ?? APPOINTMENT_PERMISSIONS[role]) : [];
+  const companyPermissions = active
+    ? (explicitCompanyPermissions ?? (role === "company_manager" ? permissions : []))
+    : [];
   const navigation = [
     ...(permissions.includes("appointments.appointment.read") ||
     permissions.includes("appointments.appointment.read_own")
@@ -118,6 +124,7 @@ export function meFixture({
       context: { organization: org, company: co, branch: br },
       modules: modules.map((key) => ({ key, version: "1.0", settings: {} })),
       permissions,
+      company_permissions: companyPermissions,
       navigation,
     },
   };
