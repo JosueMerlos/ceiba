@@ -11,6 +11,8 @@ RSpec.describe "API v1: alta de sucursales" do
   let("X-CSRF-Token") { signed_in.csrf_token }
   let(:body) { { name: "Sucursal Masaya", time_zone: "America/Managua", address: "Frente al parque", phone_e164: "+50588887777" } }
 
+  def audit_events(action) = with_tenant(world.organization) { Audit::Event.where(action:).to_a }
+
   def branches_of(company) = with_tenant(world.organization) { Tenancy::Directory.branches.where(company_id: company.id).order(:created_at).to_a }
 
   single_schema = { type: :object, required: %w[data], additionalProperties: false, properties: { data: { "$ref" => "#/components/schemas/Branch" } } }
@@ -39,6 +41,9 @@ RSpec.describe "API v1: alta de sucursales" do
                                                           "address" => "Frente al parque", "phone_e164" => "+50588887777", "status" => "active")
           expect(branches_of(world.company_a).map(&:name)).to include("Sucursal Masaya")
           expect(branches_of(world.company_a).last.id).to eq(response.parsed_body["data"]["id"])
+          event = audit_events("branch.created").sole
+          expect(event.auditable_id).to eq(response.parsed_body["data"]["id"])
+          expect(event.after).to include("name" => "Sucursal Masaya", "time_zone" => "America/Managua", "company_id" => world.company_a.id)
         end
       end
 
