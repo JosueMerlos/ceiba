@@ -181,6 +181,34 @@ describe("Servicios", () => {
       expect(backend.overridePuts[0]).toEqual({ serviceId: "s1", body: { duration_minutes: 45 } });
     });
 
+    it("service.manage sin claves de override NO edita el override (el gate espeja la política): duración y precio quedan como texto", async () => {
+      signedInBackend({
+        me: meFixture({
+          role: "company_manager",
+          permissions: [
+            "appointments.service.read",
+            "appointments.service.manage",
+            "appointments.schedule.read",
+          ],
+        }),
+      });
+      servicesBackend({
+        services: [corte],
+        overrides: [
+          serviceOverride("o1", "s1", ids.branchA, { duration_minutes: 40, price_minor: 25000 }),
+        ],
+      });
+      const { user } = await openServices();
+
+      await user.click(await screen.findByRole("button", { name: "Editar Corte clásico" }));
+      const panel = await screen.findByRole("complementary", { name: "Corte clásico" });
+      const override = await within(panel).findByRole("region", { name: "En Sucursal Centro" });
+
+      expect(within(override).queryByLabelText(/Duración en esta sucursal/)).toBeNull();
+      expect(within(override).queryByLabelText(/Precio en esta sucursal/)).toBeNull();
+      expect(within(override).queryByRole("button", { name: /Quitar personalización/ })).toBeNull();
+    });
+
     it("si la API responde 403 al guardar el override, el error se muestra", async () => {
       asBranchManager();
       servicesBackend({ services: [corte], overrideForbidden: true });

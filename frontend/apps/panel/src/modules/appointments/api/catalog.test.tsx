@@ -210,6 +210,32 @@ describe("sucursales y horario", () => {
     await waitFor(() => expect(lists).toBe(2));
   });
 
+  it("crear sucursal manda una Idempotency-Key UUID por intento de alta: la misma para el mismo envío, otra para un envío nuevo", async () => {
+    const keys: (string | null)[] = [];
+    server.use(
+      http.post(`${BASE}/branches`, ({ request }) => {
+        keys.push(request.headers.get("Idempotency-Key"));
+        return HttpResponse.json(
+          { data: branch("nueva", ids.companyA, "Granada") },
+          { status: 201 },
+        );
+      }),
+    );
+    const { wrapper } = setup();
+    const { result } = renderHook(() => useCreateBranch(), { wrapper });
+    const submit = { name: "Granada", time_zone: "America/Managua" };
+
+    await act(() => result.current.mutateAsync(submit));
+    await act(() => result.current.mutateAsync(submit));
+    await act(() => result.current.mutateAsync({ ...submit }));
+
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+    expect(keys).toHaveLength(3);
+    expect(keys.every((key) => uuid.test(key ?? ""))).toBe(true);
+    expect(keys[0]).toBe(keys[1]);
+    expect(keys[2]).not.toBe(keys[0]);
+  });
+
   it("el PUT del horario manda las franjas y el 422 llega como ApiError con el campo slots", async () => {
     server.use(
       http.get(`${BASE}/appointments/branches/${ids.branchA}/schedule`, () =>
