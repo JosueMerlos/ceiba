@@ -209,6 +209,7 @@ Access token de 15 min con algoritmo asimétrico (EdDSA o RS256) y `kid` para ro
 ## Dependencias y secretos
 
 - `brakeman`, `bundler-audit` y `pnpm audit` en CI; Dependabot mensual.
+- CI exige motivo y fecha de revisión a cada aviso de la configuración efectiva de `pnpm audit`, y la fecha vencida lo rompe; los hooks de pnpm quedan fuera de este control ([ADR-0040](../adr/0040-excepciones-de-pnpm-audit-con-fecha-de-revision.md)).
 - Secretos en Rails credentials y Kamal secrets; runbook de rotación ([10](10-infrastructure.md)).
 
 ## Checklist bloqueante para el primer piloto
