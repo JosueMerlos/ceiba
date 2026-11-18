@@ -5,6 +5,6 @@ packages:
 minimumReleaseAgeExclude:
   - i18next@27.1.0
 # Ignored advisories need a reason and a review date, enforced by packages/config/audit-ignores.mjs.
-auditConfig:
-  ignoreGhsas:
-    - GHSA-fc5q-39xc-vjpf # revisar: 2026-12-18 | motivo: picomatch sin parche; solo tooling de desarrollo (vite, vitest, typescript-eslint) con globs del repo, fuera del runtime de panel y booking
+audit:
+  ignore:
+    - GHSA-fc5q-39xc-vjpf # revisar: 2026-12-18 | motivo: picomatch sin parche; llega por tooling de desarrollo (vite, vitest, typescript-eslint), fuera del runtime de panel y booking

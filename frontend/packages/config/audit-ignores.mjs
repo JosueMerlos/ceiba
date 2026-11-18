@@ -1,17 +1,14 @@
 // Policy for advisories ignored by `pnpm audit`: pnpm has no expiry, so an ignore would otherwise be permanent.
-// Each entry in pnpm-workspace.yaml must sit on its own line as
+// Every advisory in pnpm's effective config must have its own line in pnpm-workspace.yaml:
 //   - GHSA-xxxx-xxxx-xxxx # revisar: AAAA-MM-DD | motivo: why it does not apply and what unblocks it
-// Reads the block line by line and rejects anything it does not recognize, so pnpm cannot honor an unchecked ignore.
+// Starting from the effective config covers every way of declaring an ignore that pnpm resolves into it (any YAML
+// spelling, environment variables, global config); the file is only read for the annotations YAML parsers discard.
 //
-//   node packages/config/audit-ignores.mjs pnpm-workspace.yaml
+//   pnpm config get audit --json | node packages/config/audit-ignores.mjs pnpm-workspace.yaml
 import { readFileSync } from "node:fs";
 
-const BLOCK_START = /^["']?auditConfig["']?\s*:\s*(?<inline>.*)$/;
-const LIST_KEY = /^\s+ignoreGhsas:\s*(#.*)?$/;
-const ENTRY = /^\s+-\s+(?<id>GHSA(?:-[0-9a-z]{4}){3})(?:\s+#(?<comment>.*))?$/;
+const LIST_ENTRY = /^\s*-\s+["']?(?<id>[^\s"'#]+)["']?\s*(?:#(?<comment>.*))?$/;
 const POLICY = /^\s*revisar:\s*(?<date>\S+)\s*\|\s*motivo:\s*\S/;
-
-const isIgnorable = (line) => line.trim() === "" || line.trim().startsWith("#");
 
 function isCalendarDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -19,7 +16,12 @@ function isCalendarDate(value) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
 }
 
-function entryViolation({ id, comment }, today) {
+function annotationsById(workspaceYaml) {
+  const entries = workspaceYaml.split(/\r\n|\r|\n/).map((line) => line.match(LIST_ENTRY)?.groups);
+  return new Map(entries.filter(Boolean).map(({ id, comment }) => [id, comment]));
+}
+
+function violationFor(id, comment, today) {
   const date = comment?.match(POLICY)?.groups.date;
   if (!date) return `${id}: falta '# revisar: AAAA-MM-DD | motivo: ...' en su propia línea`;
   if (!isCalendarDate(date)) return `${id}: fecha de revisión inválida '${date}'`;
@@ -27,45 +29,46 @@ function entryViolation({ id, comment }, today) {
 }
 
 /**
- * @param {string} workspaceYaml content of pnpm-workspace.yaml
- * @param {string} today AAAA-MM-DD
- * @returns {string[]} one message per violation; empty when the file complies
+ * @param {string} output of `pnpm config get audit --json`
+ * @returns {string[]} advisories pnpm will ignore
+ * @throws when the output is not the expected shape: an unreadable config must not pass as "nothing ignored"
  */
-export function auditIgnoreViolations(workspaceYaml, today) {
-  const lines = workspaceYaml.split(/\r?\n/);
-  const start = lines.findIndex((line) => BLOCK_START.test(line));
-  if (start === -1) return [];
+export function parseIgnoredAdvisories(output) {
+  const config = JSON.parse(output);
+  if (config === null) return [];
 
-  const unrecognized = (line) => `línea no reconocida en auditConfig: '${line}'`;
-  const { inline } = lines[start].match(BLOCK_START).groups;
-  const violations = isIgnorable(inline) ? [] : [unrecognized(lines[start])];
-
-  let inList = false;
-  for (const line of lines.slice(start + 1)) {
-    if (isIgnorable(line)) continue;
-    if (!/^\s/.test(line)) break;
-
-    const entry = inList ? line.match(ENTRY)?.groups : undefined;
-    if (entry) {
-      const violation = entryViolation(entry, today);
-      if (violation) violations.push(violation);
-    } else if (LIST_KEY.test(line)) {
-      inList = true;
-    } else {
-      violations.push(unrecognized(line));
-    }
-  }
-  return violations;
+  const ignore = config.ignore ?? [];
+  const isValid =
+    typeof config === "object" &&
+    !Array.isArray(config) &&
+    Array.isArray(ignore) &&
+    ignore.every((id) => typeof id === "string");
+  if (!isValid) throw new Error(`Configuración de audit inesperada: ${output}`);
+  return ignore;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+/**
+ * @param {string} workspaceYaml content of pnpm-workspace.yaml
+ * @param {string[]} ignoredAdvisories advisories pnpm will ignore
+ * @param {string} today AAAA-MM-DD
+ * @returns {string[]} one message per violation; empty when every ignore complies
+ */
+export function auditIgnoreViolations(workspaceYaml, ignoredAdvisories, today) {
+  const annotations = annotationsById(workspaceYaml);
+  return ignoredAdvisories
+    .map((id) => violationFor(id, annotations.get(id), today))
+    .filter((violation) => violation !== null);
+}
+
+if (import.meta.main) {
   const [file] = process.argv.slice(2);
   if (!file) {
-    console.error("uso: audit-ignores.mjs <pnpm-workspace.yaml>");
+    console.error("uso: pnpm config get audit --json | audit-ignores.mjs <pnpm-workspace.yaml>");
     process.exit(2);
   }
   const today = new Date().toISOString().slice(0, 10);
-  const violations = auditIgnoreViolations(readFileSync(file, "utf8"), today);
+  const ignored = parseIgnoredAdvisories(readFileSync(0, "utf8"));
+  const violations = auditIgnoreViolations(readFileSync(file, "utf8"), ignored, today);
   for (const violation of violations) console.error(violation);
   process.exit(violations.length === 0 ? 0 : 1);
 }

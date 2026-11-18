@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # frontend-security CI job (and bin/ci): dependencies with high or critical vulnerabilities.
-# Ignored advisories live in pnpm-workspace.yaml and must carry a reason and an unexpired review date.
+# Every advisory pnpm ignores needs a line in pnpm-workspace.yaml with a reason and an unexpired review date.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 pnpm install --frozen-lockfile --prefer-offline
-node packages/config/audit-ignores.mjs pnpm-workspace.yaml
+pnpm config get audit --json | node packages/config/audit-ignores.mjs pnpm-workspace.yaml
 pnpm audit --audit-level=high
