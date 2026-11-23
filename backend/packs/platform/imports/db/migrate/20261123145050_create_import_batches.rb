@@ -19,13 +19,13 @@ class CreateImportBatches < ActiveRecord::Migration[8.1]
       t.datetime :finished_at
       t.timestamps
 
-      t.check_constraint "kind IN ('customers', 'services', 'professionals')", name: "chk_import_batches_kind"
-      t.check_constraint "status IN ('previewed', 'queued', 'processing', 'completed', 'failed', 'expired')", name: "chk_import_batches_status"
-      t.check_constraint "duplicate_mode IS NULL OR duplicate_mode IN ('skip', 'update')", name: "chk_import_batches_duplicate_mode"
+      t.check_constraint "kind = 'customers' OR kind = 'services' OR kind = 'professionals'", name: "chk_import_batches_kind"
+      t.check_constraint "status = 'previewed' OR status = 'queued' OR status = 'processing' OR status = 'completed' OR status = 'failed' OR status = 'expired'", name: "chk_import_batches_status"
+      t.check_constraint "duplicate_mode IS NULL OR duplicate_mode = 'skip' OR duplicate_mode = 'update'", name: "chk_import_batches_duplicate_mode"
 
       # Two batches of the same kind running at once would race on the same natural keys (services and professionals have
       # no unique name), so a company runs one at a time per kind.
-      t.index %i[organization_id company_id kind], unique: true, where: "status IN ('queued', 'processing')", name: "uq_import_batches_running"
+      t.index %i[organization_id company_id kind], unique: true, where: "status = 'queued' OR status = 'processing'", name: "uq_import_batches_running"
       t.index %i[organization_id company_id id], name: "idx_import_batches_company_id"
       # The purge looks for unconfirmed batches past their expiry and stuck ones, across organizations.
       t.index %i[status expires_at], name: "idx_import_batches_status_expires"

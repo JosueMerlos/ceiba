@@ -424,9 +424,9 @@ CREATE TABLE public.import_batches (
     finished_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT chk_import_batches_duplicate_mode CHECK (((duplicate_mode IS NULL) OR ((duplicate_mode)::text = ANY ((ARRAY['skip'::character varying, 'update'::character varying])::text[])))),
-    CONSTRAINT chk_import_batches_kind CHECK (((kind)::text = ANY ((ARRAY['customers'::character varying, 'services'::character varying, 'professionals'::character varying])::text[]))),
-    CONSTRAINT chk_import_batches_status CHECK (((status)::text = ANY ((ARRAY['previewed'::character varying, 'queued'::character varying, 'processing'::character varying, 'completed'::character varying, 'failed'::character varying, 'expired'::character varying])::text[])))
+    CONSTRAINT chk_import_batches_duplicate_mode CHECK (((duplicate_mode IS NULL) OR ((duplicate_mode)::text = 'skip'::text) OR ((duplicate_mode)::text = 'update'::text))),
+    CONSTRAINT chk_import_batches_kind CHECK ((((kind)::text = 'customers'::text) OR ((kind)::text = 'services'::text) OR ((kind)::text = 'professionals'::text))),
+    CONSTRAINT chk_import_batches_status CHECK ((((status)::text = 'previewed'::text) OR ((status)::text = 'queued'::text) OR ((status)::text = 'processing'::text) OR ((status)::text = 'completed'::text) OR ((status)::text = 'failed'::text) OR ((status)::text = 'expired'::text)))
 );
 
 
@@ -445,7 +445,7 @@ CREATE TABLE public.import_rows (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_import_rows_row_number_positive CHECK ((row_number > 0)),
-    CONSTRAINT chk_import_rows_status CHECK (((status)::text = ANY ((ARRAY['ready'::character varying, 'rejected'::character varying, 'created'::character varying, 'updated'::character varying, 'restored'::character varying, 'skipped'::character varying, 'failed'::character varying])::text[])))
+    CONSTRAINT chk_import_rows_status CHECK ((((status)::text = 'ready'::text) OR ((status)::text = 'rejected'::text) OR ((status)::text = 'created'::text) OR ((status)::text = 'updated'::text) OR ((status)::text = 'restored'::text) OR ((status)::text = 'skipped'::text) OR ((status)::text = 'failed'::text)))
 );
 
 
@@ -1729,7 +1729,7 @@ CREATE UNIQUE INDEX uq_idempotency_keys_scope ON public.idempotency_keys USING b
 -- Name: uq_import_batches_running; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_import_batches_running ON public.import_batches USING btree (organization_id, company_id, kind) WHERE ((status)::text = ANY ((ARRAY['queued'::character varying, 'processing'::character varying])::text[]));
+CREATE UNIQUE INDEX uq_import_batches_running ON public.import_batches USING btree (organization_id, company_id, kind) WHERE (((status)::text = 'queued'::text) OR ((status)::text = 'processing'::text));
 
 
 --

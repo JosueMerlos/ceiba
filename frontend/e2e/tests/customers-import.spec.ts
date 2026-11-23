@@ -19,13 +19,13 @@ function phoneBlock() {
 }
 
 /** The file as Excel in Spanish saves it: Windows-1252, ";" and CRLF. */
-function excelCsv(rows: number, phone: (index: number) => string) {
+function excelCsv(rows: number, phone: (index: number) => string, tag: number) {
   const lines = ["Nombre;Teléfono;Correo"];
   for (let index = 0; index < rows; index += 1) {
     lines.push(
       INVALID.has(index)
         ? `Persona inválida ${index};123;`
-        : `Señora Núñez ${index};${phone(index)};`,
+        : `Señora Núñez ${tag}-${index};${phone(index)};`,
     );
   }
   return Buffer.from(`${lines.join("\r\n")}\r\n`, "latin1");
@@ -41,7 +41,8 @@ test.describe("importación de clientes desde CSV (AC1, AC2, AC5)", () => {
     page,
   }, testInfo) => {
     const phone = phoneBlock();
-    const file = excelCsv(ROWS, phone);
+    const tag = Date.now();
+    const file = excelCsv(ROWS, phone, tag);
 
     await signIn(page, MANAGER);
     await nav(page).getByRole("link", { name: "Clientes" }).click();
@@ -56,7 +57,7 @@ test.describe("importación de clientes desde CSV (AC1, AC2, AC5)", () => {
       "Fila 6: Teléfono: no es un número válido",
       "Fila 15: Teléfono: no es un número válido",
     ]);
-    await expect(page.getByRole("cell", { name: "Señora Núñez 0" })).toBeVisible();
+    await expect(page.getByRole("cell", { name: `Señora Núñez ${tag}-0` })).toBeVisible();
     await shot(page, testInfo, "20-importacion-previsualizacion");
 
     await page.getByRole("button", { name: `Importar ${ROWS - INVALID.size} filas` }).click();
@@ -78,8 +79,8 @@ test.describe("importación de clientes desde CSV (AC1, AC2, AC5)", () => {
     // An imported customer is found by phone and opens their profile.
     await nav(page).getByRole("link", { name: "Clientes" }).click();
     await page.getByRole("searchbox", { name: "Buscar clientes" }).fill(phone(0));
-    await page.getByRole("link", { name: "Señora Núñez 0" }).click();
-    await expect(page.getByRole("heading", { level: 1, name: "Señora Núñez 0" })).toBeVisible();
+    await page.getByRole("link", { name: `Señora Núñez ${tag}-0` }).click();
+    await expect(page.getByRole("heading", { level: 1, name: `Señora Núñez ${tag}-0` })).toBeVisible();
   });
 
   test("un archivo de 6000 filas se rechaza con un mensaje claro", async ({ page }) => {

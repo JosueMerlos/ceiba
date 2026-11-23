@@ -13,7 +13,7 @@ class CreateImportRows < ActiveRecord::Migration[8.1]
       t.timestamps
 
       t.check_constraint "row_number > 0", name: "chk_import_rows_row_number_positive"
-      t.check_constraint "status IN ('ready', 'rejected', 'created', 'updated', 'restored', 'skipped', 'failed')", name: "chk_import_rows_status"
+      t.check_constraint "status = 'ready' OR status = 'rejected' OR status = 'created' OR status = 'updated' OR status = 'restored' OR status = 'skipped' OR status = 'failed'", name: "chk_import_rows_status"
 
       t.index %i[organization_id import_batch_id row_number], unique: true, name: "uq_import_rows_batch_row"
     end
