@@ -301,6 +301,32 @@ OpenapiComponents.register(
                  rescheduled_from_id cancelled_by cancellation_reason],
     additionalProperties: false
   },
+  AgendaAppointment: {
+    type: :object,
+    description: "Una cita del listado de la agenda: lo mismo que `Appointment` más el nombre del cliente. Del cliente solo sale el nombre, nunca teléfono, correo ni notas.",
+    properties: {
+      id: { type: :string, format: :uuid },
+      branch_id: { type: :string, format: :uuid },
+      professional_id: { type: :string, format: :uuid },
+      resource_id: { type: :string, format: :uuid, nullable: true, description: "El recurso que asignó el motor; null si los servicios no exigen uno" },
+      customer_id: { type: :string, format: :uuid },
+      starts_at: { type: :string, format: "date-time", description: "UTC" },
+      ends_at: { type: :string, format: "date-time", description: "UTC" },
+      status: { type: :string, enum: %w[scheduled confirmed checked_in completed cancelled rescheduled no_show] },
+      source: { type: :string, enum: %w[panel public_booking] },
+      lock_version: { type: :integer, minimum: 0 },
+      services: { type: :array, items: { "$ref" => "#/components/schemas/AppointmentService" } },
+      total_price_minor: { type: :integer, format: :int64, minimum: 0 },
+      currency: { type: :string, enum: %w[NIO USD] },
+      rescheduled_from_id: { type: :string, format: :uuid, nullable: true, description: "La cita que esta reprogramó; null si no viene de una reprogramación" },
+      cancelled_by: { type: :string, enum: Appointments::Appointment::CANCELLED_BY + [ nil ], nullable: true, description: "Quién canceló; null si no está cancelada" },
+      cancellation_reason: { type: :string, enum: Appointments::Appointment::CANCELLATION_REASONS + [ nil ], nullable: true, description: "Motivo de la cancelación como código; null si no está cancelada" },
+      customer_name: { type: :string, nullable: true, description: "Nombre completo del cliente; null para quien no puede verlo" }
+    },
+    required: %i[id branch_id professional_id resource_id customer_id starts_at ends_at status source lock_version services total_price_minor currency
+                 rescheduled_from_id cancelled_by cancellation_reason customer_name],
+    additionalProperties: false
+  },
   AppointmentInput: {
     type: :object,
     description: "Reserva desde el panel. `professional_id` es el de un hueco de la disponibilidad; el literal `any` no se acepta (422).",

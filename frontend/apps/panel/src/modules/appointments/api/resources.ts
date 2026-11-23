@@ -1,10 +1,12 @@
 import { unwrap, useApiClient, type components } from "@ceiba/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  allPages,
   APPOINTMENTS_BASE as BASE,
   CSRF,
   LIST_PAGE,
   useCatalogScope,
+  type CatalogScope,
   type TimeOffInput,
   type WeeklyScheduleInput,
 } from "./shared";
@@ -26,6 +28,66 @@ export const resourceKeys = {
   timeOffs: (org: string, company: string, branch: string, resource: string) =>
     ["catalog", "resource-time-offs", org, company, branch, resource] as const,
 };
+
+type Client = ReturnType<typeof useApiClient>;
+
+// The agenda's queries live under the prefixes the mutations below invalidate, so an edit here reaches it.
+export function everyResourceQuery(
+  client: Client,
+  { organizationId, companyId, path }: CatalogScope,
+  branchId: string,
+) {
+  return {
+    queryKey: [...resourceKeys.all(organizationId, companyId, branchId), "every-page"] as const,
+    queryFn: () =>
+      allPages((query) =>
+        unwrap(
+          client.GET(`${BASE}/branches/{branch_id}/resources`, {
+            params: { path: { ...path, branch_id: branchId }, query },
+          }),
+        ),
+      ),
+  };
+}
+
+export function resourceScheduleQuery(
+  client: Client,
+  { organizationId, companyId, path }: CatalogScope,
+  branchId: string,
+  resourceId: string,
+) {
+  return {
+    queryKey: resourceKeys.schedule(organizationId, companyId, branchId, resourceId),
+    queryFn: () =>
+      unwrap(
+        client.GET(`${BASE}/branches/{branch_id}/resources/{resource_id}/schedule`, {
+          params: { path: { ...path, branch_id: branchId, resource_id: resourceId } },
+        }),
+      ),
+  };
+}
+
+export function everyResourceTimeOffQuery(
+  client: Client,
+  { organizationId, companyId, path }: CatalogScope,
+  branchId: string,
+  resourceId: string,
+) {
+  return {
+    queryKey: [
+      ...resourceKeys.timeOffs(organizationId, companyId, branchId, resourceId),
+      "every-page",
+    ] as const,
+    queryFn: () =>
+      allPages((query) =>
+        unwrap(
+          client.GET(`${BASE}/branches/{branch_id}/resources/{resource_id}/time_offs`, {
+            params: { path: { ...path, branch_id: branchId, resource_id: resourceId }, query },
+          }),
+        ),
+      ),
+  };
+}
 
 export function useResourcesQuery(branchId: string | undefined) {
   const client = useApiClient();
@@ -106,15 +168,9 @@ export function useResourceScheduleQuery(
   { enabled = true } = {},
 ) {
   const client = useApiClient();
-  const { organizationId, companyId, path } = useCatalogScope();
+  const scope = useCatalogScope();
   return useQuery({
-    queryKey: resourceKeys.schedule(organizationId, companyId, branchId, resourceId),
-    queryFn: () =>
-      unwrap(
-        client.GET(`${BASE}/branches/{branch_id}/resources/{resource_id}/schedule`, {
-          params: { path: { ...path, branch_id: branchId, resource_id: resourceId } },
-        }),
-      ),
+    ...resourceScheduleQuery(client, scope, branchId, resourceId),
     enabled,
     throwOnError: false,
   });

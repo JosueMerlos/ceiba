@@ -16,6 +16,8 @@ if (typeof window !== "undefined") {
   Element.prototype.setPointerCapture ??= () => {};
   Element.prototype.releasePointerCapture ??= () => {};
   Element.prototype.scrollIntoView ??= () => {};
+  // The agenda's calendar asks what is under the pointer; jsdom has no layout to answer with.
+  Document.prototype.elementsFromPoint ??= () => [];
   globalThis.ResizeObserver ??= class {
     observe() {}
     unobserve() {}

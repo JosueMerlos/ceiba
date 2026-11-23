@@ -68,7 +68,7 @@ _Paralelo, no técnico:_ abrir la cuenta de Meta Business y solicitar la aprobac
 | Hito | Título | h | Depende de | Estado |
 | --- | --- | --- | --- | --- |
 | [M2.01](../milestones/F2-agenda-interna/M2.01-panel-de-catalogos.md) | Panel de catálogos (servicios, profesionales, horarios) | 13 | M1.02, M0.12 | ✅ |
-| [M2.02](../milestones/F2-agenda-interna/M2.02-agenda-del-staff.md) | Agenda del staff (`AgendaView` con adaptador gratuito) | 15 | M1.06, M2.01 | ⬜ |
+| [M2.02](../milestones/F2-agenda-interna/M2.02-agenda-del-staff.md) | Agenda del staff (`AgendaView` con adaptador gratuito) | 15 | M1.06, M2.01 | ✅ |
 | [M2.03](../milestones/F2-agenda-interna/M2.03-clientes-e-importacion-csv.md) | Clientes en el panel e importación CSV | 12 | [M2.01](../milestones/F2-agenda-interna/M2.01-panel-de-catalogos.md) | ⬜ |
 | [M2.04](../milestones/F2-agenda-interna/M2.04-branding-por-empresa.md) | Branding por empresa | 12 | M0.09, M0.12 | ✅ |
 

@@ -145,6 +145,77 @@ RSpec.describe "Agenda de la sucursal: peticiones" do
     expect(ids).to eq([ on_the_day.id ])
   end
 
+  describe "nombre del cliente" do
+    def customer_of(appointment) = with_tenant(world.organization) { Customers::Customer.find(appointment.customer_id) }
+
+    def own_professional_for(user)
+      create_in(world.organization, :professional, company: world.company_a, user_id: user.id).tap do |own|
+        create_in(world.organization, :professional_branch_assignment, professional: own, branch: world.branch_a1)
+      end
+    end
+
+    def rows = response.parsed_body["data"]
+
+    def custom_session(*permissions)
+      sign_in(user_with_custom_role(world, scope_level: "branch", permissions:, branch: world.branch_a1))
+    end
+
+    it "quien puede leer clientes recibe solo el nombre, sin teléfono, correo ni notas", :aggregate_failures do
+      appointment = appointment_at(Time.utc(2026, 11, 16, 16))
+
+      agenda
+
+      expect(rows.sole).to include("customer_id" => appointment.customer_id, "customer_name" => customer_of(appointment).full_name)
+      expect(rows.sole.keys).not_to include("phone_e164", "email", "notes", "customer")
+    end
+
+    it "un profesional recibe el nombre del cliente de sus citas y nunca ve las ajenas", :aggregate_failures do
+      user = user_with_role("professional", world, branch: world.branch_a1)
+      mine = appointment_at(Time.utc(2026, 11, 16, 16), person: own_professional_for(user))
+      foreign = appointment_at(Time.utc(2026, 11, 16, 17))
+
+      agenda(session: sign_in(user))
+
+      expect(rows.sole).to include("id" => mine.id, "customer_name" => customer_of(mine).full_name)
+      expect(response.body).not_to include(customer_of(foreign).full_name)
+    end
+
+    it "quien lee toda la sucursal sin permiso de clientes recibe null", :aggregate_failures do
+      appointment = appointment_at(Time.utc(2026, 11, 16, 16))
+
+      agenda(session: custom_session("appointments.appointment.read"))
+
+      expect(rows.sole).to include("id" => appointment.id, "customer_name" => nil)
+      expect(response.body).not_to include(customer_of(appointment).full_name)
+    end
+
+    it "tener además read_own no abre el nombre de toda la sucursal" do
+      appointment_at(Time.utc(2026, 11, 16, 16))
+
+      agenda(session: custom_session("appointments.appointment.read", "appointments.appointment.read_own"))
+
+      expect(rows.sole["customer_name"]).to be_nil
+    end
+
+    it "un cliente archivado conserva su nombre en las citas ya reservadas" do
+      appointment = appointment_at(Time.utc(2026, 11, 16, 16))
+      customer = customer_of(appointment)
+      with_tenant(world.organization) { Customers::Archive.call(customer:) }
+
+      agenda
+
+      expect(rows.sole["customer_name"]).to eq(customer.full_name)
+    end
+
+    it "el nombre sale solo en el listado: el detalle de la cita no lo trae" do
+      appointment = appointment_at(Time.utc(2026, 11, 16, 16))
+
+      get "#{path}/#{appointment.id}", headers: signed_in.csrf_headers
+
+      expect(response.parsed_body["data"]).not_to have_key("customer_name")
+    end
+  end
+
   # The < 150 ms of the criterion is measured in development (wall-clock time is not asserted in the suite); here, the queries.
   describe "rendimiento (una semana con 200 citas)" do
     def queries_for_agenda

@@ -9,6 +9,8 @@ const publicPort = Number(process.env.PUBLIC_PORT ?? 8080);
 export default defineConfig({
   base: "/",
   plugins: [react(), tailwindcss()],
+  // Under Vitest packages resolve for Node, and the calendar's Svelte runtime only mounts in its browser build.
+  ...(process.env.VITEST ? { resolve: { conditions: ["browser"] } } : {}),
   server: {
     host: true,
     port: 5173,
@@ -32,6 +34,7 @@ export default defineConfig({
     environmentOptions: { jsdom: { url: "http://localhost:8080/" } },
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    server: { deps: { inline: [/@event-calendar/, /svelte/] } },
     // The production build (app/build.test.ts) takes a few seconds.
     testTimeout: 15_000,
   },

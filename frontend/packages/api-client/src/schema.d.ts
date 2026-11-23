@@ -724,7 +724,7 @@ export interface paths {
         };
         /**
          * Agenda: las citas de la sucursal entre dos fechas locales
-         * @description Exige `appointments.appointment.read` en la sucursal, o `appointments.appointment.read_own` (el profesional), que solo ve sus propias citas. `from` y `to` son fechas locales de la sucursal (incluidas), hasta 31 días. Todas las citas en cualquier estado, ordenadas por `starts_at`. Sin paginar: por encima de 1000 citas responde 422 (`appointments.agenda_invalid`, `too_many_appointments`) en vez de truncar. Sin notas ni datos del cliente.
+         * @description Exige `appointments.appointment.read` en la sucursal, o `appointments.appointment.read_own` (el profesional), que solo ve sus propias citas. `from` y `to` son fechas locales de la sucursal (incluidas), hasta 31 días. Todas las citas en cualquier estado, ordenadas por `starts_at`. Sin paginar: por encima de 1000 citas responde 422 (`appointments.agenda_invalid`, `too_many_appointments`) en vez de truncar. Sin notas. Del cliente solo sale `customer_name`, para quien tiene `platform.customer.read` o, en sus propias citas, para el profesional; para el resto es null.
          */
         get: {
             parameters: {
@@ -753,7 +753,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            data: components["schemas"]["Appointment"][];
+                            data: components["schemas"]["AgendaAppointment"][];
                         };
                     };
                 };
@@ -2659,7 +2659,10 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    limit?: number;
+                    after?: string;
+                };
                 header?: never;
                 path: {
                     organization_id: string;
@@ -5490,6 +5493,59 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Una cita del listado de la agenda: lo mismo que `Appointment` más el nombre del cliente. Del cliente solo sale el nombre, nunca teléfono, correo ni notas. */
+        AgendaAppointment: {
+            /** Format: uuid */
+            branch_id: string;
+            /**
+             * @description Motivo de la cancelación como código; null si no está cancelada
+             * @enum {string|null}
+             */
+            cancellation_reason: "customer_request" | "professional_unavailable" | "business_decision" | "other" | null;
+            /**
+             * @description Quién canceló; null si no está cancelada
+             * @enum {string|null}
+             */
+            cancelled_by: "staff" | "customer" | "system" | null;
+            /** @enum {string} */
+            currency: "NIO" | "USD";
+            /** Format: uuid */
+            customer_id: string;
+            /** @description Nombre completo del cliente; null para quien no puede verlo */
+            customer_name: string | null;
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            ends_at: string;
+            /** Format: uuid */
+            id: string;
+            lock_version: number;
+            /** Format: uuid */
+            professional_id: string;
+            /**
+             * Format: uuid
+             * @description La cita que esta reprogramó; null si no viene de una reprogramación
+             */
+            rescheduled_from_id: string | null;
+            /**
+             * Format: uuid
+             * @description El recurso que asignó el motor; null si los servicios no exigen uno
+             */
+            resource_id: string | null;
+            services: components["schemas"]["AppointmentService"][];
+            /** @enum {string} */
+            source: "panel" | "public_booking";
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            starts_at: string;
+            /** @enum {string} */
+            status: "scheduled" | "confirmed" | "checked_in" | "completed" | "cancelled" | "rescheduled" | "no_show";
+            /** Format: int64 */
+            total_price_minor: number;
+        };
         /** @description Una cita reservada. Del cliente solo va su `id`: nunca nombre, teléfono ni correo. `total_price_minor` es la suma de los servicios congelados. */
         Appointment: {
             /** Format: uuid */

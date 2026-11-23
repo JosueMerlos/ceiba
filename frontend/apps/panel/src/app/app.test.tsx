@@ -13,12 +13,18 @@ import {
   organization,
   problem,
 } from "../test/fixtures";
+import { agendaBackend } from "../test/agenda-backend";
 import { renderApp } from "../test/render-app";
 import { respondWith, server, signedInBackend, signedOutBackend } from "../test/server";
 
 const contextButton = () =>
   screen.queryByRole("button", { name: /Cambiar el contexto de trabajo/ });
 const mainNav = () => screen.findByRole("navigation", { name: "Navegación principal" });
+
+// Several flows land on /agenda, whose page loads its own data.
+beforeEach(() => {
+  agendaBackend();
+});
 
 describe("login", () => {
   it("criterio 1: un usuario con una sola organización, empresa y sucursal entra directo, sin selector", async () => {
@@ -88,7 +94,7 @@ describe("login", () => {
 
     await user.click(screen.getByRole("button", { name: "Entrar" }));
 
-    expect(await screen.findByRole("heading", { name: "Agenda" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /^Agenda del / })).toBeTruthy();
     expect(app.router.state.location.pathname).toBe("/agenda");
   });
 
@@ -179,7 +185,7 @@ describe("navegación y módulos", () => {
 
     await user.click(within(await mainNav()).getByRole("link", { name: "Agenda" }));
 
-    expect(await screen.findByRole("heading", { name: "Agenda" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /^Agenda del / })).toBeTruthy();
     expect(
       within(await mainNav())
         .getByRole("link", { name: "Agenda" })
@@ -450,7 +456,7 @@ describe("revisión de M0.12", () => {
   it("la marca lleva a Inicio", async () => {
     signedInBackend({ me: meFixture({ role: "receptionist" }) });
     const { user, app } = await renderApp({ route: "/agenda" });
-    await screen.findByRole("heading", { name: "Agenda" });
+    await screen.findByRole("heading", { name: /^Agenda del / });
 
     await user.click(screen.getByRole("link", { name: /Ir al inicio/ }));
 

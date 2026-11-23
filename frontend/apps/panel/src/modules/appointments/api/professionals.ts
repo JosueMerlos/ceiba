@@ -1,10 +1,12 @@
 import { unwrap, useApiClient, type components } from "@ceiba/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  allPages,
   APPOINTMENTS_BASE as BASE,
   CSRF,
   LIST_PAGE,
   useCatalogScope,
+  type CatalogScope,
   type TimeOffInput,
   type WeeklyScheduleInput,
 } from "./shared";
@@ -24,6 +26,84 @@ export const professionalKeys = {
   companyTimeOffs: (org: string, company: string, professional: string) =>
     ["catalog", "professional-company-time-offs", org, company, professional] as const,
 };
+
+type Client = ReturnType<typeof useApiClient>;
+
+// The agenda's queries live under the prefixes the mutations below invalidate, so an edit here reaches it.
+export function everyProfessionalQuery(
+  client: Client,
+  { organizationId, companyId, path }: CatalogScope,
+) {
+  return {
+    queryKey: [...professionalKeys.all(organizationId, companyId), "every-page"] as const,
+    queryFn: () =>
+      allPages((query) => unwrap(client.GET(`${BASE}/professionals`, { params: { path, query } }))),
+  };
+}
+
+export function professionalProfileQuery(
+  client: Client,
+  { organizationId, companyId, path }: CatalogScope,
+  branchId: string,
+  professionalId: string,
+) {
+  return {
+    queryKey: [
+      ...professionalKeys.all(organizationId, companyId),
+      "profile",
+      branchId,
+      professionalId,
+    ] as const,
+    queryFn: () =>
+      unwrap(
+        client.GET(`${BASE}/branches/{branch_id}/professionals/{professional_id}`, {
+          params: { path: { ...path, branch_id: branchId, professional_id: professionalId } },
+        }),
+      ),
+  };
+}
+
+export function professionalScheduleQuery(
+  client: Client,
+  { organizationId, companyId, path }: CatalogScope,
+  branchId: string,
+  professionalId: string,
+) {
+  return {
+    queryKey: professionalKeys.schedule(organizationId, companyId, branchId, professionalId),
+    queryFn: () =>
+      unwrap(
+        client.GET(`${BASE}/branches/{branch_id}/professionals/{professional_id}/schedule`, {
+          params: { path: { ...path, branch_id: branchId, professional_id: professionalId } },
+        }),
+      ),
+  };
+}
+
+export function everyProfessionalTimeOffQuery(
+  client: Client,
+  { organizationId, companyId, path }: CatalogScope,
+  branchId: string,
+  professionalId: string,
+) {
+  return {
+    queryKey: [
+      ...professionalKeys.timeOffs(organizationId, companyId, branchId, professionalId),
+      "every-page",
+    ] as const,
+    queryFn: () =>
+      allPages((query) =>
+        unwrap(
+          client.GET(`${BASE}/branches/{branch_id}/professionals/{professional_id}/time_offs`, {
+            params: {
+              path: { ...path, branch_id: branchId, professional_id: professionalId },
+              query,
+            },
+          }),
+        ),
+      ),
+  };
+}
 
 export function useProfessionalsQuery() {
   const client = useApiClient();
@@ -139,15 +219,9 @@ export function useProfessionalScheduleQuery(
   { enabled = true } = {},
 ) {
   const client = useApiClient();
-  const { organizationId, companyId, path } = useCatalogScope();
+  const scope = useCatalogScope();
   return useQuery({
-    queryKey: professionalKeys.schedule(organizationId, companyId, branchId, professionalId),
-    queryFn: () =>
-      unwrap(
-        client.GET(`${BASE}/branches/{branch_id}/professionals/{professional_id}/schedule`, {
-          params: { path: { ...path, branch_id: branchId, professional_id: professionalId } },
-        }),
-      ),
+    ...professionalScheduleQuery(client, scope, branchId, professionalId),
     enabled,
     throwOnError: false,
   });

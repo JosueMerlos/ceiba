@@ -3,11 +3,21 @@ module Appointments
   # other actions is the appointment, already searched among the branch's. The staff permission (`update`) covers every action and
   # the detail with notes; a professional acts with `update_own` only on THEIR OWN appointments (the professional record linked to
   # their user and still assigned to the branch) and only on the actions the transition table opens to them. A professional's
-  # agenda (`read_own`) lists only their own appointments.
+  # agenda (`read_own`) lists only their own appointments, which is why it alone opens the customer's name: with `read` the listing
+  # covers the whole branch, so the name then needs the customer permission.
   class AppointmentPolicy < Access::BasePolicy
+    # The one rule behind both the listing's scope and the customer names shown in it.
+    def self.own_listing_only?(principal, branch_scope)
+      !principal.can?("appointments.appointment.read", branch_scope) && principal.can?("appointments.appointment.read_own", branch_scope)
+    end
+
     def create? = can?("appointments.appointment.create", context_scope(:branch))
 
     def index? = can?("appointments.appointment.read", context_scope(:branch)) || can?("appointments.appointment.read_own", context_scope(:branch))
+
+    def customer_names?
+      can?("platform.customer.read", context_scope(:branch)) || self.class.own_listing_only?(principal, context_scope(:branch))
+    end
 
     def show? = edit?(own_allowed: true)
     def update? = edit?(own_allowed: true)
@@ -29,7 +39,7 @@ module Appointments
       def resolve
         branch = context_scope(:branch)
         return scope if principal.can?("appointments.appointment.read", branch)
-        return scope.none unless principal.can?("appointments.appointment.read_own", branch)
+        return scope.none unless AppointmentPolicy.own_listing_only?(principal, branch)
 
         scope.where(professional_id: Professional.of_user(principal.id, branch: Current.context.branch).select(:id))
       end
