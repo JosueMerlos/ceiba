@@ -55,12 +55,14 @@ module Appointments
       end
 
       def currency(value, errors)
-        company_currency = Tenancy::Directory.companies.find_by(id: company_id)&.currency
         return company_currency if value.blank?
 
         errors["moneda"] = "currency_mismatch" unless value.strip.upcase == company_currency
         company_currency
       end
+
+      # Read once per importer (one per batch or chunk), not once per row.
+      def company_currency = @company_currency ||= Tenancy::Directory.companies.find_by(id: company_id)&.currency
     end
   end
 end
