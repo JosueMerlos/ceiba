@@ -26,7 +26,7 @@ OpenapiComponents.register(
       status: { type: :string, enum: %w[ready rejected created updated restored skipped failed] },
       error_codes: { type: :object, additionalProperties: { type: :string }, description: "Columna => código del error, nunca el valor" },
       values: { type: :object, nullable: true, additionalProperties: { type: :string, nullable: true },
-                description: "Celdas de la fila por columna; solo mientras el lote está en previsualización" }
+                description: "Celdas de la fila por columna; solo mientras el lote está en previsualización y no ha vencido" }
     },
     required: %i[row_number status error_codes values],
     additionalProperties: false

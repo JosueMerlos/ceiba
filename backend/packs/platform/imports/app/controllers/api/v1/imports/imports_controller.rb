@@ -29,8 +29,8 @@ module Api
 
         def rows
           authorize_batch(:show?)
-          page = ::Api::Pagination::Cursor.paginate(filtered_rows, limit: params[:limit], after: params[:after])
-          render json: { data: ::Imports::RowSerializer.new(page.records, params: { values: batch.previewed? }).serializable_hash, page: page.meta }
+          page = ::Api::Pagination::Cursor.paginate(filtered_rows, limit: params[:limit], after: params[:after], order: { row_number: :asc })
+          render json: { data: ::Imports::RowSerializer.new(page.records, params: { values: batch.confirmable? }).serializable_hash, page: page.meta }
         end
 
         def confirm
@@ -78,7 +78,7 @@ module Api
         end
 
         def render_batch(batch, status: :ok)
-          preview = ::Imports::RowSerializer.new(batch.rows.limit(PREVIEW_ROWS), params: { values: batch.previewed? }).serializable_hash
+          preview = ::Imports::RowSerializer.new(batch.rows.limit(PREVIEW_ROWS), params: { values: batch.confirmable? }).serializable_hash
           data = ::Imports::BatchSerializer.new(batch).serializable_hash.merge(preview:)
           render json: { data: }, status:
         end
