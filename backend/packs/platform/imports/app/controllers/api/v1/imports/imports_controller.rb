@@ -35,7 +35,8 @@ module Api
 
         def confirm
           authorize_batch(:create?)
-          ::Imports::ConfirmBatch.call(batch:, duplicate_mode: typed_params(duplicate_mode: String)[:duplicate_mode])
+          ::Imports::ConfirmBatch.call(batch:, duplicate_mode: typed_params(duplicate_mode: String)[:duplicate_mode],
+                                       confirmed_by_id: Current.context.principal.id)
           render_batch(batch, status: :accepted)
         end
 

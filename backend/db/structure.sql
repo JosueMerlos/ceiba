@@ -410,6 +410,7 @@ CREATE TABLE public.import_batches (
     status character varying DEFAULT 'previewed'::character varying NOT NULL,
     duplicate_mode character varying,
     created_by_id uuid NOT NULL,
+    confirmed_by_id uuid,
     warnings jsonb DEFAULT '[]'::jsonb NOT NULL,
     total_count integer DEFAULT 0 NOT NULL,
     ready_count integer DEFAULT 0 NOT NULL,
@@ -424,6 +425,7 @@ CREATE TABLE public.import_batches (
     finished_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_import_batches_confirmed_by CHECK (((confirmed_at IS NULL) = (confirmed_by_id IS NULL))),
     CONSTRAINT chk_import_batches_duplicate_mode CHECK (((duplicate_mode IS NULL) OR ((duplicate_mode)::text = 'skip'::text) OR ((duplicate_mode)::text = 'update'::text))),
     CONSTRAINT chk_import_batches_kind CHECK ((((kind)::text = 'customers'::text) OR ((kind)::text = 'services'::text) OR ((kind)::text = 'professionals'::text))),
     CONSTRAINT chk_import_batches_status CHECK ((((status)::text = 'previewed'::text) OR ((status)::text = 'queued'::text) OR ((status)::text = 'processing'::text) OR ((status)::text = 'completed'::text) OR ((status)::text = 'failed'::text) OR ((status)::text = 'expired'::text)))

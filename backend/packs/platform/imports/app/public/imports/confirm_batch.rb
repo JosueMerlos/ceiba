@@ -5,7 +5,7 @@ module Imports
   module ConfirmBatch
     module_function
 
-    def call(batch:, duplicate_mode:)
+    def call(batch:, duplicate_mode:, confirmed_by_id:)
       batch.lock!
       raise NotConfirmable unless batch.confirmable?
 
@@ -13,14 +13,16 @@ module Imports
       raise DuplicateModeNotAllowed.new(allowed:) unless allowed.include?(duplicate_mode)
       raise NothingToImport if batch.ready_count.zero?
 
-      queue(batch, duplicate_mode)
+      queue(batch, duplicate_mode, confirmed_by_id)
       ProcessChunk.request(batch)
       Audit.record(action: "import.confirmed", subject: batch, metadata: { kind: batch.kind, duplicate_mode:, ready_count: batch.ready_count })
       batch
     end
 
-    def queue(batch, duplicate_mode)
-      ApplicationRecord.transaction(requires_new: true) { batch.update!(status: "queued", duplicate_mode:, confirmed_at: Time.current) }
+    def queue(batch, duplicate_mode, confirmed_by_id)
+      ApplicationRecord.transaction(requires_new: true) do
+        batch.update!(status: "queued", duplicate_mode:, confirmed_at: Time.current, confirmed_by_id:)
+      end
     rescue ActiveRecord::RecordNotUnique
       batch.restore_attributes
       raise AlreadyRunning

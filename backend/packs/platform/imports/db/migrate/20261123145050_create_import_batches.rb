@@ -10,6 +10,8 @@ class CreateImportBatches < ActiveRecord::Migration[8.1]
       t.string :status, null: false, default: "previewed"
       t.string :duplicate_mode
       t.uuid :created_by_id, null: false
+      # Who confirmed it, possibly not the uploader: the job applies the rows in that person's name.
+      t.uuid :confirmed_by_id
       t.jsonb :warnings, null: false, default: []
       %i[total ready rejected created updated restored skipped failed].each do |counter|
         t.integer :"#{counter}_count", null: false, default: 0
@@ -22,6 +24,7 @@ class CreateImportBatches < ActiveRecord::Migration[8.1]
       t.check_constraint "kind = 'customers' OR kind = 'services' OR kind = 'professionals'", name: "chk_import_batches_kind"
       t.check_constraint "status = 'previewed' OR status = 'queued' OR status = 'processing' OR status = 'completed' OR status = 'failed' OR status = 'expired'", name: "chk_import_batches_status"
       t.check_constraint "duplicate_mode IS NULL OR duplicate_mode = 'skip' OR duplicate_mode = 'update'", name: "chk_import_batches_duplicate_mode"
+      t.check_constraint "(confirmed_at IS NULL) = (confirmed_by_id IS NULL)", name: "chk_import_batches_confirmed_by"
 
       # Two batches of the same kind running at once would race on the same natural keys (services and professionals have
       # no unique name), so a company runs one at a time per kind.

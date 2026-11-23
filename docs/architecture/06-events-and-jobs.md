@@ -129,7 +129,7 @@ Se registran en `Events::Schedule` al arrancar Sidekiq (`config/initializers/sid
 
 | Job | Cuándo | Cola | Qué hace |
 | --- | --- | --- | --- |
-| `Imports::PurgeExpiredJob` | minuto 23 de cada hora | low | Sin tenant: lee con `Imports::CrossTenant` qué organizaciones tienen lotes vencidos o atascados y encola un `Imports::PurgeOrganizationJob` por cada una, que dentro de su tenant marca `expired` los lotes sin confirmar de más de 24 h (borrando sus filas) y `failed` los que llevan más de 24 h corriendo (borrando su contenido). Ver [ADR-0042](../adr/0042-importacion-csv.md) |
+| `Imports::PurgeExpiredJob` | minuto 23 de cada hora | low | Sin tenant: lee con `Imports::CrossTenant` qué lotes están vencidos o atascados y encola un `Imports::PurgeBatchJob` por lote, en el tenant de su organización y en su propia transacción. Ese job bloquea el lote, vuelve a comprobar que sigue vencido y marca `expired` el que nadie confirmó en 24 h (borrando sus filas y conservando sus conteos) o `failed` el que lleva más de 24 h corriendo (borrando su contenido). Ver [ADR-0042](../adr/0042-importacion-csv.md) |
 
 El cron de segundos exige un poll de sidekiq-cron menor que el intervalo (`cron_poll_interval = 1`, el defecto es 30): medido con el worker real, el relay arranca cada 4-6 s.
 

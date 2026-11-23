@@ -49,7 +49,7 @@ module Imports
     end
 
     def as_user(batch, &)
-      Tenancy.with_context(organization: Current.context.organization, principal: Actor.new(id: batch.created_by_id), &)
+      Tenancy.with_context(organization: Current.context.organization, principal: Actor.new(id: batch.confirmed_by_id), &)
     end
   end
 end
