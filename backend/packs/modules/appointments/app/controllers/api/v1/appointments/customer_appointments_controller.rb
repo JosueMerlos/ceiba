@@ -12,7 +12,7 @@ module Api
           authorize Current.context.branch, :customer_history?, policy_class: ::Appointments::AppointmentPolicy
           raise ActiveRecord::RecordNotFound unless ::Customers::Lookup.exists_id?(id: params[:customer_id], company: Current.context.company)
 
-          page = ::Appointments::CustomerHistory.page(history, limit: params[:limit], after: params[:after])
+          page = ::Api::Pagination::Cursor.paginate(history, limit: params[:limit], after: params[:after], order: { starts_at: :desc })
           render json: { data: serialize(page.records), page: page.meta }
         end
 
