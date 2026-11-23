@@ -120,6 +120,21 @@ RSpec.describe Imports::ProcessChunk do
     expect([ first.created_count, second.created_count, second.skipped_count ]).to eq([ 20, 0, 20 ])
   end
 
+  it "un error inesperado de la base en una fila la deja fallida sin el mensaje y sigue con las demás" do
+    batch = upload(csv(3)).tap { confirm(it) }
+    original = Customers::Importer.instance_method(:apply)
+    allow_any_instance_of(Customers::Importer).to receive(:apply) do |importer, attributes, mode:| # rubocop:disable RSpec/AnyInstance
+      raise ActiveRecord::StatementInvalid, "Failing row contains (Persona 1, +50588000002)" if attributes[:full_name] == "Persona 1"
+
+      original.bind_call(importer, attributes, mode:)
+    end
+
+    done = drain(batch)
+
+    expect([ done.status, done.created_count, done.failed_count ]).to eq([ "completed", 2, 1 ])
+    expect(with_tenant(organization) { done.rows.where(status: "failed").pluck(:error_codes) }).to eq([ { "base" => "invalid" } ])
+  end
+
   it "una entrega repetida de un tramo ya aplicado no aplica ni cuenta de nuevo" do
     batch = upload(csv(3))
     confirm(batch)
