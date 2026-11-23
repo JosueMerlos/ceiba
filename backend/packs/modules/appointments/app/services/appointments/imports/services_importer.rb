@@ -15,7 +15,7 @@ module Appointments
       def validate(cells)
         errors = {}
         name = cells["nombre"].presence&.strip
-        name_errors(errors, name, max: 200)
+        name_errors(errors, name, max: Service::MAX_NAME_LENGTH)
         attributes = {
           name:,
           duration_minutes: integer(cells["duracion_minutos"], errors, "duracion_minutos", range: (1..Service::MAX_MINUTES)),
@@ -57,7 +57,7 @@ module Appointments
       def currency(value, errors)
         return company_currency if value.blank?
 
-        errors["moneda"] = "currency_mismatch" unless value.strip.upcase == company_currency
+        errors["moneda"] = "mismatch" unless value.strip.upcase == company_currency
         company_currency
       end
 

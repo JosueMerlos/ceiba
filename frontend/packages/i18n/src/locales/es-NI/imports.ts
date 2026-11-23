@@ -57,7 +57,6 @@ export const imports = {
     too_long: "es demasiado largo",
     taken: "ya existe",
     duplicate_in_file: "se repite en el archivo",
-    currency_mismatch: "no es la moneda de la empresa",
     thousands_separator: "usa separador de miles: escriba 1500 o 1500,50",
     timeout: "no se aplicó: la importación se interrumpió",
     other: "no se pudo importar",
@@ -65,6 +64,7 @@ export const imports = {
   reasonsByColumn: {
     telefono: { invalid: "no es un número válido" },
     correo: { invalid: "no es un correo válido" },
+    moneda: { mismatch: "no es la moneda de la empresa" },
   },
   duplicates: {
     label: "Si ya existe",
