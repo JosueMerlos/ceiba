@@ -83,6 +83,7 @@ Eventos de plataforma:
 | `platform.organization_provisioned.v1` | Emitido por `Events::ProvisioningHook` (hook de `ProvisionOrganization`, M0.10). Payload: `organization_id, company_id, branch_id` |
 | `platform.module_enabled.v1`, `platform.module_disabled.v1` | Emitidos por `Modules::Enable`/`Disable` (M0.09) en la misma transacción que el cambio, solo si hubo cambio real. Payload confirmado: `company_id, module` |
 | `platform.customer_consent_changed.v1` | Sin esquema todavía (M3.01) |
+| `platform.import_chunk_requested.v1` | Emitido por `Imports::ConfirmBatch` y por cada tramo aplicado (M2.03): pide el siguiente tramo de 200 filas de un lote, cada uno en su transacción. Payload: `import_batch_id`. Su suscriptor es idempotente (un tramo repetido no aplica filas ya aplicadas) |
 
 ## Jobs: reglas
 
@@ -123,6 +124,12 @@ Se registran en `Events::Schedule` al arrancar Sidekiq (`config/initializers/sid
 | `Events::OutboxLagJob` | cada minuto | default | Mide el lag: `events.outbox_lag pending=N oldest_age_seconds=S` en el log y la notificación `outbox_lag.events`; `Events::OutboxLagAlert` reporta a Sentry (`Rails.error`) si la edad supera 5 min (`OUTBOX_LAG_ALERT_SECONDS`, M0.13) |
 | `Events::PurgeOutboxJob` | 03:17 UTC | low | Borra `outbox_events` **publicados** hace más de 30 días, por lotes de 1000; nunca un pendiente |
 | `Events::PurgeProcessedJob` | 03:27 UTC | low | Borra `processed_events` de más de 30 días, por lotes |
+
+### Tareas del pack `imports` (M2.03)
+
+| Job | Cuándo | Cola | Qué hace |
+| --- | --- | --- | --- |
+| `Imports::PurgeExpiredJob` | minuto 23 de cada hora | low | Sin tenant: lee con `Imports::CrossTenant` qué organizaciones tienen lotes vencidos o atascados y encola un `Imports::PurgeOrganizationJob` por cada una, que dentro de su tenant marca `expired` los lotes sin confirmar de más de 24 h (borrando sus filas) y `failed` los que llevan más de 24 h corriendo (borrando su contenido). Ver [ADR-0042](../adr/0042-importacion-csv.md) |
 
 El cron de segundos exige un poll de sidekiq-cron menor que el intervalo (`cron_poll_interval = 1`, el defecto es 30): medido con el worker real, el relay arranca cada 4-6 s.
 

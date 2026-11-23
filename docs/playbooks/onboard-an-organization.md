@@ -45,7 +45,7 @@ Esto, en una transacción y mediante hooks:
 - [ ] Empresas y sucursales adicionales (si es un grupo).
 - [ ] Branding: logo, colores (con la validación de contraste).
 - [ ] Horarios de atención por sucursal.
-- [ ] Catálogo de servicios (o **importación CSV**, M2.03).
+- [ ] Catálogo de servicios (o **importación CSV**, M2.03: *Clientes → Importar desde CSV*). Plantillas: [clientes](../../frontend/apps/panel/public/import-templates/clientes.csv), [servicios](../../frontend/apps/panel/public/import-templates/servicios.csv) y [profesionales](../../frontend/apps/panel/public/import-templates/profesionales.csv) (también descargables desde la pantalla). Ver [ADR-0042](../adr/0042-importacion-csv.md).
 - [ ] Profesionales y recursos; asignación a sucursales; horarios.
 - [ ] Clientes existentes por CSV, **sin** consentimiento salvo evidencia: no recibirán recordatorios hasta que lo otorguen.
 - [ ] Invitar al staff con sus roles (`branch_manager`, `receptionist`, `professional`).

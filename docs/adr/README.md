@@ -45,3 +45,4 @@ Cada decisión relevante tiene su ADR ([plantilla](../templates/adr.md)). Un ADR
 | [0039](0039-archivos-de-branding-y-rutas-de-activestorage.md) | Archivos de branding: subida por el PATCH autenticado y solo el proxy GET de variantes bajo `/api/storage` | aceptada |
 | [0040](0040-excepciones-de-pnpm-audit-con-fecha-de-revision.md) | Excepciones de `pnpm audit` por aviso, con motivo y fecha de revisión obligatorios | aceptada |
 | [0041](0041-nombre-del-cliente-en-la-agenda.md) | El listado de la agenda incluye el nombre del cliente | aceptada |
+| [0042](0042-importacion-csv.md) | Importación de clientes, servicios y profesionales desde CSV: previsualizar, confirmar y borrar el contenido | aceptada |

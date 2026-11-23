@@ -73,7 +73,7 @@ Cada solicitud queda registrada (`data_subject_requests`) con la fecha de recepc
 - **Sin datos de salud en `appointments`.** Las notas de la cita son operativas. El historial clínico será un módulo aparte con cifrado, consentimiento específico y acceso restringido.
 - Los reportes consolidados de la organización muestran solo conteos.
 - Los logs no contienen PII (`filter_parameters`, sin cuerpos de request).
-- **Excepción acotada en las respuestas de la API:** solo los endpoints del recurso cliente devuelven teléfono, correo y notas, y únicamente a quien tiene `platform.customer.read`. Ningún otro endpoint, log, mensaje de error ni auditoría los incluye (la auditoría del cliente es por id). Ver [ADR-0033](../adr/0033-autorizacion-y-pii-de-clientes-y-servicios.md). El listado de la agenda añade solo el nombre del cliente, para quien tiene ese permiso y para el profesional en sus propias citas ([ADR-0041](../adr/0041-nombre-del-cliente-en-la-agenda.md)).
+- **Excepción acotada en las respuestas de la API:** solo los endpoints del recurso cliente devuelven teléfono, correo y notas, y únicamente a quien tiene `platform.customer.read`. Ningún otro endpoint, log, mensaje de error ni auditoría los incluye (la auditoría del cliente es por id). Ver [ADR-0033](../adr/0033-autorizacion-y-pii-de-clientes-y-servicios.md). El listado de la agenda añade solo el nombre del cliente, para quien tiene ese permiso y para el profesional en sus propias citas ([ADR-0041](../adr/0041-nombre-del-cliente-en-la-agenda.md)). La previsualización de una importación CSV devuelve las celdas del archivo solo mientras el lote no se confirma, a quien tiene `platform.customer.import` y `platform.customer.read` ([ADR-0042](../adr/0042-importacion-csv.md)).
 
 ### Menores de edad
 
@@ -87,6 +87,7 @@ Cada solicitud queda registrada (`data_subject_requests`) con la fecha de recepc
 - El derecho de supresión (anonimización del cliente) **no reescribe** la auditoría: por eso nunca debe contener el dato personal en claro.
 - `auth_audit_events` guarda IP y user agent (datos personales) y un seudónimo HMAC del correo en login fallido. **Pendiente (M4.x):** política de retención (propuesta de 12 meses) y su procedimiento privilegiado de purga; ver [11](11-security.md#auditoría-append-only-m011).
 - `idempotency_keys.response_body` es una respuesta de negocio: va cifrada. La clave **vence a las 24 h** y la purga diaria (03:37 UTC) la elimina, así que una fila puede conservarse hasta **~48 h** (24 h de vigencia más hasta 24 h hasta la siguiente purga).
+- **Importación CSV** ([ADR-0042](../adr/0042-importacion-csv.md)): las celdas de cada fila (`import_rows.payload`) van cifradas y se borran al aplicar la fila y al terminar el lote. Un lote sin confirmar vence a las **24 h** y la purga horaria (minuto 23) lo marca `expired` y borra sus filas, así que una previsualización vive como mucho **~25 h**. El reporte conserva solo número de fila y códigos de error. Los clientes importados entran **sin consentimiento**: una columna de consentimiento en el archivo se avisa y no se registra (M3.01).
 
 ## Checklist antes de los pilotos
 
