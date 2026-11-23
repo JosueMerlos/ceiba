@@ -89,7 +89,18 @@ RSpec.describe "GET /api/v1/me" do
       sign_in(user_with_role("receptionist", world, company: nil, branch: world.branch_a1))
       me({ organization_id: organization.id, company_id: world.company_a.id })
 
-      expect(data["navigation"]).to eq([ { "module" => "sample", "key" => "things", "path" => "/things" } ])
+      expect(data["navigation"]).to eq([ { "module" => "platform", "key" => "customers", "path" => "/customers" },
+                                         { "module" => "sample", "key" => "things", "path" => "/things" } ])
+    end
+
+    it "Clientes es una entrada de plataforma: no depende de ningún módulo y no la ve quien no lee clientes", :aggregate_failures do
+      me({ organization_id: organization.id, company_id: world.company_a.id })
+      manager_navigation = data["navigation"]
+      sign_in(user_with_role("professional", world, branch: world.branch_a1))
+      me({ organization_id: organization.id, company_id: world.company_a.id, branch_id: world.branch_a1.id })
+
+      expect(manager_navigation).to include({ "module" => "platform", "key" => "customers", "path" => "/customers" })
+      expect(data["navigation"].pluck("module")).not_to include("platform")
     end
 
     it "una entrada con varios permisos aparece con cualquiera de ellos: el profesional ve la agenda con el de las propias" do

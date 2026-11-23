@@ -40,6 +40,21 @@ RSpec.describe Customers::Lookup do
     end
   end
 
+  describe ".exists_id?" do
+    it "true para un cliente de la empresa, también archivado: su historial sigue existiendo" do
+      active = create(:customer, company:)
+      archived = create(:customer, company:).tap { Customers::Archive.call(customer: it) }
+
+      expect([ active, archived ].map { described_class.exists_id?(id: it.id, company:) }).to eq([ true, true ])
+    end
+
+    it "false para uno de otra empresa, inexistente o con un id que no es uuid" do
+      foreign = create(:customer, company: sibling)
+
+      expect([ foreign.id, SecureRandom.uuid, "no-es-uuid", nil ].map { described_class.exists_id?(id: it, company:) }).to eq([ false ] * 4)
+    end
+  end
+
   describe ".full_names" do
     it "devuelve id => nombre de los clientes pedidos, y solo el nombre" do
       first = create(:customer, company:, full_name: "Ana Ruiz")

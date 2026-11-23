@@ -84,3 +84,8 @@ ModuleCoverageFactories.register("appointments", :appointment_id) do |company:, 
     FactoryBot.create(:appointment, professional:, branch:, starts_at: latest ? latest + 1.hour : Time.utc(2026, 11, 16, 15)).id
   end
 end
+
+# A customer of the suite's company, for the customer history route (the customer lives in the platform, not the module).
+ModuleCoverageFactories.register("appointments", :customer_id) do |company:, branch:| # rubocop:disable Lint/UnusedBlockArgument
+  Tenancy.with_context(organization: company.organization) { FactoryBot.create(:customer, company:).id }
+end
