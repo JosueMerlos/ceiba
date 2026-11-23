@@ -10,11 +10,16 @@ interface NotesFormProps {
   lockVersion: number;
 }
 
+/**
+ * The appointment's notes. What the user typed is a draft that survives any refresh of the appointment (a status change,
+ * someone else's edit): after a 409 the draft is still there and saving again applies it over the newer version.
+ */
 export function NotesForm({ branchId, appointmentId, notes, lockVersion }: NotesFormProps) {
   const { t } = useTranslation("appointments");
   const fieldId = useId();
   const update = useUpdateNotes(branchId);
-  const [value, setValue] = useState(notes);
+  const [draft, setDraft] = useState<string | null>(null);
+  const value = draft ?? notes;
   return (
     <div className="grid gap-1.5 border-t pt-4">
       <Label htmlFor={fieldId}>{t("agenda.detail.notes")}</Label>
@@ -22,18 +27,23 @@ export function NotesForm({ branchId, appointmentId, notes, lockVersion }: Notes
         id={fieldId}
         maxLength={500}
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        onChange={(event) => setDraft(event.target.value)}
       />
       <Button
         type="button"
         variant="outline"
         size="sm"
-        disabled={value === notes}
+        disabled={draft === null || draft === notes}
         loading={update.isPending}
         onClick={() =>
           update.mutate(
             { id: appointmentId, notes: value.trim() || null, lockVersion },
-            { onSuccess: () => toast.success(t("agenda.detail.notesSaved")) },
+            {
+              onSuccess: () => {
+                setDraft(null);
+                toast.success(t("agenda.detail.notesSaved"));
+              },
+            },
           )
         }
       >

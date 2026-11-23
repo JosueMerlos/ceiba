@@ -134,7 +134,6 @@ export function AppointmentDetailPanel({
 
       {detail.data ? (
         <NotesForm
-          key={detail.data.data.lock_version}
           branchId={branch.id}
           appointmentId={appointment.id}
           notes={detail.data.data.notes ?? ""}

@@ -40,6 +40,8 @@ export const NO_RESOURCE = "sin-recurso";
 const DEFAULT_RANGE: MinuteRange = { startMinute: 8 * 60, endMinute: 18 * 60 };
 const HOUR = 60;
 const ARRIVAL_WINDOW_MS = 60 * 60_000;
+// Someone running late still has to be checked in from the arrivals panel.
+const LATE_ARRIVAL_MS = 30 * 60_000;
 const FREED_SLOT = new Set<AgendaAppointment["status"]>(["cancelled", "rescheduled"]);
 
 export const visibleAppointments = (appointments: readonly AgendaAppointment[]) =>
@@ -186,7 +188,7 @@ export function timeRange({
   return { startMinute, endMinute: Math.max(endMinute, startMinute + HOUR) };
 }
 
-/** Who is expected within the next hour, soonest first. */
+/** Who is expected within the next hour, or is up to half an hour late, soonest first. */
 export function upcomingArrivals(appointments: readonly AgendaAppointment[], now: Date) {
   const from = now.getTime();
   return appointments
@@ -194,7 +196,7 @@ export function upcomingArrivals(appointments: readonly AgendaAppointment[], now
       const start = Date.parse(appointment.starts_at);
       return (
         ACTIVE_STATUSES.includes(appointment.status) &&
-        start >= from &&
+        start >= from - LATE_ARRIVAL_MS &&
         start < from + ARRIVAL_WINDOW_MS
       );
     })
