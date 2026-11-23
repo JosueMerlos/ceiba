@@ -31,7 +31,8 @@ module AuthorizationMatrix
     "platform.customer.read" => %w[company_manager branch_manager receptionist],
     "platform.customer.create" => %w[company_manager branch_manager receptionist],
     "platform.customer.update" => %w[company_manager branch_manager receptionist],
-    "platform.customer.archive" => %w[company_manager branch_manager receptionist]
+    "platform.customer.archive" => %w[company_manager branch_manager receptionist],
+    "platform.customer.import" => %w[company_manager branch_manager]
   }.freeze
   # Scopes each role COVERS in the test world: org_* the whole organization; company_manager of A, A and its branches;
   # branch roles only A1 (org > company > branch).
