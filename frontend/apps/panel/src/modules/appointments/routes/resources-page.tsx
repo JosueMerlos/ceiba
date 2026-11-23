@@ -17,9 +17,9 @@ import {
 } from "../api/resources";
 import { BranchPicker } from "../components/branch-picker";
 import { CatalogAside } from "../components/catalog-aside";
-import { EmptyState } from "../components/empty-state";
+import { EmptyState } from "../../../platform/ui/empty-state";
 import { OwnerBranchSections, useOwnerAccess } from "../components/owner-sections";
-import { QueryBoundary } from "../components/query-boundary";
+import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { ResourceForm, type ResourceFormValues } from "../components/resource-form";
 import { ResourcesTable } from "../components/resources-table";
 import { useEntityPanel } from "../lib/use-entity-panel";

@@ -6,7 +6,7 @@ import { apiErrorMessages } from "../../../platform/forms/api-error-messages";
 import { useCan } from "../../../platform/permissions/can";
 import type { Branch } from "../api/catalog";
 import type { TimeOff, TimeOffInput, WeeklyScheduleInput, WeeklyScheduleSlot } from "../api/shared";
-import { QueryBoundary } from "./query-boundary";
+import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { TimeOffForm } from "./time-off-form";
 import { TimeOffsList } from "./time-offs-list";
 import { WeeklyScheduleEditor } from "./weekly-schedule-editor";

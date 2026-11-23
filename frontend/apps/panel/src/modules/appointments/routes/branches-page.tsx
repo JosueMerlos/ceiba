@@ -12,8 +12,8 @@ import {
 import { BranchForm, type BranchFormValues } from "../components/branch-form";
 import { BranchesTable, type BranchScheduleStatus } from "../components/branches-table";
 import { CatalogAside } from "../components/catalog-aside";
-import { EmptyState } from "../components/empty-state";
-import { QueryBoundary } from "../components/query-boundary";
+import { EmptyState } from "../../../platform/ui/empty-state";
+import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { useEntityPanel } from "../lib/use-entity-panel";
 import { DEFAULT_TIME_ZONE } from "../lib/time-zones";
 

@@ -9,9 +9,9 @@ import {
   useCompanyBranchesQuery,
   usePutBranchSchedule,
 } from "../api/catalog";
-import { EmptyState } from "../components/empty-state";
+import { EmptyState } from "../../../platform/ui/empty-state";
 import { ScheduleSection } from "../components/owner-sections";
-import { QueryBoundary } from "../components/query-boundary";
+import { QueryBoundary } from "../../../platform/ui/query-boundary";
 
 export function BranchSchedulePage() {
   const { branchId } = useParams();
