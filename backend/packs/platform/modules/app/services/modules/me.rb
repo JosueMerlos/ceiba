@@ -10,6 +10,9 @@ module Modules
   # context is empty. Returns [payload, selection used] (nil selection for an empty context).
   class Me
     EMPTY_CONTEXT = { organization: nil, company: nil, branch: nil }.freeze
+    # Screens of the platform itself, available whatever modules the company has. Module manifests cannot declare platform
+    # permissions, so these entries live here.
+    PLATFORM_NAVIGATION = [ { key: "customers", path: "/customers", permission: "platform.customer.read" } ].freeze
 
     def self.call(...) = new(...).call
 
@@ -73,7 +76,8 @@ module Modules
     end
 
     def navigation_for(modules, permissions)
-      modules.flat_map do |entry|
+      platform = PLATFORM_NAVIGATION.select { permissions.include?(it[:permission]) }.map { { module: "platform", key: it[:key], path: it[:path] } }
+      platform + modules.flat_map do |entry|
         entry.manifest.navigation.select { |item| Array(item[:permission]).intersect?(permissions) }
           .map { |item| { module: entry.manifest.key, key: item[:key], path: item[:path] } }
       end

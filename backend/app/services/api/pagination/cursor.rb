@@ -25,6 +25,16 @@ module Api
 
       def self.paginate(scope, limit: nil, after: nil) = new(scope, limit:, after:).page
 
+      # The page size a client asked for, shared with the listings that paginate by another key.
+      def self.parse_limit(value)
+        return DEFAULT_LIMIT if value.nil?
+
+        number = value.is_a?(Integer) ? value : (Integer(value, 10) if value.is_a?(String) && value.match?(/\A\d+\z/))
+        raise InvalidLimit, "limit debe ser un entero entre 1 y #{MAX_LIMIT}" unless number&.between?(1, MAX_LIMIT)
+
+        number
+      end
+
       def self.verifier
         @verifier ||= ActiveSupport::MessageVerifier.new(
           Rails.application.key_generator.generate_key("api.pagination.cursor"), url_safe: true, serializer: JSON
@@ -34,7 +44,7 @@ module Api
 
       def initialize(scope, limit:, after:)
         @scope = scope
-        @limit = parse_limit(limit)
+        @limit = self.class.parse_limit(limit)
         @after_id = after.nil? ? nil : decode(after)
       end
 
@@ -53,15 +63,6 @@ module Api
         return ordered unless @after_id
 
         ordered.where(@scope.klass.arel_table[key].gt(@after_id))
-      end
-
-      def parse_limit(value)
-        return DEFAULT_LIMIT if value.nil?
-
-        number = value.is_a?(Integer) ? value : (Integer(value, 10) if value.is_a?(String) && value.match?(/\A\d+\z/))
-        raise InvalidLimit, "limit debe ser un entero entre 1 y #{MAX_LIMIT}" unless number&.between?(1, MAX_LIMIT)
-
-        number
       end
 
       def encode(id) = self.class.send(:verifier).generate({ "id" => id }, purpose: PURPOSE)
