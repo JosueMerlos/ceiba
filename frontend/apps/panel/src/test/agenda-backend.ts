@@ -147,11 +147,15 @@ export function agendaBackend({
     // Every write moves the version up, as the API does.
     http.get(`${BRANCH(branchId)}/appointments/:id`, ({ params }) => {
       const detail = details[String(params.id)];
-      return detail
-        ? HttpResponse.json({
-            data: { ...detail, lock_version: detail.lock_version + state.writes.length },
-          })
-        : forbidden();
+      state.detailReads += 1;
+      if (!detail) return forbidden();
+      return HttpResponse.json({
+        data: {
+          ...detail,
+          notes: othersNotes ?? detail.notes,
+          lock_version: detail.lock_version + state.writes.length,
+        },
+      });
     }),
     http.patch(`${BRANCH(branchId)}/appointments/:id`, async ({ params, request }) => {
       const body = await request.json();

@@ -16,7 +16,7 @@ const TONE_TAG: Record<StatusTone, string> = {
   missed: "bg-[var(--appointment-missed-bg)] text-[var(--appointment-missed-fg)]",
 };
 
-/** The one thing to do with someone about to arrive: confirm them, or mark that they are here. */
+/** The one thing to do with someone about to arrive: confirm them, or, once their time came, mark that they are here. */
 function ArrivalAction({
   branchId,
   appointment,
@@ -27,7 +27,10 @@ function ArrivalAction({
   const { t } = useTranslation("appointments");
   const { appointment: permissions } = useAgendaPermissions();
   const statusAction = useStatusAction(branchId);
-  const action = appointmentActions(appointment, permissions, new Date()).status[0];
+  const now = new Date();
+  const { status } = appointmentActions(appointment, permissions, now);
+  const started = Date.parse(appointment.starts_at) <= now.getTime();
+  const action = started && status.includes("check_in") ? "check_in" : status[0];
   if (!action) return null;
   return (
     <Button
@@ -52,7 +55,7 @@ interface UpcomingArrivalsProps {
   onClose(): void;
 }
 
-/** Who is expected in the next hour, next to the agenda and without covering it. */
+/** Who is expected in the next hour or is running late, next to the agenda and without covering it. */
 export function UpcomingArrivals({
   id,
   branchId,

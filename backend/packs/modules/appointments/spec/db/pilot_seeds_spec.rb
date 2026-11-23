@@ -47,6 +47,13 @@ RSpec.describe "Datos del piloto interno de la agenda" do # rubocop:disable RSpe
     end
   end
 
+  it "ningún cliente tiene dos citas a la misma hora" do
+    with_tenant(world.organization) do
+      overlapping = appointments.where.not(status: "cancelled").group(:customer_id, :starts_at).having("count(*) > 1").count
+      expect(overlapping).to be_empty
+    end
+  end
+
   it "vincula al primer profesional con el usuario indicado" do
     with_tenant(world.organization) do
       expect(Appointments::Professional.of_user(user.id, branch:).count).to eq(1)

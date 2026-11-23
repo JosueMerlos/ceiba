@@ -69,9 +69,11 @@ module AppointmentsPilotSeeds
       day = monday + (weekday - 1)
       people.product(START_HOURS).each do |professional, hour|
         counter += 1
+        # Customers rotate by hour and by person, so nobody is in two chairs at the same time.
+        customer = customers[(START_HOURS.index(hour) * people.size + people.index(professional) + weekday) % customers.size]
         starts_at = zone.local(day.year, day.month, day.day, hour)
         appointment = Appointments::Book.call(
-          company:, branch:, customer_id: customers[counter % customers.size].id, services: [ services[counter % services.size] ],
+          company:, branch:, customer_id: customer.id, services: [ services[counter % services.size] ],
           professional: Appointments::Availability::ProfessionalChoice.of(professional), starts_at:, source: "panel",
           actor: SYSTEM_ACTOR, now: monday.in_time_zone(zone) - 1.day
         )
