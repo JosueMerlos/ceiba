@@ -1092,7 +1092,7 @@ components:
           additionalProperties:
             nullable: true
             type: string
-          description: Celdas de la fila por columna; solo mientras el lote está en previsualización
+          description: Celdas de la fila por columna; solo mientras el lote está en previsualización y no ha vencido
           nullable: true
           type: object
       required:
@@ -6162,7 +6162,7 @@ paths:
         format: uuid
         type: string
     post:
-      description: Lee el archivo (UTF-8, Windows-1252 o UTF-16; separador `;`, `,` o tabulador), valida cada fila y no aplica ninguna. Máximo 5000 filas y 5 MB. Clientes exige `platform.customer.import` y `platform.customer.read` en la sucursal; servicios `appointments.service.manage` y profesionales `appointments.professional.manage` en la empresa (con el módulo activo). La previsualización devuelve las primeras 20 filas con sus valores mientras el lote no se confirma.
+      description: Lee el archivo (UTF-8, Windows-1252 o UTF-16; separador `;`, `,` o tabulador), valida cada fila y no aplica ninguna. Máximo 5000 filas y 5 MB. Clientes exige `platform.customer.import` y `platform.customer.read` en la sucursal; servicios `appointments.service.manage` y profesionales `appointments.professional.manage` en la empresa (con el módulo activo). La previsualización devuelve las primeras 20 filas con sus valores mientras el lote no se confirma ni vence.
       parameters:
       - description: "`csrf_token` de la sesión (login o GET /auth/session)"
         in: header
@@ -6207,7 +6207,7 @@ paths:
       - Importaciones
   "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/imports/{import_id}":
     get:
-      description: Para seguir el avance tras confirmar. Los valores de las filas solo salen mientras el lote está en previsualización.
+      description: Para seguir el avance tras confirmar. Los valores de las filas solo salen mientras el lote está en previsualización y no ha vencido.
       responses:
         '200':
           content:

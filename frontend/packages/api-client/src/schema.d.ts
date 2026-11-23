@@ -4980,7 +4980,7 @@ export interface paths {
         put?: never;
         /**
          * Sube un CSV y devuelve su previsualización
-         * @description Lee el archivo (UTF-8, Windows-1252 o UTF-16; separador `;`, `,` o tabulador), valida cada fila y no aplica ninguna. Máximo 5000 filas y 5 MB. Clientes exige `platform.customer.import` y `platform.customer.read` en la sucursal; servicios `appointments.service.manage` y profesionales `appointments.professional.manage` en la empresa (con el módulo activo). La previsualización devuelve las primeras 20 filas con sus valores mientras el lote no se confirma.
+         * @description Lee el archivo (UTF-8, Windows-1252 o UTF-16; separador `;`, `,` o tabulador), valida cada fila y no aplica ninguna. Máximo 5000 filas y 5 MB. Clientes exige `platform.customer.import` y `platform.customer.read` en la sucursal; servicios `appointments.service.manage` y profesionales `appointments.professional.manage` en la empresa (con el módulo activo). La previsualización devuelve las primeras 20 filas con sus valores mientras el lote no se confirma ni vence.
          */
         post: {
             parameters: {
@@ -5053,7 +5053,7 @@ export interface paths {
         };
         /**
          * Estado de un lote y sus primeras filas
-         * @description Para seguir el avance tras confirmar. Los valores de las filas solo salen mientras el lote está en previsualización.
+         * @description Para seguir el avance tras confirmar. Los valores de las filas solo salen mientras el lote está en previsualización y no ha vencido.
          */
         get: {
             parameters: {
@@ -6346,7 +6346,7 @@ export interface components {
             row_number: number;
             /** @enum {string} */
             status: "ready" | "rejected" | "created" | "updated" | "restored" | "skipped" | "failed";
-            /** @description Celdas de la fila por columna; solo mientras el lote está en previsualización */
+            /** @description Celdas de la fila por columna; solo mientras el lote está en previsualización y no ha vencido */
             values: {
                 [key: string]: string | null;
             } | null;
