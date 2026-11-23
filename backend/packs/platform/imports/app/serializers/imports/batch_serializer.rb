@@ -4,9 +4,9 @@ module Imports
     attributes :id, :kind, :status, :duplicate_mode, :warnings, :total_count, :ready_count, :rejected_count, :created_count,
                :updated_count, :restored_count, :skipped_count, :failed_count
 
-    attribute(:columns) { |_batch| params[:importer].columns.keys }
-    attribute(:required_columns) { |_batch| params[:importer].required_columns }
-    attribute(:duplicate_modes) { |_batch| params[:importer].duplicate_modes }
+    attribute(:columns) { |batch| batch.importer.columns.keys }
+    attribute(:required_columns) { |batch| batch.importer.required_columns }
+    attribute(:duplicate_modes) { |batch| batch.importer.duplicate_modes }
     attribute(:expires_at) { |batch| batch.expires_at.utc.iso8601 }
     attribute(:confirmed_at) { |batch| batch.confirmed_at&.utc&.iso8601 }
     attribute(:finished_at) { |batch| batch.finished_at&.utc&.iso8601 }

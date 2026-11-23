@@ -78,8 +78,7 @@ module Api
 
         def render_batch(batch, status: :ok)
           preview = ::Imports::RowSerializer.new(batch.rows.limit(PREVIEW_ROWS), params: { values: batch.previewed? }).serializable_hash
-          importer = ::Imports::Registry.fetch(batch.kind).importer_class.new(company_id: batch.company_id)
-          data = ::Imports::BatchSerializer.new(batch, params: { importer: }).serializable_hash.merge(preview:)
+          data = ::Imports::BatchSerializer.new(batch).serializable_hash.merge(preview:)
           render json: { data: }, status:
         end
       end

@@ -9,7 +9,7 @@ module Imports
       batch.lock!
       raise NotConfirmable unless batch.confirmable?
 
-      allowed = Registry.fetch(batch.kind).importer_class.new(company_id: batch.company_id).duplicate_modes
+      allowed = batch.importer.duplicate_modes
       raise DuplicateModeNotAllowed.new(allowed:) unless allowed.include?(duplicate_mode)
       raise NothingToImport if batch.ready_count.zero?
 

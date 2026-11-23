@@ -18,24 +18,28 @@ module Imports
       return unless batch&.running?
 
       batch.update!(status: "processing") if batch.status == "queued"
-      importer = Registry.fetch(batch.kind).importer_class.new(company_id: batch.company_id)
+      importer = batch.importer
       as_user(batch) do
         batch.rows.where(status: "ready").limit(CHUNK_SIZE).each { apply(it, importer, batch.duplicate_mode) }
-        batch.rows.exists?(status: "ready") ? request(batch) : finish(batch)
+        next finish(batch) unless batch.rows.exists?(status: "ready")
+
+        request(batch)
+        batch.refresh_counts!
       end
-      batch.refresh_counts!
     end
 
+    # A row that no longer validates (the data changed since the preview) or that the database refuses ends `failed`.
     def apply(row, importer, mode)
       attributes, errors = importer.validate(row.cells)
-      raise ActiveRecord::RecordInvalid if errors.any?
+      return mark_failed(row, errors) if errors.any?
 
       outcome = ApplicationRecord.transaction(requires_new: true) { importer.apply(attributes, mode:) }
       row.update!(status: outcome.to_s, payload: nil)
     rescue ActiveRecord::RecordInvalid => error
-      codes = error.record ? importer.error_codes_for(error.record) : errors
-      row.update!(status: "failed", payload: nil, error_codes: codes.presence || { "base" => "invalid" })
+      mark_failed(row, importer.error_codes_for(error.record))
     end
+
+    def mark_failed(row, codes) = row.update!(status: "failed", payload: nil, error_codes: codes.presence || { "base" => "invalid" })
 
     def finish(batch)
       batch.rows.unscope(:order).where.not(payload: nil).update_all(payload: nil)

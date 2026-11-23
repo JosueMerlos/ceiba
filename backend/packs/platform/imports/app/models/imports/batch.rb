@@ -9,7 +9,8 @@ module Imports
     STATUSES = %w[previewed queued processing completed failed expired].freeze
     RUNNING = %w[queued processing].freeze
     DUPLICATE_MODES = %w[skip update].freeze
-    COUNTERS = %w[ready rejected created updated restored skipped failed].freeze
+    # One counter per row status: a new row outcome is counted without touching this list.
+    COUNTERS = Row::STATUSES
     # An unconfirmed preview keeps personal data at rest: it expires a day after the upload.
     PREVIEW_TTL = 24.hours
 
@@ -21,6 +22,9 @@ module Imports
     validates :kind, inclusion: { in: KINDS }
     validates :status, inclusion: { in: STATUSES }
     validates :duplicate_mode, inclusion: { in: DUPLICATE_MODES }, allow_nil: true
+
+    # The importer of this batch's kind, for its company.
+    def importer = Registry.fetch(kind).importer_for(company_id:)
 
     def previewed? = status == "previewed"
     def running? = RUNNING.include?(status)

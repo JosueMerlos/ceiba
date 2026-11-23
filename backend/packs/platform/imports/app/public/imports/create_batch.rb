@@ -10,7 +10,7 @@ module Imports
     module_function
 
     def call(kind:, bytes:, company_id:, branch_id:, created_by_id:)
-      importer = Registry.fetch(kind).importer_class.new(company_id:)
+      importer = Registry.fetch(kind).importer_for(company_id:)
       file = CsvReader.call(bytes, max_rows: MAX_ROWS, max_bytes: MAX_BYTES)
       missing = importer.required_columns - file.headers
       raise MissingColumns.new(columns: missing) if missing.any?

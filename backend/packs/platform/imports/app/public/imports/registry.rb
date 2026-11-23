@@ -9,6 +9,7 @@ module Imports
   module Registry
     Entry = Data.define(:kind, :importer, :policy, :module_key) do
       def importer_class = importer.constantize
+      def importer_for(company_id:) = importer_class.new(company_id:)
       def policy_class = policy.constantize
     end
 
