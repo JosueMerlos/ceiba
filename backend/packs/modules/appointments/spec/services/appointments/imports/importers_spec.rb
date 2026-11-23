@@ -33,6 +33,16 @@ RSpec.describe "Importadores del catálogo" do
         .to eq([ { "precio" => "invalid" }, { "precio" => "invalid" }, { "precio" => "invalid" }, { "precio" => "blank" } ])
     end
 
+    it "lee la moneda de la empresa una sola vez por importador, no una vez por fila" do
+      importer
+      queries = []
+      counter = ->(*, payload) { queries << payload[:sql] if payload[:sql].include?("companies") }
+
+      ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { 5.times { validate } }
+
+      expect(queries.size).to eq(1)
+    end
+
     it "rechaza una moneda distinta a la de la empresa y acepta la misma en minúsculas" do
       expect([ validate(moneda: "USD").last, validate(moneda: "nio").last ]).to eq([ { "moneda" => "currency_mismatch" }, {} ])
     end
