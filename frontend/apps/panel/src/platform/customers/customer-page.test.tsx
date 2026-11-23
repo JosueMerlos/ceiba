@@ -54,7 +54,7 @@ describe("ficha de cliente", () => {
     const rows = await within(history).findAllByRole("row");
     expect(within(rows[1]!).getByText("1 de noviembre de 2026 a las 9:30 p. m.")).toBeTruthy();
     expect(within(rows[1]!).getByText("Corte de cabello")).toBeTruthy();
-    expect(within(rows[1]!).getByText("Rosa Martínez")).toBeTruthy();
+    expect(within(rows[1]!).getAllByText("Rosa Martínez").length).toBeGreaterThan(0);
     expect(
       rows.slice(1).map((row) => within(row).getAllByRole("cell").at(-1)!.textContent),
     ).toEqual(["No asistió", "Cancelada", "Completada"]);

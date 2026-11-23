@@ -284,23 +284,32 @@ function HistoryBody({ agendaActive, canRead, history, visits, branch }: History
         <p className="py-6 text-muted-foreground">{t("profile.history.empty")}</p>
       ) : (
         <div className="overflow-x-auto">
-          <Table className="min-w-[30rem]">
+          {/* Folded columns fit a phone: no minimum width to scroll sideways. */}
+          <Table className="min-w-0">
             <TableHeader>
               <TableRow className="border-b">
                 <TableHead>{t("profile.history.columns.date")}</TableHead>
                 <TableHead>{t("profile.history.columns.service")}</TableHead>
-                <TableHead>{t("profile.history.columns.professional")}</TableHead>
+                <TableHead className="hidden sm:table-cell">
+                  {t("profile.history.columns.professional")}
+                </TableHead>
                 <TableHead>{t("profile.history.columns.status")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {visits.map((visit) => (
                 <TableRow key={visit.id}>
-                  <TableCell className="whitespace-nowrap">
-                    {formatDateTime(visit.starts_at, branch.time_zone)}
+                  <TableCell>{formatDateTime(visit.starts_at, branch.time_zone)}</TableCell>
+                  <TableCell>
+                    {serviceNames(visit)}
+                    {/* At phone width the professional folds under the service. */}
+                    <span className="block text-muted-foreground sm:hidden">
+                      {visit.professional.display_name}
+                    </span>
                   </TableCell>
-                  <TableCell>{serviceNames(visit)}</TableCell>
-                  <TableCell>{visit.professional.display_name}</TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    {visit.professional.display_name}
+                  </TableCell>
                   <TableCell>
                     <Badge className={cn(STATUS_CLASS[visit.status])}>
                       {t(`profile.history.status.${visit.status}`)}

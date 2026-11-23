@@ -190,11 +190,12 @@ function CustomersList({ branchId, creating, onCreatingChange }: CustomersListPr
 function CustomersTable({ customers }: { customers: readonly Customer[] }) {
   const { t } = useTranslation("customers");
   return (
-    <Table>
+    // Folded columns fit a phone: no minimum width to scroll sideways.
+    <Table className="min-w-0">
       <TableHeader>
         <TableRow className="border-b">
           <TableHead>{t("columns.name")}</TableHead>
-          <TableHead>{t("columns.phone")}</TableHead>
+          <TableHead className="hidden sm:table-cell">{t("columns.phone")}</TableHead>
           <TableHead className="hidden sm:table-cell">{t("columns.email")}</TableHead>
         </TableRow>
       </TableHeader>
@@ -205,8 +206,12 @@ function CustomersTable({ customers }: { customers: readonly Customer[] }) {
               <Link to={`/customers/${customer.id}`} className="hover:underline">
                 {customer.full_name}
               </Link>
+              {/* At phone width the phone column folds under the name. */}
+              <span className="block font-normal text-muted-foreground tabular-nums sm:hidden">
+                {formatPhone(customer.phone_e164)}
+              </span>
             </TableCell>
-            <TableCell className="whitespace-nowrap tabular-nums">
+            <TableCell className="hidden whitespace-nowrap tabular-nums sm:table-cell">
               {formatPhone(customer.phone_e164)}
             </TableCell>
             <TableCell className="hidden text-muted-foreground sm:table-cell">

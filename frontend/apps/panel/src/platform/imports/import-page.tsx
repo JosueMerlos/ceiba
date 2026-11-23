@@ -1,7 +1,7 @@
 import { isApiError } from "@ceiba/api-client";
 import { formatDateTime, translator, useTranslation } from "@ceiba/i18n";
-import { Button, Label, PageHeader, cn } from "@ceiba/ui";
-import { ChevronLeft, Download, TriangleAlert } from "lucide-react";
+import { Button, Label, PageHeader, buttonVariants, cn } from "@ceiba/ui";
+import { ChevronLeft, Download, FileUp, TriangleAlert } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { describeError } from "../errors/global-errors";
@@ -183,24 +183,45 @@ function KindChooser({
   );
 }
 
+// The native input stays in the tab order (visually hidden) and its visible label shows the focus: the browser's own
+// "choose file" text would come in the browser's language, not the panel's.
 function FileChooser({ disabled, onChoose }: { disabled: boolean; onChoose(file: File): void }) {
   const { t } = useTranslation("imports");
   const id = useId();
+  const [name, setName] = useState<string | null>(null);
   return (
     <div className="grid max-w-md gap-1.5">
       <Label htmlFor={id}>{t("file")}</Label>
-      <input
-        id={id}
-        type="file"
-        accept=".csv,text/csv"
-        disabled={disabled}
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) onChoose(file);
-        }}
-        className="rounded-lg border border-dashed bg-card p-3 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:font-semibold"
-      />
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed bg-card p-3">
+        <input
+          id={id}
+          type="file"
+          accept=".csv,text/csv"
+          disabled={disabled}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (!file) return;
+            setName(file.name);
+            onChoose(file);
+          }}
+          className="peer sr-only"
+        />
+        <label
+          htmlFor={id}
+          aria-hidden="true"
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "cursor-pointer peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-disabled:pointer-events-none peer-disabled:opacity-50",
+          )}
+        >
+          <FileUp aria-hidden="true" />
+          {t("choose")}
+        </label>
+        <span className="min-w-0 truncate text-sm text-muted-foreground">
+          {name ?? t("noFile")}
+        </span>
+      </div>
     </div>
   );
 }

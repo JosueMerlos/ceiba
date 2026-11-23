@@ -27,7 +27,7 @@ describe("lista de clientes", () => {
     await renderApp({ route: "/customers" });
 
     const row = await screen.findByRole("row", { name: /Fernanda Ruiz/ });
-    expect(within(row).getByText("+505 8812 3456")).toBeTruthy();
+    expect(within(row).getAllByText("+505 8812 3456").length).toBeGreaterThan(0);
     expect(within(row).getByText("fer@correo.com")).toBeTruthy();
     const nav = screen.getByRole("navigation", { name: "Navegación principal" });
     expect(within(nav).getByRole("link", { name: "Clientes" }).getAttribute("href")).toBe(

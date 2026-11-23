@@ -13,6 +13,8 @@ export const imports = {
   templateHint:
     "Guarde la hoja como CSV. Se aceptan archivos de Excel en español (con «;»), UTF-8 o Windows-1252, de hasta 5000 filas.",
   file: "Archivo CSV",
+  choose: "Elegir archivo",
+  noFile: "Ningún archivo elegido",
   reading: "Revisando el archivo…",
   tooLarge: "El archivo pesa más de 5 MB: divídalo en varios archivos.",
   summary: {
@@ -21,7 +23,7 @@ export const imports = {
     ready_other: "{{count}} listas para importar",
     rejected_one: "{{count}} con errores: no se importará",
     rejected_other: "{{count}} con errores: no se importarán",
-    expires: "Esta previsualización vence el {{date}}.",
+    expires: "Si no la confirma, esta revisión vence el {{date}}",
   },
   warnings: {
     consent_not_recorded:
