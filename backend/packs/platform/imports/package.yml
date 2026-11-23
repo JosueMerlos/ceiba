@@ -1,0 +1,20 @@
+# Pack platform/imports (namespace Imports).
+layer: platform
+enforce_dependencies: true
+enforce_privacy: true
+enforce_layers: true
+
+# Declare ONLY what the pack uses here. "." is the root pack (ApplicationRecord, ApplicationController...).
+# A platform pack depends on no module.
+dependencies:
+  - "."
+  # The active context (Tenancy.with_context, Current.context) and the company's identity for the routes.
+  - "packs/platform/tenancy"
+  # Policies extend Access::BasePolicy; the kind's owner pack provides the policy that asks for its permissions.
+  - "packs/platform/access"
+  # Confirming and completing a batch is audited by id, with counts only.
+  - "packs/platform/audit"
+  # Each chunk of a confirmed batch is requested through the outbox (Events.publish / Events.subscribe).
+  - "packs/platform/events"
+  # A kind owned by a module (services, professionals) needs that module active in the company (Modules.enabled?).
+  - "packs/platform/modules"

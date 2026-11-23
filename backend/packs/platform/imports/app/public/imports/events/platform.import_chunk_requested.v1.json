@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "platform.import_chunk_requested.v1",
+  "description": "Un lote de importación confirmado necesita que se aplique su siguiente tramo de filas. Solo el id del lote: las celdas viven cifradas en sus filas. La organización viaja en el sobre del evento.",
+  "type": "object",
+  "required": ["import_batch_id"],
+  "properties": {
+    "import_batch_id": { "type": "string", "format": "uuid" }
+  },
+  "additionalProperties": false
+}

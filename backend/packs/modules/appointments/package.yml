@@ -26,3 +26,5 @@ dependencies:
   - "packs/platform/events"
   # Booking asks whether the customer is an active customer of the company (Customers::Lookup), never for its data.
   - "packs/platform/customers"
+  # The catalog (services, professionals) is imported from CSV through the imports pack (Imports::Importer, Imports::Registry).
+  - "packs/platform/imports"

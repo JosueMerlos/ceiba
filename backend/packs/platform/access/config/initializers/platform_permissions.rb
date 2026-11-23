@@ -33,6 +33,8 @@ Rails.application.config.to_prepare do
     "platform.customer.read" => { description: "Ver clientes", roles: %w[company_manager branch_manager receptionist] },
     "platform.customer.create" => { description: "Crear clientes", roles: %w[company_manager branch_manager receptionist] },
     "platform.customer.update" => { description: "Editar clientes", roles: %w[company_manager branch_manager receptionist] },
-    "platform.customer.archive" => { description: "Archivar clientes", roles: %w[company_manager branch_manager receptionist] }
+    "platform.customer.archive" => { description: "Archivar clientes", roles: %w[company_manager branch_manager receptionist] },
+    # Loading a CSV writes many customers at once (and can overwrite them): a separate permission from the daily ones.
+    "platform.customer.import" => { description: "Importar clientes desde CSV", roles: %w[company_manager branch_manager] }
   )
 end
