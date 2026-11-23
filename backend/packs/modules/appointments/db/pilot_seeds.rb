@@ -1,6 +1,7 @@
 # A simulated salon week for the internal pilot and for measuring the agenda under load. Loaded BY PATH from the demo:agenda_pilot
 # task (the module is invisible to the root pack); never part of db:seed, so the demo fixtures the E2E rely on stay untouched.
-# All or nothing, so a company that already has services is complete and is left alone. Must run inside a tenant context.
+# Each run books the current week once: the salon (catalog, staff, chairs, hours) is created the first time and reused after,
+# and a week is booked all or nothing, together with the salon when that is new. Must run inside a tenant context.
 module AppointmentsPilotSeeds
   # Durations of at most an hour, because each professional's appointments start on the hour.
   SERVICES = [ [ "Corte de dama", 45, 25_000 ], [ "Tinte completo", 60, 80_000 ], [ "Manicure", 30, 18_000 ], [ "Peinado de evento", 60, 35_000 ] ].freeze
@@ -16,16 +17,31 @@ module AppointmentsPilotSeeds
   module_function
 
   def seed(company:, branch:, professional_user_id:)
-    return false if Appointments::Service.exists?(company_id: company.id)
+    zone = ActiveSupport::TimeZone[branch.time_zone]
+    monday = Time.current.in_time_zone(zone).to_date.beginning_of_week
+    return false if week_booked?(branch, monday.in_time_zone(zone))
 
     ApplicationRecord.transaction(requires_new: true) do
-      services = create_services(company)
-      people = create_professionals(company, branch, services, professional_user_id)
-      create_chairs(company, branch, services)
-      Appointments::Staff::ReplaceSchedule.call(owner: branch, branch_id: branch.id, slots: slots)
-      book_week(company, branch, services, people, create_customers(company))
+      services, people = existing_salon(company, branch) || create_salon(company, branch, professional_user_id)
+      book_week(company, branch, services, people, create_customers(company), monday, zone)
     end
     true
+  end
+
+  def week_booked?(branch, monday) = Appointments::Appointment.where(branch_id: branch.id, starts_at: monday...(monday + 7.days)).exists?
+
+  # UUIDv7 ids keep creation order, so the professionals come back in the order they were seeded.
+  def existing_salon(company, branch)
+    services = Appointments::Service.where(company_id: company.id).order(:position).to_a
+    [ services, Appointments::Professional.assigned_to(branch).order(:id).to_a ] if services.any?
+  end
+
+  def create_salon(company, branch, professional_user_id)
+    services = create_services(company)
+    people = create_professionals(company, branch, services, professional_user_id)
+    create_chairs(company, branch, services)
+    Appointments::Staff::ReplaceSchedule.call(owner: branch, branch_id: branch.id, slots: slots)
+    [ services, people ]
   end
 
   def create_services(company)
@@ -61,9 +77,7 @@ module AppointmentsPilotSeeds
 
   def slots = WEEKDAYS.flat_map { |weekday| OPENING.map { |starts, ends| { weekday:, starts_at_local: starts, ends_at_local: ends } } }
 
-  def book_week(company, branch, services, people, customers)
-    zone = ActiveSupport::TimeZone[branch.time_zone]
-    monday = Time.current.in_time_zone(zone).to_date.beginning_of_week
+  def book_week(company, branch, services, people, customers, monday, zone)
     counter = 0
     WEEKDAYS.each do |weekday|
       day = monday + (weekday - 1)
