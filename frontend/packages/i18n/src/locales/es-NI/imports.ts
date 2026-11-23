@@ -38,6 +38,8 @@ export const imports = {
   },
   errorsTitle: "Filas con errores",
   errorLine: "Fila {{row}}: {{column}}: {{reason}}",
+  errorLineRow: "Fila {{row}}: {{reason}}",
+  moreErrors: "Ver más filas con errores",
   columns: {
     nombre: "Nombre",
     telefono: "Teléfono",
@@ -49,7 +51,6 @@ export const imports = {
     buffer_antes_minutos: "Tiempo antes (min)",
     buffer_despues_minutos: "Tiempo después (min)",
     activo: "Activo",
-    base: "Fila",
   },
   reasons: {
     blank: "está vacío",
@@ -86,6 +87,7 @@ export const imports = {
     restored: "{{count}} restaurados",
     skipped: "{{count}} omitidos",
     failedRows: "{{count}} no se pudieron importar",
+    failedTitle: "Filas que no se importaron",
     rejected: "{{count}} con errores en el archivo",
     another: "Importar otro archivo",
     toCustomers: "Ver clientes",

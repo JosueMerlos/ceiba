@@ -1,5 +1,5 @@
 import { unwrap, useApiClient, type components } from "@ceiba/api-client";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { useBranchScope } from "../context/use-branch-scope";
 import type { ImportKind } from "./kinds";
 
@@ -57,22 +57,30 @@ export function useImportProgress(branchId: string, batch: ImportBatch | null) {
   });
 }
 
-/** The rejected rows of a preview: row numbers and codes only, for the error list. */
-export function useRejectedRows(branchId: string, batch: ImportBatch | null) {
+/** A batch's rows in one state (rejected in the preview, failed in the report), page by page: numbers and codes only. */
+export function useBatchRows(
+  branchId: string,
+  batch: ImportBatch,
+  status: "rejected" | "failed",
+  enabled: boolean,
+) {
   const client = useApiClient();
   const { path } = useBranchScope(branchId);
-  return useQuery({
-    queryKey: ["imports", path.company_id, batch?.id, "rejected"],
-    queryFn: () =>
+  return useInfiniteQuery({
+    queryKey: ["imports", path.company_id, batch.id, status],
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
       unwrap(
         client.GET(`${IMPORT}/rows`, {
           params: {
-            path: { ...path, import_id: batch!.id },
-            query: { status: "rejected", limit: ROWS_PAGE },
+            path: { ...path, import_id: batch.id },
+            query: { status, limit: ROWS_PAGE, ...(pageParam ? { after: pageParam } : {}) },
           },
         }),
       ),
-    enabled: batch !== null && batch.rejected_count > 0,
+    getNextPageParam: (last) =>
+      last.page.has_more ? (last.page.next_cursor ?? undefined) : undefined,
+    enabled,
   });
 }
 

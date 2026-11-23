@@ -14,7 +14,7 @@ import {
   readAsBase64,
   useConfirmImport,
   useImportProgress,
-  useRejectedRows,
+  useBatchRows,
   useUploadImport,
   type DuplicateMode,
   type ImportBatch,
@@ -100,7 +100,7 @@ function ImportFlow({ branchId, timeZone, kinds }: ImportFlowProps) {
     }
   }
 
-  if (current) return <Outcome batch={current} onRestart={restart} />;
+  if (current) return <Outcome batch={current} branchId={branchId} onRestart={restart} />;
 
   return (
     <>
@@ -240,7 +240,6 @@ function Preview({
   // The server lists the modes the kind accepts, the safest one first.
   const [mode, setMode] = useState<DuplicateMode>(batch.duplicate_modes[0]!);
   const confirm = useConfirmImport(branchId);
-  const rejected = useRejectedRows(branchId, batch);
 
   return (
     <div className="grid gap-6">
@@ -267,20 +266,8 @@ function Preview({
         </Alert>
       ))}
 
-      {batch.rejected_count > 0 && rejected.data ? (
-        <section className="grid gap-2">
-          <h2 id="import-errors" className="font-semibold">
-            {t("errorsTitle")}
-          </h2>
-          <ul
-            aria-labelledby="import-errors"
-            className="grid max-h-72 gap-1 overflow-y-auto rounded-lg border p-3 text-sm"
-          >
-            {rejected.data.data.map((row) => (
-              <li key={row.row_number}>{errorLine(row, t)}</li>
-            ))}
-          </ul>
-        </section>
+      {batch.rejected_count > 0 ? (
+        <RowErrors branchId={branchId} batch={batch} status="rejected" title={t("errorsTitle")} />
       ) : null}
 
       <PreviewTable batch={batch} />
@@ -312,11 +299,59 @@ function Preview({
   );
 }
 
+/** Rows in one state with their reasons, loading further pages on demand. */
+function RowErrors({
+  branchId,
+  batch,
+  status,
+  title,
+}: {
+  branchId: string;
+  batch: ImportBatch;
+  status: "rejected" | "failed";
+  title: string;
+}) {
+  const { t } = useTranslation("imports");
+  const id = useId();
+  const rows = useBatchRows(branchId, batch, status, true);
+  if (!rows.data) return null;
+
+  return (
+    <section className="grid gap-2">
+      <h2 id={id} className="font-semibold">
+        {title}
+      </h2>
+      <ul
+        aria-labelledby={id}
+        className="grid max-h-72 gap-1 overflow-y-auto rounded-lg border p-3 text-sm"
+      >
+        {rows.data.pages
+          .flatMap((page) => page.data)
+          .map((row) => (
+            <li key={row.row_number}>{errorLine(row, t)}</li>
+          ))}
+      </ul>
+      {rows.hasNextPage ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="justify-self-start"
+          disabled={rows.isFetchingNextPage}
+          onClick={() => void rows.fetchNextPage()}
+        >
+          {t("moreErrors")}
+        </Button>
+      ) : null}
+    </section>
+  );
+}
+
 function errorLine(row: ImportRow, t: ReturnType<typeof useTranslation>["t"]) {
   const translate = translator(t);
   return Object.entries(row.error_codes)
     .map(([column, code]) =>
-      translate("imports:errorLine", {
+      translate(column === "base" ? "imports:errorLineRow" : "imports:errorLine", {
         row: row.row_number,
         column: translate(`imports:columns.${column}`, { defaultValue: column }),
         reason: translate(`imports:reasonsByColumn.${column}.${code}`, {
@@ -415,7 +450,15 @@ function ModeChooser({
   );
 }
 
-function Outcome({ batch, onRestart }: { batch: ImportBatch; onRestart(): void }) {
+function Outcome({
+  batch,
+  branchId,
+  onRestart,
+}: {
+  batch: ImportBatch;
+  branchId: string;
+  onRestart(): void;
+}) {
   const { t } = useTranslation("imports");
   if (RUNNING.includes(batch.status)) {
     const done =
@@ -453,6 +496,14 @@ function Outcome({ batch, onRestart }: { batch: ImportBatch; onRestart(): void }
           <li key={key}>{t(`report.${key}`, { count })}</li>
         ))}
       </ul>
+      {batch.failed_count > 0 ? (
+        <RowErrors
+          branchId={branchId}
+          batch={batch}
+          status="failed"
+          title={t("report.failedTitle")}
+        />
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" onClick={onRestart}>
           {t("report.another")}
