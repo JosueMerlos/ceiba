@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 | --- | --- |
-| Estado | aceptada |
+| Estado | aceptada (la excepción de PII la amplía [ADR-0041](0041-nombre-del-cliente-en-la-agenda.md)) |
 | Fecha | 2026-11-10 |
 | Origen | Plan del hito [M1.01](../milestones/F1-citas-dominio/M1.01-clientes-y-servicios.md): seis decisiones abiertas que el desarrollador resolvió antes de implementar, más la revisión independiente del plan |
 

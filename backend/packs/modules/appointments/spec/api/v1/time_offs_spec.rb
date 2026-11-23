@@ -361,6 +361,8 @@ RSpec.describe "API v1: ausencias" do
       description "Exige `appointments.time_off.read` en la sucursal. El recurso debe ser de la sucursal de la ruta. Paginado por cursor."
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
+      parameter name: :limit, in: :query, schema: { type: :integer, minimum: 1, maximum: 100 }, required: false
+      parameter name: :after, in: :query, schema: { type: :string }, required: false
 
       let!(:closed) { time_off_for({ resource: }) }
 

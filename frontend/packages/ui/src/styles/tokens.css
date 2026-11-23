@@ -19,19 +19,28 @@
   --palette-canopy-900: #0d3426;
 
   --palette-kapok-0: #ffffff;
+  --palette-kapok-25: #f6f7f4;
   --palette-kapok-50: #f2f4ef;
   --palette-kapok-100: #eceee6;
+  --palette-kapok-150: #e9ece5;
   --palette-kapok-200: #dde1d6;
   --palette-kapok-300: #c3c9bb;
+  --palette-kapok-400: #a3ac9f;
   --palette-kapok-500: #6f7b70;
+  --palette-kapok-600: #5b665e;
   --palette-kapok-700: #46514a;
   --palette-kapok-900: #17211c;
 
+  --palette-sacuanjoche-50: #fef8e7;
   --palette-sacuanjoche-100: #fbeec8;
+  --palette-sacuanjoche-300: #e9c96a;
   --palette-sacuanjoche-400: #f2b93f;
+  --palette-sacuanjoche-600: #b07d00;
   --palette-sacuanjoche-700: #7a5200;
+  --palette-sacuanjoche-800: #6b4800;
 
   --palette-ember-50: #fdecea;
+  --palette-ember-200: #f4c7c3;
   --palette-ember-600: #b42318;
 
   --palette-font-body: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
@@ -89,6 +98,28 @@
   /* The brand accent, under its own name so it does not tint every menu. */
   --highlight: var(--brand-accent);
   --highlight-foreground: var(--brand-accent-foreground);
+
+  /* Appointment states differ in lightness, not only in hue, so they survive color blindness and poor screens. */
+  --appointment-pending-bg: var(--palette-sacuanjoche-50);
+  --appointment-pending-fg: var(--palette-sacuanjoche-800);
+  --appointment-pending-border: var(--palette-sacuanjoche-300);
+  --appointment-pending-dot: var(--palette-sacuanjoche-600);
+  --appointment-confirmed-bg: var(--palette-kapok-0);
+  --appointment-confirmed-fg: var(--palette-kapok-900);
+  --appointment-confirmed-border: var(--palette-kapok-200);
+  --appointment-confirmed-dot: var(--palette-canopy-500);
+  --appointment-arrived-bg: var(--palette-canopy-100);
+  --appointment-arrived-fg: var(--palette-canopy-900);
+  --appointment-arrived-border: var(--palette-canopy-200);
+  --appointment-arrived-dot: var(--palette-canopy-600);
+  --appointment-done-bg: var(--palette-kapok-25);
+  --appointment-done-fg: var(--palette-kapok-600);
+  --appointment-done-border: var(--palette-kapok-150);
+  --appointment-done-dot: var(--palette-kapok-400);
+  --appointment-missed-bg: var(--palette-ember-50);
+  --appointment-missed-fg: var(--palette-ember-600);
+  --appointment-missed-border: var(--palette-ember-200);
+  --appointment-missed-dot: var(--palette-ember-600);
 
   --button-radius: var(--radius);
   --button-height: 2.5rem;

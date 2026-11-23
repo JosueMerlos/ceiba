@@ -6,7 +6,14 @@ import {
   type components,
 } from "@ceiba/api-client";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CSRF, LIST_PAGE, useCatalogScope, type WeeklyScheduleInput } from "./shared";
+import {
+  allPages,
+  CSRF,
+  LIST_PAGE,
+  useCatalogScope,
+  type CatalogScope,
+  type WeeklyScheduleInput,
+} from "./shared";
 
 type Schemas = components["schemas"];
 export type Service = Schemas["Service"];
@@ -36,6 +43,26 @@ const FILTER_QUERY: Record<ServiceFilter, { archived: boolean; active?: boolean 
   paused: { archived: false, active: false },
   archived: { archived: true },
 };
+
+/** Every service of one archive state, under the prefix the catalog's mutations invalidate. */
+export function everyServiceQuery(
+  client: ReturnType<typeof useApiClient>,
+  { organizationId, companyId, path }: CatalogScope,
+  archived: boolean,
+) {
+  return {
+    queryKey: [...catalogKeys.services(organizationId, companyId), "every-page", archived] as const,
+    queryFn: () =>
+      allPages((page) =>
+        unwrap(
+          client.GET(
+            "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/services",
+            { params: { path, query: { ...page, archived } } },
+          ),
+        ),
+      ),
+  };
+}
 
 export function useServicesQuery(filter: ServiceFilter) {
   const client = useApiClient();
@@ -240,9 +267,9 @@ export function useCreateBranch() {
   });
 }
 
-function scheduleQuery(
+export function scheduleQuery(
   client: ReturnType<typeof useApiClient>,
-  scope: ReturnType<typeof useCatalogScope>,
+  scope: CatalogScope,
   branchId: string,
 ) {
   const { organizationId, companyId, path } = scope;

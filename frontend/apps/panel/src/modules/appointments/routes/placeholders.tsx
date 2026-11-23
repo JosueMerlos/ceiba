@@ -1,8 +1,8 @@
 import { useTranslation } from "@ceiba/i18n";
 import { PageHeader } from "@ceiba/ui";
-import { CalendarDays, ChartNoAxesColumn, type LucideIcon } from "lucide-react";
+import { ChartNoAxesColumn, type LucideIcon } from "lucide-react";
 
-// Placeholders: the appointments domain and the agenda screens are not built yet.
+// Placeholder: the organization-wide appointment summary is not built yet.
 function Placeholder({ icon: Icon, children }: { icon: LucideIcon; children: string }) {
   return (
     <section
@@ -14,16 +14,6 @@ function Placeholder({ icon: Icon, children }: { icon: LucideIcon; children: str
       </span>
       <p className="max-w-sm text-muted-foreground">{children}</p>
     </section>
-  );
-}
-
-export function AgendaPage() {
-  const { t } = useTranslation("appointments");
-  return (
-    <>
-      <PageHeader title={t("agenda.title")} description={t("agenda.description")} />
-      <Placeholder icon={CalendarDays}>{t("agenda.comingSoon")}</Placeholder>
-    </>
   );
 }
 

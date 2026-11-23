@@ -29,7 +29,9 @@ module Api
           readable = policy_scope(::Appointments::Appointment.where(company_id:), policy_scope_class: ::Appointments::AppointmentPolicy::Scope)
           appointments = ::Appointments::Agenda.call(scope: readable, branch: Current.context.branch, from_date: query[:from], to_date: query[:to],
                                                      professional_id: query[:professional_id])
-          render_appointment(appointments)
+          customer_names = ::Appointments::AgendaCustomerNames.call(appointments:, principal: Current.principal, branch: Current.context.branch,
+                                                                    company: Current.context.company)
+          render_appointment(appointments, serializer: ::Appointments::AgendaAppointmentSerializer, params: { customer_names: })
         end
 
         def show

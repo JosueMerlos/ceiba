@@ -13,8 +13,8 @@ module Api
                                                       .find(params[:appointment_id])
         end
 
-        def render_appointment(record, status: :ok, serializer: ::Appointments::AppointmentSerializer)
-          render json: { data: serializer.new(record).serializable_hash }, status:
+        def render_appointment(record, status: :ok, serializer: ::Appointments::AppointmentSerializer, params: {})
+          render json: { data: serializer.new(record, params:).serializable_hash }, status:
         end
       end
     end

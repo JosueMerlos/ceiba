@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // E2E against the Compose environment (proxy on the public port). Data comes from the demo seeds (backend/db/seeds.rb).
-// Tests are read-only on the data (they create and delete nothing) and share no session: each one logs in on its own.
+// Tests share no session: each one logs in on its own. Those that write create uniquely named data and clean up what they can.
 export default defineConfig({
   testDir: "./tests",
   outputDir: "./test-results",

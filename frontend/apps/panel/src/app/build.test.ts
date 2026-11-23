@@ -15,6 +15,12 @@ interface ManifestEntry {
   dynamicImports?: string[];
 }
 
+const MODULE_ENTRY = "src/modules/appointments/routes/index.tsx";
+const CALENDAR_ADAPTER =
+  "src/modules/appointments/components/agenda-view/adapters/event-calendar.tsx";
+// A class name only the calendar library writes.
+const CALENDAR_MARKER = "ec-event";
+
 describe("build de producción del panel", () => {
   let outDir: string;
   let manifest: Record<string, ManifestEntry>;
@@ -46,18 +52,21 @@ describe("build de producción del panel", () => {
   it("el código de las páginas del módulo no está en el chunk de arranque", () => {
     // `data-module="appointments"` is written only by the module's page.
     expect(read(entry().file)).not.toContain("appointments-placeholder");
-    const chunk = Object.values(manifest).find((item) =>
-      item.src?.includes("modules/appointments/"),
-    );
-    expect(read(chunk!.file)).toContain("appointments-placeholder");
+    expect(read(manifest[MODULE_ENTRY]!.file)).toContain("appointments-placeholder");
   });
 
   it("el arranque solo lo importa dinámicamente (no con un import estático)", () => {
-    const chunk = Object.entries(manifest).find(([, item]) =>
-      item.src?.includes("modules/appointments/"),
-    )!;
+    expect(entry().imports ?? []).not.toContain(MODULE_ENTRY);
+    expect(entry().dynamicImports ?? []).toContain(MODULE_ENTRY);
+  });
 
-    expect(entry().imports ?? []).not.toContain(chunk[0]);
-    expect(entry().dynamicImports ?? []).toContain(chunk[0]);
+  it("la librería del calendario solo viaja en el chunk de su adaptador", () => {
+    const adapter = manifest[CALENDAR_ADAPTER]!;
+    const withCalendar = Object.values(manifest).filter(
+      (item) => item.file.endsWith(".js") && read(item.file).includes(CALENDAR_MARKER),
+    );
+
+    expect(withCalendar.map((item) => item.file)).toEqual([adapter.file]);
+    expect(manifest[MODULE_ENTRY]!.imports ?? []).not.toContain(CALENDAR_ADAPTER);
   });
 });
