@@ -807,6 +807,65 @@ components:
       - created_at
       - updated_at
       type: object
+    CustomerAppointment:
+      additionalProperties: false
+      description: 'Una cita del historial de un cliente en la sucursal: estado, horario y los nombres de profesional y servicios (aunque estén archivados). Sin notas, precio ni datos del cliente.'
+      properties:
+        ends_at:
+          description: UTC
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        professional:
+          additionalProperties: false
+          properties:
+            display_name:
+              type: string
+            id:
+              format: uuid
+              type: string
+          required:
+          - id
+          - display_name
+          type: object
+        services:
+          items:
+            additionalProperties: false
+            properties:
+              name:
+                type: string
+              service_id:
+                format: uuid
+                type: string
+            required:
+            - service_id
+            - name
+            type: object
+          type: array
+        starts_at:
+          description: UTC
+          format: date-time
+          type: string
+        status:
+          enum:
+          - scheduled
+          - confirmed
+          - checked_in
+          - completed
+          - cancelled
+          - rescheduled
+          - no_show
+          type: string
+      required:
+      - id
+      - status
+      - starts_at
+      - ends_at
+      - professional
+      - services
+      type: object
     CustomerInput:
       additionalProperties: false
       description: Alta de un cliente
@@ -884,6 +943,180 @@ components:
       - field
       - code
       - message
+      type: object
+    ImportBatch:
+      additionalProperties: false
+      description: Un archivo importado, de la previsualización al reporte. Solo conteos y códigos.
+      properties:
+        columns:
+          description: Columnas que reconoce el tipo
+          items:
+            type: string
+          type: array
+        confirmed_at:
+          format: date-time
+          nullable: true
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        created_count:
+          type: integer
+        duplicate_mode:
+          enum:
+          - skip
+          - update
+          nullable: true
+          type: string
+        duplicate_modes:
+          description: Modos que admite el tipo
+          items:
+            enum:
+            - skip
+            - update
+            type: string
+          type: array
+        expires_at:
+          description: UTC; vencimiento de la previsualización
+          format: date-time
+          type: string
+        failed_count:
+          type: integer
+        finished_at:
+          format: date-time
+          nullable: true
+          type: string
+        id:
+          format: uuid
+          type: string
+        kind:
+          enum:
+          - customers
+          - services
+          - professionals
+          type: string
+        preview:
+          description: Las primeras 20 filas
+          items:
+            "$ref": "#/components/schemas/ImportRow"
+          type: array
+        ready_count:
+          type: integer
+        rejected_count:
+          type: integer
+        required_columns:
+          items:
+            type: string
+          type: array
+        restored_count:
+          type: integer
+        skipped_count:
+          type: integer
+        status:
+          enum:
+          - previewed
+          - queued
+          - processing
+          - completed
+          - failed
+          - expired
+          type: string
+        total_count:
+          type: integer
+        updated_count:
+          type: integer
+        warnings:
+          items:
+            enum:
+            - consent_not_recorded
+            type: string
+          type: array
+      required:
+      - id
+      - kind
+      - status
+      - duplicate_mode
+      - duplicate_modes
+      - columns
+      - required_columns
+      - warnings
+      - total_count
+      - ready_count
+      - rejected_count
+      - created_count
+      - updated_count
+      - restored_count
+      - skipped_count
+      - failed_count
+      - expires_at
+      - confirmed_at
+      - finished_at
+      - created_at
+      - preview
+      type: object
+    ImportConfirmation:
+      additionalProperties: false
+      properties:
+        duplicate_mode:
+          description: "`update` solo para clientes"
+          enum:
+          - skip
+          - update
+          type: string
+      required:
+      - duplicate_mode
+      type: object
+    ImportRow:
+      additionalProperties: false
+      description: Una fila de datos del archivo. `row_number` es su línea en la hoja (el encabezado es la 1).
+      properties:
+        error_codes:
+          additionalProperties:
+            type: string
+          description: Columna => código del error, nunca el valor
+          type: object
+        row_number:
+          minimum: 2
+          type: integer
+        status:
+          enum:
+          - ready
+          - rejected
+          - created
+          - updated
+          - restored
+          - skipped
+          - failed
+          type: string
+        values:
+          additionalProperties:
+            nullable: true
+            type: string
+          description: Celdas de la fila por columna; solo mientras el lote está en previsualización
+          nullable: true
+          type: object
+      required:
+      - row_number
+      - status
+      - error_codes
+      - values
+      type: object
+    ImportUpload:
+      additionalProperties: false
+      description: Archivo CSV a importar, codificado en base64
+      properties:
+        content_base64:
+          description: Bytes del archivo en base64 (máximo 5 MB decodificado)
+          type: string
+        kind:
+          enum:
+          - customers
+          - services
+          - professionals
+          type: string
+      required:
+      - kind
+      - content_base64
       type: object
     LogoAsset:
       additionalProperties: false
@@ -3066,6 +3299,76 @@ paths:
         type: string
     - in: path
       name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+  ? "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/customers/{customer_id}/appointments"
+  : get:
+      description: De la más reciente a la más antigua, paginado por cursor. Solo las citas de la sucursal de la ruta. Exige `appointments.appointment.read` en la sucursal. Un cliente archivado conserva su historial.
+      parameters:
+      - in: query
+        name: limit
+        required: false
+        schema:
+          maximum: 100
+          minimum: 1
+          type: integer
+      - in: query
+        name: after
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/CustomerAppointment"
+                    type: array
+                  page:
+                    "$ref": "#/components/schemas/PageInfo"
+                required:
+                - data
+                - page
+                type: object
+          description: las citas con su estado y los nombres de profesional y servicio
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un cliente de otra empresa no existe para esta ruta
+      security:
+      - cookieAuth: []
+      summary: Historial de citas de un cliente en la sucursal
+      tags:
+      - Citas
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: customer_id
       required: true
       schema:
         format: uuid
@@ -5821,6 +6124,263 @@ paths:
       summary: Edita un cliente
       tags:
       - Clientes
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/imports":
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: Lee el archivo (UTF-8, Windows-1252 o UTF-16; separador `;`, `,` o tabulador), valida cada fila y no aplica ninguna. Máximo 5000 filas y 5 MB. Clientes exige `platform.customer.import` y `platform.customer.read` en la sucursal; servicios `appointments.service.manage` y profesionales `appointments.professional.manage` en la empresa (con el módulo activo). La previsualización devuelve las primeras 20 filas con sus valores mientras el lote no se confirma.
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ImportUpload"
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/ImportBatch"
+                required:
+                - data
+                type: object
+          description: 'el lote previsualizado: 3 inválidas de 100 señaladas con su motivo'
+        '403':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: la recepción no importa clientes
+        '422':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: faltan columnas obligatorias
+      security:
+      - cookieAuth: []
+      summary: Sube un CSV y devuelve su previsualización
+      tags:
+      - Importaciones
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/imports/{import_id}":
+    get:
+      description: Para seguir el avance tras confirmar. Los valores de las filas solo salen mientras el lote está en previsualización.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/ImportBatch"
+                required:
+                - data
+                type: object
+          description: el lote
+        '404':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: un lote de otra empresa no existe para esta ruta
+      security:
+      - cookieAuth: []
+      summary: Estado de un lote y sus primeras filas
+      tags:
+      - Importaciones
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: import_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/imports/{import_id}/confirm":
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: import_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    post:
+      description: "`duplicate_mode`: `skip` deja intacto lo existente; `update` (solo clientes) escribe las celdas no vacías y restaura a los archivados. Las filas rechazadas no se importan. Un solo lote de cada tipo corre a la vez en la empresa."
+      parameters:
+      - description: "`csrf_token` de la sesión (login o GET /auth/session)"
+        in: header
+        name: X-CSRF-Token
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ImportConfirmation"
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    "$ref": "#/components/schemas/ImportBatch"
+                required:
+                - data
+                type: object
+          description: encolado
+        '409':
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+          description: ya confirmado
+      security:
+      - cookieAuth: []
+      summary: Confirma el lote y lo encola
+      tags:
+      - Importaciones
+  "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/imports/{import_id}/rows":
+    get:
+      description: Paginado por cursor. Filtro `status` (p. ej. `rejected` para el reporte de errores). Los códigos de error nunca llevan el valor.
+      parameters:
+      - in: query
+        name: status
+        required: false
+        schema:
+          enum:
+          - ready
+          - rejected
+          - created
+          - updated
+          - restored
+          - skipped
+          - failed
+          type: string
+      - in: query
+        name: limit
+        required: false
+        schema:
+          maximum: 100
+          minimum: 1
+          type: integer
+      - in: query
+        name: after
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      "$ref": "#/components/schemas/ImportRow"
+                    type: array
+                  page:
+                    "$ref": "#/components/schemas/PageInfo"
+                required:
+                - data
+                - page
+                type: object
+          description: las filas rechazadas
+      security:
+      - cookieAuth: []
+      summary: Filas de un lote, por número de fila
+      tags:
+      - Importaciones
+    parameters:
+    - in: path
+      name: organization_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: company_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: branch_id
+      required: true
+      schema:
+        format: uuid
+        type: string
+    - in: path
+      name: import_id
+      required: true
+      schema:
+        format: uuid
+        type: string
   "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/modules/{key}/settings":
     parameters:
     - in: path
