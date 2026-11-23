@@ -137,6 +137,45 @@ describe("Crear una cita", () => {
     expect(await within(panel).findByText("Eva Luna")).toBeTruthy();
   });
 
+  it("los profesionales pausados no se ofrecen para reservar", async () => {
+    asReception();
+    agendaBackend({
+      professionals: [
+        {
+          id: "p1",
+          display_name: "Rosa Martínez",
+          branch_ids: [ids.branchA],
+          service_ids: ["s1"],
+          active: false,
+        },
+        { id: "p2", display_name: "Luis Pérez", branch_ids: [ids.branchA], service_ids: ["s1"] },
+      ],
+    });
+    const { user } = await renderApp({ route });
+
+    await user.click(await screen.findByRole("button", { name: "Nueva cita" }));
+    const panel = await screen.findByRole("complementary", { name: "Nueva cita" });
+    const picker = within(panel).getByRole("combobox", { name: "Profesional" });
+    expect(picker.textContent).toContain("Luis Pérez");
+    await user.click(picker);
+
+    expect(await screen.findByRole("option", { name: "Luis Pérez" })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: "Rosa Martínez" })).toBeNull();
+  });
+
+  it("desde la semana de un profesional, Nueva cita lo propone a él", async () => {
+    asReception();
+    agendaBackend();
+    const { user } = await renderApp({ route: `${route}&view=week&pro=p2` });
+
+    await user.click(await screen.findByRole("button", { name: "Nueva cita" }));
+    const panel = await screen.findByRole("complementary", { name: "Nueva cita" });
+
+    expect(within(panel).getByRole("combobox", { name: "Profesional" }).textContent).toContain(
+      "Luis Pérez",
+    );
+  });
+
   it("busca por teléfono cuando se escriben dígitos", async () => {
     asReception();
     const backend = agendaBackend({ customers: [ana] });
@@ -254,6 +293,27 @@ describe("Detalle y estados", () => {
       }),
     );
     expect(backend.writes[0]?.key).toBeTruthy();
+  });
+
+  it("reprogramar solo ofrece los inicios que la disponibilidad da por libres", async () => {
+    asReception();
+    agendaBackend({
+      appointments: [agendaAppointment()],
+      details: { "cita-1": detail() },
+      availability: [slot],
+    });
+    const { user } = await renderApp({ route });
+
+    const panel = await openDetail();
+    await user.click(await within(panel).findByRole("button", { name: "Reprogramar" }));
+    await within(panel).findByRole("button", { name: /10:00/ });
+
+    // The appointment runs 9:00 to 9:45: starts over itself are not free, so they are not offered.
+    const times = within(panel)
+      .getAllByRole("button", { pressed: false })
+      .map((button) => button.textContent)
+      .filter((text) => /\d:\d\d/.test(text ?? ""));
+    expect(times).toEqual(["10:00 a. m."]);
   });
 
   it("un conflicto al mover avisa y refresca la agenda", async () => {

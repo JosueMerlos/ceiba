@@ -195,7 +195,8 @@ export function agendaBackend({
     }),
     http.get(`${CATALOG}/appointments/professionals`, () => {
       state.professionalListCalls += 1;
-      return professionalsForbidden ? forbidden() : HttpResponse.json(page(professionals));
+      const listed = professionals.map((person) => ({ active: true, ...person }));
+      return professionalsForbidden ? forbidden() : HttpResponse.json(page(listed));
     }),
     http.get(`${BRANCH(branchId)}/professionals/:id`, ({ params }) => {
       const name = profiles[String(params.id)];
