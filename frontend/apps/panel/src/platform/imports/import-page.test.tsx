@@ -157,6 +157,103 @@ describe("importación desde CSV", () => {
     expect(confirmed).toEqual({ duplicate_mode: "update" });
   });
 
+  it("las filas con error se pueden ver todas, página a página", async () => {
+    manager();
+    server.use(
+      http.post(IMPORTS, () => HttpResponse.json(batch({ rejected_count: 101 }), { status: 201 })),
+      http.get(`${IMPORTS}/${batchId}/rows`, ({ request }) => {
+        const after = new URL(request.url).searchParams.get("after");
+        const rows = after
+          ? [
+              {
+                row_number: 300,
+                status: "rejected",
+                error_codes: { nombre: "blank" },
+                values: null,
+              },
+            ]
+          : Array.from({ length: 100 }, (_, index) => ({
+              row_number: index + 2,
+              status: "rejected",
+              error_codes: { telefono: "invalid" },
+              values: null,
+            }));
+        return HttpResponse.json({
+          data: rows,
+          page: { has_more: !after, next_cursor: after ? null : "siguiente" },
+        });
+      }),
+    );
+    const { user } = await uploadCustomers();
+
+    const errors = await screen.findByRole("list", { name: "Filas con errores" });
+    expect(within(errors).getAllByRole("listitem")).toHaveLength(100);
+    await user.click(screen.getByRole("button", { name: "Ver más filas con errores" }));
+
+    expect(await within(errors).findByText("Fila 300: Nombre: está vacío")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Ver más filas con errores" })).toBeNull();
+  });
+
+  it("el reporte final lista las filas que no se pudieron importar y por qué", async () => {
+    manager();
+    server.use(
+      http.post(IMPORTS, () => HttpResponse.json(batch({ rejected_count: 0 }), { status: 201 })),
+      http.post(`${IMPORTS}/${batchId}/confirm`, () =>
+        HttpResponse.json(batch({ status: "queued", duplicate_mode: "skip" }), { status: 202 }),
+      ),
+      http.get(`${IMPORTS}/${batchId}`, () =>
+        HttpResponse.json(
+          batch({
+            status: "completed",
+            created_count: 95,
+            failed_count: 2,
+            ready_count: 0,
+            rejected_count: 0,
+          }),
+        ),
+      ),
+      http.get(`${IMPORTS}/${batchId}/rows`, ({ request }) =>
+        HttpResponse.json({
+          data:
+            new URL(request.url).searchParams.get("status") === "failed"
+              ? [
+                  {
+                    row_number: 9,
+                    status: "failed",
+                    error_codes: { base: "timeout" },
+                    values: null,
+                  },
+                  {
+                    row_number: 31,
+                    status: "failed",
+                    error_codes: { telefono: "taken" },
+                    values: null,
+                  },
+                ]
+              : [],
+          page: { has_more: false, next_cursor: null },
+        }),
+      ),
+    );
+    const { user } = await uploadCustomers();
+
+    await user.click(await screen.findByRole("button", { name: "Importar 97 filas" }));
+
+    const failed = await screen.findByRole(
+      "list",
+      { name: "Filas que no se importaron" },
+      { timeout: 5000 },
+    );
+    expect(
+      within(failed)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      "Fila 9: no se aplicó: la importación se interrumpió",
+      "Fila 31: Teléfono: ya existe",
+    ]);
+  });
+
   it("un archivo de más de 5000 filas muestra el mensaje del servidor", async () => {
     manager();
     server.use(
