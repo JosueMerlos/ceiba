@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ceiba/api-client": "workspace:*",
+    "@ceiba/branding": "workspace:*",
     "@ceiba/i18n": "workspace:*",
     "@ceiba/ui": "workspace:*",
     "@event-calendar/core": "5.19.0",

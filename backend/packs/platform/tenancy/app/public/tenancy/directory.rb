@@ -4,7 +4,8 @@ module Tenancy
   # `update_all`/`delete_all`/`readonly(false)` (they bypass records) and Tenancy::Context needs real models, so value
   # objects are not returned; the Ceiba/DirectoryWrites cop flags such bulk writes outside tenancy. Tenancy's models are
   # private: whoever must resolve a route or list (access) does it here and gets opaque records and relations to filter
-  # from outside. It does NOT write: creation is ProvisionOrganization / AddCompany / AddBranch.
+  # from outside. It does NOT write: creation is ProvisionOrganization / AddCompany / AddBranch. The one exception is
+  # `company_for_branding!`, the writable company that Access::UpdateBranding edits.
   #
   # Organization: the tenant root, read without context. Companies and branches: inside `Tenancy.with_context`, which scopes
   # every query to the active organization (without context they raise ActsAsTenant::Errors::NoTenantSet).
@@ -18,6 +19,9 @@ module Tenancy
 
     def companies = Company.readonly
     def company!(id) = Company.readonly.find(id)
+
+    # The only writable record handed out: the company whose branding is edited. Still scoped to the active organization.
+    def company_for_branding!(id) = Company.find(id)
 
     def branches = Branch.readonly
     def branch!(id, company_id:) = Branch.readonly.where(company_id:).find(id)

@@ -9,8 +9,9 @@ Rails.application.configure do
   # The logger's formatter (Observability::JsonLogFormatter) serializes the Hash, so it is not encoded twice.
   config.lograge.formatter = ->(data) { data }
 
-  # The API inherits from ActionController::API, not Base (lograge's default).
-  config.lograge.base_controller_class = "ActionController::API"
+  # The API inherits from ActionController::API, not Base (lograge's default), and Active Storage's proxy from Base: both get
+  # the custom payload.
+  config.lograge.base_controller_class = %w[ActionController::API ActionController::Base]
 
   config.lograge.custom_payload_method = lambda do |controller|
     Observability::LogFields.current.merge(Observability::LogFields.request(controller.request))

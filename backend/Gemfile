@@ -43,6 +43,11 @@ gem "ostruct", "0.6.3"
 # Identity and sessions: has_secure_password uses bcrypt. Pinned version.
 gem "bcrypt", "3.1.22"
 
+# Branding images: variants are re-encoded with libvips (libvips42t64 in the api image). aws-sdk-s3 backs the R2 storage service
+# (loaded only when that service is configured).
+gem "image_processing", "1.14.0"
+gem "aws-sdk-s3", "1.244.0", require: false
+
 # Access control: Pundit with one policy per model inside its pack. Pinned version.
 gem "pundit", "2.5.2"
 

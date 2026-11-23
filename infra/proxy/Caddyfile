@@ -13,10 +13,20 @@
 
 	# `path /api /api/*`: /api without a trailing slash also goes to the API, not the panel
 	@api path /api /api/*
-	# Headers a client could use to claim another IP must not reach the API (it only reads X-Forwarded-For, which Caddy
-	# overwrites with the client IP). The app drops them too (NetworkTrust::UntrustedForwardingFilter).
+	# The branding PATCH is the only multipart body: cap it at the proxy as well (Puma and the app enforce the same 8 MiB), so an
+	# oversized upload is cut off before it reaches Rails.
+	@branding_upload {
+		method PATCH
+		path_regexp (?i)^/api/v1/organizations/[^/]+/companies/[^/]+/branding$
+	}
+	request_body @branding_upload {
+		max_size 8MiB
+	}
+
 	handle @api {
 		reverse_proxy api:3000 {
+			# Headers a client could use to claim another IP must not reach the API (it only reads X-Forwarded-For, which Caddy
+			# overwrites with the client IP). The app drops them too (NetworkTrust::UntrustedForwardingFilter).
 			header_up -Forwarded
 			header_up -Client-Ip
 			header_up -X-Real-Ip
@@ -34,9 +44,10 @@
 	# Panel CSP in REPORT-ONLY mode: blocks nothing, the browser console lists violations. Vite in development injects
 	# inline scripts (react-refresh preamble) and uses websockets, so those are expected here. Tighten it (no
 	# 'unsafe-inline', use nonces or hashes) and switch to Content-Security-Policy once a production build exists.
+	# `img-src` allows blob: for the branding screen's local preview of a chosen file (URL.createObjectURL).
 	# `connect-src` includes the Sentry ingest: adjust it to your DSN host.
 	handle {
-		header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws: wss: https://*.ingest.sentry.io; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' ws: wss: https://*.ingest.sentry.io; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 		reverse_proxy panel:5173
 	}
 }

@@ -1,20 +1,44 @@
 import { useTranslation } from "@ceiba/i18n";
 import { AppLayout, CeibaMark, NavItem } from "@ceiba/ui";
+import { Palette, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router";
 import { navigationFor } from "../../modules/registry";
+import type { ModuleNavigation } from "../../modules/types";
 import { ContextSelector } from "../context/context-selector";
 import { useMe } from "../me/me-provider";
+import { useCan } from "../permissions/can";
 import { AsideSlotProvider } from "./aside-slot";
 import { SilentBoundary } from "./silent-boundary";
 import { useSidebarCollapsed } from "./use-sidebar-collapsed";
 import { UserMenu } from "./user-menu";
 
+interface ShellNavItem {
+  key: string;
+  path: string;
+  labelKey: ModuleNavigation["labelKey"] | "nav.branding";
+  icon: LucideIcon;
+}
+
+/** Platform screens are not module navigation (/me only offers modules): they show by permission. */
+const platformNavigation = (can: (permission: string) => boolean): ShellNavItem[] =>
+  can("platform.branding.update")
+    ? [
+        {
+          key: "platform.branding",
+          path: "/settings/branding",
+          labelKey: "nav.branding",
+          icon: Palette,
+        },
+      ]
+    : [];
+
 /** Panel layout: navigation comes ONLY from /me (active modules and permissions), never from a fixed list. */
 export function AppShell() {
   const { t } = useTranslation(["shell", "common"]);
   const me = useMe();
-  const items = navigationFor(me);
+  const can = useCan();
+  const items: ShellNavItem[] = [...navigationFor(me), ...platformNavigation(can)];
   const [collapsed, setCollapsed] = useSidebarCollapsed(me.principal.id);
   const [asideSlot, setAsideSlot] = useState<HTMLElement | null>(null);
 

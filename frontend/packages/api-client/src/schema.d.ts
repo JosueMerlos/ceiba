@@ -114,6 +114,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/v1/c/{slug}/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Slug público de la empresa */
+                slug: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Marca de la empresa
+         * @description Anónimo. Responde con `ETag` y `Cache-Control: public, no-cache`: el navegador revalida siempre y una marca cambiada se ve sin limpiar la caché (las URLs de los archivos cambian con cada archivo nuevo). Los campos sin personalizar son `null`: se usa la paleta de la plataforma. Un slug inexistente, una organización suspendida y una empresa inactiva responden el mismo 404.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Slug público de la empresa */
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description la marca, con las URLs versionadas de las variantes */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Branding"];
+                        };
+                    };
+                };
+                /** @description el slug no existe, la organización está suspendida o la empresa está inactiva */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -5008,6 +5064,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Obtiene la marca de la empresa
+         * @description Exige `platform.branding.update` (org_admin y company_manager de la empresa). Una empresa fuera del alcance del usuario responde 404; una visible sin el permiso, 403. Los campos sin personalizar son `null`: se usa la paleta de la plataforma.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description la marca (todo `null` si la empresa no la personalizó) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Branding"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description visible pero sin `platform.branding.update` (`access.forbidden`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description la empresa está fuera del alcance del usuario, o en otra organización */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edita la marca de la empresa
+         * @description Exige `platform.branding.update`. Es `multipart/form-data`: textos, colores `#RRGGBB`, `font_choice` (`figtree`, `lora` o `nunito`) y los archivos `logo`, `banner` y `favicon` (PNG, JPEG o WebP, validados por su contenido real, no por su nombre ni su tipo declarado). Solo cambia lo enviado; un campo vacío vuelve al default de la plataforma y `remove[]` quita un archivo. Archivos y datos se validan antes de guardar nada: o se aplica todo o nada.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "multipart/form-data": components["schemas"]["BrandingUpdate"];
+                };
+            };
+            responses: {
+                /** @description la marca guardada, con las URLs versionadas de las variantes */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["Branding"];
+                        };
+                    };
+                };
+                /** @description sin sesión válida */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el branch_manager no tiene `platform.branding.update` (`access.forbidden`) */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description la empresa es de otra empresa o de otra organización */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description el cuerpo supera los 8 MiB (`request.too_large`); se rechaza antes de parsearlo */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description un archivo que no es una imagen PNG, JPEG o WebP (un SVG renombrado a .png) o un color inválido */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ValidationProblem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/companies/{company_id}/modules/{key}": {
         parameters: {
             query?: never;
@@ -5534,6 +5744,18 @@ export interface components {
              */
             starts_at: string;
         };
+        /**
+         * @description Variantes del banner: wide (16:9) y standard (4:3), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.
+         * @example {
+         *       "wide": "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/banner.webp"
+         *     }
+         */
+        BannerAsset: {
+            /** @description Ruta relativa bajo /api/storage */
+            standard: string;
+            /** @description Ruta relativa bajo /api/storage */
+            wide: string;
+        } | null;
         /** @description Sucursal: una ubicación de una empresa */
         Branch: {
             address: string | null;
@@ -5573,6 +5795,52 @@ export interface components {
              * @example America/Managua
              */
             time_zone: string;
+        };
+        /** @description Marca de una empresa. Todo valor es null mientras no se personalice: aplica la paleta de la plataforma. */
+        Branding: {
+            accent_color: string | null;
+            assets: {
+                banner: components["schemas"]["BannerAsset"];
+                favicon: components["schemas"]["FaviconAsset"];
+                logo: components["schemas"]["LogoAsset"];
+            };
+            brand_name: string | null;
+            /** @enum {string|null} */
+            font_choice: "figtree" | "lora" | "nunito" | null;
+            /** @example #1D6C4E */
+            primary_color: string | null;
+            secondary_color: string | null;
+            tagline: string | null;
+        };
+        /** @description Cuerpo multipart/form-data de PATCH de la marca. Solo cambia lo enviado; un campo vacío vuelve al default; `remove[]` quita archivos. */
+        BrandingUpdate: {
+            accent_color?: string;
+            /**
+             * Format: binary
+             * @description PNG, JPEG o WebP de hasta 5 MB y 4096 px por lado
+             */
+            banner?: string;
+            brand_name?: string;
+            /**
+             * Format: binary
+             * @description PNG, JPEG o WebP de hasta 200 KB y 4096 px por lado
+             */
+            favicon?: string;
+            /** @enum {string} */
+            font_choice?: "figtree" | "lora" | "nunito";
+            /**
+             * Format: binary
+             * @description PNG, JPEG o WebP de hasta 2 MB y 4096 px por lado
+             */
+            logo?: string;
+            /**
+             * @description #RRGGBB (se normaliza a mayúsculas)
+             * @example #FFFF00
+             */
+            primary_color?: string;
+            remove?: ("logo" | "banner" | "favicon")[];
+            secondary_color?: string;
+            tagline?: string;
         };
         /** @description Empresa: un negocio dentro de una organización (ADR-0004) */
         Company: {
@@ -5653,6 +5921,18 @@ export interface components {
              */
             phone_e164?: string;
         };
+        /**
+         * @description Variantes del favicon: icon32 e icon180, PNG. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.
+         * @example {
+         *       "icon32": "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/favicon.png"
+         *     }
+         */
+        FaviconAsset: {
+            /** @description Ruta relativa bajo /api/storage */
+            icon180: string;
+            /** @description Ruta relativa bajo /api/storage */
+            icon32: string;
+        } | null;
         FieldError: {
             /**
              * @description Tipo del error (blank, taken, invalid...)
@@ -5664,6 +5944,18 @@ export interface components {
             /** @example no puede estar en blanco */
             message: string;
         };
+        /**
+         * @description Variantes del logo: x1 (alto 64) y x2 (alto 128), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.
+         * @example {
+         *       "x1": "/api/storage/representations/proxy/<signed_blob_id>/<variation_key>/logo.webp"
+         *     }
+         */
+        LogoAsset: {
+            /** @description Ruta relativa bajo /api/storage */
+            x1: string;
+            /** @description Ruta relativa bajo /api/storage */
+            x2: string;
+        } | null;
         /** @description Respuesta de GET /api/v1/me */
         Me: {
             data: {

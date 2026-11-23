@@ -6,6 +6,10 @@ RSpec.describe "Configuración del log" do
     expect(ActiveSupport::LogSubscriber.colorize_logging).to be(false)
   end
 
+  it "lograge cubre también los controladores que heredan de ActionController::Base (el proxy de archivos), no solo la API" do
+    expect(Array(Rails.application.config.lograge.base_controller_class).map(&:to_s)).to include("ActionController::API", "ActionController::Base")
+  end
+
   it "en desarrollo el nivel por defecto es info: el SQL (debug) lleva literales con datos personales y no se escribe" do
     output = IO.popen({ "RAILS_ENV" => "development", "RAILS_LOG_LEVEL" => nil }, [ "bin/rails", "runner", "puts Rails.logger.level", { err: File::NULL } ], &:read)
 

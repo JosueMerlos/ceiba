@@ -3,6 +3,7 @@ import { setupServer } from "msw/node";
 import {
   API,
   authSession,
+  brandingFixture,
   branch,
   company,
   ids,
@@ -37,6 +38,8 @@ export function signedInBackend({
     http.get(`${API}/api/v1/me`, ({ request }) =>
       HttpResponse.json(typeof me === "function" ? me(new URL(request.url).searchParams) : me),
     ),
+    // The panel themes itself with the company's public brand: by default, a company without one.
+    http.get(`${API}/api/public/v1/c/:slug/branding`, () => HttpResponse.json(brandingFixture())),
     http.get(`${API}/api/v1/organizations`, () => HttpResponse.json(page(organizations))),
     http.get(`${API}/api/v1/organizations/:org/companies`, () =>
       HttpResponse.json(page(companies)),

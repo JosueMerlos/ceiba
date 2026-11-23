@@ -44,6 +44,8 @@ export const queryKeys = {
   companies: (organizationId: string) => ["organizations", organizationId, "companies"] as const,
   branches: (organizationId: string, companyId: string) =>
     ["organizations", organizationId, "companies", companyId, "branches"] as const,
+  branding: (companyId: string) => ["branding", companyId] as const,
+  publicBranding: (slug: string) => ["public-branding", slug] as const,
 };
 
 /** Context selector page size: the API maximum (100). Beyond that it is a search box, not a selector. */

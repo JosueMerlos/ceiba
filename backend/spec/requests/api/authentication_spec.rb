@@ -10,6 +10,8 @@ RSpec.describe "Autenticación obligatoria por defecto (deny by default)" do
       "GET /api/health" => "sonda de vida del proxy/Docker: infraestructura, no devuelve datos",
       "GET /api/ready" => "sonda de disponibilidad (BD, Redis): infraestructura",
       "GET /api/public/v1/c/:slug/availability" => "disponibilidad de la reserva pública: anónima por diseño, sin PII; el módulo, la empresa y la reserva pública se comprueban en el controlador y la limita Rack::Attack",
+      "GET /api/public/v1/c/:slug/branding" => "marca pública de la empresa para la página de reserva: anónima por diseño, solo colores, textos y URLs de imágenes; revalida con ETag y la limita Rack::Attack",
+      "GET /api/storage/representations/proxy/:signed_blob_id/:variation_key/*filename" => "variantes de imagen de la marca ya procesadas: públicas por diseño (las ve la página de reserva); URL firmada, nunca procesa ni escribe, y es la única ruta de archivos",
       "POST /api/v1/auth/login" => "es la puerta de entrada: aún no hay sesión; protegido por Origin y, en M0.13, por rate limit",
       # Rswag mounts TWO engines at /api/docs (UI and contract) and their subroutes (/api/docs/v1.yaml, assets) do not
       # appear in the app's route table, so this spec does not walk them: public by design and only present where
@@ -40,7 +42,10 @@ RSpec.describe "Autenticación obligatoria por defecto (deny by default)" do
     expect(offenders).to be_empty
   end
 
-  it "las rutas de ActiveStorage no existen mientras ningún hito las use (serían subidas sin sesión)" do
+  it "ninguna ruta de ActiveStorage escribe (serían subidas sin sesión): solo existe el GET del proxy de representaciones, bajo /api/storage" do
+    storage = routes.select { |route| route[:path].match?(%r{active_storage|/storage/}) }
+
+    expect(storage.map { |route| label(route) }).to eq([ "GET /api/storage/representations/proxy/:signed_blob_id/:variation_key/*filename" ])
     expect(routes.map { |route| route[:path] }).not_to include(a_string_starting_with("/rails/active_storage"))
   end
 

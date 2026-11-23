@@ -104,7 +104,7 @@
 | `idempotency.key_reused` | 409 | `Idempotency-Key` ya usada con otro método, ruta o cuerpo (M0.11) |
 | `idempotency.key_required` / `idempotency.key_invalid` | 400 | Endpoint con `required: true` sin el header; clave vacía, de más de 255 caracteres o no ASCII imprimible (M0.11) |
 | `rate_limit.exceeded` | 429 | Ventana de Rack::Attack agotada (login por IP o correo, catch-all). `Retry-After` y `RateLimit-*`; lo responde un middleware, no un controlador ([11](11-security.md)) |
-| `request.too_large` | 413 | Cuerpo de `POST /api/v1/auth/login` de más de 4 KB (o sin longitud conocida): lo rechaza Rack::Attack |
+| `request.too_large` | 413 | Cuerpo de `POST /api/v1/auth/login` de más de 4 KB (o sin longitud conocida): lo rechaza Rack::Attack. También el `PATCH` multipart de la marca de más de 8 MiB o sin `Content-Length` (`ApiRequestGuard`) |
 | `rate_limit.blocked` | 429 | IP bloqueada 1 h por 404/405 repetidos (regla 8). `Retry-After` = lo que queda de bloqueo |
 | `internal.error` | 500 | Cualquier excepción sin registrar |
 
@@ -152,7 +152,7 @@ end
 ```
 
 - Misma clave y mismo fingerprint → NO se ejecuta la acción: se devuelve la respuesta guardada (estado, cuerpo, `Content-Type`, `Location`) con `Idempotency-Replayed: true`.
-- **Fingerprint:** SHA-256 de método + ruta **con query** + cuerpo **tal cual llegó**. El JSON se compara por **bytes**: el mismo contenido con otro orden de claves es otra petición (un cliente que reintenta reenvía los mismos bytes; canonizar el JSON no compensa el riesgo de equiparar peticiones distintas). Los `multipart` no existen en la API: `ApiRequestGuard` exige `application/json` en toda mutación y rechaza la query string, así que no hace falta un fingerprint sobre parámetros parseados. Un endpoint de subida de archivos futuro (branding) no será idempotente por este camino.
+- **Fingerprint:** SHA-256 de método + ruta **con query** + cuerpo **tal cual llegó**. El JSON se compara por **bytes**: el mismo contenido con otro orden de claves es otra petición (un cliente que reintenta reenvía los mismos bytes; canonizar el JSON no compensa el riesgo de equiparar peticiones distintas). Los `multipart` solo existen en un punto, el `PATCH` de la marca de una empresa (excepción estrecha de `ApiRequestGuard`, [ADR-0039](../adr/0039-archivos-de-branding-y-rutas-de-activestorage.md)): ahí no hay `Idempotency-Key` (reintentar el mismo `PATCH` es idempotente por naturaleza: fija valores). El resto sigue con `application/json` y sin query string, así que no hace falta un fingerprint sobre parámetros parseados.
 - Misma clave y distinto fingerprint (otro cuerpo, **otra ruta u otro método**) → `409 idempotency.key_reused` (el cuerpo guardado no se revela).
 - Sin header: la acción corre normal, salvo `required: true` → `400 idempotency.key_required`. Clave inválida (vacía, > 255 caracteres, fuera de ASCII imprimible) → `400 idempotency.key_invalid`.
 - **Solo las respuestas 2xx se guardan.** Un error (422, excepción) libera la clave: el cliente puede corregir y reintentar con la misma. Las filas vencidas (24 h) se ignoran y se reemplazan al reutilizar la clave.
@@ -201,6 +201,12 @@ En el pack `platform/access` (`Api::V1::Access::*`, rutas en `packs/platform/acc
 - Las mutaciones (`POST`/`PUT`/`PATCH`/`DELETE`) con sesión exigen `X-CSRF-Token` (el `csrf_token` de `POST /auth/login` o `GET /auth/session`) y, si llega `Origin`, que sea el propio. Detalle y razones en [11](11-security.md#csrf-panel).
 - Endpoints `auth` documentados en el contrato con el esquema de seguridad `cookieAuth` (`apiKey` en cookie) y el parámetro de cabecera `X-CSRF-Token`. En los specs de rswag, el login es el real (`sign_in`, `spec/support/authentication_helpers.rb`): la cookie viaja por el jar de la sesión de integración, no se simula.
 - `Current.session` (`Identity::CurrentSession`) y `Current.principal` (`Identity::Principal::User`) quedan fijados en las acciones autenticadas.
+
+## Marca de la empresa (M2.04)
+
+- `GET` y `PATCH /api/v1/organizations/:organization_id/companies/:company_id/branding` (permiso `platform.branding.update`): el `PATCH` es `multipart/form-data` (textos, colores `#RRGGBB`, `font_choice`, y los archivos `logo`, `banner` y `favicon`; `remove[]` quita adjuntos; un campo vacío vuelve al default). Errores `422` con `errors[]` por campo (`invalid_file_type`, `file_too_large`, `image_too_large`, `invalid`, `inclusion`, `too_long`). Todo o nada: archivos y campos se validan antes de guardar.
+- `GET /api/public/v1/c/:slug/branding`: anónimo, con `ETag` y `Cache-Control: public, no-cache`. Los campos sin personalizar son `null`; `assets` trae por imagen las URLs de sus variantes (`logo`: `x1`, `x2`; `banner`: `wide`, `standard`; `favicon`: `icon32`, `icon180`) o `null`.
+- Las URLs de `assets` apuntan a `/api/storage/representations/proxy/…` (no es JSON, por eso no está en el contrato OpenAPI). Ver [ADR-0039](../adr/0039-archivos-de-branding-y-rutas-de-activestorage.md).
 
 ## Cómo agregar un endpoint
 

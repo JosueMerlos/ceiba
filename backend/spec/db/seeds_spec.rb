@@ -125,6 +125,23 @@ RSpec.describe "db/seeds.rb" do
     expect(JSON.parse(first)).to eq(expected_census)
   end
 
+  it "el salón queda con marca demo (colores y fuente, sin imágenes) y la clínica sin marca; correr dos veces no la cambia", :aggregate_failures do
+    app.run!("bin/rails", "db:seed")
+    app.run!("bin/rails", "db:seed")
+
+    report = JSON.parse(app.rails_runner(<<~RUBY))
+      org = Tenancy::Organization.find_by!(name: "Grupo Salud & Estilo")
+      rows = Tenancy.with_context(organization: org) do
+        events = Audit::Event.where(action: "company.branding_updated").count
+        brands = Tenancy::Directory.companies.order(:slug).map { |c| [ c.slug, c.brand_name, c.primary_color, c.font_choice, c.logo.attached? ] }
+        [ brands, events ]
+      end
+      puts rows.to_json
+    RUBY
+
+    expect(report).to eq([ [ [ "clinica-sonrisa", nil, nil, nil, false ], [ "salon-estilo", "Salón Estilo", "#8B2F5C", "nunito", false ] ], 1 ])
+  end
+
   it "Sandra Gómez es la misma persona en dos empresas del grupo: un registro por empresa, con horarios independientes", :aggregate_failures do
     app.run!("bin/rails", "db:seed")
     app.run!("bin/rails", "db:seed")

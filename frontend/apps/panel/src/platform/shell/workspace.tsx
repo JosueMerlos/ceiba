@@ -4,6 +4,7 @@ import { LoadingState } from "@ceiba/ui";
 import { useMemo } from "react";
 import { useRoutes } from "react-router";
 import { routesFor } from "../../modules/registry";
+import { BrandingProvider } from "../branding/branding-provider";
 import { ContextProvider, useContextSelection } from "../context/context-provider";
 import { NotFoundPage, UnexpectedPage } from "../errors/status-pages";
 import { MeProvider, useMe } from "../me/me-provider";
@@ -31,7 +32,9 @@ function MeGate() {
 
   return (
     <MeProvider me={me.data.data}>
-      <AppShell />
+      <BrandingProvider>
+        <AppShell />
+      </BrandingProvider>
     </MeProvider>
   );
 }

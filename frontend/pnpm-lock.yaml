@@ -181,6 +181,12 @@ importers:
 
   apps/booking:
     dependencies:
+      '@ceiba/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
+      '@ceiba/branding':
+        specifier: workspace:*
+        version: link:../../packages/branding
       '@ceiba/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -221,6 +227,9 @@ importers:
       jsdom:
         specifier: 31.0.0
         version: 31.0.0
+      msw:
+        specifier: 3.0.4
+        version: 3.0.4(@types/node@26.6.6)(supports-color@10.2.2)(typescript@7.0.2)(vite@8.3.6(@types/node@26.6.6)(jiti@2.7.0))
       tailwindcss:
         specifier: 4.3.5
         version: 4.3.5
@@ -239,6 +248,9 @@ importers:
       '@ceiba/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@ceiba/branding':
+        specifier: workspace:*
+        version: link:../../packages/branding
       '@ceiba/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -383,6 +395,34 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0)(msw@3.0.4(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.6(@types/node@26.6.6)(jiti@2.7.0)))(vite@8.3.6(@types/node@26.6.6)(jiti@2.7.0))
 
+  packages/branding:
+    dependencies:
+      '@fontsource-variable/lora':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource-variable/nunito':
+        specifier: 5.3.0
+        version: 5.3.0
+    devDependencies:
+      '@ceiba/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+      jsdom:
+        specifier: 31.0.0
+        version: 31.0.0
+      react:
+        specifier: 19.3.1
+        version: 19.3.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: 5.1.0
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0)(msw@3.0.4(@types/node@26.6.6)(supports-color@10.2.2)(typescript@7.0.2)(vite@8.3.6(@types/node@26.6.6)(jiti@2.7.0)))(vite@8.3.6(@types/node@26.6.6)(jiti@2.7.0))
+
   packages/config:
     dependencies:
       '@eslint/js':
@@ -418,7 +458,7 @@ importers:
         version: 3.9.10
       vitest:
         specifier: 5.1.0
-        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0)(msw@3.0.4(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.6(@types/node@26.6.6)(jiti@2.7.0)))(vite@8.3.6(@types/node@26.6.6)(jiti@2.7.0))
+        version: 5.1.0(@types/node@26.6.6)(jsdom@31.0.0)(msw@3.0.4(@types/node@26.6.6)(supports-color@10.2.2)(typescript@7.0.2)(vite@8.3.6(@types/node@26.6.6)(jiti@2.7.0)))(vite@8.3.6(@types/node@26.6.6)(jiti@2.7.0))
 
   packages/i18n:
     dependencies:
@@ -671,6 +711,12 @@ packages:
 
   '@fontsource-variable/figtree@5.3.0':
     resolution: {integrity: sha512-VRVodD7OiG7apQwE8/2fMjaqpY/a0qRJqL5HtYj8CKIVps+9amaFcdfKmDIf7iqYQx6iPLlArVXAfKeIZmVcNQ==}
+
+  '@fontsource-variable/lora@5.3.0':
+    resolution: {integrity: sha512-2ph8KiZ8Bn141hWuC3ErtpJ+Ui8p2MJQn8TJNRSRmLmnCIOCtHfiBM9R7WLRPeUG/q6hXyHOxWQ8DvRSX+ixvQ==}
+
+  '@fontsource-variable/nunito@5.3.0':
+    resolution: {integrity: sha512-tw0ch7evIDSwoeUy+0XzocYHfbRWLeCRPJy22KgbrLjDLAbNw/fErBiil10Ssrs3Sjr55zaZrr36a975j8cBkQ==}
 
   '@hookform/resolvers@7.0.6':
     resolution: {integrity: sha512-LSTMwW4tmRWtM7pS5HkSqahi71USbhrmjc9pNHNa7UyYTbKIK/e0G1EAw6xsEnp9GahTjXhunxRJp0Bd8E6NZA==}
@@ -3442,6 +3488,10 @@ snapshots:
   '@fontsource-variable/bricolage-grotesque@5.3.0': {}
 
   '@fontsource-variable/figtree@5.3.0': {}
+
+  '@fontsource-variable/lora@5.3.0': {}
+
+  '@fontsource-variable/nunito@5.3.0': {}
 
   '@hookform/resolvers@7.0.6(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)':
     dependencies:
