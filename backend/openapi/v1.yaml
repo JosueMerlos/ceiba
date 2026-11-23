@@ -1118,6 +1118,23 @@ components:
       - kind
       - content_base64
       type: object
+      x-template-columns:
+        customers:
+        - nombre
+        - telefono
+        - correo
+        - notas
+        professionals:
+        - nombre
+        - activo
+        services:
+        - nombre
+        - duracion_minutos
+        - precio
+        - moneda
+        - buffer_antes_minutos
+        - buffer_despues_minutos
+        - activo
     LogoAsset:
       additionalProperties: false
       description: 'Variantes del logo: x1 (alto 64) y x2 (alto 128), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.'

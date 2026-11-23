@@ -8,7 +8,9 @@ OpenapiComponents.register(
       content_base64: { type: :string, description: "Bytes del archivo en base64 (máximo 5 MB decodificado)" }
     },
     required: %i[kind content_base64],
-    additionalProperties: false
+    additionalProperties: false,
+    # The columns each kind reads, from the registered importers: the panel's downloadable templates are checked against it.
+    "x-template-columns": Imports::Registry.entries.transform_values { it.importer_class::COLUMNS.keys }
   },
   ImportConfirmation: {
     type: :object,

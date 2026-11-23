@@ -21,6 +21,10 @@ const pages: RouteObject[] = [
     element: lazyPage(() => import("../platform/customers/customers-page"), "CustomersPage"),
   },
   {
+    path: "customers/import",
+    element: lazyPage(() => import("../platform/imports/import-page"), "ImportPage"),
+  },
+  {
     path: "customers/:customerId",
     element: lazyPage(() => import("../platform/customers/customer-page"), "CustomerPage"),
   },
