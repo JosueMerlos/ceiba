@@ -28,15 +28,21 @@ module Imports
       end
     end
 
-    # A row that no longer validates (the data changed since the preview) or that the database refuses ends `failed`.
+    # A row that no longer validates (the data changed since the preview) or that the database refuses ends `failed`;
+    # the rest of the chunk goes on. Any other database or decryption error also fails only its row, under a generic code:
+    # its message may quote the row's values, so it is neither stored nor re-raised.
     def apply(row, importer, mode)
       attributes, errors = importer.validate(row.cells)
       return mark_failed(row, errors) if errors.any?
 
-      outcome = ApplicationRecord.transaction(requires_new: true) { importer.apply(attributes, mode:) }
-      row.update!(status: outcome.to_s, payload: nil)
+      ApplicationRecord.transaction(requires_new: true) do
+        outcome = importer.apply(attributes, mode:)
+        row.update!(status: outcome.to_s, payload: nil)
+      end
     rescue ActiveRecord::RecordInvalid => error
       mark_failed(row, importer.error_codes_for(error.record))
+    rescue ActiveRecord::ActiveRecordError, ActiveRecord::Encryption::Errors::Base
+      mark_failed(row, {})
     end
 
     def mark_failed(row, codes) = row.update!(status: "failed", payload: nil, error_codes: codes.presence || { "base" => "invalid" })
