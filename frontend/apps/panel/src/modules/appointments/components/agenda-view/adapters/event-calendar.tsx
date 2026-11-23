@@ -221,12 +221,17 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
     }
     drawnRange.current = { startMinute, endMinute };
   }, [calendar, startMinute, endMinute]);
+  // Compared by content: a refetch or a late label lookup builds equal arrays, and redrawing them would replace the cards
+  // under the pointer and swallow a click.
+  const resourcesKey = JSON.stringify(calendarResources);
+  // The cards' texts are read from `events` when drawn, so a change there must redraw too.
+  const eventsKey = JSON.stringify([calendarEvents, events]);
   useEffect(() => {
-    calendar?.setOption("resources", calendarResources);
-  }, [calendar, calendarResources]);
+    calendar?.setOption("resources", JSON.parse(resourcesKey));
+  }, [calendar, resourcesKey]);
   useEffect(() => {
-    calendar?.setOption("events", calendarEvents);
-  }, [calendar, calendarEvents]);
+    calendar?.setOption("events", JSON.parse(eventsKey)[0]);
+  }, [calendar, eventsKey]);
 
   return <div ref={host} data-slot="agenda-view" className="agenda-view" />;
 }
