@@ -32,6 +32,8 @@ resultado por etapa. Para repetir una etapa: `make ci s=<etapa>`.
   responsive; booking es móvil primero).
 - Para interacciones, ejercita el comportamiento e inspecciona el DOM o el árbol de accesibilidad, no solo una captura.
 - Acompaña las capturas con aserciones concretas; reporta errores de consola y peticiones fallidas.
+- La evidencia se escribe en la carpeta de `E2E_EVIDENCE_DIR`, en la subcarpeta de la rama (`M2.04`, `error_500_endpoint_org`):
+  `make e2e` y `make qa-ui` la resuelven solas. No la dejes dentro del worktree, que se borra con él.
 - Entra siempre por el proxy, `http://localhost:8080` (mismo origen, [ADR-0013](../adr/0013-monorepo-y-mismo-origen.md)).
 - Un servicio que no está `healthy`, un Vite sin estilos o una base no preparada es un bloqueo que se reporta, no una razón
   para saltarse la comprobación (ver la tabla de problemas del [`README`](../../README.md#solución-de-problemas)).
