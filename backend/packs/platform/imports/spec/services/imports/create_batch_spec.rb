@@ -72,6 +72,14 @@ RSpec.describe Imports::CreateBatch do
     expect(with_tenant(organization) { Imports::Batch.count }).to eq(0)
   end
 
+  it "rechaza una columna conocida repetida, nombrándola" do
+    expect { call(csv([ "Ana;Ana;8800 0001" ], header: "nombre;Nombre;telefono")) }.to raise_error(Imports::DuplicateColumns) { expect(it.columns).to eq(%w[nombre]) }
+  end
+
+  it "un archivo sin encabezado no muestra sus datos en el error: faltan las columnas, sin nombrar valores repetidos" do
+    expect { call(csv([ "Luis;8800 0002" ], header: "Ana Ruiz;Ana Ruiz")) }.to raise_error(Imports::MissingColumns) { expect(it.columns).to eq(%w[nombre telefono]) }
+  end
+
   it "rechaza un tipo que nadie registró" do
     expect { call(csv(people(1)), kind: "invoices") }.to raise_error(Imports::UnknownKind)
   end

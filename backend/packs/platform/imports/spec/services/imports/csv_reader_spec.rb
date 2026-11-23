@@ -81,8 +81,16 @@ RSpec.describe Imports::CsvReader do
       expect { read("nombre;telefono\n\"Ana;8800 0006\n") }.to raise_error(Imports::UnreadableFile)
     end
 
-    it "rechaza encabezados repetidos tras normalizarlos" do
-      expect { read("Teléfono;telefono\n8800 0007;8800 0008\n") }.to raise_error(Imports::DuplicateColumns)
+    it "por encima del máximo cuenta las filas pero no guarda más que el máximo" do
+      allow(Imports::CsvReader::Row).to receive(:new).and_call_original
+      bytes = "nombre;telefono\n" + Array.new(6) { |index| "P #{index};8800 000#{index}\n" }.join
+
+      expect { read(bytes, max_rows: 3) }.to raise_error(Imports::TooManyRows) { |error| expect(error.rows).to eq(6) }
+      expect(Imports::CsvReader::Row).to have_received(:new).at_most(3).times
+    end
+
+    it "devuelve los encabezados repetidos tal como vienen: decide quien conoce las columnas" do
+      expect(read("Teléfono;telefono\n8800 0007;8800 0008\n").headers).to eq(%w[telefono telefono])
     end
   end
 end
