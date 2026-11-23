@@ -15,6 +15,7 @@ import { QueryBoundary } from "../components/query-boundary";
 import { UpcomingArrivals } from "../components/upcoming-arrivals";
 import { useAgendaPermissions } from "../lib/agenda-permissions";
 import { addDays, mondayOf, type PlainDate } from "../lib/agenda-time";
+import { newAppointmentDefaults } from "../lib/new-appointment-defaults";
 import { useAgendaScreen } from "../lib/use-agenda-screen";
 import { useAgendaUrlState } from "../lib/use-agenda-url-state";
 import { useMoveAppointment } from "../lib/use-move-appointment";
@@ -101,6 +102,15 @@ function BranchAgenda({ branch }: { branch: Branch }) {
       ? screen.knownAppointments.find((item) => item.id === panel.appointmentId)
       : undefined;
   const { canCreate } = permissions;
+  const newAppointment =
+    panel?.kind === "new"
+      ? newAppointmentDefaults({
+          mode,
+          slot: panel.slot,
+          weekProfessionalId: screen.weekProfessionalId,
+          professionals: screen.bookable,
+        })
+      : null;
   const emptyMessage = (
     <p className="rounded-xl border border-dashed px-6 py-14 text-center text-muted-foreground">
       {t(permissions.readsBranch ? "agenda.empty" : "agenda.emptyOwn")}
@@ -187,12 +197,13 @@ function BranchAgenda({ branch }: { branch: Branch }) {
           onClose={closePanel}
         />
       ) : null}
-      {panel?.kind === "new" ? (
+      {panel?.kind === "new" && newAppointment ? (
         <NewAppointmentPanel
-          key={panel.slot?.startsAt ?? "new"}
+          key={newAppointment.key}
           id={panelId}
           branch={branch}
-          professionals={screen.assigned}
+          professionals={screen.bookable}
+          initialProfessionalId={newAppointment.professionalId}
           resources={screen.resources}
           date={date}
           slot={panel.slot}
@@ -205,8 +216,7 @@ function BranchAgenda({ branch }: { branch: Branch }) {
           id={panelId}
           branch={branch}
           appointment={selected}
-          professionals={screen.assigned}
-          stepMinutes={screen.stepMinutes}
+          professionals={screen.bookable}
           professionalName={screen.professionalName}
           serviceLabel={screen.serviceLabel}
           onClose={closePanel}

@@ -194,6 +194,8 @@ export function useAgendaScreen({ branch, mode, date, weekProfessionalId }: Agen
     knownAppointments: [...(all ?? []), ...(todaysAll ?? [])],
     visible,
     assigned,
+    /** Who can take a new or moved appointment: assigned to the branch and not paused. */
+    bookable: assigned.filter((person) => person.active),
     resources: activeResources,
     columns,
     viewResources,

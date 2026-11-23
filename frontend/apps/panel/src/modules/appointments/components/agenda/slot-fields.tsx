@@ -18,31 +18,18 @@ interface SlotSelectionOptions {
   branchId: string;
   serviceIds: readonly string[];
   initial: { professionalId: string | null; day: PlainDate; startsAt?: string | null };
-  /** Starts to offer besides the free ones. */
-  extraStarts?(professionalId: string | null, day: PlainDate): readonly string[];
 }
 
 /** Who, which day and at what time: changing the person or the day discards the chosen time. */
-export function useSlotSelection({
-  branchId,
-  serviceIds,
-  initial,
-  extraStarts,
-}: SlotSelectionOptions) {
+export function useSlotSelection({ branchId, serviceIds, initial }: SlotSelectionOptions) {
   const [professionalId, setProfessionalId] = useState(initial.professionalId);
   const [day, setDay] = useState(initial.day);
   const [wanted, setWanted] = useState(initial.startsAt ?? null);
   const availability = useFreeSlots({ branchId, serviceIds, professionalId, date: day });
   const free = availability.data?.data;
 
-  const starts = useMemo(() => {
-    const all = [
-      ...(free ?? []).map((slot) => slot.starts_at),
-      ...(extraStarts?.(professionalId, day) ?? []),
-    ];
-    const byInstant = new Map(all.map((start) => [Date.parse(start), start]));
-    return [...byInstant].sort(([a], [b]) => a - b).map(([, start]) => start);
-  }, [free, extraStarts, professionalId, day]);
+  // Only what the engine offers: a start over the appointment itself, outside hours or over another booking is not free.
+  const starts = useMemo(() => (free ?? []).map((slot) => slot.starts_at), [free]);
 
   const startsAt = starts.find((start) => Date.parse(start) === Date.parse(wanted ?? "")) ?? null;
   return {

@@ -10,6 +10,7 @@ import {
   cancelIfPresent,
   nextWorkingDay,
   openAgenda,
+  sidePanel,
   uniquePhone,
 } from "../tests/agenda-helpers";
 import { shot, signIn } from "../tests/helpers";
@@ -125,6 +126,42 @@ test.describe("smoke de la agenda", () => {
     } finally {
       await cancelIfPresent(page, customer);
     }
+    expect(problems).toEqual([]);
+  });
+
+  test("Nueva cita toma el profesional de la columna clicada, y en la semana el de esa semana", async ({
+    page,
+  }, testInfo) => {
+    const problems = watch(page);
+    await openAgenda(page, RECEPTION, nextWorkingDay());
+    const professionalOf = async () =>
+      (await sidePanel(page, "Nueva cita")
+        .getByRole("combobox", { name: "Profesional" })
+        .textContent()) ?? "";
+
+    // Two clicks at the same height, so the same hour, in two different columns.
+    const below = async (column: string) => {
+      const box = (await page.getByRole("group", { name: column }).boundingBox())!;
+      return { x: box.x + box.width / 2, y: box.y + box.height + 160 };
+    };
+    const ramiro = await below(RAMIRO);
+    await page.mouse.click(ramiro.x, ramiro.y);
+    expect(await professionalOf()).toContain(RAMIRO);
+    const efrain = await below(DON_EFRAIN);
+    await page.mouse.click(efrain.x, efrain.y);
+    expect(await professionalOf()).toContain(DON_EFRAIN);
+    await shot(page, testInfo, "34-agenda-columna-clicada");
+
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Semana", exact: true }).click();
+    await page.getByRole("combobox", { name: "Profesional de la semana" }).click();
+    await page.getByRole("option", { name: RAMIRO }).click();
+    await expect(page.getByRole("heading", { level: 1, name: /semana del/ })).toBeVisible();
+    const grid = (await page.locator("[data-slot=agenda-view]").boundingBox())!;
+    // Below the day headers, in the middle of the week.
+    await page.mouse.click(grid.x + grid.width * 0.5, grid.y + 200);
+    expect(await professionalOf()).toContain(RAMIRO);
+    await shot(page, testInfo, "35-agenda-semana-nueva-cita");
     expect(problems).toEqual([]);
   });
 

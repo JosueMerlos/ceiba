@@ -19,6 +19,7 @@ interface NewAppointmentPanelProps {
   professionals: readonly AgendaProfessional[];
   resources: readonly AgendaResource[];
   date: PlainDate;
+  initialProfessionalId: string | null;
   /** The grid slot that opened the panel, if any. */
   slot: AgendaSlot | null;
   onClose(): void;
@@ -30,6 +31,7 @@ export function NewAppointmentPanel({
   professionals,
   resources,
   date,
+  initialProfessionalId,
   slot,
   onClose,
 }: NewAppointmentPanelProps) {
@@ -40,12 +42,11 @@ export function NewAppointmentPanel({
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [customer, setCustomer] = useState<PickedCustomer | null>(null);
   const [notes, setNotes] = useState("");
-  const clicked = professionals.find((person) => person.id === slot?.resourceId);
   const selection = useSlotSelection({
     branchId: branch.id,
     serviceIds,
     initial: {
-      professionalId: clicked?.id ?? professionals[0]?.id ?? null,
+      professionalId: initialProfessionalId,
       day: slot ? dayInZone(slot.startsAt, timeZone) : date,
       startsAt: slot?.startsAt,
     },

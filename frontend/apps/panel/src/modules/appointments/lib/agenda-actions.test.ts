@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appointmentActions, nearbyOwnStarts } from "./agenda-actions";
+import { appointmentActions } from "./agenda-actions";
 
 const STARTED = new Date("2026-11-18T16:00:00.000Z");
 const BEFORE = new Date("2026-11-18T14:00:00.000Z");
@@ -60,14 +60,4 @@ describe("acciones de una cita", () => {
       });
     },
   );
-});
-
-describe("inicios cercanos a la propia cita", () => {
-  it("ofrece los inicios que solapan la cita, que disponibilidad cuenta como ocupados", () => {
-    const appointment = { starts_at, ends_at: "2026-11-18T15:30:00.000Z" };
-    expect(nearbyOwnStarts(appointment, 15)).toEqual([
-      "2026-11-18T14:45:00.000Z",
-      "2026-11-18T15:15:00.000Z",
-    ]);
-  });
 });

@@ -66,6 +66,8 @@ interface AgendaBackendOptions {
     display_name: string;
     branch_ids: string[];
     service_ids: string[];
+    /** False for a paused professional; listed as active when left out. */
+    active?: boolean;
   }[];
   services?: { id: string; name: string }[];
   archivedServices?: { id: string; name: string }[];

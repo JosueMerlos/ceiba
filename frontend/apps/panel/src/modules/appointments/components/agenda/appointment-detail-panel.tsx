@@ -19,7 +19,6 @@ interface AppointmentDetailPanelProps {
   branch: Branch;
   appointment: AgendaAppointment;
   professionals: readonly AgendaProfessional[];
-  stepMinutes: number;
   professionalName(id: string): string;
   serviceLabel(appointment: AgendaAppointment): string;
   onClose(): void;
@@ -39,7 +38,6 @@ export function AppointmentDetailPanel({
   branch,
   appointment,
   professionals,
-  stepMinutes,
   professionalName,
   serviceLabel,
   onClose,
@@ -126,7 +124,6 @@ export function AppointmentDetailPanel({
           branch={branch}
           appointment={appointment}
           professionals={professionals}
-          stepMinutes={stepMinutes}
           onBack={backToView}
           onDone={onClose}
         />
