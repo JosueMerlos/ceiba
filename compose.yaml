@@ -152,8 +152,14 @@ services:
       PLAYWRIGHT_BASE_URL: http://localhost:${PROXY_PORT:-8080}
       E2E_PASSWORD: ${E2E_PASSWORD:-ceiba-demo-2026}
       E2E_RETRIES: ${E2E_RETRIES:-0}
+      # Evidence root inside the container; the host folder is mounted below.
+      E2E_SCREENSHOT_DIR: /evidence
+      # Subfolder of one milestone (M2.04) or fix (error_500_endpoint_org); empty keeps the evidence at the root.
+      E2E_EVIDENCE_GROUP: ${E2E_EVIDENCE_GROUP:-}
     volumes:
       - ./frontend:/app/frontend
+      # Evidence outlives the worktree: E2E_EVIDENCE_DIR points every worktree at a shared folder (see AGENTS.md).
+      - ${E2E_EVIDENCE_DIR:-./frontend/e2e/screenshots}:/evidence
       - frontend_node_modules:/app/frontend/node_modules
       - e2e_node_modules:/app/frontend/e2e/node_modules
     command: ["pnpm", "e2e"]

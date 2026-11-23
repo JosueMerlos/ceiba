@@ -1,3 +1,5 @@
+import { mkdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import zlib from "node:zlib";
 import { expect, type Locator, type Page, type TestInfo } from "@playwright/test";
 
@@ -11,10 +13,21 @@ export async function signIn(page: Page, email: string) {
   await page.getByRole("button", { name: "Entrar" }).click();
 }
 
-/** Evidence screenshot (E2E_SCREENSHOT_DIR), in addition to those Playwright saves on failure. */
+/**
+ * Evidence folder: the mounted evidence root plus the group of the branch under test (M2.04, error_500_endpoint_org),
+ * or Playwright's own output folder when no evidence root is mounted.
+ */
+function evidenceDir(testInfo: TestInfo): string {
+  const root = process.env.E2E_SCREENSHOT_DIR ?? testInfo.outputDir;
+  const group = process.env.E2E_EVIDENCE_GROUP;
+  return group ? join(root, group) : root;
+}
+
+/** Evidence screenshot, in addition to those Playwright saves on failure. */
 export async function shot(page: Page, testInfo: TestInfo, name: string) {
-  const dir = process.env.E2E_SCREENSHOT_DIR ?? testInfo.outputDir;
-  await page.screenshot({ path: `${dir}/${name}.png`, fullPage: true });
+  const path = join(evidenceDir(testInfo), `${name}.png`);
+  await mkdir(dirname(path), { recursive: true });
+  await page.screenshot({ path, fullPage: true });
 }
 
 // ---- Company brand helpers (M2.04 specs) ----
