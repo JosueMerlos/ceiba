@@ -150,6 +150,25 @@ describe("Crear una cita", () => {
   });
 });
 
+describe("Próximas llegadas", () => {
+  it("a quien llegó tarde sin confirmar se le marca la llegada directamente", async () => {
+    asReception();
+    const late = new Date(Date.now() - 10 * 60_000).toISOString();
+    const backend = agendaBackend({
+      appointments: [agendaAppointment({ starts_at: late, status: "scheduled" })],
+    });
+    const { user } = await renderApp({
+      route: `/agenda?date=${new Date().toLocaleDateString("en-CA", { timeZone: "America/Managua" })}`,
+    });
+
+    await user.click(await screen.findByRole("button", { name: /Próximas llegadas/ }));
+    const panel = await screen.findByRole("complementary", { name: "Próximas llegadas" });
+    await user.click(await within(panel).findByRole("button", { name: "Marcar llegada" }));
+
+    await waitFor(() => expect(backend.writes[0]).toMatchObject({ action: "check_in" }));
+  });
+});
+
 describe("Detalle y estados", () => {
   it("recepción marca la llegada y la agenda se actualiza", async () => {
     asReception();
@@ -294,43 +313,67 @@ describe("Detalle y estados", () => {
 
   it("las notas sin guardar sobreviven a un cambio de estado de la cita", async () => {
     asReception();
-    agendaBackend({ appointments: [agendaAppointment()], details: { "cita-1": detail() } });
+    const backend = agendaBackend({
+      appointments: [agendaAppointment()],
+      details: { "cita-1": detail() },
+    });
     const { user } = await renderApp({ route });
 
     const panel = await openDetail();
-    const notes = await within(panel).findByLabelText("Notas");
-    await user.type(notes, "Trae su propio tinte");
+    await user.type(await within(panel).findByLabelText("Notas"), "Trae su propio tinte");
+    const readsBefore = backend.detailReads;
     await user.click(within(panel).getByRole("button", { name: "Marcar llegada" }));
+    await waitFor(() => expect(backend.detailReads).toBeGreaterThan(readsBefore));
 
-    await screen.findAllByText("Cita actualizada.");
-    await new Promise((resolve) => setTimeout(resolve, 50));
     expect((within(panel).getByLabelText("Notas") as HTMLTextAreaElement).value).toBe(
       "Trae su propio tinte",
     );
+    await user.click(within(panel).getByRole("button", { name: "Guardar notas" }));
+    await waitFor(() => expect(backend.writes.at(-1)?.action).toBe("notes"));
+    expect(backend.writes.at(-1)?.body).toEqual({ notes: "Trae su propio tinte", lock_version: 1 });
   });
 
-  it("si otra persona cambió la cita, la nota escrita se conserva y se puede volver a guardar", async () => {
+  it("si otra persona guardó otras notas, muestra las suyas y no las pisa sin que se elija", async () => {
     asReception();
     const backend = agendaBackend({
       appointments: [agendaAppointment()],
       details: { "cita-1": detail() },
-      notesFailure: { status: 409, code: "resource.stale" },
+      notesSavedByOther: "Pagó por adelantado",
     });
     const { user } = await renderApp({ route });
 
     const panel = await openDetail();
     await user.type(await within(panel).findByLabelText("Notas"), "Alérgica al amoníaco");
     await user.click(within(panel).getByRole("button", { name: "Guardar notas" }));
-    await waitFor(() => expect(backend.writes).toHaveLength(1));
-    await new Promise((resolve) => setTimeout(resolve, 50));
 
+    expect(await within(panel).findByText(/Pagó por adelantado/)).toBeTruthy();
+    expect(
+      within(panel).getByRole("button", { name: "Guardar notas" }).hasAttribute("disabled"),
+    ).toBe(true);
     expect((within(panel).getByLabelText("Notas") as HTMLTextAreaElement).value).toBe(
       "Alérgica al amoníaco",
     );
+
+    await user.click(within(panel).getByRole("button", { name: "Reemplazar con mi nota" }));
     await user.click(within(panel).getByRole("button", { name: "Guardar notas" }));
     await waitFor(() => expect(backend.writes).toHaveLength(2));
-    expect(backend.writes[1]).toMatchObject({
-      body: { notes: "Alérgica al amoníaco", lock_version: 1 },
+    expect(backend.writes[1]?.body).toEqual({ notes: "Alérgica al amoníaco", lock_version: 1 });
+  });
+
+  it("no se puede escribir mientras se guardan las notas, así nada tecleado se pierde", async () => {
+    asReception();
+    const backend = agendaBackend({
+      appointments: [agendaAppointment()],
+      details: { "cita-1": detail() },
+      notesDelayMs: 300,
     });
+    const { user } = await renderApp({ route });
+
+    const panel = await openDetail();
+    await user.type(await within(panel).findByLabelText("Notas"), "Primera visita");
+    await user.click(within(panel).getByRole("button", { name: "Guardar notas" }));
+
+    await waitFor(() => expect(backend.writes).toHaveLength(1));
+    expect(within(panel).getByLabelText("Notas").hasAttribute("disabled")).toBe(true);
   });
 });

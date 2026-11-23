@@ -1,5 +1,5 @@
 import type { components } from "@ceiba/api-client";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { CATALOG, page } from "./catalog-backend";
 import { ids, problem } from "./fixtures";
 import { server } from "./server";
@@ -79,8 +79,10 @@ interface AgendaBackendOptions {
   customers?: { id: string; full_name: string; phone_e164: string }[];
   /** Forces the answer of the next write: booking, moving or changing a status. */
   writeFailure?: { status: number; code: string };
-  /** Makes saving notes answer this, once. */
-  notesFailure?: { status: number; code: string };
+  /** Someone else saves these notes first: the next save answers 409 and later reads return them. */
+  notesSavedByOther?: string;
+  /** Holds the answer to a notes save, to observe the form while it is in flight. */
+  notesDelayMs?: number;
   /** Details by id; an id left out answers 403, like someone else's appointment for a professional. */
   details?: Record<string, AgendaAppointment & { notes: string | null }>;
   /** Answer 403 to the listing of professionals, like the API does for the `professional` role. */
@@ -102,7 +104,8 @@ export function agendaBackend({
   customers = [],
   writeFailure,
   details = {},
-  notesFailure,
+  notesSavedByOther,
+  notesDelayMs = 0,
   professionalsForbidden = false,
   profiles = {},
   branchId = ids.branchA,
@@ -115,6 +118,7 @@ export function agendaBackend({
     writes: [] as { action: string; id: string | null; body: unknown; key: string | null }[],
     createdCustomers: [] as unknown[],
     scheduleOwners: [] as string[],
+    detailReads: 0,
     failure: writeFailure,
   };
   const write = async (action: string, id: string | null, request: Request) => {
@@ -131,6 +135,7 @@ export function agendaBackend({
     }
     return HttpResponse.json({ data: agendaAppointment({ id: id ?? "nueva" }) }, { status: 201 });
   };
+  let othersNotes: string | null = null;
   const forbidden = () => HttpResponse.json(problem(403, "access.forbidden"), { status: 403 });
 
   server.use(
@@ -151,8 +156,9 @@ export function agendaBackend({
     http.patch(`${BRANCH(branchId)}/appointments/:id`, async ({ params, request }) => {
       const body = await request.json();
       state.writes.push({ action: "notes", id: String(params.id), body, key: null });
-      if (notesFailure) {
-        notesFailure = undefined;
+      await delay(notesDelayMs);
+      if (notesSavedByOther !== undefined && othersNotes === null) {
+        othersNotes = notesSavedByOther;
         return HttpResponse.json(problem(409, "resource.stale"), { status: 409 });
       }
       return HttpResponse.json({ data: details[String(params.id)] });
