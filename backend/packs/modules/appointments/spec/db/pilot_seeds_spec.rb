@@ -81,6 +81,18 @@ RSpec.describe "Datos del piloto interno de la agenda" do # rubocop:disable RSpe
     end
   end
 
+  it "una corrida en otra semana agrega esa semana sin tocar el equipo ni el catálogo", :aggregate_failures do
+    with_tenant(world.organization) do
+      travel_to now + 7.days
+      expect { AppointmentsPilotSeeds.seed(company:, branch:, professional_user_id: user.id) }
+        .not_to change(Appointments::Service.where(company_id: company.id), :count)
+      next_week = appointments.to_a.select { local_day(it) >= Date.new(2026, 11, 23) }
+
+      expect(next_week.map { local_day(it) }.uniq.sort).to eq((Date.new(2026, 11, 23)..Date.new(2026, 11, 28)).to_a)
+      expect(Appointments::Professional.assigned_to(branch).count).to eq(5)
+    end
+  end
+
   it "una segunda corrida no duplica nada" do
     with_tenant(world.organization) do
       expect { AppointmentsPilotSeeds.seed(company:, branch:, professional_user_id: user.id) }.not_to change(appointments, :count)
