@@ -19,7 +19,8 @@ privacidad, autorización y tenancy.
 1. **Un pack de plataforma, `platform/imports`, con importadores registrados por los packs dueños de los datos.** El pack
    lee el archivo, guarda la previsualización y aplica las filas; cada tipo (`customers`, `services`, `professionals`)
    registra su importador y su política en `Imports::Registry`. Servicios y profesionales exigen el módulo de citas activo.
-2. **Flujo en dos pasos: previsualizar y confirmar.** El `POST` lee el archivo (UTF-8, UTF-16 o Windows-1252 por BOM o
+2. **Flujo en dos pasos: previsualizar y confirmar.** El job aplica las filas a nombre de quien confirmó (`confirmed_by_id`),
+   que puede no ser quien subió el archivo. El `POST` lee el archivo (UTF-8, UTF-16 o Windows-1252 por BOM o
    detección; separador `;`, `,` o tabulador; máximo 5000 filas y 5 MB), valida cada fila sin aplicar ninguna y devuelve el
    lote `previewed` con las 20 primeras filas. Confirmar encola el lote: un job lo aplica en tramos de 200 filas, cada uno
    en su transacción y encadenado por eventos del outbox. Un solo lote de cada tipo corre a la vez en la empresa (índice
@@ -32,17 +33,20 @@ privacidad, autorización y tenancy.
    `platform.customer.read`, en la sucursal desde la que se actúa. Servicios y profesionales piden
    `appointments.service.manage` y `appointments.professional.manage` en la empresa.
 5. **Retención de datos personales (D3).** Las celdas de cada fila se guardan cifradas (`encrypts :payload`) y se borran al
-   aplicar la fila y al terminar el lote. Un lote sin confirmar vence a las 24 h y una purga horaria lo marca `expired` y
-   borra sus filas; un lote atascado más de 24 h se marca `failed` y borra su contenido. El reporte final conserva solo
+   aplicar la fila y al terminar el lote. Un lote sin confirmar vence a las 24 h y una purga horaria lo marca `expired`, borra sus filas y conserva sus
+   conteos; un lote atascado más de 24 h se marca `failed` y borra su contenido. Cada lote se purga en su propio job y
+   transacción, con el lote bloqueado y su estado comprobado de nuevo. Un error inesperado de la base al aplicar una fila
+   la deja `failed` con un código genérico, sin guardar ni propagar el mensaje (puede citar los valores). El reporte final conserva solo
    número de fila y códigos de error, nunca el valor. El parámetro `content_base64` está en `filter_parameters`.
 6. **Dinero (D4).** El precio acepta `150`, `150.50` y `150,50`; un separador de miles se rechaza en vez de adivinarse.
    Moneda vacía es la de la empresa; otra moneda es un error.
 7. **Excepción de PII de ADR-0033 ampliada (D5).** Los endpoints de importación devuelven los valores de las filas solo
-   mientras el lote está `previewed` y solo a quien tiene `platform.customer.import` y `platform.customer.read`. Tras
+   mientras el lote está `previewed` y no ha vencido, y solo a quien tiene `platform.customer.import` y
+   `platform.customer.read`. Tras
    confirmar, lote y filas salen sin valores.
 8. **Purga entre organizaciones (D6).** `Imports::CrossTenant` solo lee qué organizaciones tienen lotes vencidos o atascados
-   (entrada en `AllowedFiles` de `Ceiba/TenantBypass`); un cron sin tenant encola un job por organización, que purga dentro
-   de su tenant.
+   (entrada en `AllowedFiles` de `Ceiba/TenantBypass`); un cron sin tenant encola un job por lote, que purga dentro del
+   tenant de su organización.
 9. **Historial por sucursal (D7).** La ficha del cliente muestra solo las citas de la sucursal activa, y lo dice.
 10. **Duplicados (D8, D9).** Clientes se identifican por teléfono normalizado. `skip` no toca a los existentes ni a los
     archivados y los reporta como omitidos; `update` escribe las celdas no vacías y restaura a los archivados. Servicios y
