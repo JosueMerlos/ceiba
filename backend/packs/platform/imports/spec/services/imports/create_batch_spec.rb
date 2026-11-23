@@ -75,4 +75,23 @@ RSpec.describe Imports::CreateBatch do
   it "rechaza un tipo que nadie registró" do
     expect { call(csv(people(1)), kind: "invoices") }.to raise_error(Imports::UnknownKind)
   end
+
+  context "con la inserción en bloque" do
+    it "rechaza filas de un lote de otra organización y no escribe ninguna" do
+      foreign = create(:organization)
+      foreign_batch = create_in(foreign, :import_batch, branch: create_in(foreign, :branch))
+      row = { row_number: 2, status: "ready", payload: "{}", error_codes: {} }
+
+      expect { with_tenant(organization) { described_class.insert_rows(foreign_batch, [ row ]) } }.to raise_error(Tenancy::TenantMismatch)
+      expect(with_tenant(foreign) { Imports::Row.count }).to eq(0)
+    end
+
+    it "cifra cada fila también más allá del primer bloque de 1000" do
+      batch = call(csv(people(1000) + [ "Última;8800 9999;ultima@ejemplo.com" ]))
+
+      raw = ApplicationRecord.connection.select_values("SELECT payload FROM import_rows WHERE import_batch_id = #{ApplicationRecord.connection.quote(batch.id)}")
+      expect([ raw.size, raw.grep(/ultima@ejemplo|Persona/).size ]).to eq([ 1001, 0 ])
+      expect(with_tenant(organization) { batch.rows.last.cells["correo"] }).to eq("ultima@ejemplo.com")
+    end
+  end
 end
