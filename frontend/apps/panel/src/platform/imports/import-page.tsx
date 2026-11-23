@@ -7,8 +7,8 @@ import { Link } from "react-router";
 import { describeError } from "../errors/global-errors";
 import { ForbiddenPage } from "../errors/status-pages";
 import { useMe } from "../me/me-provider";
-import { BranchPicker } from "../customers/branch-picker";
-import { useWorkingBranch } from "../customers/use-working-branch";
+import { BranchPicker } from "../ui/branch-picker";
+import { useWorkingBranch } from "../context/use-working-branch";
 import {
   RUNNING,
   readAsBase64,
@@ -23,7 +23,6 @@ import {
 import { IMPORT_KINDS, importKindsFor, type ImportKind } from "./kinds";
 
 const MAX_BYTES = 5 * 1024 * 1024;
-const DUPLICATE_MODES: readonly DuplicateMode[] = ["skip", "update"];
 const templateOf = (kind: ImportKind) => IMPORT_KINDS.find((item) => item.key === kind)!.template;
 
 /** /customers/import: upload a CSV, review what would happen, confirm, and follow the job to its report. */
@@ -238,7 +237,8 @@ function Preview({
   onConfirmed(batch: ImportBatch): void;
 }) {
   const { t } = useTranslation(["imports", "errors"]);
-  const [mode, setMode] = useState<DuplicateMode>("skip");
+  // The server lists the modes the kind accepts, the safest one first.
+  const [mode, setMode] = useState<DuplicateMode>(batch.duplicate_modes[0]!);
   const confirm = useConfirmImport(branchId);
   const rejected = useRejectedRows(branchId, batch);
 
@@ -290,7 +290,7 @@ function Preview({
       ) : (
         <div className="grid gap-4">
           {batch.duplicate_modes.length > 1 ? (
-            <ModeChooser value={mode} onChange={setMode} />
+            <ModeChooser modes={batch.duplicate_modes} value={mode} onChange={setMode} />
           ) : null}
           {confirm.isError ? <Alert>{describeError(confirm.error, t)}</Alert> : null}
           <Button
@@ -299,7 +299,7 @@ function Preview({
             disabled={confirm.isPending}
             onClick={() =>
               confirm.mutate(
-                { id: batch.id, mode: batch.duplicate_modes.includes(mode) ? mode : "skip" },
+                { id: batch.id, mode },
                 { onSuccess: (result) => onConfirmed(result.data) },
               )
             }
@@ -383,9 +383,11 @@ function PreviewTable({ batch }: { batch: ImportBatch }) {
 }
 
 function ModeChooser({
+  modes,
   value,
   onChange,
 }: {
+  modes: readonly DuplicateMode[];
   value: DuplicateMode;
   onChange(mode: DuplicateMode): void;
 }) {
@@ -393,7 +395,7 @@ function ModeChooser({
   return (
     <fieldset className="grid gap-2">
       <legend className="mb-1 font-semibold">{t("duplicates.label")}</legend>
-      {DUPLICATE_MODES.map((mode) => (
+      {modes.map((mode) => (
         <label key={mode} className="flex cursor-pointer items-start gap-2.5">
           <input
             type="radio"

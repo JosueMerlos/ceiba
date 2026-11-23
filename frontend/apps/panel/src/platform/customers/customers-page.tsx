@@ -26,11 +26,11 @@ import {
   type Customer,
   type CustomerInput,
 } from "./api";
-import { BranchPicker } from "./branch-picker";
+import { BranchPicker } from "../ui/branch-picker";
 import { CustomerAside } from "./customer-aside";
 import { CustomerForm } from "./customer-form";
 import { formatPhone } from "./lib";
-import { useWorkingBranch } from "./use-working-branch";
+import { useWorkingBranch } from "../context/use-working-branch";
 
 const SEARCH_DELAY_MS = 250;
 

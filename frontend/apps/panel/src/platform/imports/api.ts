@@ -1,12 +1,12 @@
 import { unwrap, useApiClient, type components } from "@ceiba/api-client";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useMe } from "../me/me-provider";
+import { useBranchScope } from "../context/use-branch-scope";
 import type { ImportKind } from "./kinds";
 
 type Schemas = components["schemas"];
 export type ImportBatch = Schemas["ImportBatch"];
 export type ImportRow = Schemas["ImportRow"];
-export type DuplicateMode = "skip" | "update";
+export type DuplicateMode = ImportBatch["duplicate_modes"][number];
 
 const IMPORTS =
   "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/imports";
@@ -17,22 +17,10 @@ const POLL_MS = 1000;
 const ROWS_PAGE = 100;
 export const RUNNING: readonly ImportBatch["status"][] = ["queued", "processing"];
 
-function useImportScope(branchId: string) {
-  const { context } = useMe();
-  if (!context.organization || !context.company) {
-    throw new Error("Importar necesita una organización y una empresa en el contexto");
-  }
-  return {
-    organization_id: context.organization.id,
-    company_id: context.company.id,
-    branch_id: branchId,
-  };
-}
-
 // Silent: the page shows a refused file in place.
 export function useUploadImport(branchId: string) {
   const client = useApiClient();
-  const path = useImportScope(branchId);
+  const { path } = useBranchScope(branchId);
   return useMutation({
     mutationFn: (body: { kind: ImportKind; content_base64: string }) =>
       unwrap(client.POST(IMPORTS, { params: { path, header: CSRF }, body })),
@@ -42,7 +30,7 @@ export function useUploadImport(branchId: string) {
 
 export function useConfirmImport(branchId: string) {
   const client = useApiClient();
-  const path = useImportScope(branchId);
+  const { path } = useBranchScope(branchId);
   return useMutation({
     mutationFn: ({ id, mode }: { id: string; mode: DuplicateMode }) =>
       unwrap(
@@ -57,7 +45,7 @@ export function useConfirmImport(branchId: string) {
 /** Follows a confirmed batch until the job finishes. */
 export function useImportProgress(branchId: string, batch: ImportBatch | null) {
   const client = useApiClient();
-  const path = useImportScope(branchId);
+  const { path } = useBranchScope(branchId);
   const running = batch !== null && RUNNING.includes(batch.status);
   return useQuery({
     queryKey: ["imports", path.company_id, batch?.id],
@@ -72,7 +60,7 @@ export function useImportProgress(branchId: string, batch: ImportBatch | null) {
 /** The rejected rows of a preview: row numbers and codes only, for the error list. */
 export function useRejectedRows(branchId: string, batch: ImportBatch | null) {
   const client = useApiClient();
-  const path = useImportScope(branchId);
+  const { path } = useBranchScope(branchId);
   return useQuery({
     queryKey: ["imports", path.company_id, batch?.id, "rejected"],
     queryFn: () =>

@@ -10,7 +10,7 @@ interface BranchPickerProps {
 
 /** Branch choice for managers who work at company level (no branch in the context). */
 export function BranchPicker({ branches, value, onChange }: BranchPickerProps) {
-  const { t } = useTranslation("customers");
+  const { t } = useTranslation("common");
   const id = useId();
   return (
     <div className="mb-4 grid max-w-xs gap-1.5">

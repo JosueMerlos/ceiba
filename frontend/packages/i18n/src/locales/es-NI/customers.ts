@@ -13,11 +13,6 @@ export const customers = {
     description: "Agregue el primero o traiga su lista desde una hoja de cálculo.",
     readOnlyDescription: "Cuando su equipo registre clientes, aparecerán aquí.",
   },
-  workingBranch: {
-    label: "Sucursal desde la que trabaja",
-    placeholder: "Elija una sucursal",
-    hint: "Los clientes son de toda la empresa; la sucursal define qué historial de citas se ve.",
-  },
   form: {
     fullName: "Nombre completo",
     phone: "Teléfono",

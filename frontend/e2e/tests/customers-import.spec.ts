@@ -80,7 +80,9 @@ test.describe("importación de clientes desde CSV (AC1, AC2, AC5)", () => {
     await nav(page).getByRole("link", { name: "Clientes" }).click();
     await page.getByRole("searchbox", { name: "Buscar clientes" }).fill(phone(0));
     await page.getByRole("link", { name: `Señora Núñez ${tag}-0` }).click();
-    await expect(page.getByRole("heading", { level: 1, name: `Señora Núñez ${tag}-0` })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: `Señora Núñez ${tag}-0` }),
+    ).toBeVisible();
   });
 
   test("un archivo de 6000 filas se rechaza con un mensaje claro", async ({ page }) => {

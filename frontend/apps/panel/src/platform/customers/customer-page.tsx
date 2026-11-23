@@ -29,11 +29,11 @@ import {
   type Customer,
   type CustomerAppointment,
 } from "./api";
-import { BranchPicker } from "./branch-picker";
+import { BranchPicker } from "../ui/branch-picker";
 import { CustomerAside } from "./customer-aside";
 import { CustomerForm } from "./customer-form";
 import { formatMonth, formatPhone, localDate } from "./lib";
-import { useWorkingBranch } from "./use-working-branch";
+import { useWorkingBranch } from "../context/use-working-branch";
 
 type Status = CustomerAppointment["status"];
 

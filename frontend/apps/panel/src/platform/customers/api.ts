@@ -6,7 +6,7 @@ import {
   useQueryClient,
   type InfiniteData,
 } from "@tanstack/react-query";
-import { useMe } from "../me/me-provider";
+import { useBranchScope } from "../context/use-branch-scope";
 
 type Schemas = components["schemas"];
 export type Customer = Schemas["Customer"];
@@ -24,23 +24,6 @@ const CSRF = { "X-CSRF-Token": "" };
 const PAGE_SIZE = 50;
 const PHONE_LIKE = /^[\d\s()+-]+$/;
 
-/** Customers belong to the company; the route carries the branch the staff acts from. */
-export function useCustomerScope(branchId: string) {
-  const { context } = useMe();
-  if (!context.organization || !context.company) {
-    throw new Error("Los clientes necesitan una organización y una empresa en el contexto");
-  }
-  return {
-    organizationId: context.organization.id,
-    companyId: context.company.id,
-    path: {
-      organization_id: context.organization.id,
-      company_id: context.company.id,
-      branch_id: branchId,
-    },
-  };
-}
-
 export const customerKeys = {
   all: (companyId: string) => ["customers", companyId] as const,
   list: (companyId: string, branchId: string, term: string) =>
@@ -56,7 +39,7 @@ export const searchFilter = (term: string) =>
 
 export function useCustomersQuery(branchId: string, term: string) {
   const client = useApiClient();
-  const { companyId, path } = useCustomerScope(branchId);
+  const { companyId, path } = useBranchScope(branchId);
   return useInfiniteQuery({
     queryKey: customerKeys.list(companyId, branchId, term),
     initialPageParam: undefined as string | undefined,
@@ -80,7 +63,7 @@ export function useCustomersQuery(branchId: string, term: string) {
 
 export function useCustomerQuery(branchId: string, id: string) {
   const client = useApiClient();
-  const { companyId, path } = useCustomerScope(branchId);
+  const { companyId, path } = useBranchScope(branchId);
   return useQuery({
     queryKey: customerKeys.one(companyId, id),
     queryFn: () => unwrap(client.GET(CUSTOMER, { params: { path: { ...path, id } } })),
@@ -89,7 +72,7 @@ export function useCustomerQuery(branchId: string, id: string) {
 
 export function useCustomerHistory(branchId: string, customerId: string, enabled: boolean) {
   const client = useApiClient();
-  const { companyId, path } = useCustomerScope(branchId);
+  const { companyId, path } = useBranchScope(branchId);
   return useInfiniteQuery({
     queryKey: customerKeys.history(companyId, branchId, customerId),
     initialPageParam: undefined as string | undefined,
@@ -115,7 +98,7 @@ export const flattenPages = <T>(data: InfiniteData<{ data: T[] }> | undefined): 
 export function useCreateCustomer(branchId: string) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const { companyId, path } = useCustomerScope(branchId);
+  const { companyId, path } = useBranchScope(branchId);
   return useMutation({
     mutationFn: (body: CustomerInput) =>
       unwrap(client.POST(CUSTOMERS, { params: { path, header: CSRF }, body })),
@@ -127,7 +110,7 @@ export function useCreateCustomer(branchId: string) {
 export function useUpdateCustomer(branchId: string) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const { companyId, path } = useCustomerScope(branchId);
+  const { companyId, path } = useBranchScope(branchId);
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: CustomerPatch }) =>
       unwrap(client.PATCH(CUSTOMER, { params: { path: { ...path, id }, header: CSRF }, body })),
