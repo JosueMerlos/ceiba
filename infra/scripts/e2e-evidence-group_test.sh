@@ -33,7 +33,26 @@ expect "fix/../escape"   "escape"
 expect "main"    ""
 expect "HEAD"    ""
 expect "release" ""
-expect ""        ""
+
+# Without an argument the script reads the current branch, so that path runs inside a throwaway repo on a known branch:
+# running it against this checkout would make the result depend on where the suite runs (a feat/ worktree, main, CI).
+script="$PWD/e2e-evidence-group.sh"
+expect_current() { # expect_current <rama actual> <grupo esperado>
+  local branch=$1 expected=$2 repo actual
+  repo=$(mktemp -d)
+  git -C "$repo" init -q -b "$branch"
+  git -C "$repo" -c user.name=test -c user.email=test@example.invalid commit -q --allow-empty -m init
+  actual=$(cd "$repo" && "$script")
+  rm -rf "$repo"
+  if [ "$actual" = "$expected" ]; then
+    echo "ok    [sin argumento, rama $branch] -> '${actual}'"
+  else
+    echo "FALLA [sin argumento, rama $branch] esperado '${expected}', fue '${actual}'"; failures=$((failures + 1))
+  fi
+}
+
+expect_current "feat/m2.03-clientes" "M2.03"
+expect_current "main"                ""
 
 [ "$failures" -eq 0 ] || { echo "$failures caso(s) fallaron"; exit 1; }
 echo "todos los casos pasaron"
