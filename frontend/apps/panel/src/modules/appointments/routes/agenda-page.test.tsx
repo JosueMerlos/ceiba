@@ -55,6 +55,18 @@ describe("Agenda: recepción", () => {
     expect(backend.appointmentQueries[0]?.get("to")).toBe(DAY);
   });
 
+  it("sin permiso para ver el nombre muestra el texto de respaldo y nunca el id del cliente", async () => {
+    asReception();
+    agendaBackend({
+      appointments: [agendaAppointment({ customer_name: null, customer_id: "c-secreto" })],
+    });
+    await renderApp({ route });
+
+    const card = await screen.findByRole("button", { name: /Cliente/ });
+    expect(card.textContent).toContain("Cliente");
+    expect(document.body.textContent).not.toContain("c-secreto");
+  });
+
   it("no dibuja las citas canceladas ni reprogramadas", async () => {
     asReception();
     agendaBackend({

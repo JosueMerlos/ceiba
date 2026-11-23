@@ -195,12 +195,20 @@ describe("rango horario nunca vacío", () => {
 describe("próximas llegadas", () => {
   const now = new Date("2026-11-18T15:00:00.000Z");
 
+  it("conserva a quien llega tarde durante media hora, para poder marcar su llegada", () => {
+    const list = [
+      appointment({ id: "tarde", starts_at: "2026-11-18T14:40:00.000Z" }),
+      appointment({ id: "muy-tarde", starts_at: "2026-11-18T14:20:00.000Z" }),
+    ];
+    expect(upcomingArrivals(list, now).map((item) => item.id)).toEqual(["tarde"]);
+  });
+
   it("lista por hora las citas por llegar de la próxima hora", () => {
     const list = [
       appointment({ id: "later", starts_at: "2026-11-18T15:40:00.000Z" }),
       appointment({ id: "soon", starts_at: "2026-11-18T15:10:00.000Z", status: "scheduled" }),
       appointment({ id: "edge", starts_at: "2026-11-18T16:00:00.000Z" }),
-      appointment({ id: "past", starts_at: "2026-11-18T14:59:00.000Z" }),
+      appointment({ id: "past", starts_at: "2026-11-18T14:29:00.000Z" }),
       appointment({ id: "here", starts_at: "2026-11-18T15:20:00.000Z", status: "checked_in" }),
       appointment({ id: "gone", starts_at: "2026-11-18T15:20:00.000Z", status: "cancelled" }),
     ];

@@ -79,6 +79,8 @@ interface AgendaBackendOptions {
   customers?: { id: string; full_name: string; phone_e164: string }[];
   /** Forces the answer of the next write: booking, moving or changing a status. */
   writeFailure?: { status: number; code: string };
+  /** Makes saving notes answer this, once. */
+  notesFailure?: { status: number; code: string };
   /** Details by id; an id left out answers 403, like someone else's appointment for a professional. */
   details?: Record<string, AgendaAppointment & { notes: string | null }>;
   /** Answer 403 to the listing of professionals, like the API does for the `professional` role. */
@@ -100,6 +102,7 @@ export function agendaBackend({
   customers = [],
   writeFailure,
   details = {},
+  notesFailure,
   professionalsForbidden = false,
   profiles = {},
   branchId = ids.branchA,
@@ -136,13 +139,22 @@ export function agendaBackend({
       return HttpResponse.json({ data: appointments });
     }),
     http.post(`${BRANCH(branchId)}/appointments`, ({ request }) => write("book", null, request)),
+    // Every write moves the version up, as the API does.
     http.get(`${BRANCH(branchId)}/appointments/:id`, ({ params }) => {
       const detail = details[String(params.id)];
-      return detail ? HttpResponse.json({ data: detail }) : forbidden();
+      return detail
+        ? HttpResponse.json({
+            data: { ...detail, lock_version: detail.lock_version + state.writes.length },
+          })
+        : forbidden();
     }),
     http.patch(`${BRANCH(branchId)}/appointments/:id`, async ({ params, request }) => {
       const body = await request.json();
       state.writes.push({ action: "notes", id: String(params.id), body, key: null });
+      if (notesFailure) {
+        notesFailure = undefined;
+        return HttpResponse.json(problem(409, "resource.stale"), { status: 409 });
+      }
       return HttpResponse.json({ data: details[String(params.id)] });
     }),
     http.post(`${BRANCH(branchId)}/appointments/:id/:action`, ({ params, request }) =>

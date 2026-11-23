@@ -291,4 +291,46 @@ describe("Detalle y estados", () => {
     expect(await within(panel).findByRole("button", { name: "Marcar llegada" })).toBeTruthy();
     expect(within(panel).queryByText(/Reprogramada desde/)).toBeNull();
   });
+
+  it("las notas sin guardar sobreviven a un cambio de estado de la cita", async () => {
+    asReception();
+    agendaBackend({ appointments: [agendaAppointment()], details: { "cita-1": detail() } });
+    const { user } = await renderApp({ route });
+
+    const panel = await openDetail();
+    const notes = await within(panel).findByLabelText("Notas");
+    await user.type(notes, "Trae su propio tinte");
+    await user.click(within(panel).getByRole("button", { name: "Marcar llegada" }));
+
+    await screen.findAllByText("Cita actualizada.");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect((within(panel).getByLabelText("Notas") as HTMLTextAreaElement).value).toBe(
+      "Trae su propio tinte",
+    );
+  });
+
+  it("si otra persona cambió la cita, la nota escrita se conserva y se puede volver a guardar", async () => {
+    asReception();
+    const backend = agendaBackend({
+      appointments: [agendaAppointment()],
+      details: { "cita-1": detail() },
+      notesFailure: { status: 409, code: "resource.stale" },
+    });
+    const { user } = await renderApp({ route });
+
+    const panel = await openDetail();
+    await user.type(await within(panel).findByLabelText("Notas"), "Alérgica al amoníaco");
+    await user.click(within(panel).getByRole("button", { name: "Guardar notas" }));
+    await waitFor(() => expect(backend.writes).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect((within(panel).getByLabelText("Notas") as HTMLTextAreaElement).value).toBe(
+      "Alérgica al amoníaco",
+    );
+    await user.click(within(panel).getByRole("button", { name: "Guardar notas" }));
+    await waitFor(() => expect(backend.writes).toHaveLength(2));
+    expect(backend.writes[1]).toMatchObject({
+      body: { notes: "Alérgica al amoníaco", lock_version: 1 },
+    });
+  });
 });
