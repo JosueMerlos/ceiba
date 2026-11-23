@@ -5,6 +5,7 @@ module Imports
   module CreateBatch
     MAX_ROWS = 5_000
     MAX_BYTES = 5.megabytes
+    INSERT_SLICE = 1_000
 
     module_function
 
@@ -35,6 +36,13 @@ module Imports
       end
     end
 
-    def insert_rows(batch, rows) = rows.each { batch.rows.create!(it) }
+    # One INSERT per slice instead of one per row: row by row, 5000 rows took over 8 s inside the request. organization_id is
+    # explicit so the tenant write guard checks every row against the active tenant; insert_all! still encrypts the payload.
+    def insert_rows(batch, rows)
+      now = Time.current
+      rows.each_slice(INSERT_SLICE) do |slice|
+        Row.insert_all!(slice.map { it.merge(organization_id: batch.organization_id, import_batch_id: batch.id, created_at: now, updated_at: now) })
+      end
+    end
   end
 end
