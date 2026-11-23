@@ -7,6 +7,7 @@ RSpec.describe Imports::ProcessChunk do
   let(:company) { create_in(organization, :company) }
   let(:branch) { create_in(organization, :branch, company:) }
   let(:user_id) { SecureRandom.uuid_v7 }
+  let(:confirmer_id) { SecureRandom.uuid_v7 }
 
   def csv(count, offset: 0)
     ([ "nombre;telefono" ] + Array.new(count) { |index| format("Persona %d;8800 %04d", index, index + offset + 1) }).join("\n")
@@ -16,7 +17,7 @@ RSpec.describe Imports::ProcessChunk do
     with_tenant(organization) { Imports::CreateBatch.call(kind: "customers", bytes:, company_id: company.id, branch_id: branch.id, created_by_id: user_id) }
   end
 
-  def confirm(batch, mode: "skip") = with_tenant(organization) { Imports::ConfirmBatch.call(batch: batch.reload, duplicate_mode: mode) }
+  def confirm(batch, mode: "skip") = with_tenant(organization) { Imports::ConfirmBatch.call(batch: batch.reload, duplicate_mode: mode, confirmed_by_id: confirmer_id) }
 
   def process(batch) = with_tenant(organization) { described_class.call(batch_id: batch.id) }
 
@@ -103,11 +104,11 @@ RSpec.describe Imports::ProcessChunk do
       expect(with_tenant(organization) { done.rows.where(status: "rejected").pluck(:error_codes) }).to eq([ { "telefono" => "invalid" } ])
     end
 
-    it "borra el contenido de todas las filas y audita como quien confirmó" do
+    it "borra el contenido de todas las filas y audita como quien confirmó, no como quien subió el archivo" do
       done = drain_mixed
 
       expect(with_tenant(organization) { done.rows.pluck(:payload).compact }).to be_empty
-      expect(with_tenant(organization) { Audit::Event.where(action: %w[customer.created import.completed]).pluck(:actor_type, :actor_id).uniq }).to eq([ [ "user", user_id ] ])
+      expect(with_tenant(organization) { Audit::Event.where(action: %w[customer.created import.completed]).pluck(:actor_type, :actor_id).uniq }).to eq([ [ "user", confirmer_id ] ])
     end
   end
 

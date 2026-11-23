@@ -185,7 +185,7 @@ RSpec.describe "API v1: importaciones" do
 
       response "409", "ya confirmado" do
         let!(:signed_in) { sign_in(manager) }
-        let(:import_id) { upload(manager).tap { |batch| with_tenant(world.organization) { Imports::ConfirmBatch.call(batch:, duplicate_mode: "skip") } }.id }
+        let(:import_id) { upload(manager).tap { |batch| with_tenant(world.organization) { Imports::ConfirmBatch.call(batch:, duplicate_mode: "skip", confirmed_by_id: manager.id) } }.id }
         let(:body) { { duplicate_mode: "skip" } }
         schema "$ref" => "#/components/schemas/Problem"
 
