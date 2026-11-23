@@ -21,19 +21,9 @@ module Imports
       raise UnreadableFile if text.include?("\u0000")
 
       separator = separator_of(text)
-      header, *lines = parse(text, separator)
-      raise EmptyFile if header.nil?
-
-      headers = header.map { normalize_header(it) }
-      repeated = headers.compact.tally.select { |_, count| count > 1 }.keys
-      raise DuplicateColumns.new(columns: repeated) if repeated.any?
-
-      rows = lines.each_with_index.filter_map do |cells, index|
-        cells = cells.map { it.to_s.strip.presence }
-        Row.new(number: index + 2, cells:) if cells.any?
-      end
-      raise EmptyFile if rows.empty?
-      raise TooManyRows.new(rows: rows.size, max_rows:) if rows.size > max_rows
+      headers, rows, count = parse(text, separator, max_rows)
+      raise EmptyFile if headers.nil? || count.zero?
+      raise TooManyRows.new(rows: count, max_rows:) if count > max_rows
 
       Result.new(headers:, rows:, encoding:, separator:)
     end
@@ -57,8 +47,24 @@ module Imports
       SEPARATORS.max_by { |separator| [ header.count(separator), -SEPARATORS.index(separator) ] }
     end
 
-    def parse(text, separator)
-      CSV.parse(text, col_sep: separator)
+    # Row by row: past the maximum the rows are only counted (the error says how many there are), never kept, so a file of
+    # millions of tiny lines costs no more memory than one at the limit. Headers come back as found, repeats included:
+    # only the importer knows which columns matter.
+    def parse(text, separator, max_rows)
+      csv = CSV.new(text, col_sep: separator)
+      header = csv.shift
+      return [ nil, [], 0 ] if header.nil?
+
+      rows = []
+      count = 0
+      csv.each.with_index(2) do |cells, number|
+        cells = cells.map { it.to_s.strip.presence }
+        next if cells.none?
+
+        count += 1
+        rows << Row.new(number:, cells:) if count <= max_rows
+      end
+      [ header.map { normalize_header(it) }, rows, count ]
     rescue CSV::MalformedCSVError
       raise UnreadableFile
     end

@@ -12,6 +12,10 @@ module Imports
     def call(kind:, bytes:, company_id:, branch_id:, created_by_id:)
       importer = Registry.fetch(kind).importer_for(company_id:)
       file = CsvReader.call(bytes, max_rows: MAX_ROWS, max_bytes: MAX_BYTES)
+      # Only known columns are named: a file without a header row has data in its first line.
+      repeated = file.headers.compact.tally.select { |_, count| count > 1 }.keys & importer.columns.keys
+      raise DuplicateColumns.new(columns: repeated) if repeated.any?
+
       missing = importer.required_columns - file.headers
       raise MissingColumns.new(columns: missing) if missing.any?
 
