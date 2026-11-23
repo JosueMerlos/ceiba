@@ -26,6 +26,8 @@ module Imports
       Batch.where(status: "previewed", expires_at: ...now).or(Batch.where(status: Batch::RUNNING, confirmed_at: ...(now - STUCK_AFTER)))
     end
 
+    # Deletes in slices, not in one transaction: a purge cut short leaves the batch `previewed` and expired, so the next
+    # run picks it up and finishes the job.
     def expire(batch)
       loop { break if Row.where(id: batch.rows.unscope(:order).limit(BATCH_SIZE).select(:id)).delete_all < BATCH_SIZE }
       batch.update!(status: "expired", **batch.counts_from_rows)
