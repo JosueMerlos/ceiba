@@ -44,7 +44,7 @@ RSpec.describe "Importadores del catálogo" do
     end
 
     it "rechaza una moneda distinta a la de la empresa y acepta la misma en minúsculas" do
-      expect([ validate(moneda: "USD").last, validate(moneda: "nio").last ]).to eq([ { "moneda" => "currency_mismatch" }, {} ])
+      expect([ validate(moneda: "USD").last, validate(moneda: "nio").last ]).to eq([ { "moneda" => "mismatch" }, {} ])
     end
 
     it "valida duración, búferes y el campo activo" do
