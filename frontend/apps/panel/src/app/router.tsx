@@ -15,6 +15,15 @@ const pages: RouteObject[] = [
     path: "settings/branding",
     element: lazyPage(() => import("../platform/branding/branding-page"), "BrandingPage"),
   },
+  // Customers belong to the platform, not to a module: they exist whatever modules the company has.
+  {
+    path: "customers",
+    element: lazyPage(() => import("../platform/customers/customers-page"), "CustomersPage"),
+  },
+  {
+    path: "customers/:customerId",
+    element: lazyPage(() => import("../platform/customers/customer-page"), "CustomerPage"),
+  },
   { path: "*", element: <ModuleRoutes /> },
 ];
 

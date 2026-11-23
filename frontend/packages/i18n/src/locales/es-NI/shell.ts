@@ -19,6 +19,7 @@ export const shell = {
   nav: {
     agenda: "Agenda",
     summary: "Resumen de citas",
+    customers: "Clientes",
     services: "Servicios",
     professionals: "Profesionales",
     resources: "Recursos",
