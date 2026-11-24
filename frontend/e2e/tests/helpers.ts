@@ -30,6 +30,19 @@ export async function shot(page: Page, testInfo: TestInfo, name: string) {
   await page.screenshot({ path, fullPage: true });
 }
 
+/**
+ * Horizontal overflow in px of the page AND of the sheet: with the fixed-height layout the sheet scrolls on its own,
+ * so content wider than the screen would scroll inside it without the document ever growing.
+ */
+export function horizontalOverflow(page: Page) {
+  return page.evaluate(() => {
+    const sheet = document.getElementById("contenido-principal");
+    const documentOverflow =
+      document.documentElement.scrollWidth - document.documentElement.clientWidth;
+    return Math.max(documentOverflow, sheet ? sheet.scrollWidth - sheet.clientWidth : 0);
+  });
+}
+
 // ---- Company brand helpers (M2.04 specs) ----
 
 /** A valid solid-color PNG generated at runtime, so no binary is committed. */

@@ -225,6 +225,7 @@ function BrandingEditor({ saved, target, companyName }: BrandingEditorProps) {
         <AsidePortal>
           <ContextPanel
             id={PANEL_ID}
+            variant="docked"
             open
             onOpenChange={(open) => setExpanded(open)}
             title={t("branding:panel.title")}

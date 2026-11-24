@@ -56,6 +56,8 @@ export {
   LoadingState,
   MAIN_ID,
   NavItem,
+  PageBody,
+  PageFrame,
   PageHeader,
   RailTooltip,
   SIDEBAR_ID,

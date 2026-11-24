@@ -8,7 +8,7 @@ import {
   openAgenda,
   uniquePhone,
 } from "../tests/agenda-helpers";
-import { shot, signIn } from "../tests/helpers";
+import { horizontalOverflow, shot, signIn } from "../tests/helpers";
 
 // UI QA smoke for customers: the profile's history in the branch's zone whatever the browser's, the screens at desktop
 // and phone width, and the import screen. It books one appointment for a new customer and cancels it at the end.
@@ -70,9 +70,7 @@ test("ficha de cliente: historial en la zona de la sucursal, escritorio y 360 px
 
     await page.setViewportSize(PHONE_WIDTH);
     await shot(page, testInfo, "31-ficha-cliente-360");
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    ).toBe(true);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
   } finally {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto(`/agenda?date=${day}`);
@@ -100,7 +98,5 @@ test("lista de clientes e importación a 360 px", async ({ page }, testInfo) => 
   });
   await expect(page.getByRole("region", { name: "Resumen del archivo" })).toBeVisible();
   await shot(page, testInfo, "33-importacion-360");
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
-    true,
-  );
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });

@@ -2,7 +2,15 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { AppLayout, ContextPanel, NavItem, PageBody, PageFrame, PageHeader, StatusPage } from "../src";
+import {
+  AppLayout,
+  ContextPanel,
+  NavItem,
+  PageBody,
+  PageFrame,
+  PageHeader,
+  StatusPage,
+} from "../src";
 
 interface HarnessProps {
   initialCollapsed?: boolean;
@@ -165,10 +173,14 @@ describe("AppLayout (marco y hoja)", () => {
     const { container } = render(<Harness />);
 
     const frame = container.querySelector<HTMLElement>("[data-slot='app-frame']")!;
-    expect(frame.className.split(" ")).toEqual(expect.arrayContaining(["h-svh", "overflow-hidden"]));
+    expect(frame.className.split(" ")).toEqual(
+      expect.arrayContaining(["h-svh", "overflow-hidden"]),
+    );
     expect(frame.className).not.toContain("min-h-svh");
     const main = screen.getByRole("main");
-    expect(main.className.split(" ")).toEqual(expect.arrayContaining(["min-h-0", "overflow-y-auto"]));
+    expect(main.className.split(" ")).toEqual(
+      expect.arrayContaining(["min-h-0", "overflow-y-auto"]),
+    );
     // A block, not a flex column: screens keep their layout (margins, mx-auto) without changes.
     expect(main.className.split(" ")).not.toContain("flex");
   });

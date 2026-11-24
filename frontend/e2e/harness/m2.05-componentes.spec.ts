@@ -46,6 +46,13 @@ for (const viewport of [
   }, testInfo) => {
     await page.setViewportSize(viewport);
     await openAgenda(page, RECEPTION, nextWorkingDay());
+    // The calendar is a lazy chunk: measure once its hours are drawn, not while the sheet is still short.
+    await expect(
+      page
+        .getByText(/5:00\sp\.\sm\./)
+        .filter({ visible: true })
+        .first(),
+    ).toBeAttached();
     const sidebar = page.locator("#barra-lateral");
     const before = (await sidebar.boundingBox())!.y;
 

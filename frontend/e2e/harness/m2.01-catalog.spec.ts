@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { shot, signIn } from "../tests/helpers";
+import { horizontalOverflow, shot, signIn } from "../tests/helpers";
 
 // UI QA smoke for the catalog panel. It complements tests/catalog.spec.ts (AC1/AC2/AC6) with AC3, AC4, AC5, the shell
 // (sidebar, ContextPanel) and a 360 px pass. It CREATES data in Clínica Sonrisa: services are archived at the end and
@@ -50,10 +50,7 @@ async function createService(page: Page, name: string) {
 }
 
 async function noHorizontalOverflow(page: Page) {
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 }
 
 test.describe.configure({ mode: "serial" });

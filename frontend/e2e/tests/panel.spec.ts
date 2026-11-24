@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { shot, signIn } from "./helpers";
+import { horizontalOverflow, shot, signIn } from "./helpers";
 
 // login -> context -> navigation, against the real environment (API + panel + proxy).
 test.describe("panel: login, contexto y navegación", () => {
@@ -142,10 +142,7 @@ test.describe("panel: login, contexto y navegación", () => {
     await expect(account).toBeVisible();
     await shot(page, testInfo, "11-movil-luis-360");
 
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    );
-    expect(overflow).toBeLessThanOrEqual(0);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
     const box = await account.boundingBox();
     expect(box!.x + box!.width).toBeLessThanOrEqual(360);
     // The selector keeps an accessible name with the company even when only the icon shows.
