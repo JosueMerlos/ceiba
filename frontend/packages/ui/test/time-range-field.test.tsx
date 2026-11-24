@@ -67,4 +67,26 @@ describe("TimeRangeField", () => {
 
     expect(onChange).toHaveBeenLastCalledWith({ start: "14:00", end: "13:00" });
   });
+
+  it("sin nombre propio no crea un grupo vacío y aplica fieldClassName a cada hora", () => {
+    render(
+      <div role="group" aria-label="Lunes">
+        <TimeRangeField
+          value={{ start: "09:00", end: "13:00" }}
+          startLabel="Inicio"
+          endLabel="Fin"
+          listLabel="Horas"
+          formatClock={formatClock}
+          fieldClassName="sm:w-36"
+          onChange={() => {}}
+        />
+      </div>,
+    );
+
+    expect(screen.getAllByRole("group").map((group) => group.getAttribute("aria-label"))).toEqual([
+      "Lunes",
+    ]);
+    const start = screen.getByRole("combobox", { name: "Inicio" });
+    expect(start.closest("[data-slot='time-field']")!.className).toContain("sm:w-36");
+  });
 });
