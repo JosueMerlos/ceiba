@@ -313,7 +313,7 @@ describe("Detalle y estados", () => {
       .getAllByRole("button", { pressed: false })
       .map((button) => button.textContent)
       .filter((text) => /\d:\d\d/.test(text ?? ""));
-    expect(times).toEqual(["10:00 a. m."]);
+    expect(times).toEqual(["10:00\u00a0a.\u00a0m."]);
   });
 
   it("un conflicto al mover avisa y refresca la agenda", async () => {
@@ -356,7 +356,7 @@ describe("Detalle y estados", () => {
     const panel = await openDetail();
 
     expect(await within(panel).findByText(/Reprogramada desde/)).toBeTruthy();
-    expect(within(panel).getByText(/17 de noviembre/)).toBeTruthy();
+    expect(within(panel).getByText(/mar\s17\snov\s2026/)).toBeTruthy();
   });
 
   it("si no puede leer la cita de origen, el detalle sigue funcionando", async () => {

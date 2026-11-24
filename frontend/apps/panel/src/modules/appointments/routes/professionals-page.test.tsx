@@ -306,7 +306,7 @@ describe("Profesionales: horario por sucursal", () => {
 
     const panel = await openPanel(user, "Don Efraín");
     const section = await within(panel).findByRole("region", { name: "Horario semanal" });
-    expect(await within(section).findByText("08:00 – 12:00")).toBeTruthy();
+    expect(await within(section).findByText("8:00 a. m. – 12:00 p. m.")).toBeTruthy();
     expect(within(section).queryByRole("button", { name: "Guardar horario" })).toBeNull();
   });
 });

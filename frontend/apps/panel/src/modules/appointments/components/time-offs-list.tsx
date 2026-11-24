@@ -1,8 +1,7 @@
-import { useTranslation } from "@ceiba/i18n";
+import { formatDateTime, useTranslation } from "@ceiba/i18n";
 import { Button } from "@ceiba/ui";
 import { Trash2 } from "lucide-react";
 import type { TimeOff } from "../api/shared";
-import { formatInZone } from "../lib/zoned-time";
 
 interface TimeOffsListProps {
   timeOffs: readonly TimeOff[];
@@ -21,7 +20,7 @@ export function TimeOffsList({ timeOffs, timeZone, canManage, onDelete }: TimeOf
   return (
     <ul className="grid gap-2">
       {timeOffs.map((timeOff) => {
-        const start = formatInZone(timeOff.starts_at, timeZone);
+        const start = formatDateTime(timeOff.starts_at, timeZone);
         return (
           <li
             key={timeOff.id}
@@ -31,7 +30,7 @@ export function TimeOffsList({ timeOffs, timeZone, canManage, onDelete }: TimeOf
               <p className="font-medium tabular-nums">
                 {t("catalog.timeOffs.range", {
                   start,
-                  end: formatInZone(timeOff.ends_at, timeZone),
+                  end: formatDateTime(timeOff.ends_at, timeZone),
                 })}
               </p>
               {timeOff.reason ? <p className="text-muted-foreground">{timeOff.reason}</p> : null}

@@ -51,14 +51,3 @@ export const minutesOfWall = (wall: WallClock) => minutesOfClock(wall.slice(11, 
 
 export const clockOfMinutes = (minutes: number) =>
   `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}:00`;
-
-const clockFormat = (timeZone: string) =>
-  new Intl.DateTimeFormat("es-NI", { hour: "numeric", minute: "2-digit", hour12: true, timeZone });
-
-/** "9:30": the compact time of the agenda's cards, whose column already says whether it is morning or afternoon. */
-export const shortClock = (iso: string, timeZone: string) =>
-  clockFormat(timeZone)
-    .formatToParts(new Date(iso))
-    .filter((part) => part.type === "hour" || part.type === "minute")
-    .map((part) => part.value)
-    .join(":");

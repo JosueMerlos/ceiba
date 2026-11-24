@@ -5,7 +5,15 @@ import { esNI } from "./locales/es-NI";
 
 export { Trans, useTranslation, I18nextProvider } from "react-i18next";
 export { defaultLocale } from "./config";
-export { formatCurrency, formatDate, formatDateTime, formatNumber, formatTime } from "./formats";
+export {
+  formatClock,
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  formatNumber,
+  formatPlainDate,
+  formatTime,
+} from "./formats";
 export type { i18n as I18n, TFunction } from "i18next";
 
 /** Any i18next `t` (from an instance or `useTranslation([...])`), whatever its key typing. */

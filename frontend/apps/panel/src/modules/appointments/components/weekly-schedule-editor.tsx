@@ -1,5 +1,5 @@
 import type { components } from "@ceiba/api-client";
-import { useTranslation } from "@ceiba/i18n";
+import { formatClock, useTranslation } from "@ceiba/i18n";
 import {
   Button,
   Dialog,
@@ -112,7 +112,10 @@ export function WeeklyScheduleEditor({
                   const problem = attempted ? problems.get(slot.key) : undefined;
                   return readOnly ? (
                     <p key={slot.key} className="pt-2 text-sm tabular-nums">
-                      {t("catalog.schedule.slotRange", { start: slot.start, end: slot.end })}
+                      {t("catalog.schedule.slotRange", {
+                        start: formatClock(slot.start),
+                        end: formatClock(slot.end),
+                      })}
                     </p>
                   ) : (
                     <div key={slot.key} className="grid min-w-0 gap-1">

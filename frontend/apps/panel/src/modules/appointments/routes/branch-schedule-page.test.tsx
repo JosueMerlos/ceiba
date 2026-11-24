@@ -130,7 +130,7 @@ describe("Horario de la sucursal", () => {
     await renderApp({ route: `/branches/${ids.branchA}/schedule` });
 
     expect(
-      await within(await screen.findByRole("group", { name: "Lunes" })).findByText("09:00 – 13:00"),
+      await within(await screen.findByRole("group", { name: "Lunes" })).findByText("9:00 a. m. – 1:00 p. m."),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Guardar horario" })).toBeNull();
     expect(screen.queryByLabelText("Inicio")).toBeNull();

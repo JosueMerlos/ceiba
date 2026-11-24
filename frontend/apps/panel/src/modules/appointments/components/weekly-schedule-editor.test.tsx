@@ -159,6 +159,6 @@ describe("WeeklyScheduleEditor", () => {
     expect(screen.queryByLabelText("Inicio")).toBeNull();
     expect(screen.queryByRole("button", { name: "Guardar horario" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Agregar franja" })).toBeNull();
-    expect(within(day("Lunes")).getByText("09:00 – 13:00")).toBeTruthy();
+    expect(within(day("Lunes")).getByText("9:00 a. m. – 1:00 p. m.")).toBeTruthy();
   });
 });
