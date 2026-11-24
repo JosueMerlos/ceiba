@@ -12,7 +12,7 @@ import {
   useFormField,
 } from "@ceiba/ui";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo } from "react";
+import { useMemo, type Ref } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { TimeOffInput } from "../api/shared";
@@ -93,6 +93,7 @@ export function TimeOffForm({ timeZone, onSubmit }: TimeOffFormProps) {
                   value={field.value}
                   onChange={field.onChange}
                   onBlur={field.onBlur}
+                  ref={field.ref}
                   timeZone={timeZone}
                 />
                 <FormMessage />
@@ -109,6 +110,7 @@ export function TimeOffForm({ timeZone, onSubmit }: TimeOffFormProps) {
                   value={field.value}
                   onChange={field.onChange}
                   onBlur={field.onBlur}
+                  ref={field.ref}
                   timeZone={timeZone}
                 />
                 <FormMessage />
@@ -152,21 +154,25 @@ interface WallClockFieldProps {
   value: string;
   onChange(value: string): void;
   onBlur(): void;
+  /** react-hook-form focuses it when the value is invalid on submit: the first control, the date. */
+  ref: Ref<HTMLButtonElement>;
   timeZone: string;
 }
 
-function WallClockField({ legend, value, onChange, onBlur, timeZone }: WallClockFieldProps) {
+function WallClockField({ legend, value, onChange, onBlur, ref, timeZone }: WallClockFieldProps) {
   const { t } = useTranslation("common");
   const { error, formMessageId } = useFormField();
   const [day = "", clock = ""] = value.split("T");
   const describedBy = error ? formMessageId : undefined;
   return (
-    <fieldset className="grid gap-2" aria-describedby={describedBy}>
+    <fieldset className="grid gap-2">
       <legend className="mb-2 text-sm leading-none font-medium">{legend}</legend>
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)] gap-2">
         <BranchDatePicker
+          ref={ref}
           aria-label={t("fields.date")}
           aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
           value={day}
           onChange={(next) => onChange(`${next}T${clock}`)}
           timeZone={timeZone}
@@ -174,6 +180,7 @@ function WallClockField({ legend, value, onChange, onBlur, timeZone }: WallClock
         <BranchTimeField
           aria-label={t("fields.time")}
           aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
           value={clock}
           onChange={(next) => onChange(`${day}T${next}`)}
           onBlur={onBlur}

@@ -16,7 +16,9 @@ type BoundDateProps =
   | "placeholder"
   | "calendarLabel"
   | "previousMonthLabel"
-  | "nextMonthLabel";
+  | "nextMonthLabel"
+  | "loadErrorLabel"
+  | "retryLabel";
 
 /** Today in the branch's zone, "yyyy-MM-dd" (en-CA writes ISO dates). */
 const todayIn = (timeZone: string) =>
@@ -36,6 +38,8 @@ export function BranchDatePicker({
       calendarLabel={t("fields.calendar")}
       previousMonthLabel={t("fields.previousMonth")}
       nextMonthLabel={t("fields.nextMonth")}
+      loadErrorLabel={t("fields.calendarError")}
+      retryLabel={t("retry")}
     />
   );
 }

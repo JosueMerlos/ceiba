@@ -19,6 +19,7 @@ export const common = {
     nextMonth: "Mes siguiente",
     date: "Fecha",
     time: "Hora",
+    calendarError: "No se pudo cargar el calendario. Revise su conexión.",
   },
   formDialog: {
     back: "Atrás",

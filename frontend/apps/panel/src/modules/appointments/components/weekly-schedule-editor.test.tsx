@@ -112,6 +112,17 @@ describe("WeeklyScheduleEditor", () => {
     );
   });
 
+  it("una hora inválida a la vista no deja guardar la hora anterior", async () => {
+    const { user, onSave } = await renderEditor();
+
+    setTime(within(day("Lunes")).getByLabelText("Fin"), "9:75");
+    await user.click(screen.getByRole("button", { name: "Guardar horario" }));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(within(day("Lunes")).getByLabelText("Fin")).toHaveProperty("value", "9:75");
+    expect(within(day("Lunes")).getByLabelText("Fin").getAttribute("aria-invalid")).toBe("true");
+  });
+
   it("corregir la franja limpia el error y deja guardar", async () => {
     const { user, onSave } = await renderEditor({
       slots: [MONDAY, scheduleSlot("s2", 1, "12:00", "15:00")],

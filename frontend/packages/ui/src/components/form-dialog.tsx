@@ -2,6 +2,7 @@ import { Check } from "lucide-react";
 import { Tabs as TabsPrimitive } from "radix-ui";
 import { useState, type ComponentProps, type ReactNode } from "react";
 import { cn } from "../lib/cn";
+import { PortalContainerContext } from "../lib/portal-container";
 import { ConfirmDialog } from "./alert-dialog";
 import { Button } from "./button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./dialog";
@@ -105,30 +106,37 @@ function FormDialogShell({
   footer,
   children,
 }: ShellProps) {
+  const [content, setContent] = useState<HTMLElement | null>(null);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        ref={setContent}
         closeLabel={closeLabel}
         data-slot="form-dialog"
-        className={cn(
-          "flex max-h-[calc(100svh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl",
-          className,
-        )}
+        // Escape on a half-typed field cancels the typing (the field handles it), not the whole modal.
+        onEscapeKeyDown={(event) => {
+          if (event.target instanceof Element && event.target.closest("[data-editing]")) {
+            event.preventDefault();
+          }
+        }}
+        className={cn("flex max-h-[calc(100svh-2rem)] flex-col gap-0 p-0 sm:max-w-3xl", className)}
       >
-        <div className="grid gap-1.5 px-6 pt-6 pr-12">
-          <DialogTitle>{title}</DialogTitle>
-          {description ? <DialogDescription>{description}</DialogDescription> : null}
-        </div>
-        {header}
-        {children}
-        {footer ? (
-          <div
-            data-slot="form-dialog-footer"
-            className="flex flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-end"
-          >
-            {footer}
+        <PortalContainerContext.Provider value={content}>
+          <div className="grid gap-1.5 px-6 pt-6 pr-12">
+            <DialogTitle>{title}</DialogTitle>
+            {description ? <DialogDescription>{description}</DialogDescription> : null}
           </div>
-        ) : null}
+          {header}
+          {children}
+          {footer ? (
+            <div
+              data-slot="form-dialog-footer"
+              className="flex flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-end"
+            >
+              {footer}
+            </div>
+          ) : null}
+        </PortalContainerContext.Provider>
       </DialogContent>
     </Dialog>
   );

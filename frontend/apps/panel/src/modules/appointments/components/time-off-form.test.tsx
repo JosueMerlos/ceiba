@@ -60,12 +60,15 @@ describe("TimeOffForm", () => {
     await user.click(screen.getByRole("button", { name: "Agregar ausencia" }));
     expect(await screen.findByText("Escriba cuándo empieza.")).toBeTruthy();
     // The error is announced on the controls themselves and focus lands on the first invalid one.
-    const startTime = within(screen.getByRole("group", { name: "Desde" })).getByRole("combobox", {
-      name: "Hora",
-    });
-    expect(document.activeElement).toBe(startTime);
-    const description = startTime.getAttribute("aria-describedby") ?? "";
-    expect(document.getElementById(description)?.textContent).toBe("Escriba cuándo empieza.");
+    const start = within(screen.getByRole("group", { name: "Desde" }));
+    const startDate = start.getByRole("button", { name: "Fecha" });
+    expect(document.activeElement).toBe(startDate);
+    for (const control of [startDate, start.getByRole("combobox", { name: "Hora" })]) {
+      const described = (control.getAttribute("aria-describedby") ?? "")
+        .split(" ")
+        .map((id) => document.getElementById(id)?.textContent);
+      expect(described).toContain("Escriba cuándo empieza.");
+    }
     expect(screen.getByText("Escriba cuándo termina.")).toBeTruthy();
 
     await fill(user, "Desde", "2026-11-20T10:00");

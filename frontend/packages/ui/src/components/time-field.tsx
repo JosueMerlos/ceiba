@@ -1,7 +1,9 @@
 import { Check, Clock } from "lucide-react";
 import { Popover as PopoverPrimitive } from "radix-ui";
+import { flushSync } from "react-dom";
 import {
   useEffect,
+  useEffectEvent,
   useId,
   useMemo,
   useState,
@@ -11,6 +13,7 @@ import {
 } from "react";
 import { clockOptions, clockToMinutes, parseClock } from "../lib/clock";
 import { cn } from "../lib/cn";
+import { usePortalContainer } from "../lib/portal-container";
 
 const optionIdOf = (inputId: string, clock: string) => `${inputId}-${clock.replace(":", "")}`;
 
@@ -64,6 +67,20 @@ function TimeField({
   const [invalid, setInvalid] = useState(false);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  // The last value this field emitted: any other change of `value` comes from outside (a form reset) and drops the draft.
+  const [emitted, setEmitted] = useState<string | null>(null);
+  const [synced, setSynced] = useState(value);
+  const portalContainer = usePortalContainer();
+
+  if (value !== synced) {
+    setSynced(value);
+    if (value !== emitted) {
+      setDraft(null);
+      setInvalid(false);
+    }
+  }
+  // The list can shrink (a new min/max) while an option far down is active.
+  const activeOption = open && active >= 0 ? options[active] : undefined;
 
   const optionId = (clock: string) => optionIdOf(inputId, clock);
   // The current value, or the first listed time after it when it falls between steps.
@@ -74,17 +91,22 @@ function TimeField({
   };
 
   useEffect(() => {
-    if (!open || active < 0) return;
+    if (!activeOption) return;
     document
-      .getElementById(optionIdOf(inputId, options[active]!))
+      .getElementById(optionIdOf(inputId, activeOption))
       ?.scrollIntoView({ block: "nearest" });
-  }, [open, active, options, inputId]);
+  }, [activeOption, inputId]);
+
+  function emit(next: string) {
+    setEmitted(next);
+    onChange(next);
+  }
 
   function choose(clock: string) {
     setDraft(null);
     setInvalid(false);
     setOpen(false);
-    if (clock !== value) onChange(clock);
+    if (clock !== value) emit(clock);
   }
 
   function commitDraft() {
@@ -92,7 +114,7 @@ function TimeField({
     if (draft.trim() === "") {
       setDraft(null);
       setInvalid(false);
-      if (value !== "") onChange("");
+      if (value !== "") emit("");
       return;
     }
     const clock = parseClock(draft);
@@ -101,11 +123,30 @@ function TimeField({
       clockToMinutes(clock) >= clockToMinutes(min) &&
       clockToMinutes(clock) <= clockToMinutes(max);
     if (!inRange) {
+      // The text stays on screen to be fixed, but the form must not keep the previous time while the field shows
+      // something else: an empty value fails its validation and blocks the save.
       setInvalid(true);
+      if (value !== "") emit("");
       return;
     }
     choose(clock);
   }
+
+  // A click elsewhere commits what is typed BEFORE anything reacts to that click (a modal deciding whether it may
+  // close without asking checks its dirty state on the same pointerdown, earlier than this input's blur).
+  const commitOnOutsidePointer = useEffectEvent((event: PointerEvent) => {
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    const field = document.getElementById(inputId)?.parentElement;
+    if (field?.contains(target) || document.getElementById(listId)?.contains(target)) return;
+    flushSync(commitDraft);
+  });
+  const editing = draft !== null;
+  useEffect(() => {
+    if (!editing) return;
+    document.addEventListener("pointerdown", commitOnOutsidePointer, true);
+    return () => document.removeEventListener("pointerdown", commitOnOutsidePointer, true);
+  }, [editing]);
 
   function openAt(index: number) {
     setOpen(true);
@@ -118,7 +159,7 @@ function TimeField({
       case "ArrowUp": {
         event.preventDefault();
         const delta = event.key === "ArrowDown" ? 1 : -1;
-        if (open && active >= 0) {
+        if (activeOption) {
           openAt(active + delta);
         } else {
           // Clamped by openAt: with no value (-1) either arrow lands on the first option.
@@ -127,20 +168,25 @@ function TimeField({
         break;
       }
       case "Enter":
-        if (open && active >= 0) {
+        if (activeOption) {
           event.preventDefault();
-          choose(options[active]!);
+          choose(activeOption);
         } else if (draft !== null) {
           event.preventDefault();
           commitDraft();
         }
         break;
       case "Escape":
+        // Closes the list first, then cancels what was typed; a dialog around the field must stay open meanwhile.
         if (open) {
-          // Only closes the list: a dialog around the field must stay open.
           event.preventDefault();
           event.stopPropagation();
           setOpen(false);
+        } else if (draft !== null) {
+          event.preventDefault();
+          event.stopPropagation();
+          setDraft(null);
+          setInvalid(false);
         }
         break;
     }
@@ -166,7 +212,8 @@ function TimeField({
             aria-autocomplete="none"
             aria-expanded={open}
             aria-controls={listId}
-            aria-activedescendant={open && active >= 0 ? optionId(options[active]!) : undefined}
+            aria-activedescendant={activeOption ? optionId(activeOption) : undefined}
+            data-editing={editing || undefined}
             aria-invalid={markedInvalid || undefined}
             disabled={disabled}
             value={shown}
@@ -195,7 +242,7 @@ function TimeField({
           />
         </div>
       </PopoverPrimitive.Anchor>
-      <PopoverPrimitive.Portal>
+      <PopoverPrimitive.Portal container={portalContainer}>
         <PopoverPrimitive.Content
           asChild
           align="start"

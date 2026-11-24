@@ -1,10 +1,46 @@
 import { CalendarDays } from "lucide-react";
 import { Popover as PopoverPrimitive } from "radix-ui";
-import { lazy, Suspense, useId, useState, type ReactNode, type Ref } from "react";
+import { Component, lazy, Suspense, useId, useState, type ReactNode, type Ref } from "react";
 import { cn } from "../lib/cn";
+import { usePortalContainer } from "../lib/portal-container";
+import { Button } from "./button";
 
 // The calendar library only downloads when a calendar opens; the field itself stays in the caller's chunk.
-const Calendar = lazy(() => import("./calendar"));
+// React.lazy remembers a failed import, so retrying needs a fresh lazy component.
+const loadCalendar = () => lazy(() => import("./calendar"));
+const calendar = { Component: loadCalendar() };
+
+interface BoundaryProps {
+  errorLabel: string;
+  retryLabel: string;
+  children: ReactNode;
+}
+
+/** Keeps a failed calendar download (a deploy replaced the chunk, the network dropped) inside the popover. */
+class CalendarBoundary extends Component<BoundaryProps, { failed: boolean }> {
+  override state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  retry = () => {
+    calendar.Component = loadCalendar();
+    this.setState({ failed: false });
+  };
+
+  override render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div role="alert" className="grid w-[17rem] gap-3 p-2 text-sm">
+        <p>{this.props.errorLabel}</p>
+        <Button type="button" variant="outline" size="sm" onClick={this.retry}>
+          {this.props.retryLabel}
+        </Button>
+      </div>
+    );
+  }
+}
 
 /** A range of calendar days; `to` is null while only the start is chosen. */
 interface DateRange {
@@ -21,6 +57,9 @@ interface DateFieldBaseProps {
   calendarLabel: string;
   previousMonthLabel: string;
   nextMonthLabel: string;
+  /** Shown in the popover when the calendar cannot be downloaded. */
+  loadErrorLabel: string;
+  retryLabel: string;
   min?: string;
   max?: string;
   disabled?: boolean;
@@ -70,6 +109,8 @@ function DateFieldShell({
   max,
   previousMonthLabel,
   nextMonthLabel,
+  loadErrorLabel,
+  retryLabel,
   calendarLabel,
   placeholder,
   disabled,
@@ -82,6 +123,7 @@ function DateFieldShell({
   "aria-labelledby": labelledBy,
 }: ShellProps) {
   const [open, setOpen] = useState(false);
+  const portalContainer = usePortalContainer();
   const fallbackId = useId();
   const triggerId = id ?? fallbackId;
   const valueId = `${triggerId}-value`;
@@ -116,7 +158,7 @@ function DateFieldShell({
           </span>
         </button>
       </PopoverPrimitive.Trigger>
-      <PopoverPrimitive.Portal>
+      <PopoverPrimitive.Portal container={portalContainer}>
         <PopoverPrimitive.Content
           aria-label={calendarLabel}
           align="start"
@@ -124,21 +166,23 @@ function DateFieldShell({
           data-slot="date-field-calendar"
           className="z-50 rounded-xl border bg-popover p-3 text-popover-foreground shadow-lg outline-none"
         >
-          <Suspense fallback={<div aria-busy="true" className="h-72 w-[17rem]" />}>
-            <Calendar
-              mode={mode}
-              from={from}
-              to={to}
-              today={today}
-              min={min}
-              max={max}
-              previousMonthLabel={previousMonthLabel}
-              nextMonthLabel={nextMonthLabel}
-              onPick={(day) => {
-                if (onPick(day)) setOpen(false);
-              }}
-            />
-          </Suspense>
+          <CalendarBoundary errorLabel={loadErrorLabel} retryLabel={retryLabel}>
+            <Suspense fallback={<div aria-busy="true" className="h-72 w-[17rem]" />}>
+              <calendar.Component
+                mode={mode}
+                from={from}
+                to={to}
+                today={today}
+                min={min}
+                max={max}
+                previousMonthLabel={previousMonthLabel}
+                nextMonthLabel={nextMonthLabel}
+                onPick={(day) => {
+                  if (onPick(day)) setOpen(false);
+                }}
+              />
+            </Suspense>
+          </CalendarBoundary>
         </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>
     </PopoverPrimitive.Root>

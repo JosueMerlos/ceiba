@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -311,16 +311,23 @@ describe("FormDialog con un TimeField", () => {
     expect(screen.getByTestId("estado").textContent).toBe("abierto");
   });
 
-  it("un clic fuera con una hora a medio escribir la confirma y pide confirmar antes de cerrar", async () => {
+  it("un clic fuera con una hora a medio escribir la confirma sin cerrar, y cerrar después pide confirmar", async () => {
     render(<FieldHarness />);
     const user = userEvent.setup();
+    const field = screen.getByRole("combobox", { name: "Desde" });
 
-    await user.clear(screen.getByRole("combobox", { name: "Desde" }));
-    await user.type(screen.getByRole("combobox", { name: "Desde" }), "14:30");
-    await user.pointer({ keys: "[MouseLeft]", target: document.body });
+    await user.clear(field);
+    await user.type(field, "14:30");
+    // Outside a modal there is only its overlay.
+    await act(async () => {
+      fireEvent.pointerDown(document.querySelector("[data-slot='dialog-overlay']")!);
+    });
+
     expect(screen.getByTestId("estado").textContent).toBe("abierto");
+    expect(field.getAttribute("data-editing")).toBeNull();
+    expect(field).toHaveProperty("value", "14:30");
 
-    await user.pointer({ keys: "[MouseLeft]", target: document.body });
+    await user.click(screen.getByRole("button", { name: "Cerrar" }));
 
     expect(screen.getByRole("alertdialog", { name: "¿Descartar los cambios?" })).toBeTruthy();
     expect(screen.getByTestId("estado").textContent).toBe("abierto");

@@ -148,7 +148,7 @@ describe("TimeField", () => {
     expect(field().getAttribute("aria-invalid")).toBe("true");
   });
 
-  it("si el valor cambia desde fuera (reset del formulario) se descarta lo escrito", async () => {
+  it("si el valor cambia desde fuera (otra hora, un reset) se descarta lo escrito", async () => {
     const { rerender } = render(
       <TimeField
         aria-label="Desde"
@@ -167,13 +167,13 @@ describe("TimeField", () => {
       <TimeField
         aria-label="Desde"
         listLabel="Horas"
-        value=""
+        value="10:00"
         formatClock={formatClock}
         onChange={() => {}}
       />,
     );
 
-    expect(field()).toHaveProperty("value", "");
+    expect(field()).toHaveProperty("value", "10:00 a. m.");
     expect(field().getAttribute("aria-invalid")).toBeNull();
   });
 
@@ -199,7 +199,7 @@ describe("TimeField", () => {
     const props = { "aria-label": "Hasta", listLabel: "Horas", value: "17:00", formatClock };
     const { rerender } = render(<TimeField {...props} max="18:00" onChange={() => {}} />);
     const user = userEvent.setup();
-    await user.click(field().closest("div")!.querySelector("input")!);
+    await user.click(screen.getByRole("combobox", { name: "Hasta" }));
     await user.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}");
 
     rerender(<TimeField {...props} max="09:00" onChange={() => {}} />);

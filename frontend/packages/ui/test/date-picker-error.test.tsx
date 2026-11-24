@@ -3,12 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { DatePicker } from "../src";
 
-// The calendar chunk fails the first time (a deploy replaced it, or the network dropped) and works on retry.
-const attempts = vi.hoisted(() => ({ count: 0 }));
+// The calendar chunk fails at first (a deploy replaced it, or the network dropped) and works on retry.
+const chunk = vi.hoisted(() => ({ broken: true }));
 vi.mock("../src/components/calendar", () => ({
   default: () => {
-    attempts.count += 1;
-    if (attempts.count === 1) throw new Error("Failed to fetch dynamically imported module");
+    if (chunk.broken) throw new Error("Failed to fetch dynamically imported module");
     return <div role="grid" aria-label="diciembre 2026" />;
   },
 }));
@@ -41,6 +40,7 @@ describe("DatePicker si el calendario no carga", () => {
     expect(await screen.findByText("No se pudo cargar el calendario.")).toBeTruthy();
     expect(screen.getByText("Resto de la pantalla")).toBeTruthy();
 
+    chunk.broken = false;
     await user.click(screen.getByRole("button", { name: "Reintentar" }));
 
     expect(await screen.findByRole("grid", { name: "diciembre 2026" })).toBeTruthy();

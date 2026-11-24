@@ -25,6 +25,11 @@ const NATIVE_DATE_TIME_SELECTORS = [
     message:
       "Sin input nativo de fecha u hora: use DatePicker, DateRangePicker o TimeField de @ceiba/ui.",
   },
+  {
+    selector: `JSXAttribute[name.name='type'] > JSXExpressionContainer > TemplateLiteral[expressions.length=0][quasis.0.value.raw=${NATIVE_DATE_TIME}]`,
+    message:
+      "Sin input nativo de fecha u hora: use DatePicker, DateRangePicker o TimeField de @ceiba/ui.",
+  },
 ];
 
 // `no-literal-string` does not check template literals or toasts: selectors cover them.
