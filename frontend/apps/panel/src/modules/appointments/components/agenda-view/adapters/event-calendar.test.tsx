@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { AgendaViewEvent, AgendaViewProps } from "../types";
+import { AgendaDensityContext } from "../density";
+import type { AgendaDensity, AgendaViewEvent, AgendaViewProps } from "../types";
 import EventCalendarAdapter from "./event-calendar";
 
 const DAY = "2026-11-18";
@@ -53,6 +54,12 @@ function rowOf(card: HTMLElement) {
   return heads[line - 1]?.querySelector("[role=group]")?.getAttribute("aria-label");
 }
 
+const withDensity = (density: AgendaDensity, view: AgendaViewProps) => (
+  <AgendaDensityContext.Provider value={density}>
+    <EventCalendarAdapter {...view} />
+  </AgendaDensityContext.Provider>
+);
+
 const card = (name: RegExp | string) => screen.findByRole("button", { name });
 
 describe("EventCalendarAdapter: día en filas", () => {
@@ -74,16 +81,31 @@ describe("EventCalendarAdapter: día en filas", () => {
 
   it("en compacta muestra iniciales, nombre o nombre y servicio según el ancho de la cita", async () => {
     render(
-      <EventCalendarAdapter
-        {...props({
-          density: "compact",
+      withDensity(
+        "compact",
+        props({
           events: [
-            event({ id: "corta", title: "Eva Luna", start: `${DAY}T09:00:00`, end: `${DAY}T09:15:00` }),
-            event({ id: "media", title: "Raúl Mora", start: `${DAY}T10:00:00`, end: `${DAY}T10:30:00` }),
-            event({ id: "larga", title: "Ana Ruiz", start: `${DAY}T11:00:00`, end: `${DAY}T12:00:00` }),
+            event({
+              id: "corta",
+              title: "Eva Luna",
+              start: `${DAY}T09:00:00`,
+              end: `${DAY}T09:15:00`,
+            }),
+            event({
+              id: "media",
+              title: "Raúl Mora",
+              start: `${DAY}T10:00:00`,
+              end: `${DAY}T10:30:00`,
+            }),
+            event({
+              id: "larga",
+              title: "Ana Ruiz",
+              start: `${DAY}T11:00:00`,
+              end: `${DAY}T12:00:00`,
+            }),
           ],
-        })}
-      />,
+        }),
+      ),
     );
 
     const short = await card(/Eva Luna/);
@@ -93,7 +115,7 @@ describe("EventCalendarAdapter: día en filas", () => {
         .map((part) => part.dataset.part);
     expect(visible(short)).toEqual(["initials"]);
     expect(within(short).getByText("EL")).toBeTruthy();
-    expect(short.closest(".ec-event")?.getAttribute("title")).toContain("Eva Luna");
+    expect(short.querySelector(".agenda-card")?.getAttribute("title")).toContain("Eva Luna");
 
     expect(visible(await card(/Raúl Mora/))).toEqual(["name"]);
     expect(visible(await card(/Ana Ruiz/))).toEqual(["name", "service"]);
@@ -101,7 +123,7 @@ describe("EventCalendarAdapter: día en filas", () => {
 
   it("al cambiar de densidad vuelve a decidir el nivel sin remontar el calendario", async () => {
     const short = [event({ id: "media", title: "Raúl Mora", end: `${DAY}T09:45:00` })];
-    const { rerender } = render(<EventCalendarAdapter {...props({ events: short })} />);
+    const { rerender } = render(withDensity("comfortable", props({ events: short })));
     const visible = async () =>
       [...(await card(/Raúl Mora/)).querySelectorAll<HTMLElement>("[data-part]")]
         .filter((part) => !part.classList.contains("sr-only"))
@@ -109,7 +131,7 @@ describe("EventCalendarAdapter: día en filas", () => {
     await waitFor(async () => expect(await visible()).toEqual(["name", "service"]));
     const calendar = document.querySelector(".ec");
 
-    rerender(<EventCalendarAdapter {...props({ events: short, density: "compact" })} />);
+    rerender(withDensity("compact", props({ events: short })));
     await waitFor(async () => expect(await visible()).toEqual(["name"]));
     expect(document.querySelector(".ec")).toBe(calendar);
   });
@@ -124,7 +146,13 @@ describe("EventCalendarAdapter: día en filas", () => {
           ],
           events: [
             event({ id: "a", resourceId: "cabina", title: "Ana Ruiz" }),
-            event({ id: "b", resourceId: "sillon-1", title: "Luz Mora", start: `${DAY}T11:00:00`, end: `${DAY}T12:00:00` }),
+            event({
+              id: "b",
+              resourceId: "sillon-1",
+              title: "Luz Mora",
+              start: `${DAY}T11:00:00`,
+              end: `${DAY}T12:00:00`,
+            }),
           ],
         })}
       />,

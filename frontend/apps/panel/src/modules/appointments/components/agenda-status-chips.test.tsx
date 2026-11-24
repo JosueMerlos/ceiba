@@ -18,7 +18,12 @@ const chip = (name: RegExp) => screen.getByRole("button", { name });
 describe("AgendaStatusChips", () => {
   it("es la leyenda: un chip por estado con su contador y «Todas» con las visibles", async () => {
     await renderWithI18n(
-      <AgendaStatusChips counts={counts} hidden={new Set()} onToggle={vi.fn()} onShowAll={vi.fn()} />,
+      <AgendaStatusChips
+        counts={counts}
+        hidden={new Set()}
+        onToggle={vi.fn()}
+        onShowAll={vi.fn()}
+      />,
     );
 
     expect(screen.getByRole("group", { name: "Filtrar por estado" })).toBeTruthy();

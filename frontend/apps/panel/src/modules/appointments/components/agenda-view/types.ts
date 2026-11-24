@@ -2,6 +2,9 @@ import type { AgendaBlock, MinuteRange } from "../../lib/agenda-model";
 import type { StatusTone } from "../../lib/agenda-status";
 import type { PlainDate, WallClock } from "../../lib/agenda-time";
 
+/** How much of the day fits on screen: compact rows are shorter and hours narrower. */
+export type AgendaDensity = "comfortable" | "compact";
+
 export interface AgendaViewResource {
   id: string;
   title: string;

@@ -353,7 +353,12 @@ describe("Agenda: filas, filtros y densidad", () => {
     agendaBackend({
       appointments: [
         agendaAppointment({ id: "a", status: "completed", customer_name: "Ana Ruiz" }),
-        agendaAppointment({ id: "b", status: "completed", customer_name: "Luz Mora", professional_id: "p2" }),
+        agendaAppointment({
+          id: "b",
+          status: "completed",
+          customer_name: "Luz Mora",
+          professional_id: "p2",
+        }),
         agendaAppointment({
           id: "c",
           customer_name: "Eva Luna",
@@ -412,9 +417,9 @@ describe("Agenda: filas, filtros y densidad", () => {
     agendaBackend({ appointments: [agendaAppointment()] });
     await renderApp({ route });
     await screen.findByRole("button", { name: /Ana Ruiz/ });
-    expect(screen.getByRole("button", { name: "Vista compacta" }).getAttribute("aria-pressed")).toBe(
-      "true",
-    );
+    expect(
+      screen.getByRole("button", { name: "Vista compacta" }).getAttribute("aria-pressed"),
+    ).toBe("true");
   });
 
   it("la agenda ocupa el alto de la hoja y desplaza solo su cuerpo", async () => {
