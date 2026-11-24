@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { AppLayout, NavItem, StatusPage } from "../src";
+import { AppLayout, ContextPanel, NavItem, PageBody, PageFrame, PageHeader, StatusPage } from "../src";
 
 interface HarnessProps {
   initialCollapsed?: boolean;
@@ -159,6 +159,76 @@ describe("AppLayout (marco y hoja)", () => {
 
     expect(screen.queryByRole("complementary")).toBeNull();
     expect(container.querySelector("[data-slot='app-aside']")).toBeNull();
+  });
+
+  it("ocupa exactamente la ventana: el marco no crece y la hoja desplaza su contenido", () => {
+    const { container } = render(<Harness />);
+
+    const frame = container.querySelector<HTMLElement>("[data-slot='app-frame']")!;
+    expect(frame.className.split(" ")).toEqual(expect.arrayContaining(["h-svh", "overflow-hidden"]));
+    expect(frame.className).not.toContain("min-h-svh");
+    const main = screen.getByRole("main");
+    expect(main.className.split(" ")).toEqual(expect.arrayContaining(["min-h-0", "overflow-y-auto"]));
+    // A block, not a flex column: screens keep their layout (margins, mx-auto) without changes.
+    expect(main.className.split(" ")).not.toContain("flex");
+  });
+
+  it("la barra lateral ya no es sticky: con el alto fijo no se mueve sola", () => {
+    const { container } = render(<Harness />);
+
+    expect(container.querySelector("[data-slot='app-sidebar']")!.className).not.toContain("sticky");
+  });
+
+  it("el panel flotante se posiciona sobre la hoja: el contenedor de la hoja es su referencia", () => {
+    render(
+      <Harness
+        aside={
+          <ContextPanel id="p" open onOpenChange={() => {}} title="Llegadas" closeLabel="Cerrar">
+            x
+          </ContextPanel>
+        }
+      />,
+    );
+
+    const panel = screen.getByRole("complementary", { name: "Llegadas" });
+    const sheet = screen.getByRole("main").parentElement!;
+    expect(sheet.contains(panel)).toBe(true);
+    expect(sheet.className.split(" ")).toContain("relative");
+  });
+
+  it("PageFrame con PageBody: encabezado fijo y un cuerpo que es la región con scroll", () => {
+    render(
+      <AppLayout
+        skipLinkLabel="Saltar"
+        navigationLabel="Principal"
+        brand={null}
+        navigation={null}
+        account={null}
+        collapsed={false}
+        onCollapsedChange={() => {}}
+        collapseLabel="Contraer"
+        expandLabel="Expandir"
+      >
+        <PageFrame>
+          <PageHeader title="Agenda" />
+          <PageBody>
+            <p>Filas</p>
+          </PageBody>
+        </PageFrame>
+      </AppLayout>,
+    );
+
+    const body = screen.getByText("Filas").parentElement!;
+    expect(body.getAttribute("data-slot")).toBe("page-body");
+    expect(body.className.split(" ")).toEqual(
+      expect.arrayContaining(["min-h-0", "flex-1", "overflow-y-auto"]),
+    );
+    const frame = body.parentElement!;
+    expect(frame.getAttribute("data-slot")).toBe("page-frame");
+    expect(frame.className.split(" ")).toEqual(
+      expect.arrayContaining(["flex", "h-full", "min-h-0", "flex-col"]),
+    );
+    expect(body.contains(screen.getByRole("heading", { name: "Agenda" }))).toBe(false);
   });
 
   it("sin navegación (null) no renderiza el <nav>", () => {

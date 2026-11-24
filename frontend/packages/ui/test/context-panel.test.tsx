@@ -148,4 +148,42 @@ describe("ContextPanel", () => {
     );
     expect(screen.queryByRole("complementary")).toBeNull();
   });
+
+  describe("variantes", () => {
+    const classes = (element: HTMLElement) => element.className.split(" ");
+
+    it("por defecto flota sobre la hoja: posición absoluta, sin ancho propio en el flujo", () => {
+      render(<Harness initiallyOpen />);
+
+      const panel = screen.getByRole("complementary", { name: "Corte de cabello" });
+      expect(panel.getAttribute("data-variant")).toBe("floating");
+      expect(classes(panel)).toEqual(expect.arrayContaining(["absolute", "right-2", "shadow-lg"]));
+      // A docked column would take width from the sheet in every breakpoint.
+      expect(panel.className).not.toMatch(/(^|\s)(lg:)?(sticky|shrink-0|w-80)(\s|$)/);
+      expect(panel.className).not.toMatch(/lg:(sticky|static|w-80|shadow-none)/);
+    });
+
+    it("acoplado ocupa su columna desde lg, a todo el alto y sin self-start", () => {
+      render(
+        <ContextPanel
+          id="marca"
+          variant="docked"
+          open
+          onOpenChange={() => {}}
+          title="Marca"
+          closeLabel="Cerrar"
+        >
+          x
+        </ContextPanel>,
+      );
+
+      const panel = screen.getByRole("complementary", { name: "Marca" });
+      expect(panel.getAttribute("data-variant")).toBe("docked");
+      expect(classes(panel)).toEqual(
+        expect.arrayContaining(["lg:static", "lg:h-full", "lg:w-80", "lg:shrink-0"]),
+      );
+      expect(panel.className).not.toContain("self-start");
+      expect(panel.className).not.toContain("lg:sticky");
+    });
+  });
 });
