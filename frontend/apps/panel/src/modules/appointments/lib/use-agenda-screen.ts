@@ -21,13 +21,7 @@ import {
   type AgendaColumn,
 } from "./agenda-model";
 import { useAgendaPermissions } from "./agenda-permissions";
-import {
-  addDays,
-  mondayOf,
-  toWallClock,
-  todayInZone,
-  type PlainDate,
-} from "./agenda-time";
+import { addDays, mondayOf, toWallClock, todayInZone, type PlainDate } from "./agenda-time";
 import { useAgendaAvailability } from "./use-agenda-availability";
 
 const DEFAULT_STEP_MINUTES = 15;

@@ -58,9 +58,9 @@ describe("DurationField", () => {
 
     expect(onChange.mock.calls.map(([minutes]) => minutes)).toEqual([35, 40, 90]);
     expect(shown()).toBe("1 h 30 min");
-    expect(
-      screen.getByRole("button", { name: "1 h 30 min" }).getAttribute("aria-pressed"),
-    ).toBe("true");
+    expect(screen.getByRole("button", { name: "1 h 30 min" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
   });
 
   it("ofrece los atajos 15, 30, 45, 60 y 90 y marca el actual", () => {

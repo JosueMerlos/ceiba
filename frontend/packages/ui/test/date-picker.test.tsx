@@ -147,7 +147,7 @@ describe("DateRangePicker", () => {
     ]);
   });
 
-  it("con un rango completo, un clic empieza uno nuevo", async () => {
+  it("al completar el rango se cierra y, con uno completo, un clic empieza uno nuevo", async () => {
     const onChange = vi.fn();
     render(<RangeHarness onChange={onChange} />);
     const user = userEvent.setup();
@@ -156,7 +156,10 @@ describe("DateRangePicker", () => {
     const grid = await screen.findByRole("grid", {}, { timeout: 5000 });
     await user.click(day(grid, "14"));
     await user.click(day(grid, "18"));
-    await user.click(day(grid, "20"));
+    expect(screen.queryByRole("grid")).toBeNull();
+
+    await user.click(trigger("Ausencia"));
+    await user.click(day(await screen.findByRole("grid"), "20"));
 
     expect(onChange).toHaveBeenLastCalledWith({ from: "2026-12-20", to: null });
   });

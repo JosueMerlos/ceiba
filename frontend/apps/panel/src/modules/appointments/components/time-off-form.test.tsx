@@ -1,6 +1,9 @@
 import { ApiError } from "@ceiba/api-client";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { formatClock, formatPlainDate } from "@ceiba/i18n";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import type { UserEvent } from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { fillWallClock } from "../../../test/date-time-fields";
 import { renderWithI18n } from "../../../test/render-with-i18n";
 import { TimeOffForm } from "./time-off-form";
 
@@ -10,15 +13,15 @@ async function renderForm(timeZone = "America/Managua") {
   return { onSubmit, ...view };
 }
 
-const fill = (label: string, value: string) =>
-  fireEvent.change(screen.getByLabelText(label), { target: { value } });
+const fill = (user: UserEvent, legend: string, value: string) =>
+  fillWallClock(user, document.body, legend, value);
 
 describe("TimeOffForm", () => {
   it("convierte la hora local de la sucursal a UTC antes de enviar", async () => {
     const { user, onSubmit } = await renderForm("America/Managua");
 
-    fill("Desde", "2026-11-20T09:00");
-    fill("Hasta", "2026-11-20T17:30");
+    await fill(user, "Desde", "2026-11-20T09:00");
+    await fill(user, "Hasta", "2026-11-20T17:30");
     await user.type(screen.getByLabelText("Motivo (opcional)"), "Trámite personal");
     await user.click(screen.getByRole("button", { name: "Agregar ausencia" }));
 
@@ -33,8 +36,8 @@ describe("TimeOffForm", () => {
   it("la zona de la sucursal manda: la misma hora local en Bogotá da otro instante UTC", async () => {
     const { user, onSubmit } = await renderForm("America/Bogota");
 
-    fill("Desde", "2026-11-20T09:00");
-    fill("Hasta", "2026-11-20T10:00");
+    await fill(user, "Desde", "2026-11-20T09:00");
+    await fill(user, "Hasta", "2026-11-20T10:00");
     await user.click(screen.getByRole("button", { name: "Agregar ausencia" }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
@@ -58,12 +61,12 @@ describe("TimeOffForm", () => {
     expect(await screen.findByText("Escriba cuándo empieza.")).toBeTruthy();
     expect(screen.getByText("Escriba cuándo termina.")).toBeTruthy();
 
-    fill("Desde", "2026-11-20T10:00");
-    fill("Hasta", "2026-11-20T09:00");
+    await fill(user, "Desde", "2026-11-20T10:00");
+    await fill(user, "Hasta", "2026-11-20T09:00");
     await user.click(screen.getByRole("button", { name: "Agregar ausencia" }));
     expect(await screen.findByText("El fin debe ser posterior al inicio.")).toBeTruthy();
 
-    fill("Hasta", "2026-11-20T11:00");
+    await fill(user, "Hasta", "2026-11-20T11:00");
     fireEvent.change(screen.getByLabelText("Motivo (opcional)"), {
       target: { value: "x".repeat(201) },
     });
@@ -84,11 +87,18 @@ describe("TimeOffForm", () => {
       <TimeOffForm timeZone="America/Managua" onSubmit={onSubmit} />,
     );
 
-    fill("Desde", "2026-11-20T09:00");
-    fill("Hasta", "2028-11-20T09:00");
+    await fill(user, "Desde", "2026-11-20T09:00");
+    await fill(user, "Hasta", "2026-12-20T09:00");
     await user.click(screen.getByRole("button", { name: "Agregar ausencia" }));
 
     expect(await screen.findByText("Dura más de 366 días")).toBeTruthy();
-    expect(screen.getByLabelText("Desde")).toHaveProperty("value", "2026-11-20T09:00");
+    const start = screen.getByRole("group", { name: "Desde" });
+    expect(within(start).getByRole("button", { name: "Fecha" }).textContent).toContain(
+      formatPlainDate("2026-11-20"),
+    );
+    expect(within(start).getByRole("combobox", { name: "Hora" })).toHaveProperty(
+      "value",
+      formatClock("09:00"),
+    );
   });
 });

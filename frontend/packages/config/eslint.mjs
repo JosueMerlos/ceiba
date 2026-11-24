@@ -16,6 +16,17 @@ const TEXT_ATTRIBUTES = [
   "^aria-(label|description|placeholder|roledescription|valuetext)$",
 ];
 
+// Native date/time inputs show the browser's own picker and format (dd/mm/aaaa, a blue popup), not the panel's:
+// use DatePicker / TimeField from @ceiba/ui instead.
+const NATIVE_DATE_TIME = "/^(time|date|datetime-local)$/";
+const NATIVE_DATE_TIME_SELECTORS = [
+  {
+    selector: `JSXAttribute[name.name='type']:matches([value.value=${NATIVE_DATE_TIME}], [value.expression.value=${NATIVE_DATE_TIME}])`,
+    message:
+      "Sin input nativo de fecha u hora: use DatePicker, DateRangePicker o TimeField de @ceiba/ui.",
+  },
+];
+
 // `no-literal-string` does not check template literals or toasts: selectors cover them.
 const TEXT_ATTRIBUTE_NAMES = `${TEXT_PROPS}|aria-(label|description|placeholder|roledescription|valuetext)`;
 const TEMPLATE_MESSAGE = "Texto de UI fuera de i18n: use t(...) en vez de un template literal.";
@@ -105,7 +116,10 @@ export default tseslint.config(
   {
     files: ["apps/*/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
     ignores: ["**/*.test.{ts,tsx}", "**/test/**"],
-    rules: { "no-restricted-syntax": ["error", ...UI_TEXT_SELECTORS] },
+    // One block for both guards: a second block with this rule would replace the first one's options.
+    rules: {
+      "no-restricted-syntax": ["error", ...UI_TEXT_SELECTORS, ...NATIVE_DATE_TIME_SELECTORS],
+    },
   },
 
   // Disables style rules that would clash with Prettier. Must stay last.

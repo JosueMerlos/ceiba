@@ -4,7 +4,6 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { FormDialog } from "../src";
 
-
 const TABS = [
   { id: "perfil", label: "Perfil" },
   { id: "servicios", label: "Servicios" },
@@ -180,9 +179,9 @@ describe("FormDialog en modo pestañas", () => {
 
     const body = dialog().querySelector('[data-slot="form-dialog-body"]')!;
     expect(body.className).toContain("overflow-y-auto");
-    expect(body.contains(within(dialog()).getByRole("heading", { name: "Editar profesional" }))).toBe(
-      false,
-    );
+    expect(
+      body.contains(within(dialog()).getByRole("heading", { name: "Editar profesional" })),
+    ).toBe(false);
     expect(body.contains(within(dialog()).getByRole("button", { name: "Guardar cambios" }))).toBe(
       false,
     );

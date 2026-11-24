@@ -1,6 +1,6 @@
-import { useTranslation } from "@ceiba/i18n";
+import { formatPlainDate, useTranslation } from "@ceiba/i18n";
 import {
-  Input,
+  DatePicker,
   Label,
   Select,
   SelectContent,
@@ -11,7 +11,7 @@ import {
 import { useId, useMemo, useState } from "react";
 import { useFreeSlots } from "../../api/agenda-availability";
 import type { AgendaProfessional } from "../../api/agenda";
-import type { PlainDate } from "../../lib/agenda-time";
+import { todayInZone, type PlainDate } from "../../lib/agenda-time";
 import { SlotPicker } from "./slot-picker";
 
 interface SlotSelectionOptions {
@@ -100,16 +100,22 @@ export function DayAndTimeFields({
   dayLabel: string;
   hint?: string;
 }) {
+  const { t } = useTranslation("common");
   const id = useId();
   return (
     <>
       <div className="grid gap-1.5">
         <Label htmlFor={id}>{dayLabel}</Label>
-        <Input
+        <DatePicker
           id={id}
-          type="date"
           value={selection.day}
-          onChange={(event) => selection.changeDay(event.target.value)}
+          onChange={selection.changeDay}
+          today={todayInZone(timeZone)}
+          formatDate={formatPlainDate}
+          placeholder={t("fields.pickDate")}
+          calendarLabel={t("fields.calendar")}
+          previousMonthLabel={t("fields.previousMonth")}
+          nextMonthLabel={t("fields.nextMonth")}
         />
       </div>
       <SlotPicker

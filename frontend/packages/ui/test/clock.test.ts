@@ -37,7 +37,13 @@ describe("parseClock", () => {
 
 describe("clockOptions", () => {
   it("lista cada 15 min de min a max, ambos incluidos", () => {
-    expect(clockOptions("09:00", "10:00", 15)).toEqual(["09:00", "09:15", "09:30", "09:45", "10:00"]);
+    expect(clockOptions("09:00", "10:00", 15)).toEqual([
+      "09:00",
+      "09:15",
+      "09:30",
+      "09:45",
+      "10:00",
+    ]);
   });
 
   it("el día completo por defecto termina en 23:45", () => {

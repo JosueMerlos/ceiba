@@ -1,3 +1,4 @@
+import { formatClock } from "@ceiba/i18n";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { scheduleSlot } from "../../../test/fixtures";
@@ -5,8 +6,11 @@ import { renderWithI18n } from "../../../test/render-with-i18n";
 import { WeeklyScheduleEditor } from "./weekly-schedule-editor";
 
 const day = (name: string) => screen.getByRole("group", { name });
-const setTime = (input: HTMLElement, value: string) =>
+// The field commits what is typed when it loses focus, as a person tabbing out of it.
+const setTime = (input: HTMLElement, value: string) => {
   fireEvent.change(input, { target: { value } });
+  fireEvent.blur(input);
+};
 
 const MONDAY = scheduleSlot("s1", 1, "09:00", "13:00");
 
@@ -34,9 +38,18 @@ describe("WeeklyScheduleEditor", () => {
       "Sábado",
       "Domingo",
     ]);
-    expect(within(day("Lunes")).getByLabelText("Inicio")).toHaveProperty("value", "09:00");
-    expect(within(day("Lunes")).getByLabelText("Fin")).toHaveProperty("value", "13:00");
-    expect(within(day("Domingo")).getByLabelText("Inicio")).toHaveProperty("value", "10:00");
+    expect(within(day("Lunes")).getByLabelText("Inicio")).toHaveProperty(
+      "value",
+      formatClock("09:00"),
+    );
+    expect(within(day("Lunes")).getByLabelText("Fin")).toHaveProperty(
+      "value",
+      formatClock("13:00"),
+    );
+    expect(within(day("Domingo")).getByLabelText("Inicio")).toHaveProperty(
+      "value",
+      formatClock("10:00"),
+    );
     expect(within(day("Martes")).getByText("Cerrado")).toBeTruthy();
   });
 

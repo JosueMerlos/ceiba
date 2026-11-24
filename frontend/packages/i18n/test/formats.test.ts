@@ -12,7 +12,7 @@ import {
   formatTime,
 } from "../src";
 
-const NBSP = " ";
+const NBSP = "\u00a0";
 const MANAGUA = "America/Managua";
 
 // Intl with es-NI: formats come from the runtime, not from hand-written strings.
@@ -53,7 +53,7 @@ describe("formatos es-NI", () => {
         formatClock("13:15"),
         formatDateTime("2026-12-14T15:00:00Z", MANAGUA),
       ];
-      for (const text of outputs) expect(text).not.toMatch(/\d [ap]\.|[ap]\. m\.| /);
+      for (const text of outputs) expect(text).not.toMatch(/\d [ap]\.|[ap]\. m\.|\u202f/);
     });
   });
 

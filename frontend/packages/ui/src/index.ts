@@ -2,6 +2,8 @@ export { cn } from "./lib/cn";
 export { Button, buttonVariants } from "./components/button";
 export type { ButtonProps } from "./components/button";
 export { CeibaMark } from "./components/ceiba-mark";
+export { ConfirmDialog } from "./components/alert-dialog";
+export type { ConfirmDialogProps } from "./components/alert-dialog";
 export { ColorField } from "./components/color-field";
 export type { ColorFieldProps } from "./components/color-field";
 export {
@@ -14,6 +16,10 @@ export {
   DialogTitle,
   DialogTrigger,
 } from "./components/dialog";
+export { DatePicker, DateRangePicker } from "./components/date-picker";
+export type { DatePickerProps, DateRange, DateRangePickerProps } from "./components/date-picker";
+export { DurationField } from "./components/duration-field";
+export type { DurationFieldProps } from "./components/duration-field";
 export {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +43,8 @@ export {
   FormMessage,
   useFormField,
 } from "./components/form";
+export { FormDialog } from "./components/form-dialog";
+export type { FormDialogItem, FormDialogProps, FormDialogStep } from "./components/form-dialog";
 export { Input } from "./components/input";
 export { Label } from "./components/label";
 export { Badge, badgeVariants } from "./components/badge";
@@ -64,6 +72,7 @@ export {
   SelectTrigger,
   SelectValue,
 } from "./components/select";
+export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "./components/popover";
 export { Switch } from "./components/switch";
 export {
   Table,
@@ -75,6 +84,10 @@ export {
   TableRow,
 } from "./components/table";
 export { Textarea } from "./components/textarea";
+export { TimeField } from "./components/time-field";
+export type { TimeFieldProps } from "./components/time-field";
+export { TimeRangeField } from "./components/time-range-field";
+export type { TimeRange, TimeRangeFieldProps } from "./components/time-range-field";
 export { ToggleGroup, ToggleGroupItem } from "./components/toggle-group";
 export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/tooltip";
 export { Toaster, toast } from "./components/toaster";
