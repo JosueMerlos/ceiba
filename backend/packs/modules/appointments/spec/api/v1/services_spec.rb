@@ -170,7 +170,8 @@ RSpec.describe "API v1: servicios del catálogo" do
     post "Crea un servicio" do
       tags "Servicios"
       description "Exige `appointments.service.manage`. `price_minor` es un entero en unidades menores. Sin `currency` toma la de la empresa; " \
-                  "una moneda distinta responde 422 (`currency: mismatch`). Acepta `Idempotency-Key`."
+                  "una moneda distinta responde 422 (`currency: mismatch`). `category` es texto libre de hasta 60 caracteres, recortado; " \
+                  "en blanco queda sin categoría (null). Acepta `Idempotency-Key`."
       consumes "application/json"
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
@@ -198,6 +199,14 @@ RSpec.describe "API v1: servicios del catálogo" do
         schema single_schema
 
         run_test! { |response| expect(response.parsed_body["data"]).to include("price_minor" => 0, "currency" => "NIO") }
+      end
+
+      response "201", "con categoría, recortada" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:body) { { name: "Manicure", duration_minutes: 30, price_minor: 0, category: "  Uñas  " } }
+        schema single_schema
+
+        run_test! { |response| expect(response.parsed_body["data"]).to include("category" => "Uñas") }
       end
 
       response "401", "sin sesión válida" do
@@ -332,7 +341,8 @@ RSpec.describe "API v1: servicios del catálogo" do
 
     patch "Edita un servicio" do
       tags "Servicios"
-      description "Exige `appointments.service.manage`. Solo cambia los campos enviados; la empresa y el archivado no se editan por aquí."
+      description "Exige `appointments.service.manage`. Solo cambia los campos enviados; la empresa y el archivado no se editan por aquí. " \
+                  "`category: null` (o en blanco) quita la categoría."
       consumes "application/json"
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]

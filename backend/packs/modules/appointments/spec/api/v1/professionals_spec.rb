@@ -24,6 +24,7 @@ RSpec.describe "API v1: profesionales" do
     }
   }
   single_schema = { type: :object, required: %w[data], additionalProperties: false, properties: { data: { "$ref" => "#/components/schemas/Professional" } } }
+  detail_schema = { type: :object, required: %w[data], additionalProperties: false, properties: { data: { "$ref" => "#/components/schemas/ProfessionalDetail" } } }
 
   def professional_in(company, **attributes) = create_in(world.organization, :professional, company:, **attributes)
   def assign(professional, branch) = create_in(world.organization, :professional_branch_assignment, professional:, branch:)
@@ -125,7 +126,8 @@ RSpec.describe "API v1: profesionales" do
     post "Crea un profesional" do
       tags "Profesionales"
       description "Exige `appointments.professional.manage`. `user_id` vincula al profesional con una persona y debe tener una membresía en la " \
-                  "organización (si no, 422); una persona tiene a lo sumo un registro por empresa. Acepta `Idempotency-Key`."
+                  "organización (si no, 422); una persona tiene a lo sumo un registro por empresa. `phone` (cualquier formato, se guarda en E.164) y " \
+                  "`email` son opcionales; un teléfono que no es un número real es 422 en `phone`. Acepta `Idempotency-Key`."
       consumes "application/json"
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
@@ -138,7 +140,7 @@ RSpec.describe "API v1: profesionales" do
 
       response "201", "el profesional creado en la empresa de la ruta, sin sucursales ni servicios" do
         let!(:signed_in) { sign_in(manager) }
-        schema single_schema
+        schema detail_schema
 
         run_test! do |response|
           data = response.parsed_body["data"]
@@ -148,11 +150,30 @@ RSpec.describe "API v1: profesionales" do
         end
       end
 
+      response "201", "con teléfono y correo: el teléfono en E.164 y el correo en minúsculas" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:body) { { display_name: "Sandra", phone: "8888 1234", email: "Sandra@Ej.com" } }
+        schema detail_schema
+
+        run_test! { |response| expect(response.parsed_body["data"]).to include("phone" => "+50588881234", "email" => "sandra@ej.com") }
+      end
+
+      response "422", "un teléfono que no es un número real (`phone: invalid`)" do
+        let!(:signed_in) { sign_in(manager) }
+        let(:body) { { display_name: "Sandra", phone: "123" } }
+        schema "$ref" => "#/components/schemas/ValidationProblem"
+
+        run_test! do |response|
+          expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "phone", "code" => "invalid"))
+          expect(professional_count).to eq(0)
+        end
+      end
+
       response "201", "vinculado a una persona que es miembro de la organización" do
         let!(:signed_in) { sign_in(manager) }
         let!(:membership) { user_with_role("receptionist", world, branch: world.branch_a1, user: person) }
         let(:body) { { display_name: "Sandra", user_id: person.id } }
-        schema single_schema
+        schema detail_schema
 
         run_test! { |response| expect(response.parsed_body["data"]).to include("user_id" => person.id) }
       end
@@ -252,21 +273,31 @@ RSpec.describe "API v1: profesionales" do
 
     get "Obtiene un profesional" do
       tags "Profesionales"
-      description "Exige `appointments.professional.read` en la empresa. Un profesional de otra empresa responde 404. Un archivado se puede ver, con `archived_at`."
+      description "Exige `appointments.professional.read` en la empresa. Un profesional de otra empresa responde 404. Un archivado se puede ver, con `archived_at`. " \
+                  "`phone` y `email` solo traen valor para quien tiene `appointments.professional.manage`; para el resto son null."
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
 
-      response "200", "el profesional" do
+      response "200", "el profesional; el recepcionista no ve su contacto (null)" do
         let!(:signed_in) { sign_in(user_with_role("receptionist", world, branch: world.branch_a1)) }
-        schema single_schema
+        let!(:professional) { professional_in(world.company_a, display_name: "Ana", phone_e164: "8888 1234", email: "ana@ej.com") }
+        schema detail_schema
 
-        run_test! { |response| expect(response.parsed_body["data"]).to include("id" => professional.id, "display_name" => "Ana") }
+        run_test! { |response| expect(response.parsed_body["data"]).to include("id" => professional.id, "display_name" => "Ana", "phone" => nil, "email" => nil) }
+      end
+
+      response "200", "el company_manager ve el contacto" do
+        let!(:signed_in) { sign_in(manager) }
+        let!(:professional) { professional_in(world.company_a, display_name: "Ana", phone_e164: "8888 1234", email: "ana@ej.com") }
+        schema detail_schema
+
+        run_test! { |response| expect(response.parsed_body["data"]).to include("phone" => "+50588881234", "email" => "ana@ej.com") }
       end
 
       response "200", "uno archivado se puede ver" do
         let!(:signed_in) { sign_in(manager) }
         let!(:professional) { professional_in(world.company_a, archived_at: Time.current) }
-        schema single_schema
+        schema detail_schema
 
         run_test! { |response| expect(response.parsed_body["data"]["archived_at"]).to be_present }
       end
@@ -297,7 +328,8 @@ RSpec.describe "API v1: profesionales" do
 
     patch "Edita un profesional" do
       tags "Profesionales"
-      description "Exige `appointments.professional.manage`. Solo cambian los campos enviados; `user_id` solo se puede fijar una vez: si ya está vinculado no cambia ni se quita (422 `immutable`; para cambiar de persona se archiva y se crea otro profesional). Un archivado no se edita (422)."
+      description "Exige `appointments.professional.manage`. Solo cambian los campos enviados; `user_id` solo se puede fijar una vez: si ya está vinculado no cambia ni se quita (422 `immutable`; para cambiar de persona se archiva y se crea otro profesional). Un archivado no se edita (422). " \
+                  "`phone` y `email` en blanco o null quitan el dato; la auditoría registra que cambiaron, nunca su valor."
       consumes "application/json"
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
@@ -308,7 +340,7 @@ RSpec.describe "API v1: profesionales" do
 
       response "200", "el profesional editado, auditado con antes y después" do
         let!(:signed_in) { sign_in(manager) }
-        schema single_schema
+        schema detail_schema
 
         run_test! do |response|
           expect(response.parsed_body["data"]).to include("display_name" => "Ana María", "active" => false)
@@ -369,7 +401,7 @@ RSpec.describe "API v1: profesionales" do
         let(:person) { create(:user) }
         let!(:membership) { user_with_role("receptionist", world, branch: world.branch_a1, user: person) }
         let(:body) { { user_id: person.id } }
-        schema single_schema
+        schema detail_schema
 
         run_test! { expect(stored(professional.id).user_id).to eq(person.id) }
       end
@@ -404,7 +436,7 @@ RSpec.describe "API v1: profesionales" do
         response "200", "reenviar el mismo `user_id` no es un cambio" do
           let!(:signed_in) { sign_in(manager) }
           let(:body) { { user_id: person.id, display_name: "Ana María" } }
-          schema single_schema
+          schema detail_schema
 
           run_test! { expect(stored(professional.id)).to have_attributes(user_id: person.id, display_name: "Ana María") }
         end
@@ -468,7 +500,8 @@ RSpec.describe "API v1: profesionales" do
     get "Obtiene un profesional desde una sucursal" do
       tags "Profesionales"
       description "Es la ruta del perfil propio del `professional`: exige `appointments.professional.read` en la sucursal, o bien " \
-                  "`appointments.professional.read_own` en la sucursal cuando el registro está vinculado a su usuario y asignado a esa sucursal."
+                  "`appointments.professional.read_own` en la sucursal cuando el registro está vinculado a su usuario y asignado a esa sucursal. " \
+                  "No trae el contacto del profesional (`Professional`, sin `phone` ni `email`)."
       produces "application/json", "application/problem+json"
       security [ { cookieAuth: [] } ]
 

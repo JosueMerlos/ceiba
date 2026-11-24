@@ -28,6 +28,12 @@ RSpec.describe "config.filter_parameters" do
     expect(filtered).to eq("user" => { "email" => "[FILTERED]", "name" => "Ana" })
   end
 
+  it "filtra el contacto del profesional anidado en su cuerpo" do
+    filtered = filter.filter("professional" => { "display_name" => "Ana", "phone" => "+50588881234", "email" => "ana@ej.com" })
+
+    expect(filtered).to eq("professional" => { "display_name" => "Ana", "phone" => "[FILTERED]", "email" => "[FILTERED]" })
+  end
+
   it "no filtra parámetros que no son sensibles" do
     expect(filter.filter("slug" => "clinica-sol", "limit" => "20", "name" => "Corte", "q" => "x"))
       .to eq("slug" => "clinica-sol", "limit" => "20", "name" => "Corte", "q" => "x")
