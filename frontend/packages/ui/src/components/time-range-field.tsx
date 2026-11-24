@@ -19,6 +19,8 @@ interface TimeRangeFieldProps extends Pick<
   "aria-labelledby"?: string;
   "aria-invalid"?: boolean | "true" | "false";
   className?: string;
+  /** Width of each of the two times, e.g. responsive widths of a schedule row. */
+  fieldClassName?: string;
 }
 
 /**
@@ -31,6 +33,7 @@ function TimeRangeField({
   startLabel,
   endLabel,
   className,
+  fieldClassName = "w-36",
   "aria-invalid": ariaInvalid,
   "aria-label": ariaLabel,
   "aria-labelledby": labelledBy,
@@ -38,7 +41,8 @@ function TimeRangeField({
 }: TimeRangeFieldProps) {
   return (
     <div
-      role="group"
+      // Without a name of its own it is just layout: the surrounding group (a weekday) already names it.
+      role={ariaLabel || labelledBy ? "group" : undefined}
       aria-label={ariaLabel}
       aria-labelledby={labelledBy}
       data-slot="time-range-field"
@@ -50,7 +54,7 @@ function TimeRangeField({
         aria-invalid={ariaInvalid}
         value={value.start}
         onChange={(start) => onChange({ ...value, start })}
-        className="w-36"
+        className={fieldClassName}
       />
       <span aria-hidden="true" className="text-muted-foreground">
         –
@@ -61,7 +65,7 @@ function TimeRangeField({
         aria-invalid={ariaInvalid}
         value={value.end}
         onChange={(end) => onChange({ ...value, end })}
-        className="w-36"
+        className={fieldClassName}
       />
     </div>
   );

@@ -74,7 +74,6 @@ export {
   SelectTrigger,
   SelectValue,
 } from "./components/select";
-export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "./components/popover";
 export { Switch } from "./components/switch";
 export {
   Table,

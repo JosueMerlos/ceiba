@@ -1,7 +1,6 @@
-import { formatClock, formatPlainDate, useTranslation } from "@ceiba/i18n";
+import { useTranslation } from "@ceiba/i18n";
 import {
   Button,
-  DatePicker,
   Form,
   FormControl,
   FormDescription,
@@ -10,7 +9,6 @@ import {
   FormLabel,
   FormMessage,
   Input,
-  TimeField,
   useFormField,
 } from "@ceiba/ui";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,8 +16,8 @@ import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { TimeOffInput } from "../api/shared";
+import { BranchDatePicker, BranchTimeField } from "../../../platform/forms/branch-fields";
 import { reportSubmitError } from "../../../platform/forms/report-submit-error";
-import { todayInZone } from "../lib/agenda-time";
 import { localToUtcIso } from "../lib/zoned-time";
 import { FormAlert } from "./form-alert";
 
@@ -166,26 +164,19 @@ function WallClockField({ legend, value, onChange, onBlur, timeZone }: WallClock
     <fieldset className="grid gap-2" aria-describedby={describedBy}>
       <legend className="mb-2 text-sm leading-none font-medium">{legend}</legend>
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)] gap-2">
-        <DatePicker
+        <BranchDatePicker
           aria-label={t("fields.date")}
           aria-invalid={error ? true : undefined}
           value={day}
           onChange={(next) => onChange(`${next}T${clock}`)}
-          today={todayInZone(timeZone)}
-          formatDate={formatPlainDate}
-          placeholder={t("fields.pickDate")}
-          calendarLabel={t("fields.calendar")}
-          previousMonthLabel={t("fields.previousMonth")}
-          nextMonthLabel={t("fields.nextMonth")}
+          timeZone={timeZone}
         />
-        <TimeField
+        <BranchTimeField
           aria-label={t("fields.time")}
           aria-invalid={error ? true : undefined}
           value={clock}
           onChange={(next) => onChange(`${day}T${next}`)}
           onBlur={onBlur}
-          formatClock={formatClock}
-          listLabel={t("fields.timeList")}
         />
       </div>
     </fieldset>

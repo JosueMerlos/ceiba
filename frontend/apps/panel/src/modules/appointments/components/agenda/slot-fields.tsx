@@ -1,17 +1,10 @@
-import { formatPlainDate, useTranslation } from "@ceiba/i18n";
-import {
-  DatePicker,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ceiba/ui";
+import { useTranslation } from "@ceiba/i18n";
+import { Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@ceiba/ui";
 import { useId, useMemo, useState } from "react";
 import { useFreeSlots } from "../../api/agenda-availability";
 import type { AgendaProfessional } from "../../api/agenda";
-import { todayInZone, type PlainDate } from "../../lib/agenda-time";
+import { BranchDatePicker } from "../../../../platform/forms/branch-fields";
+import type { PlainDate } from "../../lib/agenda-time";
 import { SlotPicker } from "./slot-picker";
 
 interface SlotSelectionOptions {
@@ -100,22 +93,16 @@ export function DayAndTimeFields({
   dayLabel: string;
   hint?: string;
 }) {
-  const { t } = useTranslation("common");
   const id = useId();
   return (
     <>
       <div className="grid gap-1.5">
         <Label htmlFor={id}>{dayLabel}</Label>
-        <DatePicker
+        <BranchDatePicker
           id={id}
           value={selection.day}
           onChange={selection.changeDay}
-          today={todayInZone(timeZone)}
-          formatDate={formatPlainDate}
-          placeholder={t("fields.pickDate")}
-          calendarLabel={t("fields.calendar")}
-          previousMonthLabel={t("fields.previousMonth")}
-          nextMonthLabel={t("fields.nextMonth")}
+          timeZone={timeZone}
         />
       </div>
       <SlotPicker

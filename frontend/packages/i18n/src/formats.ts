@@ -25,37 +25,26 @@ export function formatCurrency(amount: number, currency: "NIO" | "USD"): string 
 const NBSP = "\u00a0";
 const normalizeSpaces = (text: string) => text.replace(/[\s\u202f]+/g, NBSP);
 
-const timeFormats = new Map<string, Intl.DateTimeFormat>();
-const dateFormats = new Map<string, Intl.DateTimeFormat>();
-
-function timeFormat(timeZone: string) {
-  let format = timeFormats.get(timeZone);
-  if (!format) {
-    format = new Intl.DateTimeFormat(defaultLocale, {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-      timeZone,
-    });
-    timeFormats.set(timeZone, format);
-  }
-  return format;
+/** One Intl formatter per zone for these options: building them is the expensive part. */
+function formatterByZone(options: Intl.DateTimeFormatOptions) {
+  const cache = new Map<string, Intl.DateTimeFormat>();
+  return (timeZone: string) => {
+    let format = cache.get(timeZone);
+    if (!format) {
+      format = new Intl.DateTimeFormat(defaultLocale, { ...options, timeZone });
+      cache.set(timeZone, format);
+    }
+    return format;
+  };
 }
 
-function dateFormat(timeZone: string) {
-  let format = dateFormats.get(timeZone);
-  if (!format) {
-    format = new Intl.DateTimeFormat(defaultLocale, {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      timeZone,
-    });
-    dateFormats.set(timeZone, format);
-  }
-  return format;
-}
+const timeFormat = formatterByZone({ hour: "numeric", minute: "2-digit", hour12: true });
+const dateFormat = formatterByZone({
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
 
 /** "9:00 a. m.": the time of an instant in the branch's zone. */
 export function formatTime(value: Instant, timeZone: string): string {

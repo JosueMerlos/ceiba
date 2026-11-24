@@ -51,18 +51,25 @@ function nextRange({ from, to }: DateRange, day: string): DateRange {
 }
 
 interface ShellProps extends DateFieldBaseProps {
+  mode: "single" | "range";
+  from: string | null;
+  to?: string | null;
   text: ReactNode;
-  empty: boolean;
-  open: boolean;
-  onOpenChange(open: boolean): void;
-  children: ReactNode;
+  /** Receives the clicked day; returns whether the pick is complete, which closes the calendar. */
+  onPick(day: string): boolean;
 }
 
 function DateFieldShell({
+  mode,
+  from,
+  to,
   text,
-  empty,
-  open,
-  onOpenChange,
+  onPick,
+  today,
+  min,
+  max,
+  previousMonthLabel,
+  nextMonthLabel,
   calendarLabel,
   placeholder,
   disabled,
@@ -73,13 +80,14 @@ function DateFieldShell({
   "aria-invalid": ariaInvalid,
   "aria-label": ariaLabel,
   "aria-labelledby": labelledBy,
-  children,
 }: ShellProps) {
+  const [open, setOpen] = useState(false);
   const fallbackId = useId();
   const triggerId = id ?? fallbackId;
   const valueId = `${triggerId}-value`;
+  const empty = !from;
   return (
-    <PopoverPrimitive.Root open={open} onOpenChange={onOpenChange}>
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
       <PopoverPrimitive.Trigger asChild>
         <button
           ref={ref}
@@ -117,7 +125,19 @@ function DateFieldShell({
           className="z-50 rounded-xl border bg-popover p-3 text-popover-foreground shadow-lg outline-none"
         >
           <Suspense fallback={<div aria-busy="true" className="h-72 w-[17rem]" />}>
-            {children}
+            <Calendar
+              mode={mode}
+              from={from}
+              to={to}
+              today={today}
+              min={min}
+              max={max}
+              previousMonthLabel={previousMonthLabel}
+              nextMonthLabel={nextMonthLabel}
+              onPick={(day) => {
+                if (onPick(day)) setOpen(false);
+              }}
+            />
           </Suspense>
         </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>
@@ -127,35 +147,22 @@ function DateFieldShell({
 
 /** A calendar day picked from a month grid. Value and output are "yyyy-MM-dd", never a browser Date. */
 function DatePicker({ value, onChange, ...props }: DatePickerProps) {
-  const [open, setOpen] = useState(false);
   return (
     <DateFieldShell
       {...props}
+      mode="single"
+      from={value || null}
       text={value ? props.formatDate(value) : null}
-      empty={!value}
-      open={open}
-      onOpenChange={setOpen}
-    >
-      <Calendar
-        mode="single"
-        from={value || null}
-        today={props.today}
-        min={props.min}
-        max={props.max}
-        previousMonthLabel={props.previousMonthLabel}
-        nextMonthLabel={props.nextMonthLabel}
-        onPick={(day) => {
-          setOpen(false);
-          if (day !== value) onChange(day);
-        }}
-      />
-    </DateFieldShell>
+      onPick={(day) => {
+        if (day !== value) onChange(day);
+        return true;
+      }}
+    />
   );
 }
 
 /** A range of calendar days in one month grid: first click start, second click end. */
 function DateRangePicker({ value, onChange, ...props }: DateRangePickerProps) {
-  const [open, setOpen] = useState(false);
   const text = value.from ? (
     <>
       {props.formatDate(value.from)}
@@ -168,23 +175,18 @@ function DateRangePicker({ value, onChange, ...props }: DateRangePickerProps) {
     </>
   ) : null;
   return (
-    <DateFieldShell {...props} text={text} empty={!value.from} open={open} onOpenChange={setOpen}>
-      <Calendar
-        mode="range"
-        from={value.from}
-        to={value.to}
-        today={props.today}
-        min={props.min}
-        max={props.max}
-        previousMonthLabel={props.previousMonthLabel}
-        nextMonthLabel={props.nextMonthLabel}
-        onPick={(day) => {
-          const range = nextRange(value, day);
-          if (range.to) setOpen(false);
-          onChange(range);
-        }}
-      />
-    </DateFieldShell>
+    <DateFieldShell
+      {...props}
+      mode="range"
+      from={value.from}
+      to={value.to}
+      text={text}
+      onPick={(day) => {
+        const range = nextRange(value, day);
+        onChange(range);
+        return range.to !== null;
+      }}
+    />
   );
 }
 

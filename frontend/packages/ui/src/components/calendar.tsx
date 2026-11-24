@@ -1,6 +1,5 @@
 import { DayPicker, type DateRange as DayRange } from "react-day-picker";
 import { es } from "react-day-picker/locale";
-import { cn } from "../lib/cn";
 
 /** A calendar day, "2026-12-14". */
 type PlainDate = string;
@@ -27,29 +26,26 @@ interface CalendarProps {
   onPick(day: PlainDate): void;
 }
 
+const NAV_BUTTON =
+  "grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 [&_svg]:size-4 [&_svg]:fill-current";
+
 const CLASS_NAMES = {
   root: "relative w-fit",
   months: "grid",
   month: "grid gap-2",
   nav: "absolute inset-x-0 top-0 flex items-center justify-between",
-  button_previous:
-    "grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 [&_svg]:size-4 [&_svg]:fill-current",
-  button_next:
-    "grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 [&_svg]:size-4 [&_svg]:fill-current",
+  button_previous: NAV_BUTTON,
+  button_next: NAV_BUTTON,
   month_caption: "flex h-8 items-center justify-center",
   caption_label: "font-display text-sm font-semibold capitalize",
   month_grid: "border-collapse",
-  weekdays: "",
   weekday: "size-9 text-xs font-medium text-muted-foreground",
-  week: "",
   day: "size-9 p-0 text-center text-sm tabular-nums",
   day_button:
     "size-9 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
   today: "[&>button]:font-bold [&>button]:ring-1 [&>button]:ring-primary [&>button]:ring-inset",
   selected:
     "[&>button]:bg-primary [&>button]:font-semibold [&>button]:text-primary-foreground [&>button]:hover:bg-primary/90",
-  range_start: "",
-  range_end: "",
   range_middle:
     "bg-accent [&>button]:rounded-none [&>button]:bg-transparent [&>button]:font-normal [&>button]:text-accent-foreground",
   outside: "text-muted-foreground/50",
@@ -88,7 +84,7 @@ export default function Calendar({
       labelNext: () => nextMonthLabel,
     },
     classNames: CLASS_NAMES,
-    className: cn("text-popover-foreground"),
+    className: "text-popover-foreground",
   };
 
   if (mode === "range") {

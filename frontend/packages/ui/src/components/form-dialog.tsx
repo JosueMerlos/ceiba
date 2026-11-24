@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
 import { Tabs as TabsPrimitive } from "radix-ui";
-import { useState, type ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import { cn } from "../lib/cn";
 import { ConfirmDialog } from "./alert-dialog";
 import { Button } from "./button";
@@ -78,29 +78,35 @@ type Pending = { kind: "close" } | { kind: "tab"; tab: string } | null;
  * with unsaved changes asks for confirmation first.
  */
 function FormDialog(props: FormDialogProps) {
-  const { open, onOpenChange, title, description, closeLabel, className, children } = props;
-  const [pending, setPending] = useState<Pending>(null);
-  const guarded = props.tabs !== undefined && props.dirty;
-
-  function requestClose(next: boolean) {
-    if (!next && guarded) setPending({ kind: "close" });
-    else onOpenChange(next);
-  }
-
-  function requestTab(tab: string) {
-    if (props.tabs === undefined || tab === props.tab) return;
-    if (props.dirty) setPending({ kind: "tab", tab });
-    else props.onTabChange(tab);
-  }
-
-  function discard() {
-    if (pending?.kind === "close") onOpenChange(false);
-    if (pending?.kind === "tab" && props.tabs !== undefined) props.onTabChange(pending.tab);
-    setPending(null);
-  }
-
+  if (props.tabs !== undefined) return <TabsDialog {...props} />;
+  if (props.steps !== undefined) return <StepsDialog {...props} />;
   return (
-    <Dialog open={open} onOpenChange={requestClose}>
+    <FormDialogShell {...props} footer={props.footer}>
+      <Body className="pt-4">{props.children}</Body>
+    </FormDialogShell>
+  );
+}
+
+interface ShellProps extends Omit<FormDialogBaseProps, "children"> {
+  /** Between the title and the body: the step indicator. */
+  header?: ReactNode;
+  footer?: ReactNode;
+  children: ReactNode;
+}
+
+function FormDialogShell({
+  open,
+  onOpenChange,
+  title,
+  description,
+  closeLabel,
+  className,
+  header,
+  footer,
+  children,
+}: ShellProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         closeLabel={closeLabel}
         data-slot="form-dialog"
@@ -113,79 +119,150 @@ function FormDialog(props: FormDialogProps) {
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </div>
-
-        {props.steps !== undefined ? <StepIndicator {...props} /> : null}
-
-        {props.tabs !== undefined ? (
-          <TabsPrimitive.Root
-            value={props.tab}
-            onValueChange={requestTab}
-            activationMode="manual"
-            className="flex min-h-0 flex-1 flex-col"
+        {header}
+        {children}
+        {footer ? (
+          <div
+            data-slot="form-dialog-footer"
+            className="flex flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-end"
           >
-            <TabsPrimitive.List
-              aria-label={props.tabsLabel}
-              className="mt-3 flex gap-1 overflow-x-auto border-b px-6"
-            >
-              {props.tabs.map((item) => (
-                <TabsPrimitive.Trigger
-                  key={item.id}
-                  value={item.id}
-                  className={cn(
-                    "-mb-px h-10 shrink-0 border-b-2 border-transparent px-3 text-sm font-semibold whitespace-nowrap text-muted-foreground transition-colors",
-                    "hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
-                    "data-[state=active]:border-primary data-[state=active]:text-foreground",
-                  )}
-                >
-                  {item.label}
-                </TabsPrimitive.Trigger>
-              ))}
-            </TabsPrimitive.List>
-            <TabsPrimitive.Content value={props.tab} asChild>
-              <Body>{children}</Body>
-            </TabsPrimitive.Content>
-          </TabsPrimitive.Root>
-        ) : (
-          <Body className={props.steps === undefined ? "pt-4" : undefined}>{children}</Body>
-        )}
-
-        <FormDialogFooter {...props} />
+            {footer}
+          </div>
+        ) : null}
       </DialogContent>
-
-      {props.tabs !== undefined ? (
-        <ConfirmDialog
-          open={pending !== null}
-          onOpenChange={(next) => {
-            if (!next) setPending(null);
-          }}
-          title={props.confirmTitle}
-          description={props.confirmDescription}
-          confirmLabel={props.discardLabel}
-          cancelLabel={props.keepLabel}
-          onConfirm={discard}
-        />
-      ) : null}
     </Dialog>
   );
 }
 
-function Body({ className, children, ...props }: { className?: string; children: ReactNode }) {
+// Radix Tabs injects the tabpanel id, role and aria-labelledby through `asChild`, so the props must reach the div.
+function Body({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="form-dialog-body"
       className={cn("min-h-0 flex-1 overflow-y-auto px-6 py-5", className)}
       {...props}
-    >
-      {children}
-    </div>
+    />
   );
 }
 
-function StepIndicator({ steps, step, stepsLabel }: FormDialogStepsProps) {
-  const current = steps.findIndex((item) => item.id === step);
+function TabsDialog(props: FormDialogTabsProps) {
+  const [pending, setPending] = useState<Pending>(null);
+
+  function requestClose(next: boolean) {
+    if (!next && props.dirty) setPending({ kind: "close" });
+    else props.onOpenChange(next);
+  }
+
+  function requestTab(tab: string) {
+    if (tab === props.tab) return;
+    if (props.dirty) setPending({ kind: "tab", tab });
+    else props.onTabChange(tab);
+  }
+
+  function discard() {
+    if (pending?.kind === "close") props.onOpenChange(false);
+    if (pending?.kind === "tab") props.onTabChange(pending.tab);
+    setPending(null);
+  }
+
+  return (
+    <>
+      <FormDialogShell
+        {...props}
+        onOpenChange={requestClose}
+        footer={
+          <Button type="submit" form={props.formId} loading={props.pending}>
+            {props.saveLabel}
+          </Button>
+        }
+      >
+        <TabsPrimitive.Root
+          value={props.tab}
+          onValueChange={requestTab}
+          activationMode="manual"
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <TabsPrimitive.List
+            aria-label={props.tabsLabel}
+            className="mt-3 flex gap-1 overflow-x-auto border-b px-6"
+          >
+            {props.tabs.map((item) => (
+              <TabsPrimitive.Trigger
+                key={item.id}
+                value={item.id}
+                className={cn(
+                  "-mb-px h-10 shrink-0 border-b-2 border-transparent px-3 text-sm font-semibold whitespace-nowrap text-muted-foreground transition-colors",
+                  "hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
+                  "data-[state=active]:border-primary data-[state=active]:text-foreground",
+                )}
+              >
+                {item.label}
+              </TabsPrimitive.Trigger>
+            ))}
+          </TabsPrimitive.List>
+          <TabsPrimitive.Content value={props.tab} asChild>
+            <Body>{props.children}</Body>
+          </TabsPrimitive.Content>
+        </TabsPrimitive.Root>
+      </FormDialogShell>
+      <ConfirmDialog
+        open={pending !== null}
+        onOpenChange={(next) => {
+          if (!next) setPending(null);
+        }}
+        title={props.confirmTitle}
+        description={props.confirmDescription}
+        confirmLabel={props.discardLabel}
+        cancelLabel={props.keepLabel}
+        onConfirm={discard}
+      />
+    </>
+  );
+}
+
+function StepsDialog(props: FormDialogStepsProps) {
+  const current = props.steps.findIndex((item) => item.id === props.step);
+  const last = current === props.steps.length - 1;
+  const canSkip = props.steps[current]?.optional && props.onSkip;
+  return (
+    <FormDialogShell
+      {...props}
+      header={<StepIndicator steps={props.steps} current={current} label={props.stepsLabel} />}
+      footer={
+        <>
+          {canSkip ? (
+            <Button type="button" variant="ghost" className="sm:mr-auto" onClick={props.onSkip}>
+              {props.skipLabel}
+            </Button>
+          ) : null}
+          {current > 0 ? (
+            <Button type="button" variant="outline" onClick={props.onBack} disabled={props.pending}>
+              {props.backLabel}
+            </Button>
+          ) : null}
+          <Button type="submit" form={props.formId} loading={props.pending}>
+            {last ? props.finishLabel : props.continueLabel}
+          </Button>
+        </>
+      }
+    >
+      <Body>{props.children}</Body>
+    </FormDialogShell>
+  );
+}
+
+function StepIndicator({
+  steps,
+  current,
+  label,
+}: {
+  steps: readonly FormDialogStep[];
+  current: number;
+  label: string;
+}) {
   return (
     <ol
-      aria-label={stepsLabel}
+      aria-label={label}
       className="mt-4 grid auto-cols-fr grid-flow-col gap-3 border-b px-6 pb-4"
     >
       {steps.map((item, index) => {
@@ -225,52 +302,6 @@ function StepIndicator({ steps, step, stepsLabel }: FormDialogStepsProps) {
         );
       })}
     </ol>
-  );
-}
-
-function FormDialogFooter(props: FormDialogProps) {
-  if (props.tabs !== undefined) {
-    return (
-      <Footer>
-        <Button type="submit" form={props.formId} loading={props.pending}>
-          {props.saveLabel}
-        </Button>
-      </Footer>
-    );
-  }
-  if (props.steps !== undefined) {
-    const index = props.steps.findIndex((item) => item.id === props.step);
-    const last = index === props.steps.length - 1;
-    const optional = props.steps[index]?.optional && props.onSkip;
-    return (
-      <Footer>
-        {optional ? (
-          <Button type="button" variant="ghost" className="sm:mr-auto" onClick={props.onSkip}>
-            {props.skipLabel}
-          </Button>
-        ) : null}
-        {index > 0 ? (
-          <Button type="button" variant="outline" onClick={props.onBack} disabled={props.pending}>
-            {props.backLabel}
-          </Button>
-        ) : null}
-        <Button type="submit" form={props.formId} loading={props.pending}>
-          {last ? props.finishLabel : props.continueLabel}
-        </Button>
-      </Footer>
-    );
-  }
-  return props.footer ? <Footer>{props.footer}</Footer> : null;
-}
-
-function Footer({ children }: { children: ReactNode }) {
-  return (
-    <div
-      data-slot="form-dialog-footer"
-      className="flex flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-end"
-    >
-      {children}
-    </div>
   );
 }
 

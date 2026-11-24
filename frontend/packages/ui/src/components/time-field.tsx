@@ -121,8 +121,8 @@ function TimeField({
         if (open && active >= 0) {
           openAt(active + delta);
         } else {
-          const index = anchorIndex();
-          openAt(index < 0 ? 0 : index + delta);
+          // Clamped by openAt: with no value (-1) either arrow lands on the first option.
+          openAt(anchorIndex() + delta);
         }
         break;
       }
@@ -161,7 +161,6 @@ function TimeField({
             ref={ref}
             id={inputId}
             type="text"
-            inputMode="text"
             autoComplete="off"
             role="combobox"
             aria-autocomplete="none"
@@ -178,7 +177,7 @@ function TimeField({
               setActive(-1);
             }}
             onClick={() => {
-              if (!open) openAt(anchorIndex() < 0 ? 0 : anchorIndex());
+              if (!open) openAt(anchorIndex());
             }}
             onKeyDown={onKeyDown}
             onBlur={() => {

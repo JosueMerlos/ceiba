@@ -8,10 +8,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  TimeField,
 } from "@ceiba/ui";
 import { Plus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
+import { BranchTimeRangeField } from "../../../platform/forms/branch-fields";
 import {
   toDrafts,
   toPayload,
@@ -120,26 +120,14 @@ export function WeeklyScheduleEditor({
                   ) : (
                     <div key={slot.key} className="grid min-w-0 gap-1">
                       <div className="flex min-w-0 items-center gap-2">
-                        <TimeField
-                          aria-label={t("catalog.schedule.start")}
+                        <BranchTimeRangeField
                           aria-invalid={problem ? true : undefined}
-                          value={slot.start}
-                          onChange={(value) => update(slot.key, { start: value })}
-                          formatClock={formatClock}
-                          listLabel={t("common:fields.timeList")}
-                          className="min-w-0 flex-1 sm:w-36 sm:flex-none"
-                        />
-                        <span aria-hidden="true" className="text-muted-foreground">
-                          –
-                        </span>
-                        <TimeField
-                          aria-label={t("catalog.schedule.end")}
-                          aria-invalid={problem ? true : undefined}
-                          value={slot.end}
-                          onChange={(value) => update(slot.key, { end: value })}
-                          formatClock={formatClock}
-                          listLabel={t("common:fields.timeList")}
-                          className="min-w-0 flex-1 sm:w-36 sm:flex-none"
+                          value={{ start: slot.start, end: slot.end }}
+                          onChange={(range) => update(slot.key, range)}
+                          startLabel={t("catalog.schedule.start")}
+                          endLabel={t("catalog.schedule.end")}
+                          className="min-w-0 flex-1 sm:flex-none"
+                          fieldClassName="min-w-0 flex-1 sm:w-36 sm:flex-none"
                         />
                         <Button
                           type="button"
