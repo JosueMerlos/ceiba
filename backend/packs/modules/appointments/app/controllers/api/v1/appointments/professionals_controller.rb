@@ -26,7 +26,7 @@ module Api
         def show
           professional = find_professional
           authorize professional, :show?, policy_class: ::Appointments::ProfessionalPolicy
-          render_professional(professional)
+          render_detail(professional)
         end
 
         # The profile as seen from the route's branch: where a professional reads their own.
@@ -38,13 +38,13 @@ module Api
 
         def create
           professional = ::Appointments::Staff::CreateProfessional.call(company_id:, attributes: professional_params)
-          render_professional(professional, status: :created)
+          render_detail(professional, status: :created)
         end
 
         def update
           professional = find_professional
           authorize professional, :update?, policy_class: ::Appointments::ProfessionalPolicy
-          render_professional(::Appointments::Staff::UpdateProfessional.call(professional:, attributes: professional_params))
+          render_detail(::Appointments::Staff::UpdateProfessional.call(professional:, attributes: professional_params))
         end
 
         def destroy
@@ -73,7 +73,18 @@ module Api
           render json: { data: ::Appointments::ProfessionalSerializer.new(professional).serializable_hash }, status:
         end
 
-        def professional_params = typed_params(display_name: String, user_id: String, active: :boolean)
+        # The company's view of one professional: their contact is filled in only for who may manage professionals.
+        def render_detail(professional, status: :ok)
+          contact = ::Appointments::ProfessionalPolicy.new(pundit_user, professional).contact?
+          render json: { data: ::Appointments::ProfessionalDetailSerializer.new(professional, params: { contact: }).serializable_hash }, status:
+        end
+
+        # The API calls the phone `phone`; the column keeps its E.164 name.
+        def professional_params
+          attributes = typed_params(display_name: String, user_id: String, active: :boolean, phone: String, email: String)
+          attributes[:phone_e164] = attributes.delete(:phone) if attributes.key?(:phone)
+          attributes
+        end
       end
     end
   end

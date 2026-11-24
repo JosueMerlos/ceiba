@@ -5,6 +5,8 @@ RSpec.describe Appointments::ProfessionalPolicy do
   let(:world) { build_access_world }
   let(:professional) { create_in(world.organization, :professional, company: world.company_a) }
 
+  before { with_tenant(world.organization) { Modules::Enable.call(company: world.company_a, key: "appointments") } }
+
   def member_of(role)
     case role
     when "company_manager" then user_with_role(role, world, company: world.company_a)

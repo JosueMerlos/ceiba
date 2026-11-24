@@ -25,6 +25,7 @@ dependencies:
   # Booking publishes appointments.appointment_booked.v1 in the same transaction as the appointment (Events.publish).
   - "packs/platform/events"
   # Booking asks whether the customer is active and the agenda asks for names (Customers::Lookup), never for contact data.
+  # A professional's phone is normalized to E.164 with the same rule as a customer's (Customers::Phone).
   - "packs/platform/customers"
   # The catalog (services, professionals) is imported from CSV through the imports pack (Imports::Importer, Imports::Registry).
   - "packs/platform/imports"

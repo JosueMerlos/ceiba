@@ -8,6 +8,8 @@ module Appointments
     def create? = can?("appointments.professional.manage", context_scope(:company))
     def update? = can?("appointments.professional.manage", context_scope(:company))
     def destroy? = can?("appointments.professional.manage", context_scope(:company))
+    # The contact is personal data: only who manages the company's professionals reads it.
+    def contact? = can?("appointments.professional.manage", context_scope(:company))
 
     def show_in_branch? = can?("appointments.professional.read", context_scope(:branch)) || own_profile?
 

@@ -37,7 +37,9 @@ module AppointmentsDemoSeeds
   PROFESSIONALS = {
     "barbershop" => [
       { name: "Don Efraín Blandón", email: "profesional@barberia-guegu.ceiba.test", branch: "Sucursal Centro", days: [ 1, 2, 3, 4, 5, 6 ],
-        services: [ "Corte clásico", "Corte y barba", "Afeitado clásico" ] },
+        services: [ "Corte clásico", "Corte y barba", "Afeitado clásico" ],
+        # The professional's own contact (fake number, same range as the demo customers), not the login of the linked user.
+        contact: { phone_e164: "+505 8800 0101", email: "efrain.blandon@barberia-guegu.ceiba.test" } },
       { name: "Ramiro Salinas", branch: "Sucursal Centro", days: [ 2, 3, 4, 5, 6 ], services: [ "Corte clásico", "Afeitado clásico" ] }
     ],
     "dental" => [
@@ -128,7 +130,7 @@ module AppointmentsDemoSeeds
   def seed_professional(company, entry, people, services, branches)
     branch = branches.fetch(entry.fetch(:branch))
     professional = Appointments::Staff::CreateProfessional.call(
-      company_id: company.id, attributes: { display_name: entry.fetch(:name), user_id: people[entry[:email]] }
+      company_id: company.id, attributes: { display_name: entry.fetch(:name), user_id: people[entry[:email]], **entry.fetch(:contact, {}) }
     )
     Appointments::Staff::AssignBranch.call(professional:, branch_id: branch.id)
     Appointments::Staff::SetServices.call(professional:, service_ids: entry.fetch(:services).map { services.fetch(it).id })
