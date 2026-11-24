@@ -8,7 +8,7 @@ export type AgendaDensity = "comfortable" | "compact";
 export interface AgendaViewResource {
   id: string;
   title: string;
-  /** Second line of the column header. */
+  /** Second line of the row (or, in the week, column) header. */
   detail: string;
 }
 

@@ -511,7 +511,7 @@ describe("Agenda: celular", () => {
     agendaBackend({ appointments: [agendaAppointment()] });
     await renderApp({ route });
 
-    expect(await screen.findByRole("tablist", { name: "Profesional" })).toBeTruthy();
+    expect(await screen.findByRole("group", { name: "Profesional" })).toBeTruthy();
     expect(await screen.findByRole("button", { name: /Ana Ruiz/ })).toBeTruthy();
     expect(document.querySelector(".ec")).toBeNull();
     expect(screen.getAllByRole("button", { name: "Nueva cita" })).toHaveLength(1);
@@ -531,7 +531,8 @@ describe("Agenda: celular", () => {
     });
     const { user } = await renderApp({ route });
 
-    await user.click(await screen.findByRole("tab", { name: /Luis Pérez/ }));
+    const people = await screen.findByRole("group", { name: "Profesional" });
+    await user.click(within(people).getByRole("button", { name: /Luis Pérez/ }));
     const [first] = await screen.findAllByRole("button", { name: /^Libre/ });
     // His own hours, not the agenda's default ones.
     expect(first!.getAttribute("aria-label")).toContain("9:00");

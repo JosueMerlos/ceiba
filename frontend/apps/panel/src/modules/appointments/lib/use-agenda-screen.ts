@@ -48,10 +48,18 @@ interface AgendaScreenOptions {
   mode: AgendaMode;
   date: PlainDate;
   weekProfessionalId: string | null;
+  /** The screen offers free gaps (the phone list): time with unknown hours must not look free. */
+  offersFreeGaps: boolean;
 }
 
 /** Everything the agenda page draws, derived from the API and from what this user may read. */
-export function useAgendaScreen({ branch, mode, date, weekProfessionalId }: AgendaScreenOptions) {
+export function useAgendaScreen({
+  branch,
+  mode,
+  date,
+  weekProfessionalId,
+  offersFreeGaps,
+}: AgendaScreenOptions) {
   const { t } = useTranslation("appointments");
   const permissions = useAgendaPermissions();
   const now = useNow();
@@ -170,7 +178,7 @@ export function useAgendaScreen({ branch, mode, date, weekProfessionalId }: Agen
     [columns, events, t],
   );
 
-  const { blocks, range, knownIds } = useAgendaAvailability({
+  const { blocks, range } = useAgendaAvailability({
     branchId: branch.id,
     timeZone,
     lens,
@@ -178,6 +186,7 @@ export function useAgendaScreen({ branch, mode, date, weekProfessionalId }: Agen
     days,
     appointments: visible,
     appointmentsReady: appointments.isSuccess,
+    closeUnknown: offersFreeGaps,
   });
 
   const arrivals = useMemo(() => upcomingArrivals(todaysAll ?? [], now), [todaysAll, now]);
@@ -195,7 +204,6 @@ export function useAgendaScreen({ branch, mode, date, weekProfessionalId }: Agen
     events,
     blocks,
     range,
-    hoursKnownFor: knownIds,
     today,
     stepMinutes,
     weekProfessionalId: professionalId ?? null,

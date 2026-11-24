@@ -1,4 +1,3 @@
-import { formatClock } from "@ceiba/i18n";
 import {
   Interaction,
   ResourceTimeline,
@@ -11,13 +10,19 @@ import "@event-calendar/core/index.css";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { initials } from "../../../../../platform/shell/initials";
 import type { MinuteRange } from "../../../lib/agenda-model";
-import { clockOfMinutes, localDateToInstant, minutesOfWall } from "../../../lib/agenda-time";
-import { cardTier, DENSITY, SLOT_MINUTES, type CardTier } from "../card-tier";
+import {
+  clockOfMinutes,
+  clockOfWall,
+  localDateToInstant,
+  minutesBetweenWalls,
+  minutesOfWall,
+  nextMinute,
+} from "../../../lib/agenda-time";
+import { cardTier, SLOT_MINUTES, SLOT_WIDTH, type CardTier } from "../card-tier";
 import { useAgendaViewDensity } from "../density";
 import "../agenda-view.css";
 import type { AgendaDensity, AgendaViewEvent, AgendaViewProps, AgendaViewResource } from "../types";
 
-const NOW_MINUTE_MS = 60_000;
 const WEEK_SLOT_HEIGHT_PX = 32;
 const TWO_LINES_FROM_MINUTES = 45;
 const THREE_LINES_FROM_MINUTES = 60;
@@ -40,9 +45,6 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: strin
   return node;
 }
 
-const minutesBetween = (start: string, end: string) =>
-  (Date.parse(`${end}Z`) - Date.parse(`${start}Z`)) / NOW_MINUTE_MS;
-
 function part(name: string, className: string, text: string) {
   const node = element("span", className, text);
   node.dataset.part = name;
@@ -54,6 +56,16 @@ function cardShell(event: AgendaViewEvent) {
   card.dataset.tone = event.tone;
   card.title = [event.title, event.subtitle, event.meta].join(", ");
   return card;
+}
+
+/** The status dot and the customer's name, the first line of every card that has room for a name. */
+function cardHeading(event: AgendaViewEvent) {
+  const heading = element("span", "agenda-card__title");
+  heading.append(
+    element("span", "agenda-card__dot"),
+    part("name", "agenda-card__name", event.title),
+  );
+  return heading;
 }
 
 /**
@@ -69,12 +81,7 @@ function dayCard(event: AgendaViewEvent, tier: CardTier) {
       element("span", "sr-only", event.title),
     );
   } else {
-    const heading = element("span", "agenda-card__title");
-    heading.append(
-      element("span", "agenda-card__dot"),
-      part("name", "agenda-card__name", event.title),
-    );
-    card.append(heading);
+    card.append(cardHeading(event));
     if (tier === "full") card.append(part("service", "agenda-card__line", event.subtitle));
     else card.append(element("span", "sr-only", event.subtitle));
   }
@@ -84,23 +91,14 @@ function dayCard(event: AgendaViewEvent, tier: CardTier) {
 
 // In the week the days are columns, so what fits depends on the appointment's height.
 function weekCard(event: AgendaViewEvent) {
+  const minutes = minutesBetweenWalls(event.start, event.end);
+  const lines = minutes >= THREE_LINES_FROM_MINUTES ? 3 : minutes >= TWO_LINES_FROM_MINUTES ? 2 : 1;
   const card = cardShell(event);
-  const heading = element("span", "agenda-card__title");
-  heading.append(
-    element("span", "agenda-card__dot"),
-    element("span", "agenda-card__name", event.title),
+  card.append(
+    cardHeading(event),
+    element("span", lines >= 2 ? "agenda-card__line" : "sr-only", event.subtitle),
+    element("span", lines >= 3 ? "agenda-card__meta" : "sr-only", event.meta),
   );
-  card.append(heading);
-  const minutes = minutesBetween(event.start, event.end);
-  const line = element("span", "agenda-card__line", event.subtitle);
-  const meta = element("span", "agenda-card__meta", event.meta);
-  if (minutes < TWO_LINES_FROM_MINUTES) {
-    line.className = "sr-only";
-    meta.className = "sr-only";
-  } else if (minutes < THREE_LINES_FROM_MINUTES) {
-    meta.className = "sr-only";
-  }
-  card.append(line, meta);
   return card;
 }
 
@@ -121,7 +119,7 @@ function rowHeader(resource: AgendaViewResource) {
 function nowOffset(now: string, range: MinuteRange, density: AgendaDensity) {
   const minutes = minutesOfWall(now);
   if (minutes < range.startMinute || minutes > range.endMinute) return null;
-  return ((minutes - range.startMinute) * DENSITY[density].slotWidth) / SLOT_MINUTES;
+  return ((minutes - range.startMinute) * SLOT_WIDTH[density]) / SLOT_MINUTES;
 }
 
 /** `@event-calendar/core` behind AgendaView. It runs in UTC and receives the branch's wall clock as floating times. */
@@ -162,7 +160,7 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
             id: "now",
             resourceIds: resources.map((item) => item.id),
             start: now,
-            end: new Date(Date.parse(`${now}Z`) + NOW_MINUTE_MS).toISOString().slice(0, 19),
+            end: nextMinute(now),
             display: "background" as const,
             classNames: ["agenda-now"],
           },
@@ -197,7 +195,7 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
         height: "100%",
         slotDuration: { minutes: SLOT_MINUTES },
         slotHeight: WEEK_SLOT_HEIGHT_PX,
-        slotWidth: DENSITY[latest.current.density].slotWidth,
+        slotWidth: SLOT_WIDTH[latest.current.density],
         slotEventOverlap: false,
         eventDurationEditable: false,
         resourceLabelContent: ({ resource }: { resource: { id: unknown } }) => {
@@ -209,7 +207,7 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
           const card = current.events.find((item) => item.id === String(event.id));
           if (!card) return { domNodes: [] };
           if (current.mode === "week") return { domNodes: [weekCard(card)] };
-          const tier = cardTier(minutesBetween(card.start, card.end), current.density);
+          const tier = cardTier(minutesBetweenWalls(card.start, card.end), current.density);
           return { domNodes: [dayCard(card, tier)] };
         },
         eventClick: ({ event }: { event: Calendar.Event }) => {
@@ -263,9 +261,6 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
   useEffect(() => {
     calendar?.setOption("snapDuration", { minutes: stepMinutes });
   }, [calendar, stepMinutes]);
-  useEffect(() => {
-    calendar?.setOption("slotWidth", DENSITY[density].slotWidth);
-  }, [calendar, density]);
   const { startMinute, endMinute } = range;
   useEffect(() => {
     if (!calendar) return;
@@ -295,14 +290,26 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
   // Compared by content: a refetch or a late label lookup builds equal arrays, and redrawing them would replace the cards
   // under the pointer and swallow a click.
   const resourcesKey = JSON.stringify(calendarResources);
-  // The cards' texts are read from `events` when drawn, and their size from the density, so either must redraw them.
-  const eventsKey = JSON.stringify([calendarEvents, events, density]);
+  // The cards' texts are read from `events` when drawn, so a change there must redraw them too.
+  const eventsKey = JSON.stringify([calendarEvents, events]);
+  const sentEvents = useRef<Calendar.EventInput[]>([]);
   useEffect(() => {
     calendar?.setOption("resources", JSON.parse(resourcesKey));
   }, [calendar, resourcesKey]);
   useEffect(() => {
-    calendar?.setOption("events", JSON.parse(eventsKey)[0]);
+    if (!calendar) return;
+    sentEvents.current = JSON.parse(eventsKey)[0];
+    calendar.setOption("events", sentEvents.current);
   }, [calendar, eventsKey]);
+  const drawnDensity = useRef(density);
+  useEffect(() => {
+    if (!calendar) return;
+    calendar.setOption("slotWidth", SLOT_WIDTH[density]);
+    if (drawnDensity.current === density) return;
+    drawnDensity.current = density;
+    // A card's tier depends on the density, and the library only redraws card contents when the events are set again.
+    calendar.setOption("events", [...sentEvents.current]);
+  }, [calendar, density]);
 
   // The time of the now line, in the hour header. The library owns that header, so the label is placed after it draws.
   useEffect(() => {
@@ -310,7 +317,7 @@ export default function EventCalendarAdapter(props: AgendaViewProps) {
     if (!calendar || !target || mode !== "day" || !now) return;
     const offset = nowOffset(now, { startMinute, endMinute }, density);
     if (offset === null) return;
-    const label = element("span", "agenda-now-label", formatClock(now.slice(11, 16)));
+    const label = element("span", "agenda-now-label", clockOfWall(now));
     label.setAttribute("aria-hidden", "true");
     label.style.setProperty("--agenda-now-x", `${offset}px`);
     // The library may rebuild its header (another day, range or density): the label goes back whenever it is gone.

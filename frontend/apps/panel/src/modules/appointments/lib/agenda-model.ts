@@ -204,23 +204,23 @@ export function upcomingArrivals(appointments: readonly AgendaAppointment[], now
 }
 
 /**
- * Closes the whole visible day of every column whose hours have not arrived yet. A screen that offers free gaps must not
- * offer time it cannot tell is open.
+ * Closes the whole visible day of every person or resource whose hours have not arrived yet. A screen that offers free
+ * gaps must not offer time it cannot tell is open.
  */
 export function closeUnknownHours({
   blocks,
-  columnIds,
+  ownerIds,
   knownIds,
   days,
   range,
 }: {
   blocks: readonly AgendaBlock[];
-  columnIds: readonly string[];
+  ownerIds: readonly string[];
   knownIds: ReadonlySet<string>;
   days: readonly PlainDate[];
   range: MinuteRange;
 }): readonly AgendaBlock[] {
-  const unknown = columnIds.filter((id) => !knownIds.has(id));
+  const unknown = ownerIds.filter((id) => !knownIds.has(id));
   if (unknown.length === 0) return blocks;
   const start = clockOfMinutes(range.startMinute);
   const end = clockOfMinutes(range.endMinute);

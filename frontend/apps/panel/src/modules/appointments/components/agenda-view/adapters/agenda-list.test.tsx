@@ -55,6 +55,9 @@ function props(overrides: Partial<AgendaViewProps> = {}): AgendaViewProps {
   };
 }
 
+const chip = (name: RegExp) =>
+  within(screen.getByRole("group", { name: "Profesional" })).getByRole("button", { name });
+
 const appointmentNames = () =>
   within(screen.getByRole("list", { name: "Citas del día" }))
     .queryAllByRole("button", { name: /Ana Ruiz|Eva Luna|Luz Mora/ })
@@ -64,10 +67,7 @@ describe("AgendaList (celular)", () => {
   it("con «Todos» lista las citas de todo el equipo por hora y sin huecos", async () => {
     await renderWithI18n(<AgendaList {...props()} />);
 
-    const tabs = screen.getByRole("tablist", { name: "Profesional" });
-    expect(within(tabs).getByRole("tab", { name: /Todos/ }).getAttribute("aria-selected")).toBe(
-      "true",
-    );
+    expect(chip(/Todos/).getAttribute("aria-pressed")).toBe("true");
     expect(appointmentNames()).toEqual(["Ana Ruiz", "Luz Mora", "Eva Luna"]);
     expect(screen.queryByRole("button", { name: /^Libre/ })).toBeNull();
   });
@@ -75,7 +75,7 @@ describe("AgendaList (celular)", () => {
   it("al elegir un profesional muestra solo sus citas y sus huecos libres", async () => {
     const { user } = await renderWithI18n(<AgendaList {...props()} />);
 
-    await user.click(screen.getByRole("tab", { name: /Luis Pérez/ }));
+    await user.click(chip(/Luis Pérez/));
 
     expect(appointmentNames()).toEqual(["Ana Ruiz", "Eva Luna"]);
     const free = screen.getAllByRole("button", { name: /^Libre/ });
@@ -88,7 +88,7 @@ describe("AgendaList (celular)", () => {
   it("tocar un hueco libre propone esa hora de la sucursal con ese profesional", async () => {
     const onSelectSlot = vi.fn();
     const { user } = await renderWithI18n(<AgendaList {...props({ onSelectSlot })} />);
-    await user.click(screen.getByRole("tab", { name: /Luis Pérez/ }));
+    await user.click(chip(/Luis Pérez/));
 
     await user.click(screen.getAllByRole("button", { name: /^Libre/ })[1]!);
 
@@ -101,7 +101,7 @@ describe("AgendaList (celular)", () => {
 
   it("sin permiso para crear, los huecos se ven pero no se pueden tocar", async () => {
     const { user } = await renderWithI18n(<AgendaList {...props({ onSelectSlot: undefined })} />);
-    await user.click(screen.getByRole("tab", { name: /Luis Pérez/ }));
+    await user.click(chip(/Luis Pérez/));
 
     expect(screen.queryByRole("button", { name: /^Libre/ })).toBeNull();
     expect(screen.getAllByText(/^Libre/).length).toBeGreaterThan(0);
@@ -126,7 +126,7 @@ describe("AgendaList (celular)", () => {
       />,
     );
 
-    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("group", { name: "Profesional" })).toBeNull();
     expect(screen.getAllByRole("button", { name: /^Libre/ }).length).toBeGreaterThan(0);
   });
 

@@ -235,7 +235,10 @@ test.describe("agenda en filas", () => {
       page,
     }, testInfo) => {
       await openAgenda(page, RECEPTION, nextWorkingDay());
-      await page.getByRole("tab", { name: new RegExp(RAMIRO) }).click();
+      await page
+        .getByRole("group", { name: "Profesional" })
+        .getByRole("button", { name: new RegExp(RAMIRO) })
+        .click();
       const free = page.getByRole("button", { name: /^Libre/ }).first();
       const label = (await free.getAttribute("aria-label")) ?? "";
       const time = /a las (.+?) con/.exec(label)?.[1] ?? "";

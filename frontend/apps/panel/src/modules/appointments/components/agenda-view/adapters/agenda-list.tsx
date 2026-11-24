@@ -1,25 +1,28 @@
-import { formatClock, formatPlainDate, useTranslation } from "@ceiba/i18n";
+import { formatPlainDate, useTranslation } from "@ceiba/i18n";
 import { cn } from "@ceiba/ui";
 import { Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { initials } from "../../../../../platform/shell/initials";
-import { wallClockToInstant } from "../../../lib/agenda-time";
-import { freeSlots } from "../free-slots";
+import {
+  clockOfWall,
+  minutesBetweenWalls,
+  wallClockToInstant,
+  type WallClock,
+} from "../../../lib/agenda-time";
+import { freeSlots, type FreeSlot } from "../free-slots";
+import { EVERYONE, ProfessionalChips } from "../professional-chips";
 import "../agenda-view.css";
 import type { AgendaViewEvent, AgendaViewProps } from "../types";
-
-const ALL = "";
-const MINUTE_MS = 60_000;
-
-const clock = (wall: string) => formatClock(wall.slice(11, 16));
-const minutesBetween = (start: string, end: string) =>
-  (Date.parse(`${end}Z`) - Date.parse(`${start}Z`)) / MINUTE_MS;
 
 type Row =
   | { kind: "day"; key: string; day: string }
   | { kind: "now"; key: string }
-  | { kind: "free"; key: string; start: string; minutes: number }
+  | ({ kind: "free"; key: string } & FreeSlot)
   | { kind: "event"; key: string; event: AgendaViewEvent };
+
+interface Timed {
+  at: WallClock;
+  row: Row;
+}
 
 /** The order a phone reads the day in: by time, the gaps among the appointments and the current time between them. */
 function rowsOf({
@@ -29,18 +32,18 @@ function rowsOf({
   byDay,
 }: {
   events: readonly AgendaViewEvent[];
-  free: readonly { start: string; minutes: number }[];
-  now: string | null;
+  free: readonly FreeSlot[];
+  now: WallClock | null;
   byDay: boolean;
 }): Row[] {
-  const timed = [
-    ...events.map((event) => ({
+  const timed: Timed[] = [
+    ...events.map((event): Timed => ({
       at: event.start,
-      row: { kind: "event", key: event.id, event } as Row,
+      row: { kind: "event", key: event.id, event },
     })),
-    ...free.map((slot) => ({
+    ...free.map((slot): Timed => ({
       at: slot.start,
-      row: { kind: "free", key: `free-${slot.start}`, ...slot } as Row,
+      row: { kind: "free", key: `free-${slot.start}`, ...slot },
     })),
   ].sort((a, b) => a.at.localeCompare(b.at));
   const rows: Row[] = [];
@@ -57,7 +60,8 @@ function rowsOf({
     }
     rows.push(row);
   }
-  if (!nowPlaced && now && timed.length > 0 && timed.at(-1)!.at.slice(0, 10) === now.slice(0, 10)) {
+  const last = timed.at(-1);
+  if (!nowPlaced && now && last && last.at.slice(0, 10) === now.slice(0, 10)) {
     rows.push({ kind: "now", key: "now" });
   }
   return rows;
@@ -78,15 +82,16 @@ export default function AgendaList({
   onOpenEvent,
 }: AgendaViewProps) {
   const { t } = useTranslation("appointments");
-  const [chosen, setChosen] = useState(ALL);
-  const single = resources.length === 1 ? resources[0]!.id : null;
-  const current = single ?? (resources.some((item) => item.id === chosen) ? chosen : ALL);
+  const [chosen, setChosen] = useState(EVERYONE);
+  const single = resources.length === 1 ? resources[0]?.id : undefined;
+  const current = single ?? (resources.some((item) => item.id === chosen) ? chosen : EVERYONE);
   const showChips = mode === "day" && !single && resources.length > 0;
   const nameOf = (id: string) => resources.find((item) => item.id === id)?.title ?? "";
 
-  const shown = current === ALL ? events : events.filter((event) => event.resourceId === current);
+  const shown =
+    current === EVERYONE ? events : events.filter((event) => event.resourceId === current);
   const free =
-    mode === "day" && current !== ALL
+    mode === "day" && current !== EVERYONE
       ? freeSlots({
           resourceId: current,
           date,
@@ -118,7 +123,7 @@ export default function AgendaList({
         return (
           <div className="my-0.5 flex items-center gap-2 text-xs font-bold text-destructive">
             <span className="sr-only">{t("agenda.currentTime")}</span>
-            <span className="tabular-nums">{now ? clock(now) : null}</span>
+            <span className="tabular-nums">{now ? clockOfWall(now) : null}</span>
             <span className="h-0.5 flex-1 bg-destructive" aria-hidden="true" />
           </div>
         );
@@ -126,7 +131,9 @@ export default function AgendaList({
         const text = t("agenda.list.free", { duration: duration(row.minutes) });
         const content = (
           <>
-            <span className="w-20 shrink-0 text-[0.8125rem] tabular-nums">{clock(row.start)}</span>
+            <span className="w-20 shrink-0 text-[0.8125rem] tabular-nums">
+              {clockOfWall(row.start)}
+            </span>
             <span className="flex-1 text-[0.8125rem]">{text}</span>
           </>
         );
@@ -142,7 +149,7 @@ export default function AgendaList({
             )}
             aria-label={t("agenda.list.freeAction", {
               duration: duration(row.minutes),
-              time: clock(row.start),
+              time: clockOfWall(row.start),
               name: nameOf(current),
             })}
             onClick={() => {
@@ -158,7 +165,7 @@ export default function AgendaList({
       case "event": {
         const { event } = row;
         const sub =
-          current === ALL ? `${event.subtitle} · ${nameOf(event.resourceId)}` : event.subtitle;
+          current === EVERYONE ? `${event.subtitle} · ${nameOf(event.resourceId)}` : event.subtitle;
         return (
           <button
             type="button"
@@ -168,9 +175,9 @@ export default function AgendaList({
             className="agenda-card agenda-list__card"
           >
             <span className="flex w-20 shrink-0 flex-col gap-0.5 tabular-nums">
-              <span className="font-bold">{clock(event.start)}</span>
+              <span className="font-bold">{clockOfWall(event.start)}</span>
               <span className="text-xs opacity-80">
-                {duration(minutesBetween(event.start, event.end))}
+                {duration(minutesBetweenWalls(event.start, event.end))}
               </span>
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -189,49 +196,12 @@ export default function AgendaList({
   return (
     <div data-slot="agenda-view" className="flex h-full min-h-0 flex-col">
       {showChips ? (
-        <div
-          role="tablist"
-          aria-label={t("agenda.form.professional")}
-          className="flex shrink-0 gap-1.5 overflow-x-auto border-b px-3 py-2 [scrollbar-width:none]"
-        >
-          {[
-            { id: ALL, title: t("agenda.list.all"), count: events.length },
-            ...resources.map((item) => ({
-              id: item.id,
-              title: item.title,
-              count: events.filter((event) => event.resourceId === item.id).length,
-            })),
-          ].map((item) => {
-            const selected = item.id === current;
-            return (
-              <button
-                key={item.id || "all"}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                onClick={() => setChosen(item.id)}
-                className={cn(
-                  "flex h-10 shrink-0 items-center gap-1.5 rounded-full border pr-3 pl-1 text-[0.8125rem] font-semibold whitespace-nowrap outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
-                  selected
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border bg-background text-foreground",
-                )}
-              >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "grid size-[30px] place-items-center rounded-full text-[0.65rem] font-bold",
-                    selected ? "bg-background text-foreground" : "bg-sidebar text-muted-foreground",
-                  )}
-                >
-                  {item.id ? initials(item.title) : "∑"}
-                </span>
-                {item.title}
-                <span className="text-xs tabular-nums opacity-75">{item.count}</span>
-              </button>
-            );
-          })}
-        </div>
+        <ProfessionalChips
+          resources={resources}
+          events={events}
+          value={current}
+          onChange={setChosen}
+        />
       ) : null}
       <ul
         aria-label={t("agenda.list.items")}

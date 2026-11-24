@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardTier, cardWidth, DENSITY } from "./card-tier";
+import { cardTier, cardWidth, SLOT_WIDTH } from "./card-tier";
 
 describe("cardTier", () => {
   it("en compacta: 15 min son iniciales, 30 min el nombre y 60 min nombre y servicio", () => {
@@ -26,8 +26,7 @@ describe("cardTier", () => {
     expect(cardTier(-30, "comfortable")).toBe("initials");
   });
 
-  it("la compacta es más angosta y más baja que la cómoda", () => {
-    expect(DENSITY.compact.slotWidth).toBeLessThan(DENSITY.comfortable.slotWidth);
-    expect(DENSITY.compact.rowHeight).toBeLessThan(DENSITY.comfortable.rowHeight);
+  it("la compacta es más angosta que la cómoda", () => {
+    expect(SLOT_WIDTH.compact).toBeLessThan(SLOT_WIDTH.comfortable);
   });
 });

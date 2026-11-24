@@ -1,8 +1,8 @@
 import { useTranslation } from "@ceiba/i18n";
 import { cn } from "@ceiba/ui";
-import type { AppointmentStatus, StatusTone } from "../lib/agenda-status";
+import { DRAWN_STATUSES, STATUS_TONE, type StatusTone } from "../lib/agenda-status";
 
-export const TONE_DOT: Record<StatusTone, string> = {
+const TONE_DOT: Record<StatusTone, string> = {
   pending: "bg-[var(--appointment-pending-dot)]",
   confirmed: "bg-[var(--appointment-confirmed-dot)]",
   arrived: "bg-[var(--appointment-arrived-dot)]",
@@ -10,35 +10,17 @@ export const TONE_DOT: Record<StatusTone, string> = {
   missed: "bg-[var(--appointment-missed-dot)]",
 };
 
-/** In the order a receptionist reads the day: what to confirm first, what is already over last. */
-export const CHIP_TONES: readonly StatusTone[] = [
-  "pending",
-  "confirmed",
-  "arrived",
-  "missed",
-  "done",
-];
-
-// Each chip is named after the status that gives its tone.
-const TONE_STATUS: Record<StatusTone, AppointmentStatus> = {
-  pending: "scheduled",
-  confirmed: "confirmed",
-  arrived: "checked_in",
-  missed: "no_show",
-  done: "completed",
-};
+const CHIP =
+  "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[0.8125rem] font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/40";
 
 interface AgendaStatusChipsProps {
-  /** Appointments of each status on screen, filtered or not. */
+  /** Appointments of each tone on screen, filtered or not. */
   counts: Record<StatusTone, number>;
   hidden: ReadonlySet<StatusTone>;
   onToggle(tone: StatusTone): void;
   onShowAll(): void;
   className?: string;
 }
-
-const CHIP =
-  "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[0.8125rem] font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/40";
 
 /** The statuses' legend, which is also the filter: a chip pressed is a status shown. */
 export function AgendaStatusChips({
@@ -49,7 +31,10 @@ export function AgendaStatusChips({
   className,
 }: AgendaStatusChipsProps) {
   const { t } = useTranslation("appointments");
-  const visible = CHIP_TONES.reduce((sum, tone) => sum + (hidden.has(tone) ? 0 : counts[tone]), 0);
+  const visible = DRAWN_STATUSES.reduce((sum, status) => {
+    const tone = STATUS_TONE[status];
+    return sum + (hidden.has(tone) ? 0 : counts[tone]);
+  }, 0);
   return (
     <div
       role="group"
@@ -70,11 +55,12 @@ export function AgendaStatusChips({
         {t("agenda.filters.all")}
         <span className="tabular-nums opacity-70">{visible}</span>
       </button>
-      {CHIP_TONES.map((tone) => {
+      {DRAWN_STATUSES.map((status) => {
+        const tone = STATUS_TONE[status];
         const pressed = !hidden.has(tone);
         return (
           <button
-            key={tone}
+            key={status}
             type="button"
             aria-pressed={pressed}
             className={cn(
@@ -89,7 +75,7 @@ export function AgendaStatusChips({
               className={cn("size-[7px] rounded-full", TONE_DOT[tone], !pressed && "opacity-40")}
               aria-hidden="true"
             />
-            {t(`agenda.status.${TONE_STATUS[tone]}`)}
+            {t(`agenda.status.${status}`)}
             <span className="tabular-nums opacity-70">{counts[tone]}</span>
           </button>
         );

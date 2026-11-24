@@ -230,7 +230,7 @@ describe("closeUnknownHours", () => {
     expect(
       closeUnknownHours({
         blocks: known,
-        columnIds: ["rosa", "luis"],
+        ownerIds: ["rosa", "luis"],
         knownIds: new Set(["rosa"]),
         days: [DAY],
         range,
@@ -243,7 +243,7 @@ describe("closeUnknownHours", () => {
     expect(
       closeUnknownHours({
         blocks,
-        columnIds: ["luis"],
+        ownerIds: ["luis"],
         knownIds: new Set(["luis"]),
         days: [DAY],
         range,
@@ -255,7 +255,7 @@ describe("closeUnknownHours", () => {
     expect(
       closeUnknownHours({
         blocks: [],
-        columnIds: ["luis"],
+        ownerIds: ["luis"],
         knownIds: new Set(),
         days: [DAY, "2026-11-19"],
         range,

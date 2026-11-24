@@ -3,6 +3,7 @@ import { useAgendaBranchSchedule, useOwnerAvailability } from "../api/agenda-ava
 import type { AgendaLens } from "./agenda-lens";
 import {
   NO_RESOURCE,
+  closeUnknownHours,
   closedBlocks,
   timeRange,
   type AgendaAppointment,
@@ -40,6 +41,7 @@ export function useAgendaAvailability({
   days,
   appointments,
   appointmentsReady,
+  closeUnknown,
 }: {
   branchId: string;
   timeZone: string;
@@ -48,6 +50,8 @@ export function useAgendaAvailability({
   days: readonly PlainDate[];
   appointments: readonly AgendaAppointment[];
   appointmentsReady: boolean;
+  /** For a screen that offers free gaps: whoever's hours have not arrived yet is drawn closed, not open. */
+  closeUnknown: boolean;
 }) {
   const { readsSchedules, readsOwnSchedule, readsAbsences } = useAgendaPermissions();
   const idle = useIdleAfter(appointmentsReady);
@@ -80,11 +84,29 @@ export function useAgendaAvailability({
       blockColumns.flatMap((column) => column.openOn(weekdayOf(day))),
     );
     const range = timeRange({ openings, appointments, timeZone });
+    const blocks = closedBlocks({ columns: blockColumns, days, timeZone, range });
+    if (!closeUnknown) return { range, blocks };
+    const knownIds = new Set(blockColumns.map((column) => column.id));
     return {
       range,
-      blocks: closedBlocks({ columns: blockColumns, days, timeZone, range }),
-      /** The columns whose hours have arrived; the others are drawn open only because nothing is known yet. */
-      knownIds: new Set(blockColumns.map((column) => column.id)),
+      blocks: closeUnknownHours({
+        blocks,
+        ownerIds: columns.map(({ id }) => id),
+        knownIds,
+        days,
+        range,
+      }),
     };
-  }, [readsSchedules, branchSlots, ownerIds, owners, lens, days, appointments, timeZone]);
+  }, [
+    readsSchedules,
+    branchSlots,
+    ownerIds,
+    owners,
+    lens,
+    days,
+    appointments,
+    timeZone,
+    closeUnknown,
+    columns,
+  ]);
 }

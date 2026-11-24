@@ -17,10 +17,14 @@ export const STATUS_TONE: Record<AppointmentStatus, StatusTone> = {
 /** Booked and still ahead: what can be confirmed, moved or cancelled, and who is expected to arrive. */
 export const ACTIVE_STATUSES: readonly AppointmentStatus[] = ["scheduled", "confirmed"];
 
-export const LEGEND_STATUSES: readonly AppointmentStatus[] = [
-  "confirmed",
+/**
+ * The statuses the agenda draws, in the order a receptionist reads the day: what to confirm first, what is over last.
+ * Each one has its own tone, so it also names the status filters.
+ */
+export const DRAWN_STATUSES = [
   "scheduled",
+  "confirmed",
   "checked_in",
-  "completed",
   "no_show",
-];
+  "completed",
+] as const satisfies readonly AppointmentStatus[];

@@ -121,18 +121,21 @@ export function WeekProfessionalPicker({
   onChange,
 }: WeekProfessionalPickerProps) {
   const { t } = useTranslation("appointments");
+  if (professionals.length === 0) return null;
   return (
-    <Select value={value ?? undefined} onValueChange={onChange}>
-      <SelectTrigger className="w-60 rounded-full" aria-label={t("agenda.weekProfessional")}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {professionals.map((person) => (
-          <SelectItem key={person.id} value={person.id}>
-            {person.display_name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="-mt-2 mb-3">
+      <Select value={value ?? undefined} onValueChange={onChange}>
+        <SelectTrigger className="w-60 rounded-full" aria-label={t("agenda.weekProfessional")}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {professionals.map((person) => (
+            <SelectItem key={person.id} value={person.id}>
+              {person.display_name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

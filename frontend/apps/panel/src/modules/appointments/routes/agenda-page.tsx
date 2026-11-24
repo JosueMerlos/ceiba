@@ -1,50 +1,33 @@
 import { useTranslation } from "@ceiba/i18n";
-import {
-  DatePicker,
-  LoadingState,
-  PageBody,
-  PageFrame,
-  PageHeader,
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@ceiba/ui";
-import { Plus, Rows2, Rows4 } from "lucide-react";
-import { useEffect, useId, useMemo, useState } from "react";
+import { LoadingState, PageBody, PageFrame, PageHeader } from "@ceiba/ui";
+import { useEffect, useId, useState } from "react";
 import { useContextSelection } from "../../../platform/context/context-provider";
 import { useMe } from "../../../platform/me/me-provider";
 import type { Branch } from "../api/catalog";
 import { AppointmentDetailPanel } from "../components/agenda/appointment-detail-panel";
 import { NewAppointmentPanel } from "../components/agenda/new-appointment-panel";
-import { AgendaStatusChips, CHIP_TONES } from "../components/agenda-status-chips";
+import { AgendaDateTitle } from "../components/agenda-date-title";
+import { AgendaDayFilters } from "../components/agenda-day-filters";
 import { AgendaToolbar, WeekProfessionalPicker } from "../components/agenda-toolbar";
 import { AgendaView, preloadAgendaView } from "../components/agenda-view/agenda-view";
 import { AgendaDensityContext } from "../components/agenda-view/density";
 import { useNarrowScreen } from "../components/agenda-view/use-narrow-screen";
 import type { AgendaSlot } from "../components/agenda-view/types";
 import { BranchPicker } from "../components/branch-picker";
+import { NewAppointmentFab } from "../components/new-appointment-fab";
 import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { UpcomingArrivals } from "../components/upcoming-arrivals";
-import { closeUnknownHours } from "../lib/agenda-model";
 import { useAgendaDensity } from "../lib/use-agenda-density";
 import { useAgendaPermissions } from "../lib/agenda-permissions";
-import type { StatusTone } from "../lib/agenda-status";
-import { addDays, mondayOf, type PlainDate } from "../lib/agenda-time";
+import { addDays, mondayOf } from "../lib/agenda-time";
 import { newAppointmentDefaults } from "../lib/new-appointment-defaults";
 import { useAgendaScreen } from "../lib/use-agenda-screen";
 import { useAgendaUrlState } from "../lib/use-agenda-url-state";
 import { useMoveAppointment } from "../lib/use-move-appointment";
+import { useStatusFilter } from "../lib/use-status-filter";
 import { useWorkingBranch } from "../lib/use-working-branch";
 
-const calendarDay = (day: PlainDate) => new Date(`${day}T12:00:00Z`);
-
 // The date is a calendar day, so it is formatted in UTC: no zone may move it to the neighboring day.
-const dayFormat = new Intl.DateTimeFormat("es-NI", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  timeZone: "UTC",
-});
-const longDay = (day: PlainDate) => dayFormat.format(calendarDay(day)).replace(",", "");
 const shortDayFormat = new Intl.DateTimeFormat("es-NI", {
   day: "numeric",
   month: "long",
@@ -83,15 +66,13 @@ export function AgendaPage() {
   return working.branch ? <BranchAgenda key={working.branch.id} branch={working.branch} /> : null;
 }
 
-const NO_TONES: ReadonlySet<StatusTone> = new Set();
-
 function BranchAgenda({ branch }: { branch: Branch }) {
-  const { t } = useTranslation(["appointments", "common"]);
+  const { t } = useTranslation("appointments");
   const { principal } = useMe();
   const permissions = useAgendaPermissions();
   const panelId = useId();
+  // A phone draws the list: no calendar library, no density, and New appointment floats.
   const narrow = useNarrowScreen();
-  // A phone draws the list, which needs no calendar library.
   useEffect(() => {
     if (!narrow) preloadAgendaView();
   }, [narrow]);
@@ -100,8 +81,6 @@ function BranchAgenda({ branch }: { branch: Branch }) {
   const closePanel = () => setPanel(null);
   const openNew = () => setPanel({ kind: "new", slot: null });
   const [density, setDensity] = useAgendaDensity(principal.id);
-  // The statuses switched off with the chips; a filter of the screen, not of the data.
-  const [hidden, setHidden] = useState(NO_TONES);
 
   const url = useAgendaUrlState(branch.time_zone, { canViewResources: permissions.readsResources });
   const { date, mode } = url;
@@ -111,71 +90,20 @@ function BranchAgenda({ branch }: { branch: Branch }) {
     mode,
     date,
     weekProfessionalId: url.weekProfessionalId,
+    offersFreeGaps: narrow,
   });
+  const filter = useStatusFilter(screen.events, !isWeek);
   const moveEvent = useMoveAppointment(branch.id, {
     changesProfessional: mode === "professionals",
   });
 
-  const toneCounts = useMemo(() => {
-    const counts = Object.fromEntries(CHIP_TONES.map((tone) => [tone, 0])) as Record<
-      StatusTone,
-      number
-    >;
-    for (const event of screen.events) counts[event.tone] += 1;
-    return counts;
-  }, [screen.events]);
-  const shownEvents = useMemo(
-    () =>
-      isWeek || hidden.size === 0
-        ? screen.events
-        : screen.events.filter((event) => !hidden.has(event.tone)),
-    [isWeek, hidden, screen.events],
-  );
-  function toggleTone(tone: StatusTone) {
-    setHidden((current) => {
-      const next = new Set(current);
-      if (!next.delete(tone)) next.add(tone);
-      return next;
-    });
-  }
-
-  // The phone list offers free gaps, so time whose hours have not arrived yet cannot look free there.
-  const blocks = useMemo(
-    () =>
-      narrow
-        ? closeUnknownHours({
-            blocks: screen.blocks,
-            columnIds: screen.columns.map((column) => column.id),
-            knownIds: screen.hoursKnownFor,
-            days: [date],
-            range: screen.range,
-          })
-        : screen.blocks,
-    [narrow, screen.blocks, screen.columns, screen.hoursKnownFor, date, screen.range],
-  );
-
   const step = isWeek ? 7 : 1;
   const title = isWeek ? (
-    t("agenda.weekTitle", { date: shortDayFormat.format(calendarDay(mondayOf(date))) })
+    t("agenda.weekTitle", {
+      date: shortDayFormat.format(new Date(`${mondayOf(date)}T12:00:00Z`)),
+    })
   ) : (
-    <>
-      <span className="sr-only">{t("agenda.dayTitlePrefix")} </span>
-      <DatePicker
-        value={date}
-        onChange={(day) => {
-          if (day) url.setDate(day);
-        }}
-        today={screen.today}
-        formatDate={longDay}
-        placeholder={t("common:fields.pickDate")}
-        calendarLabel={t("common:fields.calendar")}
-        previousMonthLabel={t("common:fields.previousMonth")}
-        nextMonthLabel={t("common:fields.nextMonth")}
-        loadErrorLabel={t("common:fields.calendarError")}
-        retryLabel={t("common:retry")}
-        className="-ml-2 h-auto w-auto max-w-full gap-2 border-0 bg-transparent px-2 py-0.5 font-display text-[length:inherit] font-[inherit] shadow-none hover:bg-muted md:text-[length:inherit] [&>span]:overflow-visible [&>span]:first-letter:uppercase [&>svg]:size-5"
-      />
-    </>
+    <AgendaDateTitle date={date} today={screen.today} onChange={url.setDate} />
   );
   const selected =
     panel?.kind === "detail"
@@ -219,8 +147,8 @@ function BranchAgenda({ branch }: { branch: Branch }) {
                 date={date}
                 timeZone={branch.time_zone}
                 resources={screen.viewResources}
-                events={shownEvents}
-                blocks={blocks}
+                events={filter.shown}
+                blocks={screen.blocks}
                 range={screen.range}
                 stepMinutes={screen.stepMinutes}
                 now={screen.nowLine}
@@ -262,64 +190,20 @@ function BranchAgenda({ branch }: { branch: Branch }) {
         }
       />
       {isWeek ? (
-        screen.assigned.length > 0 ? (
-          <div className="-mt-2 mb-3">
-            <WeekProfessionalPicker
-              professionals={screen.assigned}
-              value={screen.weekProfessionalId}
-              onChange={url.setWeekProfessional}
-            />
-          </div>
-        ) : null
+        <WeekProfessionalPicker
+          professionals={screen.assigned}
+          value={screen.weekProfessionalId}
+          onChange={url.setWeekProfessional}
+        />
       ) : (
-        <div className="-mt-2 mb-3 flex flex-wrap items-center gap-2">
-          <AgendaStatusChips
-            counts={toneCounts}
-            hidden={hidden}
-            onToggle={toggleTone}
-            onShowAll={() => setHidden(NO_TONES)}
-            className="max-md:w-full max-md:flex-nowrap max-md:overflow-x-auto max-md:[scrollbar-width:none]"
-          />
-          {narrow ? null : (
-            <ToggleGroup
-              value={density}
-              onValueChange={(value) => {
-                if (value === "comfortable" || value === "compact") setDensity(value);
-              }}
-              aria-label={t("agenda.density.label")}
-              className="ml-auto flex-nowrap gap-0.5 rounded-[var(--button-radius)] bg-sidebar p-0.5"
-            >
-              <ToggleGroupItem
-                value="comfortable"
-                aria-label={t("agenda.density.comfortable")}
-                title={t("agenda.density.comfortable")}
-                className={DENSITY_ITEM}
-              >
-                <Rows2 aria-hidden="true" />
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="compact"
-                aria-label={t("agenda.density.compact")}
-                title={t("agenda.density.compact")}
-                className={DENSITY_ITEM}
-              >
-                <Rows4 aria-hidden="true" />
-              </ToggleGroupItem>
-            </ToggleGroup>
-          )}
-        </div>
+        <AgendaDayFilters
+          filter={filter}
+          density={narrow ? null : density}
+          onDensityChange={setDensity}
+        />
       )}
       <PageBody className="overflow-hidden">{renderAgenda()}</PageBody>
-      {narrow && canCreate ? (
-        <button
-          type="button"
-          aria-label={t("agenda.newAppointment")}
-          onClick={openNew}
-          className="fixed right-4 bottom-4 z-30 grid size-14 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-6"
-        >
-          <Plus aria-hidden="true" />
-        </button>
-      ) : null}
+      {narrow && canCreate ? <NewAppointmentFab onClick={openNew} /> : null}
       {panel?.kind === "arrivals" ? (
         <UpcomingArrivals
           id={panelId}
@@ -359,6 +243,3 @@ function BranchAgenda({ branch }: { branch: Branch }) {
     </PageFrame>
   );
 }
-
-const DENSITY_ITEM =
-  "size-8 justify-center rounded-[calc(var(--button-radius)-2px)] border-0 bg-transparent p-0 text-muted-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-xs [&_svg]:size-4";
