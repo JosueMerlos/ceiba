@@ -104,7 +104,11 @@ test.describe("smoke de la agenda", () => {
       const card = appointmentCard(page, customer);
       await card.scrollIntoViewIfNeeded();
       const from = (await card.boundingBox())!;
-      const column = (await page.getByRole("group", { name: RAMIRO }).boundingBox())!;
+      const row = (await page.getByRole("group", { name: RAMIRO }).boundingBox())!;
+      const visible = (await page.locator(".ec-main").boundingBox())!;
+      // One hour away (two 30-minute slots of the comfortable density), later when it fits on screen.
+      const grab = from.x + from.width / 2;
+      const hour = grab + 176 < visible.x + visible.width ? 176 : -176;
 
       const moved = page.waitForResponse(
         (response) =>
@@ -113,15 +117,17 @@ test.describe("smoke de la agenda", () => {
       await page.mouse.move(from.x + from.width / 2, from.y + 8);
       await page.mouse.down();
       await page.mouse.move(from.x + from.width / 2 + 12, from.y + 20, { steps: 4 });
-      await page.mouse.move(column.x + column.width / 2, from.y + 8 + 64, { steps: 10 });
+      await page.mouse.move(grab + hour, row.y + row.height / 2, { steps: 10 });
       await page.mouse.up();
 
       const response = await moved;
       expect(response.status()).toBe(201);
       await expect(page.getByText("Cita movida. Queda por confirmar.")).toBeVisible();
       const after = (await appointmentCard(page, customer).boundingBox())!;
-      expect(after.x).toBeGreaterThan(from.x + from.width / 2);
-      expect(after.y).toBeGreaterThan(from.y);
+      // Another row (Ramiro's) and a later hour.
+      expect(after.y + after.height / 2).toBeGreaterThan(row.y);
+      expect(after.y + after.height / 2).toBeLessThan(row.y + row.height);
+      expect(Math.sign(after.x - from.x)).toBe(Math.sign(hour));
       await shot(page, testInfo, "30-agenda-arrastre");
     } finally {
       await cancelIfPresent(page, customer);
@@ -129,7 +135,7 @@ test.describe("smoke de la agenda", () => {
     expect(problems).toEqual([]);
   });
 
-  test("Nueva cita toma el profesional de la columna clicada, y en la semana el de esa semana", async ({
+  test("Nueva cita toma el profesional de la fila clicada, y en la semana el de esa semana", async ({
     page,
   }, testInfo) => {
     const problems = watch(page);
@@ -139,25 +145,25 @@ test.describe("smoke de la agenda", () => {
         .getByRole("combobox", { name: "Profesional" })
         .textContent()) ?? "";
 
-    // The column headers render before the time grid: aim only once the hours are drawn.
+    // The row names render before the hours: aim only once the hours are drawn.
     await expect(
       page
         .getByText(/11:00\sa\.\sm\./)
         .filter({ visible: true })
         .first(),
     ).toBeVisible();
-    // Two clicks at the same height, so the same hour, in two different columns.
-    const below = async (column: string) => {
-      const box = (await page.getByRole("group", { name: column }).boundingBox())!;
-      return { x: box.x + box.width / 2, y: box.y + box.height + 160 };
+    // Two clicks at the same distance from the row names, so the same hour, in two different rows.
+    const beside = async (row: string) => {
+      const box = (await page.getByRole("group", { name: row }).boundingBox())!;
+      return { x: box.x + box.width + 260, y: box.y + box.height / 2 };
     };
-    const ramiro = await below(RAMIRO);
+    const ramiro = await beside(RAMIRO);
     await page.mouse.click(ramiro.x, ramiro.y);
     expect(await professionalOf()).toContain(RAMIRO);
-    const efrain = await below(DON_EFRAIN);
+    const efrain = await beside(DON_EFRAIN);
     await page.mouse.click(efrain.x, efrain.y);
     expect(await professionalOf()).toContain(DON_EFRAIN);
-    await shot(page, testInfo, "34-agenda-columna-clicada");
+    await shot(page, testInfo, "34-agenda-fila-clicada");
 
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Semana", exact: true }).click();
@@ -199,7 +205,7 @@ test.describe("smoke de la agenda", () => {
         .join(":");
 
       await expect(appointmentCard(page, first.customer_name).first()).toContainText(hour);
-      expect(await page.locator(".agenda-column").count()).toBe(5);
+      expect(await page.locator(".agenda-row").count()).toBe(5);
       await shot(page, testInfo, "31-agenda-dia-madrid");
       expect(problems).toEqual([]);
     });
@@ -214,9 +220,9 @@ test.describe("smoke de la agenda", () => {
     await shot(page, testInfo, "32-agenda-360");
   });
 
-  test("el profesional del piloto solo ve su columna", async ({ page }, testInfo) => {
+  test("el profesional del piloto solo ve su fila", async ({ page }, testInfo) => {
     await openPilot(page, PILOT_PROFESSIONAL);
-    await expect(page.locator(".agenda-column")).toHaveCount(1);
+    await expect(page.locator(".agenda-row")).toHaveCount(1);
     await expect(page.getByRole("button", { name: "Nueva cita" })).toHaveCount(0);
     await shot(page, testInfo, "33-agenda-profesional");
   });
