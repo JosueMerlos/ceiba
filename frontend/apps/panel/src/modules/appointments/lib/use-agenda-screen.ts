@@ -170,7 +170,7 @@ export function useAgendaScreen({ branch, mode, date, weekProfessionalId }: Agen
     [columns, events, t],
   );
 
-  const { blocks, range } = useAgendaAvailability({
+  const { blocks, range, knownIds } = useAgendaAvailability({
     branchId: branch.id,
     timeZone,
     lens,
@@ -195,6 +195,7 @@ export function useAgendaScreen({ branch, mode, date, weekProfessionalId }: Agen
     events,
     blocks,
     range,
+    hoursKnownFor: knownIds,
     today,
     stepMinutes,
     weekProfessionalId: professionalId ?? null,

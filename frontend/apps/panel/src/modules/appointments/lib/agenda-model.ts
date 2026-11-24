@@ -202,3 +202,32 @@ export function upcomingArrivals(appointments: readonly AgendaAppointment[], now
     })
     .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
 }
+
+/**
+ * Closes the whole visible day of every column whose hours have not arrived yet. A screen that offers free gaps must not
+ * offer time it cannot tell is open.
+ */
+export function closeUnknownHours({
+  blocks,
+  columnIds,
+  knownIds,
+  days,
+  range,
+}: {
+  blocks: readonly AgendaBlock[];
+  columnIds: readonly string[];
+  knownIds: ReadonlySet<string>;
+  days: readonly PlainDate[];
+  range: MinuteRange;
+}): readonly AgendaBlock[] {
+  const unknown = columnIds.filter((id) => !knownIds.has(id));
+  if (unknown.length === 0) return blocks;
+  const start = clockOfMinutes(range.startMinute);
+  const end = clockOfMinutes(range.endMinute);
+  return [
+    ...blocks,
+    ...unknown.flatMap((resourceId) =>
+      days.map((day) => ({ resourceId, start: `${day}T${start}`, end: `${day}T${end}` })),
+    ),
+  ];
+}

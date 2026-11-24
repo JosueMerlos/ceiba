@@ -521,11 +521,20 @@ describe("Agenda: celular", () => {
   it("tocar un hueco libre abre Nueva cita con ese profesional y esa hora", async () => {
     narrowScreen();
     asReception();
-    agendaBackend({ appointments: [agendaAppointment()] });
+    const wednesday = (id: string) => [
+      { id, weekday: 3, starts_at_local: "09:00", ends_at_local: "17:00" },
+    ];
+    agendaBackend({
+      appointments: [agendaAppointment()],
+      branchSchedule: wednesday("b"),
+      professionalSchedules: { p2: wednesday("l") },
+    });
     const { user } = await renderApp({ route });
 
     await user.click(await screen.findByRole("tab", { name: /Luis Pérez/ }));
     const [first] = await screen.findAllByRole("button", { name: /^Libre/ });
+    // His own hours, not the agenda's default ones.
+    expect(first!.getAttribute("aria-label")).toContain("9:00");
     await user.click(first!);
 
     const panel = await screen.findByRole("complementary", { name: "Nueva cita" });

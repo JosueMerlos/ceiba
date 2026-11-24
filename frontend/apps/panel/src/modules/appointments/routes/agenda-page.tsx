@@ -24,6 +24,7 @@ import type { AgendaSlot } from "../components/agenda-view/types";
 import { BranchPicker } from "../components/branch-picker";
 import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { UpcomingArrivals } from "../components/upcoming-arrivals";
+import { closeUnknownHours } from "../lib/agenda-model";
 import { useAgendaDensity } from "../lib/use-agenda-density";
 import { useAgendaPermissions } from "../lib/agenda-permissions";
 import type { StatusTone } from "../lib/agenda-status";
@@ -138,6 +139,21 @@ function BranchAgenda({ branch }: { branch: Branch }) {
     });
   }
 
+  // The phone list offers free gaps, so time whose hours have not arrived yet cannot look free there.
+  const blocks = useMemo(
+    () =>
+      narrow
+        ? closeUnknownHours({
+            blocks: screen.blocks,
+            columnIds: screen.columns.map((column) => column.id),
+            knownIds: screen.hoursKnownFor,
+            days: [date],
+            range: screen.range,
+          })
+        : screen.blocks,
+    [narrow, screen.blocks, screen.columns, screen.hoursKnownFor, date, screen.range],
+  );
+
   const step = isWeek ? 7 : 1;
   const title = isWeek ? (
     t("agenda.weekTitle", { date: shortDayFormat.format(calendarDay(mondayOf(date))) })
@@ -204,7 +220,7 @@ function BranchAgenda({ branch }: { branch: Branch }) {
                 timeZone={branch.time_zone}
                 resources={screen.viewResources}
                 events={shownEvents}
-                blocks={screen.blocks}
+                blocks={blocks}
                 range={screen.range}
                 stepMinutes={screen.stepMinutes}
                 now={screen.nowLine}

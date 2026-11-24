@@ -91,7 +91,12 @@ interface AgendaBackendOptions {
   professionalsForbidden?: boolean;
   profiles?: Record<string, string>;
   branchId?: string;
+  /** Opening hours; left out, the branch and everyone have none, so the whole day is closed. */
+  branchSchedule?: WeeklySlot[];
+  professionalSchedules?: Record<string, WeeklySlot[]>;
 }
+
+type WeeklySlot = { id: string; weekday: number; starts_at_local: string; ends_at_local: string };
 
 export function agendaBackend({
   appointments = [],
@@ -111,6 +116,8 @@ export function agendaBackend({
   professionalsForbidden = false,
   profiles = {},
   branchId = ids.branchA,
+  branchSchedule = [],
+  professionalSchedules = {},
 }: AgendaBackendOptions = {}) {
   const state = {
     appointmentQueries: [] as URLSearchParams[],
@@ -218,10 +225,10 @@ export function agendaBackend({
       return HttpResponse.json(page(archived ? archivedServices : services));
     }),
     http.get(`${BRANCH(branchId)}/resources`, () => HttpResponse.json(page(resources))),
-    http.get(`${BRANCH(branchId)}/schedule`, () => HttpResponse.json({ data: [] })),
+    http.get(`${BRANCH(branchId)}/schedule`, () => HttpResponse.json({ data: branchSchedule })),
     http.get(`${BRANCH(branchId)}/professionals/:id/schedule`, ({ params }) => {
       state.scheduleOwners.push(String(params.id));
-      return HttpResponse.json({ data: [] });
+      return HttpResponse.json({ data: professionalSchedules[String(params.id)] ?? [] });
     }),
     http.get(`${BRANCH(branchId)}/resources/:id/schedule`, () => HttpResponse.json({ data: [] })),
     http.get(`${BRANCH(branchId)}/professionals/:id/time_offs`, () => HttpResponse.json(page([]))),

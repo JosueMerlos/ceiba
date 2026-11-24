@@ -80,6 +80,11 @@ export function useAgendaAvailability({
       blockColumns.flatMap((column) => column.openOn(weekdayOf(day))),
     );
     const range = timeRange({ openings, appointments, timeZone });
-    return { range, blocks: closedBlocks({ columns: blockColumns, days, timeZone, range }) };
+    return {
+      range,
+      blocks: closedBlocks({ columns: blockColumns, days, timeZone, range }),
+      /** The columns whose hours have arrived; the others are drawn open only because nothing is known yet. */
+      knownIds: new Set(blockColumns.map((column) => column.id)),
+    };
   }, [readsSchedules, branchSlots, ownerIds, owners, lens, days, appointments, timeZone]);
 }

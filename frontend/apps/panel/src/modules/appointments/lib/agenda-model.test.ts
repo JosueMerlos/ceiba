@@ -228,17 +228,26 @@ describe("closeUnknownHours", () => {
   it("cierra el día entero de quien todavía no tiene horario cargado y respeta lo conocido", () => {
     const known = [{ resourceId: "rosa", start: `${DAY}T12:00:00`, end: `${DAY}T13:00:00` }];
     expect(
-      closeUnknownHours({ blocks: known, columnIds: ["rosa", "luis"], knownIds: new Set(["rosa"]), days: [DAY], range }),
-    ).toEqual([
-      ...known,
-      { resourceId: "luis", start: `${DAY}T08:00:00`, end: `${DAY}T18:00:00` },
-    ]);
+      closeUnknownHours({
+        blocks: known,
+        columnIds: ["rosa", "luis"],
+        knownIds: new Set(["rosa"]),
+        days: [DAY],
+        range,
+      }),
+    ).toEqual([...known, { resourceId: "luis", start: `${DAY}T08:00:00`, end: `${DAY}T18:00:00` }]);
   });
 
   it("con todo conocido devuelve los mismos bloques", () => {
     const blocks = [{ resourceId: "luis", start: `${DAY}T08:00:00`, end: `${DAY}T09:00:00` }];
     expect(
-      closeUnknownHours({ blocks, columnIds: ["luis"], knownIds: new Set(["luis"]), days: [DAY], range }),
+      closeUnknownHours({
+        blocks,
+        columnIds: ["luis"],
+        knownIds: new Set(["luis"]),
+        days: [DAY],
+        range,
+      }),
     ).toBe(blocks);
   });
 
