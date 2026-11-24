@@ -195,6 +195,42 @@ describe("TimeField", () => {
     expect(outside).not.toHaveBeenCalled();
   });
 
+  it("Escape tras confirmar algo inválido devuelve la hora que había antes de escribir", async () => {
+    const onChange = vi.fn();
+    render(<Harness onChange={onChange} />);
+    const user = userEvent.setup();
+
+    await user.clear(field());
+    await user.type(field(), "9:75");
+    await user.tab();
+    expect(value()).toBe("");
+
+    await user.click(field());
+    await user.keyboard("{Escape}{Escape}");
+
+    expect(onChange).toHaveBeenLastCalledWith("09:00");
+    expect(value()).toBe("09:00");
+    expect(field()).toHaveProperty("value", "9:00 a. m.");
+    expect(field().getAttribute("aria-invalid")).toBeNull();
+  });
+
+  it("un cambio desde fuera igual a una hora que el campo emitió antes también descarta lo escrito", async () => {
+    const props = { "aria-label": "Desde", listLabel: "Horas", formatClock, onChange: () => {} };
+    const { rerender } = render(<TimeField {...props} value="09:00" />);
+    const user = userEvent.setup();
+    await user.clear(field());
+    await user.type(field(), "10{Enter}");
+    // The parent stores 10:00, then something outside resets it to 09:00 and later back to 10:00.
+    rerender(<TimeField {...props} value="10:00" />);
+    rerender(<TimeField {...props} value="09:00" />);
+    await user.clear(field());
+    await user.type(field(), "11");
+
+    rerender(<TimeField {...props} value="10:00" />);
+
+    expect(field()).toHaveProperty("value", "10:00 a. m.");
+  });
+
   it("si la lista se acorta con una opción activa al final, no falla", async () => {
     const props = { "aria-label": "Hasta", listLabel: "Horas", value: "17:00", formatClock };
     const { rerender } = render(<TimeField {...props} max="18:00" onChange={() => {}} />);

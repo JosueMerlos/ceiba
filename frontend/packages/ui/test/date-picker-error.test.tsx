@@ -3,14 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { DatePicker } from "../src";
 
-// The calendar chunk fails at first (a deploy replaced it, or the network dropped) and works on retry.
+// The calendar chunk cannot be downloaded at first (a deploy replaced it, the network dropped): the dynamic import
+// itself rejects, which React.lazy remembers; after the retry the download works.
 const chunk = vi.hoisted(() => ({ broken: true }));
-vi.mock("../src/components/calendar", () => ({
-  default: () => {
-    if (chunk.broken) throw new Error("Failed to fetch dynamically imported module");
-    return <div role="grid" aria-label="diciembre 2026" />;
-  },
-}));
+vi.mock("../src/components/calendar", () => {
+  if (chunk.broken) throw new Error("Failed to fetch dynamically imported module");
+  return { default: () => <div role="grid" aria-label="diciembre 2026" /> };
+});
 
 describe("DatePicker si el calendario no carga", () => {
   it("muestra el aviso con Reintentar dentro del selector, sin tumbar la pantalla, y reintentar lo carga", async () => {

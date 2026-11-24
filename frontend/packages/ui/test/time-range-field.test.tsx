@@ -78,6 +78,7 @@ describe("TimeRangeField", () => {
           listLabel="Horas"
           formatClock={formatClock}
           fieldClassName="sm:w-36"
+          aria-describedby="error-lunes"
           onChange={() => {}}
         />
       </div>,
@@ -88,5 +89,9 @@ describe("TimeRangeField", () => {
     ]);
     const start = screen.getByRole("combobox", { name: "Inicio" });
     expect(start.closest("[data-slot='time-field']")!.className).toContain("sm:w-36");
+    expect(start.getAttribute("aria-describedby")).toBe("error-lunes");
+    expect(screen.getByRole("combobox", { name: "Fin" }).getAttribute("aria-describedby")).toBe(
+      "error-lunes",
+    );
   });
 });
