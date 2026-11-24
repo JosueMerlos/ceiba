@@ -17,14 +17,14 @@
 | --- | --- | --- | --- | --- | --- |
 | **F0 — Cimientos** | Plataforma multi-tenant y modular sin funcionalidad de negocio | 13 | ~143 | 12–14 | _Walking skeleton_: login, contexto org/empresa/sucursal, módulos activables, eventos, auditoría, API tipada y panel vacío pero real |
 | **F1 — Citas: dominio** | Modelo de citas y motor de disponibilidad, solo backend | 6 | ~77 | 7 | Se puede reservar, reprogramar y cancelar vía API sin dobles reservas |
-| **F2 — Agenda interna** | El staff opera su agenda desde el panel | 4 | ~52 | 5 | Piloto interno con datos de prueba |
+| **F2 — Agenda interna** | El staff opera su agenda desde el panel | 8 | ~107 | 9–10 | Piloto interno con datos de prueba; panel rediseñado tras probarlo con datos reales ([ADR-0043](../adr/0043-rediseno-v2-del-panel.md)) |
 | **F3 — Reserva pública** | Clientes reservan solos y reciben recordatorios | 4 | ~54 | 5 | Enlace `/c/:slug` compartible por WhatsApp/Instagram + recordatorios |
 | **F4 — Pre-piloto** | Endurecer, desplegar y cumplir Ley 787 | 6 | ~74 | 6–7 | Producción y staging listos para 2–3 negocios reales |
 | F5 — Pilotos | 2–3 negocios en Nicaragua, 3 meses | — | operativo | 12 | Uso diario medido, feedback priorizado |
 | F6 — Producto vendible | Planes, entitlements y cobro | — | por definir | — | Primer cliente pagando |
 | F7 — Segundo módulo | Validar el playbook de módulos de punta a punta | — | por definir | — | Un módulo nuevo sin tocar `platform/` (o con cambios justificados) |
 
-**Total F0–F4: ~400 h, unos 8 meses al ritmo indicado.** Es una cifra honesta, no pesimista. F0 parece "lento" porque es donde se paga la extensibilidad; cada módulo futuro se apoya en ella sin rehacerla.
+**Total F0–F4: ~455 h, unos 9 meses al ritmo indicado.** Es una cifra honesta, no pesimista. F0 parece "lento" porque es donde se paga la extensibilidad; cada módulo futuro se apoya en ella sin rehacerla.
 
 > F5–F7 se detallan en hitos **cuando F4 cierre**. Planificarlos hoy sería planificar sobre suposiciones que los pilotos van a corregir.
 
@@ -71,6 +71,10 @@ _Paralelo, no técnico:_ abrir la cuenta de Meta Business y solicitar la aprobac
 | [M2.02](../milestones/F2-agenda-interna/M2.02-agenda-del-staff.md) | Agenda del staff (`AgendaView` con adaptador gratuito) | 15 | M1.06, M2.01 | ✅ |
 | [M2.03](../milestones/F2-agenda-interna/M2.03-clientes-e-importacion-csv.md) | Clientes en el panel e importación CSV | 12 | [M2.01](../milestones/F2-agenda-interna/M2.01-panel-de-catalogos.md) | ✅ |
 | [M2.04](../milestones/F2-agenda-interna/M2.04-branding-por-empresa.md) | Branding por empresa | 12 | M0.09, M0.12 | ✅ |
+| [M2.05](../milestones/F2-agenda-interna/M2.05-base-de-componentes.md) | Base de componentes del rediseño (modal, panel flotante, alto fijo, fecha y hora) | 13 | [M2.04](../milestones/F2-agenda-interna/M2.04-branding-por-empresa.md) | ⬜ |
+| [M2.06](../milestones/F2-agenda-interna/M2.06-agenda-en-filas.md) | Agenda en filas (`ResourceTimeline`, vista Semana, lista en celular) | 14 | [M2.05](../milestones/F2-agenda-interna/M2.05-base-de-componentes.md) | ⬜ |
+| [M2.07](../milestones/F2-agenda-interna/M2.07-catalogos-en-modal.md) | Catálogos en modal, selector de sucursal único y contacto del profesional | 14 | [M2.05](../milestones/F2-agenda-interna/M2.05-base-de-componentes.md) | ⬜ |
+| [M2.08](../milestones/F2-agenda-interna/M2.08-horarios-ficha-de-cliente-y-variacion-por-sucursal.md) | Horarios en bloques, ficha de cliente y variación por sucursal | 14 | M2.06, M2.07 | ⬜ |
 
 ### F3 — Reserva pública y notificaciones
 
@@ -128,7 +132,11 @@ flowchart LR
   subgraph F2[F2 Agenda interna]
     M201[M2.01 Panel catálogos] --> M202[M2.02 Agenda]
     M201 --> M203[M2.03 Clientes+CSV]
-    M204[M2.04 Branding]
+    M204[M2.04 Branding] --> M205[M2.05 Componentes]
+    M205 --> M206[M2.06 Agenda en filas]
+    M205 --> M207[M2.07 Catálogos en modal]
+    M206 --> M208[M2.08 Horarios+ficha]
+    M207 --> M208
   end
   M102 --> M201
   M012 --> M201
@@ -147,6 +155,8 @@ flowchart LR
   M204 --> M302
   M013 --> M302
   M106 --> M303
+  M208 -. fase .-> M301
+  M208 -. fase .-> M302
 
   subgraph F4[F4 Pre-piloto]
     M401[M4.01 Back-office]

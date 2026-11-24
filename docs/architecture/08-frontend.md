@@ -31,7 +31,8 @@ Las dependencias entre paquetes son explícitas en cada `package.json`. Una app 
 | Estado de UI | Estado local + contexto; Zustand solo si se justifica | — |
 | Formularios | react-hook-form + zod | Esquemas zod alineados con los errores `422` de la API |
 | Estilos | Tailwind + shadcn/ui | Componentes copiados al repo (`packages/ui`), no una dependencia opaca |
-| Fechas | `date-fns` + `@date-fns/tz` | Siempre con la zona de la **sucursal**, nunca la del navegador |
+| Fechas | `date-fns` + `@date-fns/tz` | Siempre con la zona de la **sucursal**, nunca la del navegador. Un solo formato en el panel: «9:00 a. m.» y «lun 14 dic 2026» ([ADR-0043](../adr/0043-rediseno-v2-del-panel.md)) |
+| Selectores de fecha y hora | `react-day-picker` (el `Calendar` de shadcn/ui, carga diferida) para la fecha; `TimeField` y `DurationField` propios sobre Radix `Popover` | Sin inputs nativos de fecha u hora ([ADR-0043](../adr/0043-rediseno-v2-del-panel.md), desde M2.05) |
 | Agenda | `AgendaView` propio sobre `@event-calendar/core` 5.19.0 (MIT, elegida en M2.02) | Ver abajo |
 | i18n | react-i18next, locale `es-NI` | Todos los textos se extraen desde el día 1 |
 | Tests | Vitest + Testing Library + MSW; Playwright para E2E | [12](12-testing-strategy.md) |
@@ -131,7 +132,7 @@ Tailwind 4 + componentes de shadcn/ui copiados al repo, **solo los que usa el hi
 
 ## `AgendaView`: calendario detrás de un adaptador
 
-La vista con profesionales y recursos en columnas es la pantalla más usada. FullCalendar la ofrece solo en su plan **Premium** (licencia comercial), así que se descarta.
+La vista de día por profesionales y recursos es la pantalla más usada. Desde [M2.06](../milestones/F2-agenda-interna/M2.06-agenda-en-filas.md) muestra los profesionales (o recursos) en **filas** y las horas en columnas, con el plugin `ResourceTimeline` y scroll vertical interno; la vista Semana muestra un profesional a la vez y en el celular la agenda es una lista por profesional con el mismo `AgendaViewProps` ([ADR-0043](../adr/0043-rediseno-v2-del-panel.md)). FullCalendar la ofrece solo en su plan **Premium** (licencia comercial), así que se descarta.
 
 ```ts
 interface AgendaViewProps {
@@ -161,11 +162,14 @@ interface AgendaViewProps {
 
 ## Lenguaje visual (F2 en adelante)
 
-Decidido en [ADR-0032](../adr/0032-lenguaje-visual-marco-y-hoja.md), que reemplaza el layout de M0.12 a partir de F2:
+Decidido en [ADR-0032](../adr/0032-lenguaje-visual-marco-y-hoja.md), que reemplaza el layout de M0.12 a partir de F2, y enmendado por [ADR-0043](../adr/0043-rediseno-v2-del-panel.md) (rediseño v2, M2.05–M2.08):
 
 - **Panel:** marco con tinte suave (`--sidebar-*`) y cada pantalla sobre una hoja blanca (`--background`). Sin cabecera superior: logo, selector de contexto, menú y usuario viven en el marco.
 - **Barra lateral contraíble** a un riel de íconos, con la preferencia guardada por usuario en `localStorage`. Arranca contraída por debajo de 1280 px.
-- **Panel contextual a la derecha, colapsable y no modal:** "Próximas llegadas" en la agenda y la edición del elemento seleccionado en los catálogos.
+- **Panel contextual a la derecha, colapsable y no modal, que flota sobre la hoja** sin robarle ancho: "Próximas llegadas" y el detalle de la cita en la agenda, y el detalle rápido de lectura en los catálogos. La pantalla de Marca conserva el panel acoplado (editor con vista previa en vivo). Enmienda de [ADR-0043](../adr/0043-rediseno-v2-del-panel.md) al ítem 4 de ADR-0032.
+- **Catálogos en modal central** con pasos (crear) o pestañas (editar) y un solo botón de guardar visible; la recepción los ve en lectura limpia, sin botones de crear ni ayudas de edición ([ADR-0043](../adr/0043-rediseno-v2-del-panel.md)).
+- **Alto fijo:** el layout ocupa la ventana; el marco queda estático y cada pantalla desplaza solo su cuerpo.
+- **Sucursal solo en el selector global** (sin selector «Sucursal de trabajo» por pantalla).
 - **Estados de la cita** distinguibles por luminosidad, no solo por tono.
 - **Reserva pública:** toda blanca con líneas finas, un paso por pantalla, avatar del profesional en el resumen y acción principal fija abajo.
 

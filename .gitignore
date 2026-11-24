@@ -35,3 +35,6 @@ coverage/
 
 # ticket-harness: local plans, PR state and evidence
 .harness/
+
+# gentle-ai SDD: local skill registry
+.atl/
