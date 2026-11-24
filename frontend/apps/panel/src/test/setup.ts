@@ -1,6 +1,11 @@
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll } from "vitest";
 import { server } from "./server";
+
+// Pages are lazy routes: the first test of a file to mount one also waits for Vitest to compile that chunk (the agenda's
+// chunk pulls in the whole calendar), which on a busy CI runner takes longer than the 1 s default of `findBy*`/`waitFor`. Any
+// test can run first, so the margin is global; it only lengthens how long a test that already fails takes to report.
+configure({ asyncUtilTimeout: 5_000 });
 
 beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 afterEach(() => {
