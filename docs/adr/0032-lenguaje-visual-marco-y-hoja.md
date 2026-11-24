@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 | --- | --- |
-| Estado | aceptada |
+| Estado | aceptada (el ítem 4 lo enmienda [ADR-0043](0043-rediseno-v2-del-panel.md)) |
 | Fecha | 2026-11-10 |
 | Origen | Revisión de diseño previa a F2: tres direcciones comparadas en maquetas (agenda del día y reserva en móvil) y extendidas al catálogo de servicios, la ficha de cliente y el inicio de sesión |
 
@@ -32,7 +32,7 @@ Panel (≥ md)                                        Reserva (móvil)
 1. **Tokens.** `--background` pasa a blanco (`--palette-kapok-0`): es la hoja del panel y el fondo de la reserva. El marco usa la familia `--sidebar-*` de shadcn/ui (`--sidebar`, `--sidebar-foreground`, `--sidebar-border`, `--sidebar-accent`, `--sidebar-accent-foreground`, `--sidebar-primary`, `--sidebar-primary-foreground`, `--sidebar-ring`), con `--sidebar` en un tinte verdoso suave (`#f2f4ef`; la primitiva `--palette-kapok-50` se ajusta a ese valor, porque `--background` deja de usarla). El ítem activo del menú es blanco sobre el marco (`--sidebar-accent`). `--sidebar-primary` y `--sidebar-ring` leen de la marca, como `--primary` y `--ring`.
 2. **Estructura del panel.** Sin cabecera superior: el logo, el selector de empresa y sucursal, el menú y el usuario viven en el marco. Cada pantalla se dibuja sobre una hoja (`bg-background`, radio 16 px, borde de 1 px con `--border`, 8 px de margen al marco). Bajo `md` se mantiene la navegación en fila deslizable de M0.12.
 3. **Barra lateral contraíble.** Se contrae a un riel de íconos (60 px). Cada ícono tiene `aria-label` y tooltip, y el selector de contexto queda como el monograma de la empresa. La preferencia se guarda por usuario en `localStorage`: es una comodidad visual, no un dato del negocio, y no pasa por la API. Por debajo de 1280 px de ancho arranca contraída.
-4. **Panel contextual a la derecha, colapsable.** Es el único patrón para mostrar el contexto de la pantalla sin taparla: "Próximas llegadas" en la agenda (hora, estado, avatar del profesional, cliente, servicio y una acción directa) y la edición del elemento seleccionado en los catálogos. Se abre y cierra con un botón visible (`aria-expanded`, `aria-controls`). No es modal: la pantalla sigue usable con él abierto.
+4. **Panel contextual a la derecha, colapsable.** Es el único patrón para mostrar el contexto de la pantalla sin taparla: "Próximas llegadas" en la agenda (hora, estado, avatar del profesional, cliente, servicio y una acción directa) y la edición del elemento seleccionado en los catálogos. Se abre y cierra con un botón visible (`aria-expanded`, `aria-controls`). No es modal: la pantalla sigue usable con él abierto. **Enmienda ([ADR-0043](0043-rediseno-v2-del-panel.md)):** el panel flota sobre la hoja sin robarle ancho y deja de ser el único patrón; los catálogos se crean y editan en un modal central con pasos o pestañas. La pantalla de Marca conserva el panel acoplado.
 5. **Estados de la cita.** Se distinguen por luminosidad, no solo por tono: *llegó* (tinte verde), *confirmada* (blanco con punto verde), *por confirmar* (ámbar con borde punteado), *completada* (gris). La línea de la hora actual usa `--destructive`.
 6. **Reserva pública.** Fondo blanco y líneas finas, un paso por pantalla con barra de progreso, el resumen del servicio con el **avatar del profesional** (iniciales hoy; su foto cuando exista) y la acción principal fija abajo. Objetivos táctiles de 44 px como mínimo.
 
