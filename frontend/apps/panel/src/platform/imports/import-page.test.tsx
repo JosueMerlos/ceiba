@@ -1,6 +1,6 @@
 import type { components } from "@ceiba/api-client";
 import { screen, within } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import { API, ids, meFixture, problem } from "../../test/fixtures";
 import { renderApp } from "../../test/render-app";
@@ -252,6 +252,22 @@ describe("importación desde CSV", () => {
       "Fila 9: no se aplicó: la importación se interrumpió",
       "Fila 31: Teléfono: ya existe",
     ]);
+  });
+
+  it("mientras sube el archivo no se puede cambiar de tipo: la previsualización sería de otro", async () => {
+    manager();
+    server.use(
+      http.post(IMPORTS, async () => {
+        await delay("infinite");
+        return HttpResponse.json(batch(), { status: 201 });
+      }),
+    );
+    await uploadCustomers();
+
+    expect(await screen.findByText("Revisando el archivo…")).toBeTruthy();
+    expect((screen.getByRole("radio", { name: "Clientes" }) as HTMLInputElement).disabled).toBe(
+      true,
+    );
   });
 
   it("un archivo de más de 5000 filas muestra el mensaje del servidor", async () => {
