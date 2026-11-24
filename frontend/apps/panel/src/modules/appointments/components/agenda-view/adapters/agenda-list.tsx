@@ -191,7 +191,7 @@ export default function AgendaList({
       {showChips ? (
         <div
           role="tablist"
-          aria-label={t("agenda.list.label")}
+          aria-label={t("agenda.form.professional")}
           className="flex shrink-0 gap-1.5 overflow-x-auto border-b px-3 py-2 [scrollbar-width:none]"
         >
           {[

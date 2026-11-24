@@ -348,7 +348,7 @@ describe("Agenda: filas, filtros y densidad", () => {
   const chip = (name: RegExp) =>
     within(screen.getByRole("group", { name: "Filtrar por estado" })).getByRole("button", { name });
 
-  it("apagar «Completadas» quita esas citas y los contadores lo reflejan", async () => {
+  it("apagar «Completada» quita esas citas y los contadores lo reflejan", async () => {
     asReception();
     agendaBackend({
       appointments: [
@@ -370,14 +370,14 @@ describe("Agenda: filas, filtros y densidad", () => {
     const { user } = await renderApp({ route });
     await screen.findByRole("button", { name: /Luz Mora/ });
     expect(chip(/^Todas/).textContent).toContain("3");
-    expect(chip(/^Completadas/).textContent).toContain("2");
+    expect(chip(/^Completada/).textContent).toContain("2");
 
-    await user.click(chip(/^Completadas/));
+    await user.click(chip(/^Completada/));
 
     await waitFor(() => expect(screen.queryByRole("button", { name: /Ana Ruiz/ })).toBeNull());
     expect(screen.queryByRole("button", { name: /Luz Mora/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Eva Luna/ })).toBeTruthy();
-    expect(chip(/^Completadas/).getAttribute("aria-pressed")).toBe("false");
+    expect(chip(/^Completada/).getAttribute("aria-pressed")).toBe("false");
     expect(chip(/^Todas/).textContent).toContain("1");
 
     await user.click(chip(/^Todas/));

@@ -1,6 +1,6 @@
 import { useTranslation } from "@ceiba/i18n";
 import { cn } from "@ceiba/ui";
-import type { StatusTone } from "../lib/agenda-status";
+import type { AppointmentStatus, StatusTone } from "../lib/agenda-status";
 
 export const TONE_DOT: Record<StatusTone, string> = {
   pending: "bg-[var(--appointment-pending-dot)]",
@@ -18,6 +18,15 @@ export const CHIP_TONES: readonly StatusTone[] = [
   "missed",
   "done",
 ];
+
+// Each chip is named after the status that gives its tone.
+const TONE_STATUS: Record<StatusTone, AppointmentStatus> = {
+  pending: "scheduled",
+  confirmed: "confirmed",
+  arrived: "checked_in",
+  missed: "no_show",
+  done: "completed",
+};
 
 interface AgendaStatusChipsProps {
   /** Appointments of each status on screen, filtered or not. */
@@ -80,7 +89,7 @@ export function AgendaStatusChips({
               className={cn("size-[7px] rounded-full", TONE_DOT[tone], !pressed && "opacity-40")}
               aria-hidden="true"
             />
-            {t(`agenda.filters.tones.${tone}`)}
+            {t(`agenda.status.${TONE_STATUS[tone]}`)}
             <span className="tabular-nums opacity-70">{counts[tone]}</span>
           </button>
         );

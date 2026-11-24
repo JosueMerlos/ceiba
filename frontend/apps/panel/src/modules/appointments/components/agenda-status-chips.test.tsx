@@ -29,8 +29,8 @@ describe("AgendaStatusChips", () => {
     expect(screen.getByRole("group", { name: "Filtrar por estado" })).toBeTruthy();
     expect(chip(/^Todas/).textContent).toContain("10");
     expect(chip(/^Por confirmar/).textContent).toContain("2");
-    expect(chip(/^Completadas/).textContent).toContain("4");
-    for (const name of [/^Todas/, /^Confirmadas/, /^Llegó/, /^No asistió/]) {
+    expect(chip(/^Completada/).textContent).toContain("4");
+    for (const name of [/^Todas/, /^Confirmada/, /^Llegó/, /^No asistió/]) {
       expect(chip(name).getAttribute("aria-pressed")).toBe("true");
     }
   });
@@ -45,7 +45,7 @@ describe("AgendaStatusChips", () => {
       />,
     );
 
-    expect(chip(/^Completadas/).getAttribute("aria-pressed")).toBe("false");
+    expect(chip(/^Completada/).getAttribute("aria-pressed")).toBe("false");
     expect(chip(/^Todas/).getAttribute("aria-pressed")).toBe("false");
     expect(chip(/^Todas/).textContent).toContain("6");
   });
@@ -62,7 +62,7 @@ describe("AgendaStatusChips", () => {
       />,
     );
 
-    await userEvent.click(chip(/^Completadas/));
+    await userEvent.click(chip(/^Completada/));
     expect(onToggle).toHaveBeenCalledWith("done");
     await userEvent.click(chip(/^Todas/));
     expect(onShowAll).toHaveBeenCalledOnce();

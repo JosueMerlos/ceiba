@@ -167,7 +167,7 @@ function BranchAgenda({ branch }: { branch: Branch }) {
         }}
         today={screen.today}
         formatDate={longDay}
-        placeholder={t("agenda.chooseDay")}
+        placeholder={t("common:fields.pickDate")}
         calendarLabel={t("common:fields.calendar")}
         previousMonthLabel={t("common:fields.previousMonth")}
         nextMonthLabel={t("common:fields.nextMonth")}
