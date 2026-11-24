@@ -107,6 +107,7 @@ function ImportFlow({ branchId, timeZone, kinds }: ImportFlowProps) {
       <KindChooser
         kinds={kinds}
         value={kind}
+        disabled={upload.isPending}
         onChange={(next) => {
           restart();
           setKind(next);
@@ -129,13 +130,16 @@ function ImportFlow({ branchId, timeZone, kinds }: ImportFlowProps) {
   );
 }
 
+// Locked while a file uploads: the preview that comes back belongs to the kind it was sent as.
 function KindChooser({
   kinds,
   value,
+  disabled,
   onChange,
 }: {
   kinds: readonly ImportKind[];
   value: ImportKind | null;
+  disabled: boolean;
   onChange(kind: ImportKind): void;
 }) {
   const { t } = useTranslation("imports");
@@ -158,6 +162,7 @@ function KindChooser({
               name="import-kind"
               value={kind}
               checked={value === kind}
+              disabled={disabled}
               onChange={() => onChange(kind)}
               className="accent-primary"
             />
