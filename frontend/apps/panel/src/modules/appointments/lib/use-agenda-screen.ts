@@ -1,4 +1,4 @@
-import { useTranslation } from "@ceiba/i18n";
+import { formatTime, useTranslation } from "@ceiba/i18n";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMe } from "../../../platform/me/me-provider";
 import {
@@ -21,14 +21,7 @@ import {
   type AgendaColumn,
 } from "./agenda-model";
 import { useAgendaPermissions } from "./agenda-permissions";
-import {
-  addDays,
-  mondayOf,
-  shortClock,
-  toWallClock,
-  todayInZone,
-  type PlainDate,
-} from "./agenda-time";
+import { addDays, mondayOf, toWallClock, todayInZone, type PlainDate } from "./agenda-time";
 import { useAgendaAvailability } from "./use-agenda-availability";
 
 const DEFAULT_STEP_MINUTES = 15;
@@ -150,7 +143,7 @@ export function useAgendaScreen({ branch, mode, date, weekProfessionalId }: Agen
   );
 
   const events = useMemo(() => {
-    const clock = (iso: string) => shortClock(iso, timeZone);
+    const clock = (iso: string) => formatTime(iso, timeZone);
     return toCalendarEvents({
       appointments: visible,
       columns,

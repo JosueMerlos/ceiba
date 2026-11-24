@@ -13,14 +13,17 @@ interface ContextPanelProps {
   closeLabel: string;
   /** Pinned under the content, e.g. save / discard. */
   footer?: ReactNode;
+  /** `floating` (default) overlays the sheet without taking its width; `docked` is a column beside it from `lg`. */
+  variant?: "floating" | "docked";
   className?: string;
   children: ReactNode;
 }
 
 /**
- * Non-modal side panel for the context of the current screen (the edit form of the selected row, upcoming arrivals).
- * It never traps focus and leaves the sheet usable. Pass it to `AppLayout` as `aside`; below `lg` it floats over the
- * right edge instead of taking width. Closing returns focus to whatever opened it.
+ * Non-modal side panel for the context of the current screen (upcoming arrivals, an appointment's detail). It never
+ * traps focus and leaves the sheet usable. Pass it to `AppLayout` as `aside`: it floats over the sheet's right edge so
+ * the screen keeps its width; `docked` is for editors that need to see the screen and the panel side by side.
+ * Closing returns focus to whatever opened it.
  */
 function ContextPanel({
   id,
@@ -29,6 +32,7 @@ function ContextPanel({
   title,
   closeLabel,
   footer,
+  variant = "floating",
   className,
   children,
 }: ContextPanelProps) {
@@ -59,10 +63,16 @@ function ContextPanel({
       id={id}
       aria-labelledby={titleId}
       data-slot="context-panel"
+      data-variant={variant}
       onKeyDown={onKeyDown}
       className={cn(
-        "fixed inset-y-2 right-2 z-40 flex w-[min(22rem,calc(100vw-1rem))] flex-col rounded-2xl border bg-background shadow-lg",
-        "lg:sticky lg:inset-y-auto lg:top-2 lg:right-auto lg:z-auto lg:h-[calc(100svh-1rem)] lg:w-80 lg:shrink-0 lg:self-start lg:shadow-none",
+        "z-40 flex flex-col rounded-2xl border bg-background",
+        variant === "floating"
+          ? "absolute inset-y-2 right-2 w-[min(22rem,calc(100%-1rem))] shadow-lg"
+          : [
+              "fixed inset-y-2 right-2 w-[min(22rem,calc(100vw-1rem))] shadow-lg",
+              "lg:static lg:inset-y-auto lg:right-auto lg:z-auto lg:h-full lg:w-80 lg:shrink-0 lg:shadow-none",
+            ],
         className,
       )}
     >

@@ -324,3 +324,19 @@ describe("Agenda: sin sucursal en el contexto", () => {
     await waitFor(() => expect(backend.appointmentQueries.length).toBeGreaterThan(0));
   });
 });
+
+describe("Agenda: panel flotante", () => {
+  afterEach(() => Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 }));
+
+  it("en pantalla ancha arranca sin panel: uno flotante no tapa la agenda sin que lo pidan", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1440 });
+    asReception();
+    agendaBackend({ appointments: [agendaAppointment()] });
+    await renderApp({ route });
+
+    const toggle = await screen.findByRole("button", { name: /Próximas llegadas/ });
+    expect(await column("Rosa Martínez")).toBeTruthy();
+    expect(screen.queryByRole("complementary", { name: "Próximas llegadas" })).toBeNull();
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  });
+});

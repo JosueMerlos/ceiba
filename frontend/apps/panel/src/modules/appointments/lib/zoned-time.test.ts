@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatInZone, localToUtcIso, utcToLocalInput } from "./zoned-time";
+import { localToUtcIso, utcToLocalInput } from "./zoned-time";
 
 describe("localToUtcIso", () => {
   it("convierte la hora local de Managua (UTC-6, sin horario de verano) a UTC", () => {
@@ -26,14 +26,9 @@ describe("localToUtcIso", () => {
   });
 });
 
-describe("utcToLocalInput y formatInZone", () => {
+describe("utcToLocalInput", () => {
   it("ida y vuelta: lo que se guardó vuelve a la misma hora local", () => {
     const iso = localToUtcIso("2026-11-20T09:30", "America/Managua")!;
     expect(utcToLocalInput(iso, "America/Managua")).toBe("2026-11-20T09:30");
-  });
-
-  it("muestra el instante en la hora de la sucursal, no en la del navegador", () => {
-    expect(formatInZone("2026-11-20T15:00:00.000Z", "America/Managua")).toContain("9:00");
-    expect(formatInZone("2026-11-20T15:00:00.000Z", "America/Bogota")).toContain("10:00");
   });
 });

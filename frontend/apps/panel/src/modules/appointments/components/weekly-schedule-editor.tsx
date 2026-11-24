@@ -1,5 +1,5 @@
 import type { components } from "@ceiba/api-client";
-import { useTranslation } from "@ceiba/i18n";
+import { formatClock, useTranslation } from "@ceiba/i18n";
 import {
   Button,
   Dialog,
@@ -8,10 +8,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Input,
 } from "@ceiba/ui";
 import { Plus, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
+import { BranchTimeRangeField } from "../../../platform/forms/branch-fields";
 import {
   toDrafts,
   toPayload,
@@ -112,29 +112,22 @@ export function WeeklyScheduleEditor({
                   const problem = attempted ? problems.get(slot.key) : undefined;
                   return readOnly ? (
                     <p key={slot.key} className="pt-2 text-sm tabular-nums">
-                      {t("catalog.schedule.slotRange", { start: slot.start, end: slot.end })}
+                      {t("catalog.schedule.slotRange", {
+                        start: formatClock(slot.start),
+                        end: formatClock(slot.end),
+                      })}
                     </p>
                   ) : (
                     <div key={slot.key} className="grid min-w-0 gap-1">
                       <div className="flex min-w-0 items-center gap-2">
-                        <Input
-                          type="time"
-                          aria-label={t("catalog.schedule.start")}
+                        <BranchTimeRangeField
                           aria-invalid={problem ? true : undefined}
-                          value={slot.start}
-                          onChange={(event) => update(slot.key, { start: event.target.value })}
-                          className="min-w-0 flex-1 sm:w-32 sm:flex-none"
-                        />
-                        <span aria-hidden="true" className="text-muted-foreground">
-                          –
-                        </span>
-                        <Input
-                          type="time"
-                          aria-label={t("catalog.schedule.end")}
-                          aria-invalid={problem ? true : undefined}
-                          value={slot.end}
-                          onChange={(event) => update(slot.key, { end: event.target.value })}
-                          className="min-w-0 flex-1 sm:w-32 sm:flex-none"
+                          value={{ start: slot.start, end: slot.end }}
+                          onChange={(range) => update(slot.key, range)}
+                          startLabel={t("catalog.schedule.start")}
+                          endLabel={t("catalog.schedule.end")}
+                          className="min-w-0 flex-1 sm:flex-none"
+                          fieldClassName="min-w-0 flex-1 sm:w-36 sm:flex-none"
                         />
                         <Button
                           type="button"

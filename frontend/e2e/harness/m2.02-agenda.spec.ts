@@ -13,7 +13,7 @@ import {
   sidePanel,
   uniquePhone,
 } from "../tests/agenda-helpers";
-import { shot, signIn } from "../tests/helpers";
+import { horizontalOverflow, shot, signIn } from "../tests/helpers";
 
 // UI QA smoke for the agenda: dragging, a browser in another zone, phone width and the load measurement (meaningful only
 // against a production build: the dev server ships every module separately). The pilot scenarios need `SEED_DEMO_PASSWORD=<demo password> bin/rails demo:agenda_pilot`, which creates the "Piloto interno" organization.
@@ -139,6 +139,13 @@ test.describe("smoke de la agenda", () => {
         .getByRole("combobox", { name: "Profesional" })
         .textContent()) ?? "";
 
+    // The column headers render before the time grid: aim only once the hours are drawn.
+    await expect(
+      page
+        .getByText(/11:00\sa\.\sm\./)
+        .filter({ visible: true })
+        .first(),
+    ).toBeVisible();
     // Two clicks at the same height, so the same hour, in two different columns.
     const below = async (column: string) => {
       const box = (await page.getByRole("group", { name: column }).boundingBox())!;
@@ -203,11 +210,7 @@ test.describe("smoke de la agenda", () => {
   }, testInfo) => {
     await page.setViewportSize({ width: 360, height: 780 });
     await openPilot(page, PILOT_RECEPTION);
-    const widths = await page.evaluate(() => [
-      document.documentElement.scrollWidth,
-      window.innerWidth,
-    ]);
-    expect(widths[0]).toBeLessThanOrEqual(widths[1]!);
+    expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
     await shot(page, testInfo, "32-agenda-360");
   });
 

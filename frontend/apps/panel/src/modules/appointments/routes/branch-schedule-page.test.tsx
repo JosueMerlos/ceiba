@@ -39,8 +39,11 @@ const asManager = (permissions = MANAGER_PERMISSIONS) =>
   });
 
 const day = (name: string) => screen.getByRole("group", { name });
-const setTime = (input: HTMLElement, value: string) =>
+// The field commits what is typed when it loses focus, as a person tabbing out of it.
+const setTime = (input: HTMLElement, value: string) => {
   fireEvent.change(input, { target: { value } });
+  fireEvent.blur(input);
+};
 
 describe("Horario de la sucursal", () => {
   it("sin franjas muestra el estado vacío 'Configure el horario…' junto al editor", async () => {
@@ -130,7 +133,9 @@ describe("Horario de la sucursal", () => {
     await renderApp({ route: `/branches/${ids.branchA}/schedule` });
 
     expect(
-      await within(await screen.findByRole("group", { name: "Lunes" })).findByText("09:00 – 13:00"),
+      await within(await screen.findByRole("group", { name: "Lunes" })).findByText(
+        "9:00 a. m. – 1:00 p. m.",
+      ),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Guardar horario" })).toBeNull();
     expect(screen.queryByLabelText("Inicio")).toBeNull();

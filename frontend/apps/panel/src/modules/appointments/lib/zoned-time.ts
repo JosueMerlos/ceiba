@@ -66,12 +66,3 @@ export function utcToLocalInput(iso: string, timeZone: string): string {
     .toISOString()
     .slice(0, 16);
 }
-
-/** A readable date and time of an instant in the branch's zone, in the panel's locale. */
-export function formatInZone(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat("es-NI", {
-    timeZone,
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(iso));
-}

@@ -1,7 +1,8 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { branch, ids, meFixture, resource, scheduleSlot, timeOff } from "../../../test/fixtures";
 import { renderApp } from "../../../test/render-app";
+import { fillWallClock } from "../../../test/date-time-fields";
 import { server, signedInBackend } from "../../../test/server";
 import {
   STAFF_MANAGER_PERMISSIONS,
@@ -142,12 +143,8 @@ describe("Recursos", () => {
     const section = await within(panel).findByRole("region", { name: "Ausencias" });
     expect(await within(section).findByText("Mantenimiento")).toBeTruthy();
 
-    fireEvent.change(within(section).getByLabelText("Desde"), {
-      target: { value: "2026-12-02T08:00" },
-    });
-    fireEvent.change(within(section).getByLabelText("Hasta"), {
-      target: { value: "2026-12-02T09:00" },
-    });
+    await fillWallClock(user, section, "Desde", "2026-12-02T08:00");
+    await fillWallClock(user, section, "Hasta", "2026-12-02T09:00");
     await user.click(within(section).getByRole("button", { name: "Agregar ausencia" }));
     await waitFor(() => expect(backend.createdTimeOffs).toHaveLength(1));
     expect(backend.createdTimeOffs[0]!.body).toEqual({

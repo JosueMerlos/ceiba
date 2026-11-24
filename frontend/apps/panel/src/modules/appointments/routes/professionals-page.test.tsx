@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { servicesBackend } from "../../../test/catalog-backend";
 import {
@@ -11,6 +11,7 @@ import {
   timeOff,
 } from "../../../test/fixtures";
 import { renderApp } from "../../../test/render-app";
+import { fillWallClock } from "../../../test/date-time-fields";
 import { signedInBackend } from "../../../test/server";
 import {
   STAFF_MANAGER_PERMISSIONS,
@@ -306,7 +307,7 @@ describe("Profesionales: horario por sucursal", () => {
 
     const panel = await openPanel(user, "Don Efraín");
     const section = await within(panel).findByRole("region", { name: "Horario semanal" });
-    expect(await within(section).findByText("08:00 – 12:00")).toBeTruthy();
+    expect(await within(section).findByText("8:00 a. m. – 12:00 p. m.")).toBeTruthy();
     expect(within(section).queryByRole("button", { name: "Guardar horario" })).toBeNull();
   });
 });
@@ -330,12 +331,8 @@ describe("Profesionales: ausencias de la sucursal", () => {
     const section = await within(panel).findByRole("region", { name: "Ausencias" });
     expect(await within(section).findByText("Vacaciones")).toBeTruthy();
 
-    fireEvent.change(within(section).getByLabelText("Desde"), {
-      target: { value: "2026-12-01T09:00" },
-    });
-    fireEvent.change(within(section).getByLabelText("Hasta"), {
-      target: { value: "2026-12-01T12:00" },
-    });
+    await fillWallClock(user, section, "Desde", "2026-12-01T09:00");
+    await fillWallClock(user, section, "Hasta", "2026-12-01T12:00");
     await user.type(within(section).getByLabelText("Motivo (opcional)"), "Capacitación");
     await user.click(within(section).getByRole("button", { name: "Agregar ausencia" }));
 

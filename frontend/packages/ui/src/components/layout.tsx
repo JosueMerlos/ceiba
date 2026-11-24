@@ -48,7 +48,7 @@ interface AppLayoutProps {
   onCollapsedChange(collapsed: boolean): void;
   collapseLabel: string;
   expandLabel: string;
-  /** Contextual panel (`ContextPanel`) shown to the right of the sheet; each screen supplies its own content. */
+  /** Contextual panel (`ContextPanel`): floats over the sheet's right edge (docked: a column beside it). */
   aside?: ReactNode;
   children: ReactNode;
 }
@@ -78,7 +78,7 @@ function AppLayout({
         <div
           data-slot="app-frame"
           data-collapsed={collapsed}
-          className="group/frame flex min-h-svh flex-col bg-sidebar text-sidebar-foreground md:flex-row"
+          className="group/frame flex h-svh flex-col overflow-hidden bg-sidebar text-sidebar-foreground md:flex-row"
         >
           <a
             href={`#${MAIN_ID}`}
@@ -91,7 +91,7 @@ function AppLayout({
             data-slot="app-sidebar"
             className={cn(
               "flex flex-wrap items-center gap-x-2 gap-y-1 px-3 pt-2 pb-1",
-              "md:sticky md:top-0 md:h-svh md:w-(--sidebar-width) md:shrink-0 md:flex-col md:flex-nowrap md:items-stretch md:gap-5 md:overflow-y-auto md:px-2 md:py-3",
+              "md:h-full md:w-(--sidebar-width) md:shrink-0 md:flex-col md:flex-nowrap md:items-stretch md:gap-5 md:overflow-y-auto md:px-2 md:py-3",
               "md:group-data-[collapsed=true]/frame:w-(--sidebar-width-collapsed)",
             )}
           >
@@ -120,11 +120,12 @@ function AppLayout({
               </nav>
             ) : null}
           </div>
-          <div className="flex min-w-0 flex-1 items-stretch gap-2 p-2 md:pl-0">
+          {/* The positioning context of the floating panel, which overlays the sheet instead of taking its width. */}
+          <div className="relative flex min-h-0 min-w-0 flex-1 items-stretch gap-2 p-2 md:pl-0">
             <main
               id={MAIN_ID}
               tabIndex={-1}
-              className="min-w-0 flex-1 rounded-2xl border bg-background px-4 py-6 outline-none md:px-7 md:py-7"
+              className="min-h-0 min-w-0 flex-1 overflow-y-auto rounded-2xl border bg-background px-4 py-6 outline-none md:px-7 md:py-7"
             >
               {children}
             </main>
@@ -197,6 +198,31 @@ function PageHeader({ title, description, actions }: PageHeaderProps) {
   );
 }
 
+/**
+ * Opt-in page skeleton for screens with a header that must stay put while only the body scrolls (agenda, long
+ * tables). Without it the whole sheet scrolls, which suits most screens.
+ */
+function PageFrame({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="page-frame"
+      className={cn("flex h-full min-h-0 flex-col", className)}
+      {...props}
+    />
+  );
+}
+
+/** The scrolling region of a `PageFrame`. */
+function PageBody({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="page-body"
+      className={cn("min-h-0 flex-1 overflow-y-auto", className)}
+      {...props}
+    />
+  );
+}
+
 interface StatusPageProps {
   /** Visible code (404, 403...): data, not translatable text. */
   code?: string;
@@ -245,6 +271,8 @@ export {
   LoadingState,
   MAIN_ID,
   NavItem,
+  PageBody,
+  PageFrame,
   PageHeader,
   RailTooltip,
   SIDEBAR_ID,

@@ -52,7 +52,7 @@ describe("ficha de cliente", () => {
 
     const history = await screen.findByRole("region", { name: "Historial" });
     const rows = await within(history).findAllByRole("row");
-    expect(within(rows[1]!).getByText("1 de noviembre de 2026 a las 9:30 p. m.")).toBeTruthy();
+    expect(within(rows[1]!).getByText("dom 1 nov 2026, 9:30 p. m.")).toBeTruthy();
     expect(within(rows[1]!).getByText("Corte de cabello")).toBeTruthy();
     expect(within(rows[1]!).getAllByText("Rosa Martínez").length).toBeGreaterThan(0);
     expect(

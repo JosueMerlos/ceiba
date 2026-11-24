@@ -21,8 +21,6 @@ import { useAgendaUrlState } from "../lib/use-agenda-url-state";
 import { useMoveAppointment } from "../lib/use-move-appointment";
 import { useWorkingBranch } from "../lib/use-working-branch";
 
-const WIDE_SCREEN_PX = 1280;
-
 // The date is a calendar day, so it is formatted in UTC: no zone may move it to the neighboring day.
 const dayFormat = new Intl.DateTimeFormat("es-NI", {
   weekday: "long",
@@ -74,10 +72,8 @@ function BranchAgenda({ branch }: { branch: Branch }) {
   const permissions = useAgendaPermissions();
   const panelId = useId();
   useEffect(preloadAgendaView, []);
-  // The sheet keeps one side panel at a time, and on wide screens it starts with the arrivals.
-  const [panel, setPanel] = useState<SidePanel>(() =>
-    window.innerWidth >= WIDE_SCREEN_PX ? { kind: "arrivals" } : null,
-  );
+  // One side panel at a time. It floats over the agenda, so it only opens when asked for.
+  const [panel, setPanel] = useState<SidePanel>(null);
   const closePanel = () => setPanel(null);
 
   const url = useAgendaUrlState(branch.time_zone, { canViewResources: permissions.readsResources });

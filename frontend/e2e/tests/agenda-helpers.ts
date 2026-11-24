@@ -80,6 +80,12 @@ export async function cancelAppointment(page: Page, customer: string) {
 
 /** Best effort: a failed test must not leave an appointment occupying the slot of the next run. */
 export async function cancelIfPresent(page: Page, customer: string) {
+  // The time grid is a lazy chunk drawn after the column headers: counting cards before it would find none.
+  await page
+    .getByText(/\d{1,2}:\d{2}\sa\.\sm\./)
+    .filter({ visible: true })
+    .first()
+    .waitFor();
   if (await appointmentCard(page, customer).count()) await cancelAppointment(page, customer);
 }
 

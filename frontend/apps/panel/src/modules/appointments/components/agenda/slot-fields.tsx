@@ -1,16 +1,9 @@
 import { useTranslation } from "@ceiba/i18n";
-import {
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ceiba/ui";
+import { Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@ceiba/ui";
 import { useId, useMemo, useState } from "react";
 import { useFreeSlots } from "../../api/agenda-availability";
 import type { AgendaProfessional } from "../../api/agenda";
+import { BranchDatePicker } from "../../../../platform/forms/branch-fields";
 import type { PlainDate } from "../../lib/agenda-time";
 import { SlotPicker } from "./slot-picker";
 
@@ -105,11 +98,11 @@ export function DayAndTimeFields({
     <>
       <div className="grid gap-1.5">
         <Label htmlFor={id}>{dayLabel}</Label>
-        <Input
+        <BranchDatePicker
           id={id}
-          type="date"
           value={selection.day}
-          onChange={(event) => selection.changeDay(event.target.value)}
+          onChange={selection.changeDay}
+          timeZone={timeZone}
         />
       </div>
       <SlotPicker
