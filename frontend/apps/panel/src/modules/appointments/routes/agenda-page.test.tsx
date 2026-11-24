@@ -1,5 +1,5 @@
 import { focusManager } from "@tanstack/react-query";
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   PROFESSIONAL_PERMISSIONS,
@@ -8,6 +8,7 @@ import {
   agendaBackend,
 } from "../../../test/agenda-backend";
 import { branch, ids, meFixture } from "../../../test/fixtures";
+import { pickDate } from "../../../test/date-time-fields";
 import { renderApp } from "../../../test/render-app";
 import { signedInBackend } from "../../../test/server";
 import { todayInZone } from "../lib/agenda-time";
@@ -338,5 +339,92 @@ describe("Agenda: panel flotante", () => {
     expect(await column("Rosa Martínez")).toBeTruthy();
     expect(screen.queryByRole("complementary", { name: "Próximas llegadas" })).toBeNull();
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  });
+});
+
+describe("Agenda: filas, filtros y densidad", () => {
+  afterEach(() => window.localStorage.clear());
+
+  const chip = (name: RegExp) =>
+    within(screen.getByRole("group", { name: "Filtrar por estado" })).getByRole("button", { name });
+
+  it("apagar «Completadas» quita esas citas y los contadores lo reflejan", async () => {
+    asReception();
+    agendaBackend({
+      appointments: [
+        agendaAppointment({ id: "a", status: "completed", customer_name: "Ana Ruiz" }),
+        agendaAppointment({ id: "b", status: "completed", customer_name: "Luz Mora", professional_id: "p2" }),
+        agendaAppointment({
+          id: "c",
+          customer_name: "Eva Luna",
+          starts_at: "2026-11-18T17:00:00.000Z",
+          ends_at: "2026-11-18T17:45:00.000Z",
+        }),
+      ],
+    });
+    const { user } = await renderApp({ route });
+    await screen.findByRole("button", { name: /Luz Mora/ });
+    expect(chip(/^Todas/).textContent).toContain("3");
+    expect(chip(/^Completadas/).textContent).toContain("2");
+
+    await user.click(chip(/^Completadas/));
+
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Ana Ruiz/ })).toBeNull());
+    expect(screen.queryByRole("button", { name: /Luz Mora/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Eva Luna/ })).toBeTruthy();
+    expect(chip(/^Completadas/).getAttribute("aria-pressed")).toBe("false");
+    expect(chip(/^Todas/).textContent).toContain("1");
+
+    await user.click(chip(/^Todas/));
+    expect(await screen.findByRole("button", { name: /Ana Ruiz/ })).toBeTruthy();
+  });
+
+  it("el título abre el calendario y lleva al día elegido", async () => {
+    asReception();
+    const backend = agendaBackend();
+    const { user } = await renderApp({ route });
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: /Agenda del miércoles 18 de noviembre/,
+    });
+
+    await pickDate(user, within(heading).getByRole("button"), "2026-11-20");
+
+    await screen.findByRole("heading", { level: 1, name: /viernes 20 de noviembre/ });
+    await waitFor(() => expect(backend.appointmentQueries.at(-1)?.get("from")).toBe("2026-11-20"));
+  });
+
+  it("la densidad compacta se recuerda al volver a la agenda", async () => {
+    asReception();
+    agendaBackend({ appointments: [agendaAppointment()] });
+    const first = await renderApp({ route });
+    await screen.findByRole("button", { name: /Ana Ruiz/ });
+
+    await first.user.click(screen.getByRole("button", { name: "Vista compacta" }));
+    await waitFor(() =>
+      expect(document.querySelector("[data-slot=agenda-view]")?.getAttribute("data-density")).toBe(
+        "compact",
+      ),
+    );
+    cleanup();
+
+    asReception();
+    agendaBackend({ appointments: [agendaAppointment()] });
+    await renderApp({ route });
+    await screen.findByRole("button", { name: /Ana Ruiz/ });
+    expect(screen.getByRole("button", { name: "Vista compacta" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+  });
+
+  it("la agenda ocupa el alto de la hoja y desplaza solo su cuerpo", async () => {
+    asReception();
+    agendaBackend({ appointments: [agendaAppointment()] });
+    await renderApp({ route });
+    await screen.findByRole("button", { name: /Ana Ruiz/ });
+
+    const view = document.querySelector("[data-slot=agenda-view]")!;
+    expect(view.closest("[data-slot=page-body]")).toBeTruthy();
+    expect(view.closest("[data-slot=page-frame]")).toBeTruthy();
   });
 });
