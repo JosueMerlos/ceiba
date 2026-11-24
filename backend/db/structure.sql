@@ -398,6 +398,60 @@ CREATE TABLE public.idempotency_keys (
 
 
 --
+-- Name: import_batches; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.import_batches (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    company_id uuid NOT NULL,
+    branch_id uuid NOT NULL,
+    kind character varying NOT NULL,
+    status character varying DEFAULT 'previewed'::character varying NOT NULL,
+    duplicate_mode character varying,
+    created_by_id uuid NOT NULL,
+    confirmed_by_id uuid,
+    warnings jsonb DEFAULT '[]'::jsonb NOT NULL,
+    total_count integer DEFAULT 0 NOT NULL,
+    ready_count integer DEFAULT 0 NOT NULL,
+    rejected_count integer DEFAULT 0 NOT NULL,
+    created_count integer DEFAULT 0 NOT NULL,
+    updated_count integer DEFAULT 0 NOT NULL,
+    restored_count integer DEFAULT 0 NOT NULL,
+    skipped_count integer DEFAULT 0 NOT NULL,
+    failed_count integer DEFAULT 0 NOT NULL,
+    expires_at timestamp(6) without time zone NOT NULL,
+    confirmed_at timestamp(6) without time zone,
+    finished_at timestamp(6) without time zone,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_import_batches_confirmed_by CHECK (((confirmed_at IS NULL) = (confirmed_by_id IS NULL))),
+    CONSTRAINT chk_import_batches_duplicate_mode CHECK (((duplicate_mode IS NULL) OR ((duplicate_mode)::text = 'skip'::text) OR ((duplicate_mode)::text = 'update'::text))),
+    CONSTRAINT chk_import_batches_kind CHECK ((((kind)::text = 'customers'::text) OR ((kind)::text = 'services'::text) OR ((kind)::text = 'professionals'::text))),
+    CONSTRAINT chk_import_batches_status CHECK ((((status)::text = 'previewed'::text) OR ((status)::text = 'queued'::text) OR ((status)::text = 'processing'::text) OR ((status)::text = 'completed'::text) OR ((status)::text = 'failed'::text) OR ((status)::text = 'expired'::text)))
+);
+
+
+--
+-- Name: import_rows; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.import_rows (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    organization_id uuid NOT NULL,
+    import_batch_id uuid NOT NULL,
+    row_number integer NOT NULL,
+    status character varying NOT NULL,
+    payload text,
+    error_codes jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_import_rows_row_number_positive CHECK ((row_number > 0)),
+    CONSTRAINT chk_import_rows_status CHECK ((((status)::text = 'ready'::text) OR ((status)::text = 'rejected'::text) OR ((status)::text = 'created'::text) OR ((status)::text = 'updated'::text) OR ((status)::text = 'restored'::text) OR ((status)::text = 'skipped'::text) OR ((status)::text = 'failed'::text)))
+);
+
+
+--
 -- Name: memberships; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -870,6 +924,22 @@ ALTER TABLE ONLY public.idempotency_keys
 
 
 --
+-- Name: import_batches import_batches_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_batches
+    ADD CONSTRAINT import_batches_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: import_rows import_rows_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_rows
+    ADD CONSTRAINT import_rows_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: memberships memberships_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1118,6 +1188,22 @@ ALTER TABLE ONLY public.idempotency_keys
 
 
 --
+-- Name: import_batches uq_import_batches_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_batches
+    ADD CONSTRAINT uq_import_batches_organization_id_id UNIQUE (organization_id, id);
+
+
+--
+-- Name: import_rows uq_import_rows_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_rows
+    ADD CONSTRAINT uq_import_rows_organization_id_id UNIQUE (organization_id, id);
+
+
+--
 -- Name: memberships uq_memberships_organization_id_id; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1352,6 +1438,20 @@ CREATE INDEX idx_customers_company_name_prefix ON public.customers USING btree (
 --
 
 CREATE INDEX idx_idempotency_keys_expires_at ON public.idempotency_keys USING btree (expires_at);
+
+
+--
+-- Name: idx_import_batches_company_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_import_batches_company_id ON public.import_batches USING btree (organization_id, company_id, id);
+
+
+--
+-- Name: idx_import_batches_status_expires; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_import_batches_status_expires ON public.import_batches USING btree (status, expires_at);
 
 
 --
@@ -1625,6 +1725,20 @@ CREATE UNIQUE INDEX uq_customers_org_company_id ON public.customers USING btree 
 --
 
 CREATE UNIQUE INDEX uq_idempotency_keys_scope ON public.idempotency_keys USING btree (organization_id, principal_key, key);
+
+
+--
+-- Name: uq_import_batches_running; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_import_batches_running ON public.import_batches USING btree (organization_id, company_id, kind) WHERE (((status)::text = 'queued'::text) OR ((status)::text = 'processing'::text));
+
+
+--
+-- Name: uq_import_rows_batch_row; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_import_rows_batch_row ON public.import_rows USING btree (organization_id, import_batch_id, row_number);
 
 
 --
@@ -1968,6 +2082,46 @@ ALTER TABLE ONLY public.customers
 
 ALTER TABLE ONLY public.idempotency_keys
     ADD CONSTRAINT fk_idempotency_keys_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: import_batches fk_import_batches_branch; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_batches
+    ADD CONSTRAINT fk_import_batches_branch FOREIGN KEY (organization_id, branch_id) REFERENCES public.branches(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: import_batches fk_import_batches_company; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_batches
+    ADD CONSTRAINT fk_import_batches_company FOREIGN KEY (organization_id, company_id) REFERENCES public.companies(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: import_batches fk_import_batches_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_batches
+    ADD CONSTRAINT fk_import_batches_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: import_rows fk_import_rows_import_batch; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_rows
+    ADD CONSTRAINT fk_import_rows_import_batch FOREIGN KEY (organization_id, import_batch_id) REFERENCES public.import_batches(organization_id, id) ON DELETE RESTRICT;
+
+
+--
+-- Name: import_rows fk_import_rows_organization; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.import_rows
+    ADD CONSTRAINT fk_import_rows_organization FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE RESTRICT;
 
 
 --
@@ -2361,6 +2515,20 @@ CREATE POLICY tenant_isolation ON public.idempotency_keys USING ((organization_i
 
 
 --
+-- Name: import_batches tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.import_batches USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
+-- Name: import_rows tenant_isolation; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY tenant_isolation ON public.import_rows USING ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid)) WITH CHECK ((organization_id = (NULLIF(current_setting('app.organization_id'::text, true), ''::text))::uuid));
+
+
+--
 -- Name: memberships tenant_isolation; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -2444,6 +2612,8 @@ CREATE POLICY tenant_isolation ON public.weekly_schedules USING ((organization_i
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261123145051'),
+('20261123145050'),
 ('20261117210801'),
 ('20261117210800'),
 ('20261117210720'),

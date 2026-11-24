@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { renderWithI18n } from "../../../test/render-with-i18n";
+import { renderWithI18n } from "../../test/render-with-i18n";
 import { EmptyState } from "./empty-state";
 
 describe("EmptyState", () => {

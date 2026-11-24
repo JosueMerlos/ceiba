@@ -190,6 +190,11 @@ Ceiba/TenantBypass:
     - "packs/platform/tenancy/app/public/tenancy/public_directory.rb"
     # Purges expired idempotency_keys across all organizations.
     - "packs/platform/idempotency/app/services/idempotency/cross_tenant.rb"
+    # Reads which organizations have expired import previews or stuck batches (the purge then runs per organization).
+    - "packs/platform/imports/app/services/imports/cross_tenant.rb"
+    # Bulk insert of a preview's rows (up to 5000 per upload) inside the active tenant; the tenant write guard rejects any row
+    # whose organization_id is not the active tenant's.
+    - "packs/platform/imports/app/public/imports/create_batch.rb"
 
 # rubocop-rails limits these cops to the root app/models, app/controllers...; without this they would skip the packs.
 Rails/EnumHash:

@@ -1,6 +1,6 @@
 import { useTranslation } from "@ceiba/i18n";
 import { AppLayout, CeibaMark, NavItem } from "@ceiba/ui";
-import { Palette, type LucideIcon } from "lucide-react";
+import { Contact, Palette, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router";
 import { navigationFor } from "../../modules/registry";
@@ -16,7 +16,7 @@ import { UserMenu } from "./user-menu";
 interface ShellNavItem {
   key: string;
   path: string;
-  labelKey: ModuleNavigation["labelKey"] | "nav.branding";
+  labelKey: ModuleNavigation["labelKey"] | "nav.branding" | "nav.customers";
   icon: LucideIcon;
 }
 
@@ -33,12 +33,31 @@ const platformNavigation = (can: (permission: string) => boolean): ShellNavItem[
       ]
     : [];
 
+/** Customers, when /me offers them: a platform entry that sits next to the agenda, before the catalog screens. */
+function withCustomers(me: ReturnType<typeof useMe>, items: ShellNavItem[]): ShellNavItem[] {
+  const offered = me.navigation.some(
+    (entry) => entry.module === "platform" && entry.key === "customers",
+  );
+  if (!offered || !me.permissions.includes("platform.customer.read")) return items;
+  const customers: ShellNavItem = {
+    key: "platform.customers",
+    path: "/customers",
+    labelKey: "nav.customers",
+    icon: Contact,
+  };
+  const afterAgenda = items.filter((item) => item.path.startsWith("/agenda")).length;
+  return [...items.slice(0, afterAgenda), customers, ...items.slice(afterAgenda)];
+}
+
 /** Panel layout: navigation comes ONLY from /me (active modules and permissions), never from a fixed list. */
 export function AppShell() {
   const { t } = useTranslation(["shell", "common"]);
   const me = useMe();
   const can = useCan();
-  const items: ShellNavItem[] = [...navigationFor(me), ...platformNavigation(can)];
+  const items: ShellNavItem[] = [
+    ...withCustomers(me, navigationFor(me)),
+    ...platformNavigation(can),
+  ];
   const [collapsed, setCollapsed] = useSidebarCollapsed(me.principal.id);
   const [asideSlot, setAsideSlot] = useState<HTMLElement | null>(null);
 

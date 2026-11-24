@@ -11,10 +11,10 @@ import {
 } from "../api/professionals";
 import { BranchPicker } from "../components/branch-picker";
 import { CatalogAside } from "../components/catalog-aside";
-import { EmptyState } from "../components/empty-state";
+import { EmptyState } from "../../../platform/ui/empty-state";
 import { ProfessionalForm, type ProfessionalFormValues } from "../components/professional-form";
 import { ProfessionalsTable } from "../components/professionals-table";
-import { QueryBoundary } from "../components/query-boundary";
+import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { useEntityPanel } from "../lib/use-entity-panel";
 import { useWorkingBranch } from "../lib/use-working-branch";
 import { ProfessionalPanel } from "./professional-panel";

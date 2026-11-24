@@ -15,8 +15,8 @@ import {
 import { useCatalogScope } from "../api/shared";
 import { BranchPicker } from "../components/branch-picker";
 import { CatalogAside } from "../components/catalog-aside";
-import { EmptyState } from "../components/empty-state";
-import { QueryBoundary } from "../components/query-boundary";
+import { EmptyState } from "../../../platform/ui/empty-state";
+import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { ServiceForm, type ServiceFormValues } from "../components/service-form";
 import { ServicesTable } from "../components/services-table";
 import { useEntityPanel } from "../lib/use-entity-panel";

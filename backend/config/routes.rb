@@ -17,6 +17,7 @@ Rails.application.routes.draw do
       draw(:access)
       draw(:modules)
       draw(:customers)
+      draw(:imports)
       draw(:appointments)
     end
 

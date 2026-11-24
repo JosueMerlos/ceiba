@@ -20,6 +20,8 @@ Rails.application.config.filter_parameters += [
   :full_name, :customer_name, :name_prefix,
   # Why someone is absent: free text that may reveal health or personal matters
   :reason,
+  # An uploaded CSV, base64-encoded: a whole list of customers
+  :content_base64,
   # Session and CSRF
   :csrf, :authorization, :cookie
 ]

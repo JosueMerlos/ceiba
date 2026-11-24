@@ -327,6 +327,30 @@ OpenapiComponents.register(
                  rescheduled_from_id cancelled_by cancellation_reason customer_name],
     additionalProperties: false
   },
+  CustomerAppointment: {
+    type: :object,
+    description: "Una cita del historial de un cliente en la sucursal: estado, horario y los nombres de profesional y servicios (aunque estén " \
+                 "archivados). Sin notas, precio ni datos del cliente.",
+    properties: {
+      id: { type: :string, format: :uuid },
+      status: { type: :string, enum: %w[scheduled confirmed checked_in completed cancelled rescheduled no_show] },
+      starts_at: { type: :string, format: "date-time", description: "UTC" },
+      ends_at: { type: :string, format: "date-time", description: "UTC" },
+      professional: {
+        type: :object, required: %i[id display_name], additionalProperties: false,
+        properties: { id: { type: :string, format: :uuid }, display_name: { type: :string } }
+      },
+      services: {
+        type: :array,
+        items: {
+          type: :object, required: %i[service_id name], additionalProperties: false,
+          properties: { service_id: { type: :string, format: :uuid }, name: { type: :string } }
+        }
+      }
+    },
+    required: %i[id status starts_at ends_at professional services],
+    additionalProperties: false
+  },
   AppointmentInput: {
     type: :object,
     description: "Reserva desde el panel. `professional_id` es el de un hueco de la disponibilidad; el literal `any` no se acepta (422).",

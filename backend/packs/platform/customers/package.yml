@@ -16,3 +16,5 @@ dependencies:
   - "packs/platform/audit"
   # Creating a customer accepts an Idempotency-Key.
   - "packs/platform/idempotency"
+  # Customers are imported from CSV through the imports pack (Imports::Importer, Imports::Registry).
+  - "packs/platform/imports"

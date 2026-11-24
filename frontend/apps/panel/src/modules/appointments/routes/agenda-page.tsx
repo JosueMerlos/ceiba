@@ -11,7 +11,7 @@ import { AgendaToolbar } from "../components/agenda-toolbar";
 import { AgendaView, preloadAgendaView } from "../components/agenda-view/agenda-view";
 import type { AgendaSlot } from "../components/agenda-view/types";
 import { BranchPicker } from "../components/branch-picker";
-import { QueryBoundary } from "../components/query-boundary";
+import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { UpcomingArrivals } from "../components/upcoming-arrivals";
 import { useAgendaPermissions } from "../lib/agenda-permissions";
 import { addDays, mondayOf, type PlainDate } from "../lib/agenda-time";

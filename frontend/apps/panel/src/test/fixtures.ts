@@ -105,6 +105,9 @@ export function meFixture({
     ? (explicitCompanyPermissions ?? (role === "company_manager" ? permissions : []))
     : [];
   const navigation = [
+    ...(permissions.includes("platform.customer.read")
+      ? [{ module: "platform", key: "customers", path: "/customers" }]
+      : []),
     ...(permissions.includes("appointments.appointment.read") ||
     permissions.includes("appointments.appointment.read_own")
       ? [{ module: "appointments", key: "agenda", path: "/agenda" }]

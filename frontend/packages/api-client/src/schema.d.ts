@@ -1555,6 +1555,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/customers/{customer_id}/appointments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                customer_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Historial de citas de un cliente en la sucursal
+         * @description De la más reciente a la más antigua, paginado por cursor. Solo las citas de la sucursal de la ruta. Exige `appointments.appointment.read` en la sucursal. Un cliente archivado conserva su historial.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    after?: string;
+                };
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    customer_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description las citas con su estado y los nombres de profesional y servicio */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["CustomerAppointment"][];
+                            page: components["schemas"]["PageInfo"];
+                        };
+                    };
+                };
+                /** @description un cliente de otra empresa no existe para esta ruta */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/professionals/{professional_id}": {
         parameters: {
             query?: never;
@@ -4901,6 +4965,263 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sube un CSV y devuelve su previsualización
+         * @description Lee el archivo (UTF-8, Windows-1252 o UTF-16; separador `;`, `,` o tabulador), valida cada fila y no aplica ninguna. Máximo 5000 filas y 5 MB. Clientes exige `platform.customer.import` y `platform.customer.read` en la sucursal; servicios `appointments.service.manage` y profesionales `appointments.professional.manage` en la empresa (con el módulo activo). La previsualización devuelve las primeras 20 filas con sus valores mientras el lote no se confirma ni vence.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ImportUpload"];
+                };
+            };
+            responses: {
+                /** @description el lote previsualizado: 3 inválidas de 100 señaladas con su motivo */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ImportBatch"];
+                        };
+                    };
+                };
+                /** @description la recepción no importa clientes */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description faltan columnas obligatorias */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/imports/{import_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Estado de un lote y sus primeras filas
+         * @description Para seguir el avance tras confirmar. Los valores de las filas solo salen mientras el lote está en previsualización y no ha vencido.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    import_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description el lote */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ImportBatch"];
+                        };
+                    };
+                };
+                /** @description un lote de otra empresa no existe para esta ruta */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/imports/{import_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirma el lote y lo encola
+         * @description `duplicate_mode`: `skip` deja intacto lo existente; `update` (solo clientes) escribe las celdas no vacías y restaura a los archivados. Las filas rechazadas no se importan. Un solo lote de cada tipo corre a la vez en la empresa.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    /** @description `csrf_token` de la sesión (login o GET /auth/session) */
+                    "X-CSRF-Token": string;
+                };
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    import_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ImportConfirmation"];
+                };
+            };
+            responses: {
+                /** @description encolado */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ImportBatch"];
+                        };
+                    };
+                };
+                /** @description ya confirmado */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/imports/{import_id}/rows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                company_id: string;
+                branch_id: string;
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Filas de un lote, por número de fila
+         * @description Paginado por cursor. Filtro `status` (p. ej. `rejected` para el reporte de errores). Los códigos de error nunca llevan el valor.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    status?: "ready" | "rejected" | "created" | "updated" | "restored" | "skipped" | "failed";
+                    limit?: number;
+                    after?: string;
+                };
+                header?: never;
+                path: {
+                    organization_id: string;
+                    company_id: string;
+                    branch_id: string;
+                    import_id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description las filas rechazadas */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["ImportRow"][];
+                            page: components["schemas"]["PageInfo"];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/organizations/{organization_id}/companies/{company_id}/branches/{branch_id}/modules/{key}/settings": {
         parameters: {
             query?: never;
@@ -5899,6 +6220,33 @@ export interface components {
              */
             updated_at: string;
         };
+        /** @description Una cita del historial de un cliente en la sucursal: estado, horario y los nombres de profesional y servicios (aunque estén archivados). Sin notas, precio ni datos del cliente. */
+        CustomerAppointment: {
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            ends_at: string;
+            /** Format: uuid */
+            id: string;
+            professional: {
+                display_name: string;
+                /** Format: uuid */
+                id: string;
+            };
+            services: {
+                name: string;
+                /** Format: uuid */
+                service_id: string;
+            }[];
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            starts_at: string;
+            /** @enum {string} */
+            status: "scheduled" | "confirmed" | "checked_in" | "completed" | "cancelled" | "rescheduled" | "no_show";
+        };
         /** @description Alta de un cliente */
         CustomerInput: {
             email?: string | null;
@@ -5943,6 +6291,72 @@ export interface components {
             field: string;
             /** @example no puede estar en blanco */
             message: string;
+        };
+        /** @description Un archivo importado, de la previsualización al reporte. Solo conteos y códigos. */
+        ImportBatch: {
+            /** @description Columnas que reconoce el tipo */
+            columns: string[];
+            /** Format: date-time */
+            confirmed_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            created_count: number;
+            /** @enum {string|null} */
+            duplicate_mode: "skip" | "update" | null;
+            /** @description Modos que admite el tipo */
+            duplicate_modes: ("skip" | "update")[];
+            /**
+             * Format: date-time
+             * @description UTC; vencimiento de la previsualización
+             */
+            expires_at: string;
+            failed_count: number;
+            /** Format: date-time */
+            finished_at: string | null;
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "customers" | "services" | "professionals";
+            /** @description Las primeras 20 filas */
+            preview: components["schemas"]["ImportRow"][];
+            ready_count: number;
+            rejected_count: number;
+            required_columns: string[];
+            restored_count: number;
+            skipped_count: number;
+            /** @enum {string} */
+            status: "previewed" | "queued" | "processing" | "completed" | "failed" | "expired";
+            total_count: number;
+            updated_count: number;
+            warnings: "consent_not_recorded"[];
+        };
+        ImportConfirmation: {
+            /**
+             * @description `update` solo para clientes
+             * @enum {string}
+             */
+            duplicate_mode: "skip" | "update";
+        };
+        /** @description Una fila de datos del archivo. `row_number` es su línea en la hoja (el encabezado es la 1). */
+        ImportRow: {
+            /** @description Columna => código del error, nunca el valor */
+            error_codes: {
+                [key: string]: string;
+            };
+            row_number: number;
+            /** @enum {string} */
+            status: "ready" | "rejected" | "created" | "updated" | "restored" | "skipped" | "failed";
+            /** @description Celdas de la fila por columna; solo mientras el lote está en previsualización y no ha vencido */
+            values: {
+                [key: string]: string | null;
+            } | null;
+        };
+        /** @description Archivo CSV a importar, codificado en base64 */
+        ImportUpload: {
+            /** @description Bytes del archivo en base64 (máximo 5 MB decodificado) */
+            content_base64: string;
+            /** @enum {string} */
+            kind: "customers" | "services" | "professionals";
         };
         /**
          * @description Variantes del logo: x1 (alto 64) y x2 (alto 128), WebP. Cada URL es versionada: una imagen nueva tiene URLs nuevas. Nunca apuntan al original. Es null si no hay imagen.

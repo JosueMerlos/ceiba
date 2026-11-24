@@ -7,11 +7,11 @@ RSpec.describe Api::Pagination::Cursor do
     Array.new(count) { create(:organization) }
   end
 
-  def walk(scope, limit:, &between_pages)
+  def walk(scope, limit:, order: nil, &between_pages)
     pages = []
     after = nil
     loop do
-      page = described_class.paginate(scope, limit:, after:)
+      page = described_class.paginate(scope, limit:, after:, order:)
       pages << page
       break unless page.has_more
 
@@ -54,6 +54,30 @@ RSpec.describe Api::Pagination::Cursor do
       rest = described_class.paginate(scope, limit: 10, after: page.next_cursor)
 
       expect(rest.records.map(&:id)).to eq([ first_ids.last, newcomer.id ])
+    end
+  end
+
+  describe "con un orden propio (order:)" do
+    let(:newest_first) { { created_at: :desc } }
+
+    it "pagina de la más reciente a la más antigua y desempata por id, sin perder ni repetir" do
+      organizations = create_organizations(5)
+      tied = Time.utc(2026, 11, 2, 15)
+      # Two share the instant; two differ only by microseconds, which a millisecond cursor would lose.
+      instants = [ tied + 0.0004, tied + 0.0002, tied, tied, tied - 2.hours ]
+      organizations.zip(instants) { |org, instant| org.update_columns(created_at: instant) }
+      expected = organizations.map(&:reload).sort { |a, b| [ b.created_at, b.id ] <=> [ a.created_at, a.id ] }.map(&:id)
+
+      pages = walk(scope, limit: 1, order: newest_first)
+
+      expect(pages.flat_map { |page| page.records.map(&:id) }).to eq(expected)
+    end
+
+    it "un cursor de un listado por id no sirve en uno con orden propio" do
+      create_organizations(3)
+      by_id = described_class.paginate(scope, limit: 1).next_cursor
+
+      expect { described_class.paginate(scope, limit: 1, after: by_id, order: newest_first) }.to raise_error(Api::Pagination::InvalidCursor)
     end
   end
 

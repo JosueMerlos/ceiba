@@ -6,6 +6,7 @@ module Appointments
     CURRENCIES = %w[NIO USD].freeze
     # A service never takes longer than a day; the cap also keeps the value inside the integer column.
     MAX_MINUTES = 1440
+    MAX_NAME_LENGTH = 200
     # Display order is a small integer; the cap only keeps garbage out of the column.
     MAX_POSITION = 10_000
     # Largest integer a JavaScript number holds exactly (Number.MAX_SAFE_INTEGER): the generated TS client never loses precision.
@@ -18,7 +19,7 @@ module Appointments
     before_validation :normalize_fields
     before_validation :default_currency
 
-    validates :name, presence: true, length: { maximum: 200 }
+    validates :name, presence: true, length: { maximum: MAX_NAME_LENGTH }
     validates :duration_minutes, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_MINUTES }
     validates :buffer_before_minutes, :buffer_after_minutes,
               numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_MINUTES }

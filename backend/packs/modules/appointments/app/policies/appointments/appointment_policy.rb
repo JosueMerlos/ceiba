@@ -19,6 +19,9 @@ module Appointments
       can?("platform.customer.read", context_scope(:branch)) || self.class.own_listing_only?(principal, context_scope(:branch))
     end
 
+    # A customer's whole history at the branch: staff who read the agenda. A professional (`read_own`) does not.
+    def customer_history? = can?("appointments.appointment.read", context_scope(:branch))
+
     def show? = edit?(own_allowed: true)
     def update? = edit?(own_allowed: true)
 

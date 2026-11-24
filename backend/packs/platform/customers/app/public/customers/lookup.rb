@@ -13,6 +13,13 @@ module Customers
       Customer.active.exists?(id:, company_id: company.id)
     end
 
+    # Is `id` a customer of the company, archived or not? For what outlives archiving, such as their appointment history.
+    def exists_id?(id:, company:)
+      return false unless id.is_a?(String) && id.match?(UUID)
+
+      Customer.exists?(id:, company_id: company.id)
+    end
+
     # { customer id => full name } of the company's customers among `ids`. Archived ones are included: their appointments remain.
     def full_names(ids:, company:)
       return {} if ids.empty?
