@@ -185,4 +185,57 @@ describe("WeeklyScheduleEditor", () => {
     expect(screen.queryByRole("button", { name: "Agregar franja" })).toBeNull();
     expect(within(day("Lunes")).getByText("9:00 a. m. – 1:00 p. m.")).toBeTruthy();
   });
+
+  describe("dentro de un modal (formId)", () => {
+    async function renderInDialog(
+      props: Partial<React.ComponentProps<typeof WeeklyScheduleEditor>> = {},
+    ) {
+      const onSave = vi.fn();
+      const view = await renderWithI18n(
+        <>
+          <WeeklyScheduleEditor slots={[MONDAY]} onSave={onSave} formId="schedule" {...props} />
+          <button type="submit" form="schedule">
+            Pie del modal
+          </button>
+        </>,
+      );
+      return { onSave, ...view };
+    }
+
+    it("no pinta su propio botón: el del pie del modal envía el horario", async () => {
+      const { user, onSave } = await renderInDialog();
+
+      expect(screen.queryByRole("button", { name: "Guardar horario" })).toBeNull();
+      await user.click(within(day("Martes")).getByRole("button", { name: "Agregar franja" }));
+      await user.click(screen.getByRole("button", { name: "Pie del modal" }));
+
+      expect(onSave).toHaveBeenCalledWith({
+        slots: [
+          { weekday: 1, starts_at_local: "09:00", ends_at_local: "13:00" },
+          { weekday: 2, starts_at_local: "09:00", ends_at_local: "13:00" },
+        ],
+      });
+    });
+
+    it("sin franjas sigue pidiendo confirmar la semana cerrada", async () => {
+      const { user, onSave } = await renderInDialog({ slots: [] });
+
+      await user.click(screen.getByRole("button", { name: "Pie del modal" }));
+      expect(onSave).not.toHaveBeenCalled();
+      await user.click(
+        within(screen.getByRole("dialog")).getByRole("button", { name: "Dejar cerrada" }),
+      );
+      expect(onSave).toHaveBeenCalledWith({ slots: [] });
+    });
+
+    it("avisa cuando el horario difiere del guardado y cuando vuelve a coincidir", async () => {
+      const onDirtyChange = vi.fn();
+      const { user } = await renderInDialog({ onDirtyChange });
+
+      await user.click(within(day("Martes")).getByRole("button", { name: "Agregar franja" }));
+      expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+      await user.click(within(day("Martes")).getByRole("button", { name: "Quitar franja" }));
+      expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    });
+  });
 });

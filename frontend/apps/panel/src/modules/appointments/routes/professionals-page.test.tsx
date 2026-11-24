@@ -114,18 +114,41 @@ describe("Profesionales: lista y gates", () => {
     await waitFor(() => expect(screen.queryByText("Don Efraín")).toBeNull());
   });
 
-  it("un lector no ve Archivar ni el formulario editable (gate)", async () => {
-    asCompanyManager(STAFF_READER_PERMISSIONS);
-    servicesBackend();
-    staffBackend({ professionals: [efrain] });
+  it("recepción (AC8): sin crear ni acciones; la fila abre el detalle flotante de lectura, sin formularios ni modal", async () => {
+    signedInBackend({
+      me: meFixture({
+        role: "receptionist",
+        permissions: STAFF_READER_PERMISSIONS,
+        branch: centro,
+      }),
+      branches: [centro],
+    });
+    servicesBackend({ services: [corte, barba] });
+    staffBackend({
+      professionals: [efrain],
+      schedules: { p1: [scheduleSlot("sl1", 1, "08:00", "12:00")] },
+    });
     const { user } = await openProfessionals();
 
     expect(await screen.findByText("Don Efraín")).toBeTruthy();
+    expect(screen.getByText("Solo lectura")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Nuevo profesional" })).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: "Acciones" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Archivar/ })).toBeNull();
-    const panel = await openPanel(user, "Don Efraín");
-    expect(within(panel).getByLabelText("Nombre para mostrar")).toHaveProperty("disabled", true);
-    expect(within(panel).queryByRole("button", { name: "Guardar cambios" })).toBeNull();
-    expect(within(panel).queryByRole("button", { name: "Guardar servicios" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Ver Don Efraín" }));
+    const panel = await screen.findByRole("complementary", { name: "Don Efraín" });
+    expect(panel.closest("[data-variant=floating]")).not.toBeNull();
+    expect(await within(panel).findByText("Corte clásico")).toBeTruthy();
+    expect(within(panel).getByText("Sucursal Centro")).toBeTruthy();
+    const schedule = await within(panel).findByRole("region", { name: "Horario semanal" });
+    expect(await within(schedule).findByText("8:00 a. m. – 12:00 p. m.")).toBeTruthy();
+    expect(within(panel).queryByRole("textbox")).toBeNull();
+    expect(within(panel).queryByRole("checkbox")).toBeNull();
+    expect(within(panel).queryByRole("button", { name: /Guardar|Agregar/ })).toBeNull();
+    expect(document.querySelectorAll("[data-slot=form-description]")).toHaveLength(0);
+    expect(within(panel).queryByText(/Todo se guarda en la hora/)).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
 

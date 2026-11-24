@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { meFixture, problem, validationProblem } from "../../test/fixtures";
+import { branch, ids, meFixture, problem, validationProblem } from "../../test/fixtures";
 import { renderApp } from "../../test/render-app";
 import { server, signedInBackend } from "../../test/server";
 import { CUSTOMER_PERMISSIONS, customerFixture, customersUrl } from "./test-support";
@@ -57,7 +57,63 @@ describe("lista de clientes", () => {
     expect(queries.some((query) => query.includes("name_prefix=Fer"))).toBe(true);
   });
 
-  it("un teléfono repetido al crear se muestra junto al campo, sin cerrar el panel", async () => {
+  it("crea un cliente en el modal, en un solo paso, y abre su ficha", async () => {
+    receptionist();
+    let body: unknown;
+    server.use(
+      http.get(customersUrl(), () => HttpResponse.json(page([]))),
+      http.post(customersUrl(), async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(
+          { data: customerFixture({ full_name: "Ana Pérez" }) },
+          { status: 201 },
+        );
+      }),
+      http.get(`${customersUrl()}/:id`, () =>
+        HttpResponse.json({ data: customerFixture({ full_name: "Ana Pérez" }) }),
+      ),
+    );
+    const { user } = await renderApp({ route: "/customers" });
+
+    await user.click(await screen.findByRole("button", { name: "Nuevo cliente" }));
+    const dialog = await screen.findByRole("dialog", { name: "Nuevo cliente" });
+    expect(within(dialog).queryByRole("list", { name: "Pasos" })).toBeNull();
+    await user.type(within(dialog).getByLabelText("Nombre completo"), "Ana Pérez");
+    await user.type(within(dialog).getByLabelText("Teléfono"), "8812 3456");
+    await user.type(within(dialog).getByLabelText("Correo"), "ana@correo.com");
+    await user.click(within(dialog).getByRole("button", { name: "Guardar cliente" }));
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Ana Pérez" })).toBeTruthy();
+    expect(body).toEqual({
+      full_name: "Ana Pérez",
+      phone_e164: "8812 3456",
+      email: "ana@correo.com",
+      notes: null,
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("con «Todas las sucursales» y varias pide elegir una en el selector global, sin lista", async () => {
+    signedInBackend({
+      me: meFixture({
+        role: "company_manager",
+        extraPermissions: CUSTOMER_PERMISSIONS,
+        branch: null,
+      }),
+      branches: [
+        branch(ids.branchA, ids.companyA, "Sucursal Centro"),
+        branch(ids.branchA2, ids.companyA, "Sucursal Norte"),
+      ],
+    });
+    await renderApp({ route: "/customers" });
+
+    expect(await screen.findByRole("heading", { name: "Elija una sucursal" })).toBeTruthy();
+    expect(screen.queryByRole("searchbox", { name: "Buscar clientes" })).toBeNull();
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Nuevo cliente" })).toBeNull();
+  });
+
+  it("un teléfono repetido al crear se muestra junto al campo, sin cerrar el modal", async () => {
     receptionist();
     server.use(
       http.get(customersUrl(), () => HttpResponse.json(page([]))),
@@ -70,12 +126,13 @@ describe("lista de clientes", () => {
     const { user } = await renderApp({ route: "/customers" });
 
     await user.click(await screen.findByRole("button", { name: "Nuevo cliente" }));
-    await user.type(screen.getByLabelText("Nombre completo"), "Ana Pérez");
-    await user.type(screen.getByLabelText("Teléfono"), "8812 3456");
-    await user.click(screen.getByRole("button", { name: "Guardar cliente" }));
+    const dialog = await screen.findByRole("dialog", { name: "Nuevo cliente" });
+    await user.type(within(dialog).getByLabelText("Nombre completo"), "Ana Pérez");
+    await user.type(within(dialog).getByLabelText("Teléfono"), "8812 3456");
+    await user.click(within(dialog).getByRole("button", { name: "Guardar cliente" }));
 
-    expect(await screen.findByText("ya pertenece a otro cliente")).toBeTruthy();
-    expect(screen.getByLabelText("Nombre completo")).toBeTruthy();
+    expect(await within(dialog).findByText("ya pertenece a otro cliente")).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Nuevo cliente" })).toBeTruthy();
   });
 
   it("sin clientes invita a crear el primero o a importarlos", async () => {

@@ -111,4 +111,39 @@ describe("TimeOffForm", () => {
       formatClock("09:00"),
     );
   });
+
+  it("fecha y hora salen de los campos propios: ningún input nativo de fecha u hora", async () => {
+    const { container } = await renderForm();
+
+    expect(
+      container.querySelectorAll("input[type=date], input[type=time], input[type=datetime-local]"),
+    ).toHaveLength(0);
+  });
+
+  it("dentro de un modal (formId) no pinta su botón: el pie lo envía, y avisa si tiene datos", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    const onDirtyChange = vi.fn();
+    const { user } = await renderWithI18n(
+      <>
+        <TimeOffForm
+          timeZone="America/Managua"
+          formId="time-off"
+          onDirtyChange={onDirtyChange}
+          onSubmit={onSubmit}
+        />
+        <button type="submit" form="time-off">
+          Pie del modal
+        </button>
+      </>,
+    );
+
+    expect(screen.queryByRole("button", { name: "Agregar ausencia" })).toBeNull();
+    await fill(user, "Desde", "2026-11-20T09:00");
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    await fill(user, "Hasta", "2026-11-20T10:00");
+    await user.click(screen.getByRole("button", { name: "Pie del modal" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+    await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false));
+  });
 });
