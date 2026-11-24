@@ -8,12 +8,14 @@ import { Button } from "./button";
 // The calendar library only downloads when a calendar opens; the field itself stays in the caller's chunk.
 // React.lazy remembers a failed import, so retrying needs a fresh lazy component.
 const loadCalendar = () => lazy(() => import("./calendar"));
+type LazyCalendar = ReturnType<typeof loadCalendar>;
 const calendar = { Component: loadCalendar() };
 
 interface BoundaryProps {
   errorLabel: string;
   retryLabel: string;
-  children: ReactNode;
+  /** Receives the CURRENT lazy calendar: after a retry it must be the new one, not the element that already failed. */
+  children(Calendar: LazyCalendar): ReactNode;
 }
 
 /** Keeps a failed calendar download (a deploy replaced the chunk, the network dropped) inside the popover. */
@@ -30,7 +32,7 @@ class CalendarBoundary extends Component<BoundaryProps, { failed: boolean }> {
   };
 
   override render() {
-    if (!this.state.failed) return this.props.children;
+    if (!this.state.failed) return this.props.children(calendar.Component);
     return (
       <div role="alert" className="grid w-[17rem] gap-3 p-2 text-sm">
         <p>{this.props.errorLabel}</p>
@@ -167,21 +169,23 @@ function DateFieldShell({
           className="z-50 rounded-xl border bg-popover p-3 text-popover-foreground shadow-lg outline-none"
         >
           <CalendarBoundary errorLabel={loadErrorLabel} retryLabel={retryLabel}>
-            <Suspense fallback={<div aria-busy="true" className="h-72 w-[17rem]" />}>
-              <calendar.Component
-                mode={mode}
-                from={from}
-                to={to}
-                today={today}
-                min={min}
-                max={max}
-                previousMonthLabel={previousMonthLabel}
-                nextMonthLabel={nextMonthLabel}
-                onPick={(day) => {
-                  if (onPick(day)) setOpen(false);
-                }}
-              />
-            </Suspense>
+            {(Calendar) => (
+              <Suspense fallback={<div aria-busy="true" className="h-72 w-[17rem]" />}>
+                <Calendar
+                  mode={mode}
+                  from={from}
+                  to={to}
+                  today={today}
+                  min={min}
+                  max={max}
+                  previousMonthLabel={previousMonthLabel}
+                  nextMonthLabel={nextMonthLabel}
+                  onPick={(day) => {
+                    if (onPick(day)) setOpen(false);
+                  }}
+                />
+              </Suspense>
+            )}
           </CalendarBoundary>
         </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>

@@ -41,7 +41,8 @@ interface TimeFieldProps extends Pick<
 /**
  * Time input: type it ("9", "930p", "2:15 p. m.") or pick it from a list every `step` minutes. Implements the
  * WAI-ARIA combobox: arrows move the active option, Enter or leaving the field commits. Invalid or out-of-range text
- * keeps the previous value and marks the field.
+ * stays on screen, marked, and empties the value so the form's validation blocks the save; Escape restores the time
+ * there was before typing.
  */
 function TimeField({
   value,
@@ -70,6 +71,8 @@ function TimeField({
   // The last value this field emitted: any other change of `value` comes from outside (a form reset) and drops the draft.
   const [emitted, setEmitted] = useState<string | null>(null);
   const [synced, setSynced] = useState(value);
+  // The value when typing started: what Escape goes back to.
+  const [beforeDraft, setBeforeDraft] = useState(value);
   const portalContainer = usePortalContainer();
 
   if (value !== synced) {
@@ -78,6 +81,8 @@ function TimeField({
       setDraft(null);
       setInvalid(false);
     }
+    // Only the echo of the latest emission is ours; a later equal value comes from outside.
+    setEmitted(null);
   }
   // The list can shrink (a new min/max) while an option far down is active.
   const activeOption = open && active >= 0 ? options[active] : undefined;
@@ -187,6 +192,7 @@ function TimeField({
           event.stopPropagation();
           setDraft(null);
           setInvalid(false);
+          if (value !== beforeDraft) emit(beforeDraft);
         }
         break;
     }
@@ -218,6 +224,7 @@ function TimeField({
             disabled={disabled}
             value={shown}
             onChange={(event) => {
+              if (draft === null) setBeforeDraft(value);
               setDraft(event.target.value);
               setInvalid(false);
               // What is typed wins over the highlighted option until the arrows are used again.

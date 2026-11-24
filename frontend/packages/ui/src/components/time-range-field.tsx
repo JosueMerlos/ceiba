@@ -18,6 +18,8 @@ interface TimeRangeFieldProps extends Pick<
   "aria-label"?: string;
   "aria-labelledby"?: string;
   "aria-invalid"?: boolean | "true" | "false";
+  /** The row's error, announced on both times. */
+  "aria-describedby"?: string;
   className?: string;
   /** Width of each of the two times, e.g. responsive widths of a schedule row. */
   fieldClassName?: string;
