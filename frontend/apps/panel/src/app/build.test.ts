@@ -20,6 +20,8 @@ const CALENDAR_ADAPTER =
   "src/modules/appointments/components/agenda-view/adapters/event-calendar.tsx";
 // A class name only the calendar library writes.
 const CALENDAR_MARKER = "ec-event";
+// The class prefix only react-day-picker writes.
+const DAY_PICKER_MARKER = "rdp-";
 
 describe("build de producción del panel", () => {
   let outDir: string;
@@ -68,5 +70,23 @@ describe("build de producción del panel", () => {
 
     expect(withCalendar.map((item) => item.file)).toEqual([adapter.file]);
     expect(manifest[MODULE_ENTRY]!.imports ?? []).not.toContain(CALENDAR_ADAPTER);
+  });
+
+  it("react-day-picker viaja solo en chunks diferidos, fuera del JS crítico", () => {
+    const critical = new Set<string>();
+    const visit = (key: string) => {
+      if (critical.has(key)) return;
+      critical.add(key);
+      for (const child of manifest[key]?.imports ?? []) visit(child);
+    };
+    visit(Object.keys(manifest).find((key) => manifest[key]!.isEntry)!);
+    const withDayPicker = Object.entries(manifest).filter(
+      ([, item]) => item.file.endsWith(".js") && read(item.file).includes(DAY_PICKER_MARKER),
+    );
+
+    expect(withDayPicker.length).toBeGreaterThan(0);
+    expect(withDayPicker.filter(([key]) => critical.has(key)).map(([, item]) => item.file)).toEqual(
+      [],
+    );
   });
 });

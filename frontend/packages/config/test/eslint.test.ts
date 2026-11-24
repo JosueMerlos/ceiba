@@ -13,6 +13,16 @@ const lint = async (code: string, filePath = "apps/panel/src/example.tsx") => {
   return result?.messages.map((message) => message.ruleId) ?? [];
 };
 
+const lintMessages = async (code: string, filePath = "apps/panel/src/example.tsx") => {
+  const eslint = new ESLint({
+    overrideConfigFile: true,
+    overrideConfig: config,
+    cwd: import.meta.dirname,
+  });
+  const [result] = await eslint.lintText(code, { filePath: `${import.meta.dirname}/${filePath}` });
+  return result?.messages.map((message) => message.message) ?? [];
+};
+
 describe("configuración compartida de ESLint", () => {
   it("acepta código TypeScript/React correcto", async () => {
     const code = `export function Hello({ name }: { name: string }) {\n  return <p>{name}</p>;\n}\n`;
@@ -162,6 +172,33 @@ describe("configuración compartida de ESLint", () => {
       const code = `export const View = () => <p>Hola mundo</p>;\n`;
 
       expect(await lint(code, "apps/panel/src/example.test.tsx")).toEqual([]);
+    });
+  });
+
+  describe("sin inputs nativos de fecha y hora", () => {
+    const NATIVE = /input nativo de fecha u hora/;
+
+    it.each([
+      ['<input type="time" />', "apps/panel/src/example.tsx"],
+      ['<Input type="date" />', "apps/panel/src/example.tsx"],
+      ['<input type="datetime-local" />', "packages/ui/src/components/example.tsx"],
+      ['<Input type={"date"} />', "apps/panel/src/example.tsx"],
+    ])("prohíbe %s en %s", async (element, filePath) => {
+      const code = `export const View = () => ${element};\n`;
+
+      expect(await lintMessages(code, filePath)).toEqual([expect.stringMatching(NATIVE)]);
+    });
+
+    it("acepta los demás tipos de input", async () => {
+      const code = 'export const View = () => <input type="text" />;\n';
+
+      expect(await lintMessages(code)).toEqual([]);
+    });
+
+    it("las guardas de textos de UI siguen activas junto a la nueva", async () => {
+      const code = "export const View = () => <Widget aria-label={`Texto visible`} />;\n";
+
+      expect(await lintMessages(code)).toEqual([expect.stringMatching(/fuera de i18n/)]);
     });
   });
 });
