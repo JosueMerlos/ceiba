@@ -30,14 +30,27 @@ function props(overrides: Partial<AgendaViewProps> = {}): AgendaViewProps {
       { id: "luis", title: "Luis Pérez", detail: "2 citas" },
     ],
     events: [
-      event({ id: "b", resourceId: "luis", title: "Eva Luna", start: at("11:00"), end: at("11:30") }),
+      event({
+        id: "b",
+        resourceId: "luis",
+        title: "Eva Luna",
+        start: at("11:00"),
+        end: at("11:30"),
+      }),
       event({ id: "a", resourceId: "luis", title: "Ana Ruiz" }),
-      event({ id: "c", resourceId: "rosa", title: "Luz Mora", start: at("10:00"), end: at("10:45") }),
+      event({
+        id: "c",
+        resourceId: "rosa",
+        title: "Luz Mora",
+        start: at("10:00"),
+        end: at("10:45"),
+      }),
     ],
     blocks: [{ resourceId: "luis", start: at("12:00"), end: at("13:00") }],
     range: { startMinute: 8 * 60, endMinute: 14 * 60 },
     stepMinutes: 15,
     now: null,
+    onSelectSlot: vi.fn(),
     ...overrides,
   };
 }

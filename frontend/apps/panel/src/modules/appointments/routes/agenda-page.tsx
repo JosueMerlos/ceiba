@@ -8,7 +8,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@ceiba/ui";
-import { Rows2, Rows4 } from "lucide-react";
+import { Plus, Rows2, Rows4 } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { useContextSelection } from "../../../platform/context/context-provider";
 import { useMe } from "../../../platform/me/me-provider";
@@ -16,9 +16,10 @@ import type { Branch } from "../api/catalog";
 import { AppointmentDetailPanel } from "../components/agenda/appointment-detail-panel";
 import { NewAppointmentPanel } from "../components/agenda/new-appointment-panel";
 import { AgendaStatusChips, CHIP_TONES } from "../components/agenda-status-chips";
-import { AgendaToolbar } from "../components/agenda-toolbar";
+import { AgendaToolbar, WeekProfessionalPicker } from "../components/agenda-toolbar";
 import { AgendaView, preloadAgendaView } from "../components/agenda-view/agenda-view";
 import { AgendaDensityContext } from "../components/agenda-view/density";
+import { useNarrowScreen } from "../components/agenda-view/use-narrow-screen";
 import type { AgendaSlot } from "../components/agenda-view/types";
 import { BranchPicker } from "../components/branch-picker";
 import { QueryBoundary } from "../../../platform/ui/query-boundary";
@@ -88,10 +89,15 @@ function BranchAgenda({ branch }: { branch: Branch }) {
   const { principal } = useMe();
   const permissions = useAgendaPermissions();
   const panelId = useId();
-  useEffect(preloadAgendaView, []);
+  const narrow = useNarrowScreen();
+  // A phone draws the list, which needs no calendar library.
+  useEffect(() => {
+    if (!narrow) preloadAgendaView();
+  }, [narrow]);
   // One side panel at a time. It floats over the agenda, so it only opens when asked for.
   const [panel, setPanel] = useState<SidePanel>(null);
   const closePanel = () => setPanel(null);
+  const openNew = () => setPanel({ kind: "new", slot: null });
   const [density, setDensity] = useAgendaDensity(principal.id);
   // The statuses switched off with the chips; a filter of the screen, not of the data.
   const [hidden, setHidden] = useState(NO_TONES);
@@ -229,55 +235,75 @@ function BranchAgenda({ branch }: { branch: Branch }) {
             onPrevious={() => url.setDate(addDays(date, -step))}
             onToday={() => url.setDate(screen.today)}
             onNext={() => url.setDate(addDays(date, step))}
-            weekProfessionals={screen.assigned}
-            weekProfessionalId={screen.weekProfessionalId}
-            onWeekProfessionalChange={url.setWeekProfessional}
             arrivalsCount={screen.arrivals.length}
             arrivalsOpen={panel?.kind === "arrivals"}
             onToggleArrivals={() =>
               setPanel((current) => (current?.kind === "arrivals" ? null : { kind: "arrivals" }))
             }
             arrivalsPanelId={panelId}
-            onNewAppointment={canCreate ? () => setPanel({ kind: "new", slot: null }) : undefined}
+            onNewAppointment={canCreate && !narrow ? openNew : undefined}
           />
         }
       />
-      {isWeek ? null : (
+      {isWeek ? (
+        screen.assigned.length > 0 ? (
+          <div className="-mt-2 mb-3">
+            <WeekProfessionalPicker
+              professionals={screen.assigned}
+              value={screen.weekProfessionalId}
+              onChange={url.setWeekProfessional}
+            />
+          </div>
+        ) : null
+      ) : (
         <div className="-mt-2 mb-3 flex flex-wrap items-center gap-2">
           <AgendaStatusChips
             counts={toneCounts}
             hidden={hidden}
             onToggle={toggleTone}
             onShowAll={() => setHidden(NO_TONES)}
+            className="max-md:w-full max-md:flex-nowrap max-md:overflow-x-auto max-md:[scrollbar-width:none]"
           />
-          <ToggleGroup
-            value={density}
-            onValueChange={(value) => {
-              if (value === "comfortable" || value === "compact") setDensity(value);
-            }}
-            aria-label={t("agenda.density.label")}
-            className="ml-auto flex-nowrap gap-0.5 rounded-[var(--button-radius)] bg-sidebar p-0.5"
-          >
-            <ToggleGroupItem
-              value="comfortable"
-              aria-label={t("agenda.density.comfortable")}
-              title={t("agenda.density.comfortable")}
-              className={DENSITY_ITEM}
+          {narrow ? null : (
+            <ToggleGroup
+              value={density}
+              onValueChange={(value) => {
+                if (value === "comfortable" || value === "compact") setDensity(value);
+              }}
+              aria-label={t("agenda.density.label")}
+              className="ml-auto flex-nowrap gap-0.5 rounded-[var(--button-radius)] bg-sidebar p-0.5"
             >
-              <Rows2 aria-hidden="true" />
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="compact"
-              aria-label={t("agenda.density.compact")}
-              title={t("agenda.density.compact")}
-              className={DENSITY_ITEM}
-            >
-              <Rows4 aria-hidden="true" />
-            </ToggleGroupItem>
-          </ToggleGroup>
+              <ToggleGroupItem
+                value="comfortable"
+                aria-label={t("agenda.density.comfortable")}
+                title={t("agenda.density.comfortable")}
+                className={DENSITY_ITEM}
+              >
+                <Rows2 aria-hidden="true" />
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="compact"
+                aria-label={t("agenda.density.compact")}
+                title={t("agenda.density.compact")}
+                className={DENSITY_ITEM}
+              >
+                <Rows4 aria-hidden="true" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+          )}
         </div>
       )}
       <PageBody className="overflow-hidden">{renderAgenda()}</PageBody>
+      {narrow && canCreate ? (
+        <button
+          type="button"
+          aria-label={t("agenda.newAppointment")}
+          onClick={openNew}
+          className="fixed right-4 bottom-4 z-30 grid size-14 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-6"
+        >
+          <Plus aria-hidden="true" />
+        </button>
+      ) : null}
       {panel?.kind === "arrivals" ? (
         <UpcomingArrivals
           id={panelId}

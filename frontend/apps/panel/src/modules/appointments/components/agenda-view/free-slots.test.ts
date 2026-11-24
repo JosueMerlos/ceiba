@@ -18,9 +18,7 @@ const base = {
 
 describe("freeSlots", () => {
   it("encuentra los huecos entre citas, desde la apertura hasta el cierre", () => {
-    expect(
-      freeSlots({ ...base, busy: [busy("09:00", "10:00"), busy("10:30", "11:00")] }),
-    ).toEqual([
+    expect(freeSlots({ ...base, busy: [busy("09:00", "10:00"), busy("10:30", "11:00")] })).toEqual([
       { start: at("08:00"), minutes: 60 },
       { start: at("10:00"), minutes: 30 },
       { start: at("11:00"), minutes: 60 },
@@ -28,9 +26,9 @@ describe("freeSlots", () => {
   });
 
   it("lo cerrado y las ausencias parten el hueco igual que una cita", () => {
-    expect(
-      freeSlots({ ...base, busy: [busy("08:00", "09:00"), busy("10:00", "12:00")] }),
-    ).toEqual([{ start: at("09:00"), minutes: 60 }]);
+    expect(freeSlots({ ...base, busy: [busy("08:00", "09:00"), busy("10:00", "12:00")] })).toEqual([
+      { start: at("09:00"), minutes: 60 },
+    ]);
   });
 
   it("solo cuenta lo del profesional pedido y lo que se solapa", () => {

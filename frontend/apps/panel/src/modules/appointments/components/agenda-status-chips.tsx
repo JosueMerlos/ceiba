@@ -25,17 +25,28 @@ interface AgendaStatusChipsProps {
   hidden: ReadonlySet<StatusTone>;
   onToggle(tone: StatusTone): void;
   onShowAll(): void;
+  className?: string;
 }
 
 const CHIP =
   "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[0.8125rem] font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/40";
 
 /** The statuses' legend, which is also the filter: a chip pressed is a status shown. */
-export function AgendaStatusChips({ counts, hidden, onToggle, onShowAll }: AgendaStatusChipsProps) {
+export function AgendaStatusChips({
+  counts,
+  hidden,
+  onToggle,
+  onShowAll,
+  className,
+}: AgendaStatusChipsProps) {
   const { t } = useTranslation("appointments");
   const visible = CHIP_TONES.reduce((sum, tone) => sum + (hidden.has(tone) ? 0 : counts[tone]), 0);
   return (
-    <div role="group" aria-label={t("agenda.filters.label")} className="flex flex-wrap gap-1.5">
+    <div
+      role="group"
+      aria-label={t("agenda.filters.label")}
+      className={cn("flex flex-wrap gap-1.5", className)}
+    >
       <button
         type="button"
         aria-pressed={hidden.size === 0}

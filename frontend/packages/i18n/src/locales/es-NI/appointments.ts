@@ -40,6 +40,17 @@ export const appointments = {
         missed: "No asistió",
       },
     },
+    list: {
+      label: "Profesional",
+      all: "Todos",
+      items: "Citas del día",
+      empty: "Sin citas este día.",
+      free: "Libre · {{duration}}",
+      freeAction: "Libre, {{duration}}, a las {{time}} con {{name}}",
+      minutes: "{{value}} min",
+      hours: "{{value}} h",
+      hoursMinutes: "{{hours}} h {{minutes}} min",
+    },
     density: {
       label: "Densidad",
       comfortable: "Vista cómoda",
