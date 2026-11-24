@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { FormDialog } from "../src";
+import { FormDialog, TimeField } from "../src";
 
 const TABS = [
   { id: "perfil", label: "Perfil" },
@@ -245,5 +245,84 @@ describe("FormDialog en modo pasos", () => {
       "submit",
     );
     expect(within(steps()).queryByRole("button", { name: "Continuar" })).toBeNull();
+  });
+});
+
+describe("FormDialog con un TimeField", () => {
+  const formatClock = (clock: string) => clock;
+
+  function FieldHarness() {
+    const [open, setOpen] = useState(true);
+    const [start, setStart] = useState("09:00");
+    return (
+      <>
+        <p data-testid="estado">{open ? "abierto" : "cerrado"}</p>
+        <FormDialog
+          open={open}
+          onOpenChange={setOpen}
+          title="Editar recurso"
+          closeLabel="Cerrar"
+          tabs={[{ id: "datos", label: "Datos" }]}
+          tab="datos"
+          onTabChange={() => {}}
+          tabsLabel="Secciones"
+          dirty={start !== "09:00"}
+          formId="form-datos"
+          saveLabel="Guardar cambios"
+          confirmTitle="¿Descartar los cambios?"
+          confirmDescription="Se perderán."
+          discardLabel="Descartar"
+          keepLabel="Seguir editando"
+        >
+          <form id="form-datos">
+            <TimeField
+              aria-label="Desde"
+              listLabel="Horas"
+              value={start}
+              onChange={setStart}
+              formatClock={formatClock}
+            />
+          </form>
+        </FormDialog>
+      </>
+    );
+  }
+
+  it("la lista de horas se monta dentro del modal (si no, el bloqueo de scroll del modal la congela)", async () => {
+    render(<FieldHarness />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("combobox", { name: "Desde" }));
+    await user.keyboard("{ArrowDown}");
+
+    const modal = screen.getByRole("dialog", { name: "Editar recurso" });
+    expect(modal.contains(screen.getByRole("listbox", { name: "Horas" }))).toBe(true);
+  });
+
+  it("Escape con una hora a medio escribir no cierra el modal ni pierde el aviso", async () => {
+    render(<FieldHarness />);
+    const user = userEvent.setup();
+
+    await user.clear(screen.getByRole("combobox", { name: "Desde" }));
+    await user.type(screen.getByRole("combobox", { name: "Desde" }), "14:30");
+    // The first Escape closes the list of times; the second one lands on the half-typed field.
+    await user.keyboard("{Escape}{Escape}");
+
+    expect(screen.getByTestId("estado").textContent).toBe("abierto");
+  });
+
+  it("un clic fuera con una hora a medio escribir la confirma y pide confirmar antes de cerrar", async () => {
+    render(<FieldHarness />);
+    const user = userEvent.setup();
+
+    await user.clear(screen.getByRole("combobox", { name: "Desde" }));
+    await user.type(screen.getByRole("combobox", { name: "Desde" }), "14:30");
+    await user.pointer({ keys: "[MouseLeft]", target: document.body });
+    expect(screen.getByTestId("estado").textContent).toBe("abierto");
+
+    await user.pointer({ keys: "[MouseLeft]", target: document.body });
+
+    expect(screen.getByRole("alertdialog", { name: "¿Descartar los cambios?" })).toBeTruthy();
+    expect(screen.getByTestId("estado").textContent).toBe("abierto");
   });
 });

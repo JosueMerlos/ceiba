@@ -119,7 +119,7 @@ describe("TimeField", () => {
     expect(value()).toBe("10:15");
   });
 
-  it("lo inválido conserva el valor anterior y marca el campo", async () => {
+  it("lo inválido vacía el valor del formulario, deja el texto a la vista y marca el campo", async () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
     const user = userEvent.setup();
@@ -128,12 +128,14 @@ describe("TimeField", () => {
     await user.type(field(), "9:75");
     await user.tab();
 
-    expect(onChange).not.toHaveBeenCalled();
-    expect(value()).toBe("09:00");
+    // The form must not keep 09:00 while the screen shows something else: an empty value fails its validation.
+    expect(onChange).toHaveBeenLastCalledWith("");
+    expect(value()).toBe("");
+    expect(field()).toHaveProperty("value", "9:75");
     expect(field().getAttribute("aria-invalid")).toBe("true");
   });
 
-  it("fuera de rango conserva el valor anterior y marca el campo", async () => {
+  it("fuera de rango también vacía el valor y marca el campo", async () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} max="18:00" />);
     const user = userEvent.setup();
@@ -142,8 +144,69 @@ describe("TimeField", () => {
     await user.type(field(), "8p");
     await user.tab();
 
-    expect(onChange).not.toHaveBeenCalled();
+    expect(onChange).toHaveBeenLastCalledWith("");
     expect(field().getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("si el valor cambia desde fuera (reset del formulario) se descarta lo escrito", async () => {
+    const { rerender } = render(
+      <TimeField
+        aria-label="Desde"
+        listLabel="Horas"
+        value="09:00"
+        formatClock={formatClock}
+        onChange={() => {}}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.clear(field());
+    await user.type(field(), "9:75");
+    await user.tab();
+
+    rerender(
+      <TimeField
+        aria-label="Desde"
+        listLabel="Horas"
+        value=""
+        formatClock={formatClock}
+        onChange={() => {}}
+      />,
+    );
+
+    expect(field()).toHaveProperty("value", "");
+    expect(field().getAttribute("aria-invalid")).toBeNull();
+  });
+
+  it("Escape con la lista cerrada descarta lo escrito y no deja escapar la tecla", async () => {
+    const outside = vi.fn();
+    render(
+      <div onKeyDown={(event) => event.key === "Escape" && outside()}>
+        <Harness />
+      </div>,
+    );
+    const user = userEvent.setup();
+
+    await user.clear(field());
+    // The first Escape closes the list that clicking the field opened.
+    await user.type(field(), "14:30{Escape}{Escape}");
+
+    expect(field()).toHaveProperty("value", "9:00 a. m.");
+    expect(value()).toBe("09:00");
+    expect(outside).not.toHaveBeenCalled();
+  });
+
+  it("si la lista se acorta con una opción activa al final, no falla", async () => {
+    const props = { "aria-label": "Hasta", listLabel: "Horas", value: "17:00", formatClock };
+    const { rerender } = render(<TimeField {...props} max="18:00" onChange={() => {}} />);
+    const user = userEvent.setup();
+    await user.click(field().closest("div")!.querySelector("input")!);
+    await user.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{ArrowDown}");
+
+    rerender(<TimeField {...props} max="09:00" onChange={() => {}} />);
+
+    const input = screen.getByRole("combobox", { name: "Hasta" });
+    const active = input.getAttribute("aria-activedescendant");
+    expect(active === null || document.getElementById(active) !== null).toBe(true);
   });
 
   it("acepta minutos escritos fuera del paso y hasta las 23:59", async () => {

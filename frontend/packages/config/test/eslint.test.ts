@@ -183,6 +183,7 @@ describe("configuración compartida de ESLint", () => {
       ['<Input type="date" />', "apps/panel/src/example.tsx"],
       ['<input type="datetime-local" />', "packages/ui/src/components/example.tsx"],
       ['<Input type={"date"} />', "apps/panel/src/example.tsx"],
+      ["<Input type={`time`} />", "apps/panel/src/example.tsx"],
     ])("prohíbe %s en %s", async (element, filePath) => {
       const code = `export const View = () => ${element};\n`;
 

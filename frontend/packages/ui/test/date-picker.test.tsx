@@ -14,6 +14,8 @@ const labels = {
   calendarLabel: "Calendario",
   previousMonthLabel: "Mes anterior",
   nextMonthLabel: "Mes siguiente",
+  loadErrorLabel: "No se pudo cargar el calendario.",
+  retryLabel: "Reintentar",
 };
 
 function SingleHarness({ onChange }: { onChange?: (day: string) => void }) {
