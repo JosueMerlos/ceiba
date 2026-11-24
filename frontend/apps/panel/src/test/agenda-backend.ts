@@ -142,8 +142,15 @@ export function agendaBackend({
 
   server.use(
     http.get(`${BRANCH(branchId)}/appointments`, ({ request }) => {
-      state.appointmentQueries.push(new URL(request.url).searchParams);
-      return HttpResponse.json({ data: appointments });
+      const query = new URL(request.url).searchParams;
+      state.appointmentQueries.push(query);
+      // Like the API: a professional filter returns only that person's appointments.
+      const professionalId = query.get("professional_id");
+      return HttpResponse.json({
+        data: professionalId
+          ? appointments.filter((item) => item.professional_id === professionalId)
+          : appointments,
+      });
     }),
     http.post(`${BRANCH(branchId)}/appointments`, ({ request }) => write("book", null, request)),
     // Every write moves the version up, as the API does.

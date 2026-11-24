@@ -1,6 +1,6 @@
 import { focusManager } from "@tanstack/react-query";
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   PROFESSIONAL_PERMISSIONS,
   RECEPTION_PERMISSIONS,
@@ -431,5 +431,106 @@ describe("Agenda: filas, filtros y densidad", () => {
     const view = document.querySelector("[data-slot=agenda-view]")!;
     expect(view.closest("[data-slot=page-body]")).toBeTruthy();
     expect(view.closest("[data-slot=page-frame]")).toBeTruthy();
+  });
+});
+
+describe("Agenda: semana", () => {
+  it("al elegir otro profesional muestra sus citas de lunes a domingo en columnas", async () => {
+    asReception();
+    const backend = agendaBackend({
+      appointments: [
+        agendaAppointment({ id: "rosa-mie", customer_name: "Ana Ruiz" }),
+        agendaAppointment({
+          id: "luis-vie",
+          professional_id: "p2",
+          customer_name: "Eva Luna",
+          starts_at: "2026-11-20T16:00:00.000Z",
+          ends_at: "2026-11-20T17:00:00.000Z",
+        }),
+        agendaAppointment({
+          id: "luis-dom",
+          professional_id: "p2",
+          customer_name: "Raúl Mora",
+          starts_at: "2026-11-22T15:00:00.000Z",
+          ends_at: "2026-11-22T16:00:00.000Z",
+        }),
+      ],
+    });
+    const { user } = await renderApp({ route: `${route}&view=week` });
+    await screen.findByRole("button", { name: /Ana Ruiz/ });
+
+    await user.click(screen.getByRole("combobox", { name: "Profesional de la semana" }));
+    await user.click(await screen.findByRole("option", { name: "Luis Pérez" }));
+
+    expect(await screen.findByRole("button", { name: /Eva Luna/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Raúl Mora/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Ana Ruiz/ })).toBeNull();
+    const query = backend.appointmentQueries.at(-1);
+    expect([query?.get("from"), query?.get("to"), query?.get("professional_id")]).toEqual([
+      "2026-11-16",
+      "2026-11-22",
+      "p2",
+    ]);
+    const days = screen
+      .getAllByRole("columnheader")
+      .map((item) => item.querySelector("time")?.getAttribute("datetime"));
+    expect(days).toEqual([
+      "2026-11-16",
+      "2026-11-17",
+      "2026-11-18",
+      "2026-11-19",
+      "2026-11-20",
+      "2026-11-21",
+      "2026-11-22",
+    ]);
+  });
+});
+
+describe("Agenda: celular", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  function narrowScreen() {
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes("max-width"),
+          media: query,
+          onchange: null,
+          addEventListener() {},
+          removeEventListener() {},
+          addListener() {},
+          removeListener() {},
+          dispatchEvent: () => false,
+        }) as MediaQueryList,
+    );
+  }
+
+  it("muestra la lista por profesional con un solo botón flotante de Nueva cita", async () => {
+    narrowScreen();
+    asReception();
+    agendaBackend({ appointments: [agendaAppointment()] });
+    await renderApp({ route });
+
+    expect(await screen.findByRole("tablist", { name: "Profesional" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /Ana Ruiz/ })).toBeTruthy();
+    expect(document.querySelector(".ec")).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Nueva cita" })).toHaveLength(1);
+    expect(screen.queryByRole("group", { name: "Densidad" })).toBeNull();
+  });
+
+  it("tocar un hueco libre abre Nueva cita con ese profesional y esa hora", async () => {
+    narrowScreen();
+    asReception();
+    agendaBackend({ appointments: [agendaAppointment()] });
+    const { user } = await renderApp({ route });
+
+    await user.click(await screen.findByRole("tab", { name: /Luis Pérez/ }));
+    const [first] = await screen.findAllByRole("button", { name: /^Libre/ });
+    await user.click(first!);
+
+    const panel = await screen.findByRole("complementary", { name: "Nueva cita" });
+    expect(within(panel).getByRole("combobox", { name: "Profesional" }).textContent).toContain(
+      "Luis Pérez",
+    );
   });
 });
