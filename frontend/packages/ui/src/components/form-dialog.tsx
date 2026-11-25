@@ -256,6 +256,7 @@ function StepsDialog(props: FormDialogStepsProps) {
               variant="ghost"
               className={props.note ? undefined : "sm:mr-auto"}
               onClick={props.onSkip}
+              disabled={props.pending}
             >
               {props.skipLabel}
             </Button>
