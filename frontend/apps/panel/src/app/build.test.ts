@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { build } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { esNI } from "../../../../packages/i18n/src/locales/es-NI";
 
 // In the production build the appointments module ships in a chunk separate from startup.
 interface ManifestEntry {
@@ -41,6 +42,16 @@ describe("build de producción del panel", () => {
 
   const read = (file: string) => readFileSync(join(outDir, file), "utf8");
   const entry = () => Object.values(manifest).find((chunk) => chunk.isEntry)!;
+  const criticalChunks = () => {
+    const critical = new Set<string>();
+    const visit = (key: string) => {
+      if (critical.has(key)) return;
+      critical.add(key);
+      for (const child of manifest[key]?.imports ?? []) visit(child);
+    };
+    visit(Object.keys(manifest).find((key) => manifest[key]!.isEntry)!);
+    return critical;
+  };
 
   it("el módulo appointments es un chunk dinámico distinto del de arranque", () => {
     const appointments = Object.values(manifest).find(
@@ -88,5 +99,37 @@ describe("build de producción del panel", () => {
     expect(withDayPicker.filter(([key]) => critical.has(key)).map(([, item]) => item.file)).toEqual(
       [],
     );
+  });
+
+  it("los textos de los namespaces de módulo no viajan en el JS crítico, sí en un chunk diferido", () => {
+    const startup = new Set(["common", "auth", "shell", "errors"]);
+    const leaves = (node: unknown): string[] =>
+      typeof node === "string"
+        ? [node]
+        : Object.values(node as Record<string, unknown>).flatMap(leaves);
+    const startupTexts = new Set(
+      Object.entries(esNI)
+        .filter(([namespace]) => startup.has(namespace))
+        .flatMap(([, catalog]) => leaves(catalog)),
+    );
+    // ASCII texts without quotes or backslashes appear verbatim in the minified JS.
+    const markers = Object.entries(esNI)
+      .filter(([namespace]) => !startup.has(namespace))
+      .flatMap(([, catalog]) => leaves(catalog))
+      .filter((text) => text.length >= 20 && /^[ -~]+$/.test(text) && !/["'`\\]/.test(text))
+      .filter((text) => !startupTexts.has(text));
+    const critical = criticalChunks();
+    const criticalJs = Object.entries(manifest)
+      .filter(([key, item]) => critical.has(key) && item.file.endsWith(".js"))
+      .map(([, item]) => read(item.file))
+      .join("\n");
+    const deferredJs = Object.entries(manifest)
+      .filter(([key, item]) => !critical.has(key) && item.file.endsWith(".js"))
+      .map(([, item]) => read(item.file))
+      .join("\n");
+
+    expect(markers.length).toBeGreaterThan(20);
+    expect(markers.filter((text) => criticalJs.includes(text))).toEqual([]);
+    expect(markers.filter((text) => !deferredJs.includes(text))).toEqual([]);
   });
 });
