@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { SLOT_WIDTH } from "../card-tier";
 import { AgendaDensityContext } from "../density";
 import type { AgendaDensity, AgendaViewEvent, AgendaViewProps } from "../types";
 import EventCalendarAdapter from "./event-calendar";
@@ -71,12 +72,10 @@ describe("EventCalendarAdapter: día en filas", () => {
     const appointment = await card(/Ana Ruiz/);
     expect(rowOf(appointment)).toBe("Luis Pérez");
     expect(appointment.closest(".ec-timeline")).toBeTruthy();
-    // 9:00 at the branch, one hour after an 8:00 opening: two 30-minute slots from the start of the row.
+    // 9:00 at the branch, one hour after an 8:00 opening: two 30-minute slots from the start of the row. In Madrid's
+    // zone a calendar reading the browser's clock would draw it hours away.
     const placed = appointment.closest<HTMLElement>(".ec-event")!;
-    const slotWidth = Number.parseFloat(placed.style.insetInlineStart) / 2;
-    expect(slotWidth).toBeGreaterThan(0);
-    expect(placed.style.insetInlineStart).toBe(`${slotWidth * 2}px`);
-    expect(appointment.textContent).toContain("9:00");
+    expect(placed.style.insetInlineStart).toBe(`${2 * SLOT_WIDTH.comfortable}px`);
   });
 
   it("en compacta muestra iniciales, nombre o nombre y servicio según el ancho de la cita", async () => {

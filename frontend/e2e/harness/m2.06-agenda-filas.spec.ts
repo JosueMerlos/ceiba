@@ -102,6 +102,16 @@ async function inRow(page: Page, card: Locator, row: string) {
   return middle > label.y && middle < label.y + label.height;
 }
 
+/** Whether a card starts inside the hour column labelled `HH:00` in the header: its position, not its text. */
+async function inHour(page: Page, card: Locator, day: string, hour: string) {
+  const column = page.locator(
+    `.ec-timeline .ec-header .ec-slot:has(time[datetime="${day}T${hour}:00:00"])`,
+  );
+  const slot = (await column.boundingBox())!;
+  const box = (await card.boundingBox())!;
+  return box.x >= slot.x - 2 && box.x < slot.x + slot.width;
+}
+
 const agendaBox = (page: Page) => page.locator("[data-slot=agenda-view]");
 
 test.describe("agenda en filas", () => {
@@ -131,6 +141,13 @@ test.describe("agenda en filas", () => {
     expect(
       await page.evaluate(() => document.scrollingElement!.scrollHeight <= window.innerHeight),
     ).toBe(true);
+    // On the pilot's own day the now line is drawn: its label in the header sits on it.
+    const label = page.locator(".agenda-now-label");
+    if (await label.isVisible()) {
+      const labelBox = (await label.boundingBox())!;
+      const line = (await page.locator(".agenda-now").first().boundingBox())!;
+      expect(Math.abs(labelBox.x + labelBox.width / 2 - (line.x + line.width / 2))).toBeLessThan(2);
+    }
     await shot(page, testInfo, "41-agenda-15-filas-desplazada");
 
     await page.getByRole("button", { name: "Vista compacta" }).click();
@@ -156,11 +173,17 @@ test.describe("agenda en filas", () => {
   }, testInfo) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openPilot(page);
+    const weekOf = (response: { url(): string; ok(): boolean }) =>
+      response.ok() ? new URL(response.url()).searchParams.get("professional_id") : null;
+    const firstWeek = page.waitForResponse((response) => !!weekOf(response));
     await page.getByRole("button", { name: "Semana", exact: true }).click();
+    const opened = weekOf(await firstWeek);
     await page.getByRole("combobox", { name: "Profesional de la semana" }).click();
-    const listing = page.waitForResponse(
-      (response) => /professional_id=/.test(response.url()) && response.ok(),
-    );
+    // The week opens with the first professional; Luis is the second one the pilot creates.
+    const listing = page.waitForResponse((response) => {
+      const id = weekOf(response);
+      return !!id && id !== opened;
+    });
     await page.getByRole("option", { name: "Luis Pérez" }).click();
     const { data } = (await (await listing).json()) as {
       data: { professional_id: string; customer_name: string; status: string }[];
@@ -185,8 +208,9 @@ test.describe("agenda en filas", () => {
       const professionals = page.waitForResponse(
         (response) => /\/appointments\/professionals(\?|$)/.test(response.url()) && response.ok(),
       );
+      // Today's arrivals are another listing: on a Sunday it is not the pilot's day.
       const listing = page.waitForResponse(
-        (response) => /\/appointments\?from=/.test(response.url()) && response.ok(),
+        (response) => response.url().includes(`/appointments?from=${pilotDay()}`) && response.ok(),
       );
       await openPilot(page);
       const names = new Map(
@@ -223,6 +247,12 @@ test.describe("agenda en filas", () => {
           .first();
         await expect(card).toContainText(hour);
         expect(await inRow(page, card, names.get(item.professional_id)!)).toBe(true);
+        const hourColumn = new Intl.DateTimeFormat("en-GB", {
+          hour: "2-digit",
+          hourCycle: "h23",
+          timeZone: "America/Managua",
+        }).format(new Date(item.starts_at));
+        expect(await inHour(page, card, pilotDay(), hourColumn)).toBe(true);
       }
       await shot(page, testInfo, "45-agenda-filas-madrid");
     });

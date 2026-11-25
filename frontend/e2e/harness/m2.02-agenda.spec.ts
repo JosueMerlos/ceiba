@@ -103,12 +103,26 @@ test.describe("smoke de la agenda", () => {
       await page.keyboard.press("Escape");
       const card = appointmentCard(page, customer);
       await card.scrollIntoViewIfNeeded();
+      // Center the card in the grid, so there is room to drag it an hour either way.
+      const before = (await card.boundingBox())!;
+      await page.locator(".ec-main").evaluate(
+        (main, x) => {
+          const box = main.getBoundingClientRect();
+          main.scrollLeft += x - (box.left + box.width / 2);
+        },
+        before.x + before.width / 2,
+      );
       const from = (await card.boundingBox())!;
       const row = (await page.getByRole("group", { name: RAMIRO }).boundingBox())!;
       const visible = (await page.locator(".ec-main").boundingBox())!;
-      // One hour away (two 30-minute slots of the comfortable density), later when it fits on screen.
+      const names = (await page.locator(".ec-timeline .ec-body .ec-sidebar").boundingBox())!;
+      // One hour away (two 30-minute slots of the comfortable density): later when it fits on screen, else earlier, never
+      // onto the sticky column of names.
       const grab = from.x + from.width / 2;
       const hour = grab + 176 < visible.x + visible.width ? 176 : -176;
+      expect(grab + hour, "el destino del arrastre debe quedar sobre las horas").toBeGreaterThan(
+        names.x + names.width,
+      );
 
       const moved = page.waitForResponse(
         (response) =>
