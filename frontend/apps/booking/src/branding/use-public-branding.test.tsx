@@ -1,5 +1,6 @@
 import { render, renderHook, screen, waitFor } from "@testing-library/react";
-import { createI18n, I18nextProvider } from "@ceiba/i18n";
+import { I18nextProvider } from "@ceiba/i18n";
+import { createBookingI18n } from "../i18n";
 import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
 import { App } from "../App";
@@ -38,7 +39,7 @@ describe("usePublicBranding", () => {
       http.get("*/api/public/v1/c/:slug/branding", () => new HttpResponse(null, { status: 404 })),
     );
     window.history.pushState({}, "", "/c/%E0%A4");
-    const i18n = await createI18n();
+    const i18n = await createBookingI18n();
 
     render(
       <I18nextProvider i18n={i18n}>

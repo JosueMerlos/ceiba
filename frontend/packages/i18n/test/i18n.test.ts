@@ -64,7 +64,7 @@ describe("createI18n", () => {
     expect(i18n.hasResourceBundle(defaultLocale, "imports")).toBe(false);
   });
 
-  it("con preload \"all\" carga todo el catálogo (tests de componentes)", async () => {
+  it('con preload "all" carga todo el catálogo (tests de componentes)', async () => {
     const i18n = await createI18n({ preload: "all" });
 
     for (const namespace of Object.keys(esNI)) {

@@ -1,4 +1,5 @@
-import { createI18n, I18nextProvider } from "@ceiba/i18n";
+import { I18nextProvider } from "@ceiba/i18n";
+import { createBookingI18n } from "../i18n";
 import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse, type JsonBodyType } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
@@ -28,7 +29,7 @@ const serve = (slug: string, body: JsonBodyType, status = 200) =>
 
 async function renderAt(path: string) {
   window.history.pushState({}, "", path);
-  const i18n = await createI18n();
+  const i18n = await createBookingI18n();
   return render(
     <I18nextProvider i18n={i18n}>
       <App />

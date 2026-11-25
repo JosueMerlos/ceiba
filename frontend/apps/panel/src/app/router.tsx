@@ -13,20 +13,26 @@ const pages: RouteObject[] = [
   // Platform settings screen (not a business module): its own chunk, loaded on demand.
   {
     path: "settings/branding",
-    element: lazyPage(() => import("../platform/branding/branding-page"), "BrandingPage"),
+    element: lazyPage(() => import("../platform/branding/branding-page"), "BrandingPage", [
+      "branding",
+    ]),
   },
   // Customers belong to the platform, not to a module: they exist whatever modules the company has.
   {
     path: "customers",
-    element: lazyPage(() => import("../platform/customers/customers-page"), "CustomersPage"),
+    element: lazyPage(() => import("../platform/customers/customers-page"), "CustomersPage", [
+      "customers",
+    ]),
   },
   {
     path: "customers/import",
-    element: lazyPage(() => import("../platform/imports/import-page"), "ImportPage"),
+    element: lazyPage(() => import("../platform/imports/import-page"), "ImportPage", ["imports"]),
   },
   {
     path: "customers/:customerId",
-    element: lazyPage(() => import("../platform/customers/customer-page"), "CustomerPage"),
+    element: lazyPage(() => import("../platform/customers/customer-page"), "CustomerPage", [
+      "customers",
+    ]),
   },
   { path: "*", element: <ModuleRoutes /> },
 ];
