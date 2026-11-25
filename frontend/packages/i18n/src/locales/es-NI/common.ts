@@ -5,10 +5,10 @@ export const common = {
   cancel: "Cancelar",
   confirm: "Confirmar",
   close: "Cerrar",
-  workingBranch: {
-    label: "Sucursal desde la que trabaja",
-    placeholder: "Elija una sucursal",
-    hint: "La pantalla trabaja desde la sucursal que elija.",
+  chooseBranch: {
+    title: "Elija una sucursal",
+    description:
+      "Esta pantalla muestra {{what}}. Elija cuál en el selector de contexto, arriba del menú.",
   },
   backToStart: "Volver al inicio",
   fields: {

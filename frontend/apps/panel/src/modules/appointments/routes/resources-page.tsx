@@ -1,82 +1,86 @@
 import { useTranslation } from "@ceiba/i18n";
-import { Button, PageHeader, toast } from "@ceiba/ui";
+import { Badge, Button, PageHeader, toast } from "@ceiba/ui";
 import { Plus } from "lucide-react";
-import { Can, useCan } from "../../../platform/permissions/can";
+import { useState } from "react";
+import { ChooseBranchNotice } from "../../../platform/context/choose-branch-notice";
+import { useContextBranch } from "../../../platform/context/use-context-branch";
+import { useCan } from "../../../platform/permissions/can";
 import type { Branch } from "../api/catalog";
 import {
   useArchiveResource,
-  useCreateResource,
-  useCreateResourceTimeOff,
-  useDeleteResourceTimeOff,
-  usePutResourceSchedule,
   useResourceScheduleQuery,
   useResourcesQuery,
   useResourceTimeOffsQuery,
-  useUpdateResource,
   type Resource,
 } from "../api/resources";
-import { BranchPicker } from "../components/branch-picker";
-import { CatalogAside } from "../components/catalog-aside";
+import { CatalogDetailPanel } from "../components/catalog-detail-panel";
 import { EmptyState } from "../../../platform/ui/empty-state";
-import { OwnerBranchSections, useOwnerAccess } from "../components/owner-sections";
+import { NO_WRITES, OwnerBranchSections, useOwnerAccess } from "../components/owner-sections";
 import { QueryBoundary } from "../../../platform/ui/query-boundary";
-import { ResourceForm, type ResourceFormValues } from "../components/resource-form";
+import { ReadOnlyBadge } from "../components/read-only-badge";
+import {
+  EditResourceDialog,
+  NewResourceDialog,
+  useResourceSections,
+} from "../components/resource-dialog";
 import { ResourcesTable } from "../components/resources-table";
 import { useEntityPanel } from "../lib/use-entity-panel";
-import { useWorkingBranch } from "../lib/use-working-branch";
 
-/** Resources belong to a branch: with none chosen (company-level manager, several branches) the page asks for one. */
+/** Resources belong to a branch: under "All branches" (several of them) the page asks to pick one up top. */
 export function ResourcesPage() {
   const { t } = useTranslation(["appointments", "common"]);
-  const working = useWorkingBranch();
+  const { branch, needsChoice } = useContextBranch();
+  return (
+    <>
+      {needsChoice ? (
+        <>
+          <PageHeader
+            title={t("catalog.resources.title")}
+            description={t("catalog.resources.description")}
+          />
+          <ChooseBranchNotice what={t("catalog.branchScope.resources")} />
+        </>
+      ) : null}
+      {branch ? <BranchResources branch={branch} /> : null}
+    </>
+  );
+}
+
+type Editing = { kind: "new" } | { kind: "edit"; id: string } | null;
+
+function BranchResources({ branch }: { branch: Branch }) {
+  const { t } = useTranslation("appointments");
+  const canManage = useCan()("appointments.resource.manage");
+  const canEdit = useResourceSections().length > 0;
+
+  const resources = useResourcesQuery(branch.id);
+  const archive = useArchiveResource(branch.id);
+  const list = resources.data?.data ?? [];
+  const panel = useEntityPanel(list);
+  const { selected } = panel;
+  const [editing, setEditing] = useState<Editing>(null);
+  const edited = editing?.kind === "edit" ? list.find((item) => item.id === editing.id) : undefined;
+  const openNew = () => setEditing({ kind: "new" });
+  const closeDialog = (open: boolean) => {
+    if (!open) setEditing(null);
+  };
+
   return (
     <>
       <PageHeader
         title={t("catalog.resources.title")}
         description={t("catalog.resources.description")}
+        actions={
+          canManage ? (
+            <Button type="button" onClick={openNew}>
+              <Plus aria-hidden="true" />
+              {t("catalog.resources.new")}
+            </Button>
+          ) : canEdit ? null : (
+            <ReadOnlyBadge />
+          )
+        }
       />
-      {working.needsChoice ? (
-        <BranchPicker
-          branches={working.branches}
-          value={working.branch?.id ?? null}
-          onChange={working.choose}
-        />
-      ) : null}
-      {working.branch ? <BranchResources branch={working.branch} /> : null}
-    </>
-  );
-}
-
-function BranchResources({ branch }: { branch: Branch }) {
-  const { t } = useTranslation("appointments");
-  const canManage = useCan()("appointments.resource.manage");
-
-  const resources = useResourcesQuery(branch.id);
-  const create = useCreateResource(branch.id);
-  const update = useUpdateResource(branch.id);
-  const archive = useArchiveResource(branch.id);
-  const panel = useEntityPanel(resources.data?.data ?? []);
-  const { selected } = panel;
-
-  async function saveResource(values: ResourceFormValues) {
-    if (selected) {
-      await update.mutateAsync({ id: selected.id, body: values });
-      return;
-    }
-    const created = await create.mutateAsync(values);
-    panel.select(created.data.id);
-  }
-
-  return (
-    <>
-      <Can permission="appointments.resource.manage">
-        <div className="mb-4">
-          <Button type="button" onClick={panel.openNew}>
-            <Plus aria-hidden="true" />
-            {t("catalog.resources.new")}
-          </Button>
-        </div>
-      </Can>
 
       <QueryBoundary
         query={resources}
@@ -91,7 +95,7 @@ function BranchResources({ branch }: { branch: Branch }) {
             }
             action={
               canManage
-                ? { label: t("catalog.resources.empty.action"), onClick: panel.openNew }
+                ? { label: t("catalog.resources.empty.action"), onClick: openNew }
                 : undefined
             }
           />
@@ -112,47 +116,69 @@ function BranchResources({ branch }: { branch: Branch }) {
         )}
       </QueryBoundary>
 
-      {panel.open ? (
-        <CatalogAside
+      {selected ? (
+        <CatalogDetailPanel
           id="resource-panel"
-          title={selected ? selected.name : t("catalog.resources.panelNewTitle")}
+          title={selected.name}
           onClose={panel.close}
+          details={[
+            {
+              label: t("catalog.resources.columns.kind"),
+              value: t(`catalog.resources.kinds.${selected.kind}`),
+            },
+            {
+              label: t("catalog.resources.columns.status"),
+              value: (
+                <Badge variant={selected.active ? "default" : "muted"}>
+                  {t(`catalog.resources.status.${selected.active ? "active" : "paused"}`)}
+                </Badge>
+              ),
+            },
+          ]}
+          footer={
+            canEdit ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditing({ kind: "edit", id: selected.id })}
+              >
+                {t("catalog.resources.edit")}
+              </Button>
+            ) : undefined
+          }
         >
-          <ResourceForm
-            key={selected ? `${selected.id}:${selected.updated_at}` : "new"}
-            resource={selected}
-            readOnly={!canManage}
-            onSubmit={saveResource}
-          />
-          {selected ? <ResourceSections resource={selected} branch={branch} /> : null}
-        </CatalogAside>
+          <ResourceSections key={selected.id} resource={selected} branch={branch} />
+        </CatalogDetailPanel>
+      ) : null}
+
+      {editing?.kind === "new" ? (
+        <NewResourceDialog branch={branch} open onOpenChange={closeDialog} />
+      ) : null}
+      {edited ? (
+        <EditResourceDialog branch={branch} resource={edited} open onOpenChange={closeDialog} />
       ) : null}
     </>
   );
 }
 
+/** Hours and absences of the resource, read only: changing them happens in the modal. */
 function ResourceSections({ resource, branch }: { resource: Resource; branch: Branch }) {
   const access = useOwnerAccess();
   const schedule = useResourceScheduleQuery(branch.id, resource.id, {
     enabled: access.scheduleRead,
   });
-  const saveSchedule = usePutResourceSchedule(branch.id, resource.id);
   const timeOffs = useResourceTimeOffsQuery(branch.id, resource.id, {
     enabled: access.timeOffRead,
   });
-  const create = useCreateResourceTimeOff(branch.id, resource.id);
-  const remove = useDeleteResourceTimeOff(branch.id, resource.id);
 
   return (
     <OwnerBranchSections
       branch={branch}
-      access={access}
+      access={{ ...access, scheduleManage: false, timeOffManage: false }}
       data={{
         schedule,
-        saveSchedule,
         timeOffs,
-        createTimeOff: (values) => create.mutateAsync(values),
-        deleteTimeOff: (timeOff, options) => remove.mutate(timeOff.id, options),
+        ...NO_WRITES,
       }}
     />
   );

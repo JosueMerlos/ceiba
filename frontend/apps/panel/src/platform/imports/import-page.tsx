@@ -7,8 +7,8 @@ import { Link } from "react-router";
 import { describeError } from "../errors/global-errors";
 import { ForbiddenPage } from "../errors/status-pages";
 import { useMe } from "../me/me-provider";
-import { BranchPicker } from "../ui/branch-picker";
-import { useWorkingBranch } from "../context/use-working-branch";
+import { ChooseBranchNotice } from "../context/choose-branch-notice";
+import { useContextBranch } from "../context/use-context-branch";
 import {
   RUNNING,
   readAsBase64,
@@ -29,7 +29,7 @@ const templateOf = (kind: ImportKind) => IMPORT_KINDS.find((item) => item.key ==
 export function ImportPage() {
   const { t } = useTranslation("imports");
   const me = useMe();
-  const working = useWorkingBranch();
+  const working = useContextBranch();
   const kinds = importKindsFor(me);
   if (kinds.length === 0) return <ForbiddenPage />;
 
@@ -43,13 +43,7 @@ export function ImportPage() {
         {t("back")}
       </Link>
       <PageHeader title={t("title")} description={t("description")} />
-      {working.needsChoice ? (
-        <BranchPicker
-          branches={working.branches}
-          value={working.branch?.id ?? null}
-          onChange={working.choose}
-        />
-      ) : null}
+      {working.needsChoice ? <ChooseBranchNotice what={t("branchScope")} /> : null}
       {working.branch ? (
         <ImportFlow
           key={working.branch.id}

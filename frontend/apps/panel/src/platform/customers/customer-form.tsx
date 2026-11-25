@@ -1,6 +1,5 @@
 import { useTranslation } from "@ceiba/i18n";
 import {
-  Button,
   Form,
   FormControl,
   FormDescription,
@@ -26,13 +25,15 @@ const FIELDS = {
 } as const;
 
 interface CustomerFormProps {
+  /** The form has no button: whoever hosts it submits it through `form={id}`. */
+  id: string;
   /** Absent = create. */
   customer?: Customer;
   /** Receives only the fields that changed when editing (a PATCH writes what it is sent). */
   onSubmit(values: CustomerPatch): Promise<unknown>;
 }
 
-export function CustomerForm({ customer, onSubmit }: CustomerFormProps) {
+export function CustomerForm({ id, customer, onSubmit }: CustomerFormProps) {
   const { t } = useTranslation(["customers", "errors"]);
   const schema = useMemo(
     () =>
@@ -54,6 +55,8 @@ export function CustomerForm({ customer, onSubmit }: CustomerFormProps) {
     },
   });
 
+  // Read while rendering so the form tracks it: the PATCH sends only these fields.
+  const dirty = form.formState.dirtyFields;
   const submit = form.handleSubmit(async (values) => {
     const body: CustomerPatch = {
       full_name: values.full_name,
@@ -61,7 +64,7 @@ export function CustomerForm({ customer, onSubmit }: CustomerFormProps) {
       email: values.email || null,
       notes: values.notes || null,
     };
-    const dirty = form.formState.dirtyFields;
+
     const changed = customer
       ? (Object.fromEntries(
           Object.entries(body).filter(([key]) => dirty[key as keyof typeof dirty]),
@@ -78,7 +81,7 @@ export function CustomerForm({ customer, onSubmit }: CustomerFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={submit} noValidate className="grid gap-4">
+      <form id={id} onSubmit={submit} noValidate className="grid gap-4">
         <FormField
           control={form.control}
           name="full_name"
@@ -138,9 +141,6 @@ export function CustomerForm({ customer, onSubmit }: CustomerFormProps) {
             {serverError}
           </p>
         ) : null}
-        <Button type="submit" disabled={form.formState.isSubmitting} className="justify-self-start">
-          {t("form.save")}
-        </Button>
       </form>
     </Form>
   );

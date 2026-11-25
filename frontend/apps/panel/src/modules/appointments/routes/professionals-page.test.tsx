@@ -381,7 +381,9 @@ describe("Profesionales: ausencias de la sucursal", () => {
     staffBackend({ professionals: [efrain], timeOffs: { p1: [vacation] } });
     const { user } = await openProfessionals();
 
-    const panel = await openPanel(user, "Don Efraín");
+    // Changing nothing of the professional, the row opens the read view.
+    await user.click(await screen.findByRole("button", { name: "Ver Don Efraín" }));
+    const panel = await screen.findByRole("complementary", { name: "Don Efraín" });
     const section = await within(panel).findByRole("region", { name: "Ausencias" });
     expect(await within(section).findByText("Vacaciones")).toBeTruthy();
     expect(within(section).queryByLabelText("Desde")).toBeNull();

@@ -12,7 +12,7 @@ import {
   useFormField,
 } from "@ceiba/ui";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo, type Ref } from "react";
+import { useEffect, useMemo, type Ref } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { TimeOffInput } from "../api/shared";
@@ -30,9 +30,13 @@ interface TimeOffFormProps {
   timeZone: string;
   /** Rejects with the API error; the form shows it. Receives UTC instants, as the contract wants them. */
   onSubmit(values: TimeOffInput): Promise<unknown>;
+  /** Inside a modal whose footer submits it: the form takes this id and draws no button of its own. */
+  formId?: string;
+  /** Whether the form holds typed data that adding would send (a modal asks before discarding it). */
+  onDirtyChange?(dirty: boolean): void;
 }
 
-export function TimeOffForm({ timeZone, onSubmit }: TimeOffFormProps) {
+export function TimeOffForm({ timeZone, onSubmit, formId, onDirtyChange }: TimeOffFormProps) {
   const { t } = useTranslation(["appointments", "errors"]);
 
   const schema = useMemo(
@@ -62,6 +66,9 @@ export function TimeOffForm({ timeZone, onSubmit }: TimeOffFormProps) {
     defaultValues: { start: "", end: "", reason: "" },
   });
 
+  const dirty = form.formState.isDirty;
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
+
   const submit = form.handleSubmit(async (values) => {
     try {
       await onSubmit({
@@ -81,7 +88,7 @@ export function TimeOffForm({ timeZone, onSubmit }: TimeOffFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={submit} noValidate className="grid gap-3">
+      <form id={formId} onSubmit={submit} noValidate className="grid gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <FormField
             control={form.control}
@@ -138,11 +145,13 @@ export function TimeOffForm({ timeZone, onSubmit }: TimeOffFormProps) {
 
         <FormAlert>{form.formState.errors.root?.serverError?.message}</FormAlert>
 
-        <div>
-          <Button type="submit" variant="outline" loading={form.formState.isSubmitting}>
-            {t("catalog.timeOffForm.create")}
-          </Button>
-        </div>
+        {formId ? null : (
+          <div>
+            <Button type="submit" variant="outline" loading={form.formState.isSubmitting}>
+              {t("catalog.timeOffForm.create")}
+            </Button>
+          </div>
+        )}
       </form>
     </Form>
   );

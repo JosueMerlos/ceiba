@@ -99,7 +99,7 @@ describe("Recursos", () => {
 
       const tuesday = await within(created).findByRole("group", { name: "Martes" });
       await user.click(within(tuesday).getByRole("button", { name: "Agregar franja" }));
-      expect(within(created).getAllByRole("button", { name: /guardar/i })).toHaveLength(0);
+      expect(within(created).queryAllByRole("button", { name: /guardar/i })).toHaveLength(0);
       await user.click(within(created).getByRole("button", { name: "Terminar" }));
 
       await waitFor(() => expect(backend.schedulePuts).toHaveLength(1));

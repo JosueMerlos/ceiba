@@ -2,27 +2,38 @@ import { useTranslation } from "@ceiba/i18n";
 import { Button, PageHeader, toast } from "@ceiba/ui";
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
-import { Can, useCan } from "../../../platform/permissions/can";
+import { useContextBranch } from "../../../platform/context/use-context-branch";
+import { useCan } from "../../../platform/permissions/can";
+import { useCompanyBranchesQuery } from "../api/catalog";
 import {
   useArchiveProfessional,
   useCreateProfessional,
   useProfessionalsQuery,
   type Professional,
 } from "../api/professionals";
-import { BranchPicker } from "../components/branch-picker";
 import { CatalogAside } from "../components/catalog-aside";
 import { EmptyState } from "../../../platform/ui/empty-state";
 import { ProfessionalForm, type ProfessionalFormValues } from "../components/professional-form";
 import { ProfessionalsTable } from "../components/professionals-table";
 import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { useEntityPanel } from "../lib/use-entity-panel";
-import { useWorkingBranch } from "../lib/use-working-branch";
+import { ReadOnlyBadge } from "../components/read-only-badge";
+import { ProfessionalDetail } from "./professional-detail";
 import { ProfessionalPanel } from "./professional-panel";
 
 export function ProfessionalsPage() {
   const { t } = useTranslation(["appointments", "common"]);
-  const canManage = useCan()("appointments.professional.manage");
-  const working = useWorkingBranch();
+  const can = useCan();
+  const canManage = can("appointments.professional.manage");
+  // Whoever can change nothing of a professional gets the read view, not the editing panel.
+  const canEdit =
+    canManage ||
+    can("appointments.professional.assign") ||
+    can("appointments.schedule.manage") ||
+    can("appointments.time_off.manage");
+  const { branch: workingBranch } = useContextBranch();
+  const branchesQuery = useCompanyBranchesQuery();
+  const branches = useMemo(() => branchesQuery.data?.data ?? [], [branchesQuery.data]);
 
   const professionals = useProfessionalsQuery();
   const create = useCreateProfessional();
@@ -30,8 +41,8 @@ export function ProfessionalsPage() {
   const panel = useEntityPanel(professionals.data?.data ?? []);
   const { selected } = panel;
   const branchNames = useMemo(
-    () => new Map(working.branches.map((branch) => [branch.id, branch.name])),
-    [working.branches],
+    () => new Map(branches.map((branch) => [branch.id, branch.name])),
+    [branches],
   );
 
   const archiveProfessional = (professional: Professional) =>
@@ -51,22 +62,16 @@ export function ProfessionalsPage() {
         title={t("catalog.professionals.title")}
         description={t("catalog.professionals.description")}
         actions={
-          <Can permission="appointments.professional.manage">
+          canManage ? (
             <Button type="button" onClick={panel.openNew}>
               <Plus aria-hidden="true" />
               {t("catalog.professionals.new")}
             </Button>
-          </Can>
+          ) : canEdit ? null : (
+            <ReadOnlyBadge />
+          )
         }
       />
-
-      {working.needsChoice ? (
-        <BranchPicker
-          branches={working.branches}
-          value={working.branch?.id ?? null}
-          onChange={working.choose}
-        />
-      ) : null}
 
       <QueryBoundary
         query={professionals}
@@ -93,13 +98,23 @@ export function ProfessionalsPage() {
             branchNames={branchNames}
             selectedId={selected?.id ?? null}
             canManage={canManage}
+            canEdit={canEdit}
             onSelect={panel.select}
             onArchive={archiveProfessional}
           />
         )}
       </QueryBoundary>
 
-      {panel.open ? (
+      {selected && !canEdit ? (
+        <ProfessionalDetail
+          professional={selected}
+          branchNames={branchNames}
+          workingBranch={workingBranch}
+          onClose={panel.close}
+        />
+      ) : null}
+
+      {panel.open && (canEdit || panel.isNew) ? (
         <CatalogAside
           id="professional-panel"
           title={selected ? selected.display_name : t("catalog.professionals.panelNewTitle")}
@@ -108,8 +123,8 @@ export function ProfessionalsPage() {
           {selected ? (
             <ProfessionalPanel
               professional={selected}
-              branches={working.branches}
-              workingBranch={working.branch}
+              branches={branches}
+              workingBranch={workingBranch}
             />
           ) : (
             <ProfessionalForm key="new" onSubmit={createProfessional} />

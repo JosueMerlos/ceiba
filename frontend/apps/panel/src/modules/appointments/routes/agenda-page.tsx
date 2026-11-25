@@ -1,8 +1,8 @@
 import { useTranslation } from "@ceiba/i18n";
 import { LoadingState, PageHeader } from "@ceiba/ui";
 import { useEffect, useId, useState } from "react";
-import { useContextSelection } from "../../../platform/context/context-provider";
-import { useMe } from "../../../platform/me/me-provider";
+import { ChooseBranchNotice } from "../../../platform/context/choose-branch-notice";
+import { useContextBranch } from "../../../platform/context/use-context-branch";
 import type { Branch } from "../api/catalog";
 import { AppointmentDetailPanel } from "../components/agenda/appointment-detail-panel";
 import { NewAppointmentPanel } from "../components/agenda/new-appointment-panel";
@@ -10,7 +10,6 @@ import { AgendaLegend } from "../components/agenda-legend";
 import { AgendaToolbar } from "../components/agenda-toolbar";
 import { AgendaView, preloadAgendaView } from "../components/agenda-view/agenda-view";
 import type { AgendaSlot } from "../components/agenda-view/types";
-import { BranchPicker } from "../components/branch-picker";
 import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { UpcomingArrivals } from "../components/upcoming-arrivals";
 import { useAgendaPermissions } from "../lib/agenda-permissions";
@@ -19,7 +18,6 @@ import { newAppointmentDefaults } from "../lib/new-appointment-defaults";
 import { useAgendaScreen } from "../lib/use-agenda-screen";
 import { useAgendaUrlState } from "../lib/use-agenda-url-state";
 import { useMoveAppointment } from "../lib/use-move-appointment";
-import { useWorkingBranch } from "../lib/use-working-branch";
 
 // The date is a calendar day, so it is formatted in UTC: no zone may move it to the neighboring day.
 const dayFormat = new Intl.DateTimeFormat("es-NI", {
@@ -43,24 +41,14 @@ type SidePanel =
 
 export function AgendaPage() {
   const { t } = useTranslation("appointments");
-  const working = useWorkingBranch();
-  const { context } = useMe();
-  const { switchContext } = useContextSelection();
-
-  // Permissions in /me depend on the branch in the context, so choosing one here changes the context itself.
-  function chooseBranch(branchId: string) {
-    switchContext({
-      organization_id: context.organization?.id,
-      company_id: context.company?.id,
-      branch_id: branchId,
-    });
-  }
+  // The branch comes only from the global selector: /me's permissions depend on the context's branch.
+  const working = useContextBranch();
 
   if (working.needsChoice) {
     return (
       <>
         <PageHeader title={t("agenda.title")} />
-        <BranchPicker branches={working.branches} value={null} onChange={chooseBranch} />
+        <ChooseBranchNotice what={t("catalog.branchScope.agenda")} />
       </>
     );
   }
