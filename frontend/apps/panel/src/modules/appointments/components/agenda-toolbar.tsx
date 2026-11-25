@@ -19,9 +19,6 @@ interface AgendaToolbarProps {
   onPrevious(): void;
   onToday(): void;
   onNext(): void;
-  weekProfessionals: readonly { id: string; display_name: string }[];
-  weekProfessionalId: string | null;
-  onWeekProfessionalChange(id: string): void;
   arrivalsCount: number;
   arrivalsOpen: boolean;
   onToggleArrivals(): void;
@@ -36,9 +33,6 @@ export function AgendaToolbar({
   onPrevious,
   onToday,
   onNext,
-  weekProfessionals,
-  weekProfessionalId,
-  onWeekProfessionalChange,
   arrivalsCount,
   arrivalsOpen,
   onToggleArrivals,
@@ -63,21 +57,6 @@ export function AgendaToolbar({
         ) : null}
         <ToggleGroupItem value="week">{t("agenda.viewWeek")}</ToggleGroupItem>
       </ToggleGroup>
-
-      {isWeek && weekProfessionals.length > 0 ? (
-        <Select value={weekProfessionalId ?? undefined} onValueChange={onWeekProfessionalChange}>
-          <SelectTrigger className="w-48" aria-label={t("agenda.weekProfessional")}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {weekProfessionals.map((person) => (
-              <SelectItem key={person.id} value={person.id}>
-                {person.display_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : null}
 
       <div className="flex items-center rounded-[var(--button-radius)] bg-sidebar p-0.5">
         <Button
@@ -125,6 +104,38 @@ export function AgendaToolbar({
           {t("agenda.newAppointment")}
         </Button>
       ) : null}
+    </div>
+  );
+}
+
+interface WeekProfessionalPickerProps {
+  professionals: readonly { id: string; display_name: string }[];
+  value: string | null;
+  onChange(id: string): void;
+}
+
+/** The week shows one person at a time: seven days of everyone would not read. */
+export function WeekProfessionalPicker({
+  professionals,
+  value,
+  onChange,
+}: WeekProfessionalPickerProps) {
+  const { t } = useTranslation("appointments");
+  if (professionals.length === 0) return null;
+  return (
+    <div className="-mt-2 mb-3">
+      <Select value={value ?? undefined} onValueChange={onChange}>
+        <SelectTrigger className="w-60 rounded-full" aria-label={t("agenda.weekProfessional")}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {professionals.map((person) => (
+            <SelectItem key={person.id} value={person.id}>
+              {person.display_name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

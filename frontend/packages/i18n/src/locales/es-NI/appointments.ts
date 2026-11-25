@@ -27,6 +27,26 @@ export const appointments = {
     appointmentCount_one: "{{count}} cita",
     appointmentCount_other: "{{count}} citas",
     currentTime: "Hora actual",
+    dayTitlePrefix: "Agenda del",
+    filters: {
+      label: "Filtrar por estado",
+      all: "Todas",
+    },
+    list: {
+      all: "Todos",
+      items: "Citas del día",
+      empty: "Sin citas este día.",
+      free: "Libre · {{duration}}",
+      freeAction: "Libre, {{duration}}, a las {{time}} con {{name}}",
+      minutes: "{{value}} min",
+      hours: "{{value}} h",
+      hoursMinutes: "{{hours}} h {{minutes}} min",
+    },
+    density: {
+      label: "Densidad",
+      comfortable: "Vista cómoda",
+      compact: "Vista compacta",
+    },
     status: {
       scheduled: "Por confirmar",
       confirmed: "Confirmada",

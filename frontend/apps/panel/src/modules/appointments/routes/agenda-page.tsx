@@ -1,39 +1,41 @@
 import { useTranslation } from "@ceiba/i18n";
-import { LoadingState, PageHeader } from "@ceiba/ui";
-import { useEffect, useId, useState } from "react";
+import { LoadingState, PageBody, PageFrame, PageHeader } from "@ceiba/ui";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useContextSelection } from "../../../platform/context/context-provider";
 import { useMe } from "../../../platform/me/me-provider";
 import type { Branch } from "../api/catalog";
 import { AppointmentDetailPanel } from "../components/agenda/appointment-detail-panel";
 import { NewAppointmentPanel } from "../components/agenda/new-appointment-panel";
-import { AgendaLegend } from "../components/agenda-legend";
-import { AgendaToolbar } from "../components/agenda-toolbar";
+import { AgendaDateTitle } from "../components/agenda-date-title";
+import { AgendaDayFilters } from "../components/agenda-day-filters";
+import { AgendaToolbar, WeekProfessionalPicker } from "../components/agenda-toolbar";
 import { AgendaView, preloadAgendaView } from "../components/agenda-view/agenda-view";
+import { AgendaDensityContext } from "../components/agenda-view/density";
+import { useNarrowScreen } from "../components/agenda-view/use-narrow-screen";
 import type { AgendaSlot } from "../components/agenda-view/types";
 import { BranchPicker } from "../components/branch-picker";
+import { NewAppointmentFab } from "../components/new-appointment-fab";
 import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { UpcomingArrivals } from "../components/upcoming-arrivals";
+import { useAgendaDensity } from "../lib/use-agenda-density";
 import { useAgendaPermissions } from "../lib/agenda-permissions";
-import { addDays, mondayOf, type PlainDate } from "../lib/agenda-time";
+import { addDays, mondayOf } from "../lib/agenda-time";
 import { newAppointmentDefaults } from "../lib/new-appointment-defaults";
 import { useAgendaScreen } from "../lib/use-agenda-screen";
 import { useAgendaUrlState } from "../lib/use-agenda-url-state";
 import { useMoveAppointment } from "../lib/use-move-appointment";
+import { useStatusFilter } from "../lib/use-status-filter";
 import { useWorkingBranch } from "../lib/use-working-branch";
 
 // The date is a calendar day, so it is formatted in UTC: no zone may move it to the neighboring day.
-const dayFormat = new Intl.DateTimeFormat("es-NI", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  timeZone: "UTC",
-});
 const shortDayFormat = new Intl.DateTimeFormat("es-NI", {
   day: "numeric",
   month: "long",
   timeZone: "UTC",
 });
-const calendarDay = (day: PlainDate) => new Date(`${day}T12:00:00Z`);
+
+const canCreateFromSlot = (canCreate: boolean, narrow: boolean, mode: string) =>
+  canCreate && !(narrow && mode === "resources");
 
 type SidePanel =
   | { kind: "arrivals" }
@@ -69,12 +71,19 @@ export function AgendaPage() {
 
 function BranchAgenda({ branch }: { branch: Branch }) {
   const { t } = useTranslation("appointments");
+  const { principal } = useMe();
   const permissions = useAgendaPermissions();
   const panelId = useId();
-  useEffect(preloadAgendaView, []);
+  // A phone draws the list: no calendar library, no density, and New appointment floats.
+  const narrow = useNarrowScreen();
+  useEffect(() => {
+    if (!narrow) preloadAgendaView();
+  }, [narrow]);
   // One side panel at a time. It floats over the agenda, so it only opens when asked for.
   const [panel, setPanel] = useState<SidePanel>(null);
   const closePanel = () => setPanel(null);
+  const openNew = () => setPanel({ kind: "new", slot: null });
+  const [density, setDensity] = useAgendaDensity(principal.id);
 
   const url = useAgendaUrlState(branch.time_zone, { canViewResources: permissions.readsResources });
   const { date, mode } = url;
@@ -84,15 +93,28 @@ function BranchAgenda({ branch }: { branch: Branch }) {
     mode,
     date,
     weekProfessionalId: url.weekProfessionalId,
+    offersFreeGaps: narrow,
   });
+  const filter = useStatusFilter(screen.events, !isWeek);
+  // The phone list offers free gaps: what the chips hide is still taken there.
+  const blocks = useMemo(
+    () => (narrow ? [...screen.blocks, ...filter.hiddenBusy] : screen.blocks),
+    [narrow, screen.blocks, filter.hiddenBusy],
+  );
+  // A gap tapped on a phone books with the person whose list it is; a resource's gap names no one to book with.
+  const booksFromSlot = canCreateFromSlot(permissions.canCreate, narrow, mode);
   const moveEvent = useMoveAppointment(branch.id, {
     changesProfessional: mode === "professionals",
   });
 
   const step = isWeek ? 7 : 1;
-  const title = isWeek
-    ? t("agenda.weekTitle", { date: shortDayFormat.format(calendarDay(mondayOf(date))) })
-    : t("agenda.dayTitle", { date: dayFormat.format(calendarDay(date)).replace(",", "") });
+  const title = isWeek ? (
+    t("agenda.weekTitle", {
+      date: shortDayFormat.format(new Date(`${mondayOf(date)}T12:00:00Z`)),
+    })
+  ) : (
+    <AgendaDateTitle date={date} today={screen.today} onChange={url.setDate} />
+  );
   const selected =
     panel?.kind === "detail"
       ? screen.knownAppointments.find((item) => item.id === panel.appointmentId)
@@ -128,32 +150,31 @@ function BranchAgenda({ branch }: { branch: Branch }) {
         empty={emptyMessage}
       >
         {() => (
-          <>
-            <div className="overflow-x-auto">
+          <div className="h-full overflow-hidden rounded-xl border">
+            <AgendaDensityContext.Provider value={density}>
               <AgendaView
                 mode={isWeek ? "week" : "day"}
                 date={date}
                 timeZone={branch.time_zone}
                 resources={screen.viewResources}
-                events={screen.events}
-                blocks={screen.blocks}
+                events={filter.shown}
+                blocks={blocks}
                 range={screen.range}
                 stepMinutes={screen.stepMinutes}
                 now={screen.nowLine}
-                onSelectSlot={canCreate ? (slot) => setPanel({ kind: "new", slot }) : undefined}
+                onSelectSlot={booksFromSlot ? (slot) => setPanel({ kind: "new", slot }) : undefined}
                 onOpenEvent={(appointmentId) => setPanel({ kind: "detail", appointmentId })}
                 onMoveEvent={moveEvent}
               />
-            </div>
-            <AgendaLegend />
-          </>
+            </AgendaDensityContext.Provider>
+          </div>
         )}
       </QueryBoundary>
     );
   }
 
   return (
-    <>
+    <PageFrame>
       <PageHeader
         title={title}
         description={t("agenda.summary", {
@@ -168,20 +189,31 @@ function BranchAgenda({ branch }: { branch: Branch }) {
             onPrevious={() => url.setDate(addDays(date, -step))}
             onToday={() => url.setDate(screen.today)}
             onNext={() => url.setDate(addDays(date, step))}
-            weekProfessionals={screen.assigned}
-            weekProfessionalId={screen.weekProfessionalId}
-            onWeekProfessionalChange={url.setWeekProfessional}
             arrivalsCount={screen.arrivals.length}
             arrivalsOpen={panel?.kind === "arrivals"}
             onToggleArrivals={() =>
               setPanel((current) => (current?.kind === "arrivals" ? null : { kind: "arrivals" }))
             }
             arrivalsPanelId={panelId}
-            onNewAppointment={canCreate ? () => setPanel({ kind: "new", slot: null }) : undefined}
+            onNewAppointment={canCreate && !narrow ? openNew : undefined}
           />
         }
       />
-      {renderAgenda()}
+      {isWeek ? (
+        <WeekProfessionalPicker
+          professionals={screen.assigned}
+          value={screen.weekProfessionalId}
+          onChange={url.setWeekProfessional}
+        />
+      ) : (
+        <AgendaDayFilters
+          filter={filter}
+          density={narrow ? null : density}
+          onDensityChange={setDensity}
+        />
+      )}
+      <PageBody className="overflow-hidden">{renderAgenda()}</PageBody>
+      {narrow && canCreate ? <NewAppointmentFab onClick={openNew} /> : null}
       {panel?.kind === "arrivals" ? (
         <UpcomingArrivals
           id={panelId}
@@ -218,6 +250,6 @@ function BranchAgenda({ branch }: { branch: Branch }) {
           onClose={closePanel}
         />
       ) : null}
-    </>
+    </PageFrame>
   );
 }

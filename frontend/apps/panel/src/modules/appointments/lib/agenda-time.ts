@@ -1,3 +1,4 @@
+import { formatClock } from "@ceiba/i18n";
 import { localToUtcIso, utcToLocalInput } from "./zoned-time";
 
 /** A calendar day of the branch, "2026-11-18". */
@@ -48,6 +49,19 @@ export const minutesOfClock = (clock: string) =>
   Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3, 5));
 
 export const minutesOfWall = (wall: WallClock) => minutesOfClock(wall.slice(11, 16));
+
+const MINUTE_MS = 60_000;
+
+/** Minutes from one wall-clock time to another; both are floating, so no zone or DST jump can enter. */
+export const minutesBetweenWalls = (start: WallClock, end: WallClock) =>
+  (Date.parse(`${end}Z`) - Date.parse(`${start}Z`)) / MINUTE_MS;
+
+/** The wall-clock time one minute later. */
+export const nextMinute = (wall: WallClock): WallClock =>
+  new Date(Date.parse(`${wall}Z`) + MINUTE_MS).toISOString().slice(0, 19);
+
+/** "9:30 a. m." for a branch wall-clock time. */
+export const clockOfWall = (wall: WallClock) => formatClock(wall.slice(11, 16));
 
 export const clockOfMinutes = (minutes: number) =>
   `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}:00`;

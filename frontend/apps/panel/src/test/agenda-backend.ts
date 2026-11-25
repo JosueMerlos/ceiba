@@ -91,7 +91,13 @@ interface AgendaBackendOptions {
   professionalsForbidden?: boolean;
   profiles?: Record<string, string>;
   branchId?: string;
+  /** Opening hours; left out, the branch and everyone have none, so the whole day is closed. */
+  branchSchedule?: WeeklySlot[];
+  professionalSchedules?: Record<string, WeeklySlot[]>;
+  resourceSchedules?: Record<string, WeeklySlot[]>;
 }
+
+type WeeklySlot = { id: string; weekday: number; starts_at_local: string; ends_at_local: string };
 
 export function agendaBackend({
   appointments = [],
@@ -111,6 +117,9 @@ export function agendaBackend({
   professionalsForbidden = false,
   profiles = {},
   branchId = ids.branchA,
+  branchSchedule = [],
+  professionalSchedules = {},
+  resourceSchedules = {},
 }: AgendaBackendOptions = {}) {
   const state = {
     appointmentQueries: [] as URLSearchParams[],
@@ -142,8 +151,15 @@ export function agendaBackend({
 
   server.use(
     http.get(`${BRANCH(branchId)}/appointments`, ({ request }) => {
-      state.appointmentQueries.push(new URL(request.url).searchParams);
-      return HttpResponse.json({ data: appointments });
+      const query = new URL(request.url).searchParams;
+      state.appointmentQueries.push(query);
+      // Like the API: a professional filter returns only that person's appointments.
+      const professionalId = query.get("professional_id");
+      return HttpResponse.json({
+        data: professionalId
+          ? appointments.filter((item) => item.professional_id === professionalId)
+          : appointments,
+      });
     }),
     http.post(`${BRANCH(branchId)}/appointments`, ({ request }) => write("book", null, request)),
     // Every write moves the version up, as the API does.
@@ -211,12 +227,14 @@ export function agendaBackend({
       return HttpResponse.json(page(archived ? archivedServices : services));
     }),
     http.get(`${BRANCH(branchId)}/resources`, () => HttpResponse.json(page(resources))),
-    http.get(`${BRANCH(branchId)}/schedule`, () => HttpResponse.json({ data: [] })),
+    http.get(`${BRANCH(branchId)}/schedule`, () => HttpResponse.json({ data: branchSchedule })),
     http.get(`${BRANCH(branchId)}/professionals/:id/schedule`, ({ params }) => {
       state.scheduleOwners.push(String(params.id));
-      return HttpResponse.json({ data: [] });
+      return HttpResponse.json({ data: professionalSchedules[String(params.id)] ?? [] });
     }),
-    http.get(`${BRANCH(branchId)}/resources/:id/schedule`, () => HttpResponse.json({ data: [] })),
+    http.get(`${BRANCH(branchId)}/resources/:id/schedule`, ({ params }) =>
+      HttpResponse.json({ data: resourceSchedules[String(params.id)] ?? [] }),
+    ),
     http.get(`${BRANCH(branchId)}/professionals/:id/time_offs`, () => HttpResponse.json(page([]))),
     http.get(`${BRANCH(branchId)}/resources/:id/time_offs`, () => HttpResponse.json(page([]))),
   );

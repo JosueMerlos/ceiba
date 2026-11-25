@@ -12,6 +12,7 @@ import {
   freeTimes,
   nextWorkingDay,
   openAgenda,
+  openAppointment,
   secondSession,
   sidePanel,
   startBooking,
@@ -40,7 +41,7 @@ test.describe("agenda del staff", () => {
       });
       await shot(page, testInfo, "20-agenda-cita-creada");
 
-      await appointmentCard(page, customer).click();
+      await openAppointment(page, customer);
       const panel = sidePanel(page, customer);
       await panel.getByRole("button", { name: "Reprogramar" }).click();
       await panel
@@ -50,7 +51,7 @@ test.describe("agenda del staff", () => {
       await panel.getByRole("button", { name: "Mover cita" }).click();
       await expect(page.getByText("Cita movida. Queda por confirmar.")).toBeVisible();
 
-      await appointmentCard(page, customer).click();
+      await openAppointment(page, customer);
       await expect(sidePanel(page, customer).getByText(/Reprogramada desde/)).toBeVisible();
       await shot(page, testInfo, "21-agenda-cita-movida");
     } finally {

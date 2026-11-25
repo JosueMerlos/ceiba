@@ -46,23 +46,19 @@ for (const viewport of [
   }, testInfo) => {
     await page.setViewportSize(viewport);
     await openAgenda(page, RECEPTION, nextWorkingDay());
-    // The calendar is a lazy chunk: measure once its hours are drawn, not while the sheet is still short.
-    await expect(
-      page
-        .getByText(/5:00\sp\.\sm\./)
-        .filter({ visible: true })
-        .first(),
-    ).toBeAttached();
+    // The agenda is drawn in a lazy chunk (the calendar on a wide screen, the list on a phone): measure once it is there.
+    await expect(page.locator("[data-slot=agenda-view]")).toBeVisible();
     const sidebar = page.locator("#barra-lateral");
     const before = (await sidebar.boundingBox())!.y;
 
-    const scrolled = await sheet(page).evaluate((main) => {
+    // The agenda owns its scroll, so the sheet around it stays put.
+    const sheetScrolls = await sheet(page).evaluate((main) => {
       main.scrollTop = main.scrollHeight;
       return main.scrollTop;
     });
     await page.mouse.wheel(0, 2000);
 
-    expect(scrolled, "la agenda debe ser más alta que la ventana").toBeGreaterThan(0);
+    expect(sheetScrolls, "la hoja no se desplaza: la agenda lo hace por dentro").toBe(0);
     expect(await noDocumentScroll(page)).toBe(true);
     expect((await sidebar.boundingBox())!.y).toBe(before);
     await shot(page, testInfo, `ac7-hoja-desplazada-${viewport.name}`);

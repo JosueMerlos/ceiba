@@ -2,6 +2,7 @@ import type { components } from "@ceiba/api-client";
 import { describe, expect, it } from "vitest";
 import {
   NO_RESOURCE,
+  closeUnknownHours,
   closedBlocks,
   mergeProfessionalColumns,
   openForProfessional,
@@ -218,4 +219,47 @@ describe("próximas llegadas", () => {
 
 it("expone una columna para las citas sin recurso", () => {
   expect(NO_RESOURCE).toBe("sin-recurso");
+});
+
+describe("closeUnknownHours", () => {
+  const range = { startMinute: 8 * 60, endMinute: 18 * 60 };
+  const DAY = "2026-11-18";
+
+  it("cierra el día entero de quien todavía no tiene horario cargado y respeta lo conocido", () => {
+    const known = [{ resourceId: "rosa", start: `${DAY}T12:00:00`, end: `${DAY}T13:00:00` }];
+    expect(
+      closeUnknownHours({
+        blocks: known,
+        ownerIds: ["rosa", "luis"],
+        knownIds: new Set(["rosa"]),
+        days: [DAY],
+        range,
+      }),
+    ).toEqual([...known, { resourceId: "luis", start: `${DAY}T08:00:00`, end: `${DAY}T18:00:00` }]);
+  });
+
+  it("con todo conocido devuelve los mismos bloques", () => {
+    const blocks = [{ resourceId: "luis", start: `${DAY}T08:00:00`, end: `${DAY}T09:00:00` }];
+    expect(
+      closeUnknownHours({
+        blocks,
+        ownerIds: ["luis"],
+        knownIds: new Set(["luis"]),
+        days: [DAY],
+        range,
+      }),
+    ).toBe(blocks);
+  });
+
+  it("sin nada conocido cierra cada día de cada fila (adversarial)", () => {
+    expect(
+      closeUnknownHours({
+        blocks: [],
+        ownerIds: ["luis"],
+        knownIds: new Set(),
+        days: [DAY, "2026-11-19"],
+        range,
+      }),
+    ).toHaveLength(2);
+  });
 });
