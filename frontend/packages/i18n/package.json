@@ -5,7 +5,8 @@
   "type": "module",
   "description": "i18next con el catálogo es-NI y los formatos de fecha, número y moneda (Intl). Todos los textos de la UI viven aquí.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./locales/booking": "./src/locales/es-NI/booking.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -383,12 +383,14 @@ describe("Recursos", () => {
     });
     const { user } = await openResources();
 
+    // The table renders after its query: wait for the row so the negative checks below see it.
+    const row = await screen.findByRole("button", { name: "Ver Sillón 1" });
     expect(await screen.findByText("Solo lectura")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Nuevo recurso" })).toBeNull();
     expect(screen.queryByRole("columnheader", { name: "Acciones" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Archivar/ })).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Ver Sillón 1" }));
+    await user.click(row);
     const panel = await screen.findByRole("complementary", { name: "Sillón 1" });
     expect(panel.closest("[data-variant=floating]")).not.toBeNull();
     expect(within(panel).getByText("Sillón")).toBeTruthy();

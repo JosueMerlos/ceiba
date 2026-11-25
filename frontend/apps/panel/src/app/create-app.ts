@@ -1,5 +1,5 @@
 import { createApiClient, createCsrfStore } from "@ceiba/api-client";
-import { createI18n } from "@ceiba/i18n";
+import { createI18n, type CreateI18nOptions } from "@ceiba/i18n";
 import type { RouteObject } from "react-router";
 import { toast } from "@ceiba/ui";
 import { describeError, createQueryClient } from "../platform/errors/global-errors";
@@ -14,6 +14,8 @@ interface CreateAppOptions {
   retry?: false;
   /** Tests: replaces the pages inside the layout (home and modules). */
   workspaceChildren?: RouteObject[];
+  /** Tests: "throw", so a route painting a key of a namespace it did not register fails. */
+  onMissingKey?: CreateI18nOptions["onMissingKey"];
 }
 
 /**
@@ -25,8 +27,9 @@ export async function createApp({
   history = { type: "browser" },
   retry,
   workspaceChildren,
+  onMissingKey,
 }: CreateAppOptions = {}) {
-  const i18n = await createI18n();
+  const i18n = await createI18n({ onMissingKey });
   const apiClient = createApiClient({ baseUrl: apiBaseUrl, csrf: createCsrfStore() });
   const router = createAppRouter(history, workspaceChildren);
 

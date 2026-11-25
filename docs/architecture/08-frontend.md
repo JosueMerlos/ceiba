@@ -159,7 +159,30 @@ Base de [ADR-0043](../adr/0043-rediseno-v2-del-panel.md) para M2.06–M2.08. Rec
 
 ### i18n
 
-`packages/i18n`: instancia **nueva** por `createI18n()` (nada global), catálogo `es-NI` tipado (una clave que no existe no compila) por namespaces (`common`, `auth`, `shell`, `errors`, `appointments`, `booking`) y formatos `Intl` (`formatCurrency` escribe "US$" para el dólar porque CLDR da "USD" en es-NI; `formatDate/Time/DateTime` exigen la zona de la sucursal). **Regla de ESLint** `i18next/no-literal-string` (eslint-plugin-i18next 6.1.5, funciona con ESLint 10) en `apps/*/src/**/*.tsx` y `packages/ui/src/**/*.tsx`, modo `jsx-only`: revisa el texto JSX y los atributos que el usuario lee (`alt`, `title`, `label`, `placeholder`, `aria-label`, `aria-description`…); los tests quedan fuera. Probada en `packages/config/test/eslint.test.ts`.
+`packages/i18n`: instancia **nueva** por `createI18n()` (nada global), catálogo `es-NI` tipado (una clave que no existe no compila) por namespaces (`common`, `auth`, `shell`, `errors`, `appointments`, `booking`, `branding`, `customers`, `imports`) y formatos `Intl` (`formatCurrency` escribe "US$" para el dólar porque CLDR da "USD" en es-NI; `formatDate/Time/DateTime` exigen la zona de la sucursal). **Regla de ESLint** `i18next/no-literal-string` (eslint-plugin-i18next 6.1.5, funciona con ESLint 10) en `apps/*/src/**/*.tsx` y `packages/ui/src/**/*.tsx`, modo `jsx-only`: revisa el texto JSX y los atributos que el usuario lee (`alt`, `title`, `label`, `placeholder`, `aria-label`, `aria-description`…); los tests quedan fuera. Probada en `packages/config/test/eslint.test.ts`.
+
+**Carga por namespace.** El JS crítico lleva solo los namespaces del arranque del shell (`common`, `auth`, `shell`,
+`errors`: login, layout y páginas de error). Los de pantalla o módulo (`appointments`, `branding`, `customers`,
+`imports`, `booking`) son `import()` propios, uno por namespace, servidos por un backend de i18next dentro de
+`createI18n` (`partialBundledLanguages`; sin dependencias nuevas). El patrón:
+
+- **Cada ruta diferida registra sus namespaces** en `lazyPage(load, "Página", ["customers"])` (o en el manifest del
+  módulo: `modules/appointments/index.tsx` pasa `["appointments"]` a todas sus páginas). El namespace se descarga **en
+  paralelo** con el chunk de la ruta (`preloadNamespaces`) y la página no pinta hasta que la instancia lo tiene
+  (`useTranslation(namespaces)` suspende dentro del mismo `Suspense`): nunca se ve una clave cruda. El parámetro es
+  obligatorio; un módulo nuevo agrega su archivo en `locales/es-NI/`, su loader en `packages/i18n/src/index.ts` (el
+  tipo exige uno por namespace que no sea de arranque) y lo registra en sus rutas.
+- Un componente del shell (lo que viaja en el arranque) solo usa namespaces de arranque. Si una pantalla necesita textos
+  de otro namespace (`t("x:...")` con prefijo), ese namespace va en la lista de su ruta.
+- El tipado de claves sigue viendo el catálogo completo (`import type`), y `onMissingKey: "throw"` sigue fallando ante
+  una clave inexistente o un namespace no cargado.
+- **Tests:** `renderWithI18n` usa `createI18n({ onMissingKey: "throw", preload: "all" })`, porque monta componentes sin
+  su ruta; los tests que montan el panel completo (`createApp`) recorren la carga real por ruta.
+- **Booking** empaqueta su namespace en el arranque (`createBookingI18n`, con `bundled: { booking }` desde
+  `@ceiba/i18n/locales/booking`, el único archivo del catálogo que el paquete exporta suelto): son unos cientos de bytes y pedirlo aparte sumaría un viaje de red antes del primer
+  pintado en móvil.
+- Lo fijan `packages/i18n/test/i18n.test.ts`, `apps/panel/src/modules/lazy-page.test.tsx` y
+  `apps/panel/src/app/build.test.ts` (ningún texto de un namespace de módulo viaja en el JS crítico).
 
 ### CSRF y hooks en `@ceiba/api-client`
 
@@ -168,13 +191,16 @@ Base de [ADR-0043](../adr/0043-rediseno-v2-del-panel.md) para M2.06–M2.08. Rec
 ### Presupuesto de bundle y E2E
 
 - `apps/booking`: JS crítico (entrada + imports estáticos) **< 150 KiB gzip**, medido por `frontend/bin/ci-bundle` (etapa `frontend-bundle` de `bin/ci`, job de CI y `src/build.test.ts`). Hoy: **85.3 KiB** (React + i18next + la página base). `packages/config/bundle-budget.mjs` lee el manifest de Vite; los imports dinámicos no cuentan. Subir el umbral exige cambiar el ADR-0015.
-- Panel: presupuesto de **220 KiB** gzip de JS crítico (medido **198.5 KiB** + ~10 % de margen al fijarlo; antes de la revisión eran ≈ 225 KiB). Se logró difiriendo Sentry (chunk propio, solo con DSN), quitando zod y el resolver del login (validación nativa de RHF) y cargando perezosamente el diálogo de «cerrar todas las sesiones». Los límites de ambas apps viven en `frontend/bundle-budgets.json` (una sola fuente; `bin/ci-bundle` los comprueba). **Ambos presupuestos miden solo JS** (ni CSS ni fuentes). Booking carga hoy el catálogo i18n completo (unos pocos KiB de texto): se separará por namespace cuando crezca el catálogo.
+- Panel: presupuesto de **220 KiB** gzip de JS crítico (medido **198.5 KiB** + ~10 % de margen al fijarlo; antes de la revisión eran ≈ 225 KiB). Se logró difiriendo Sentry (chunk propio, solo con DSN), quitando zod y el resolver del login (validación nativa de RHF) y cargando perezosamente el diálogo de «cerrar todas las sesiones». Los límites de ambas apps viven en `frontend/bundle-budgets.json` (una sola fuente; `bin/ci-bundle` los comprueba). **Ambos presupuestos miden solo JS** (ni CSS ni fuentes). El catálogo i18n se carga por namespace (ver [i18n](#i18n)): los textos de cada módulo viajan con su ruta.
 - **Medición de M2.05 (panel):** 215.8 KiB antes (el crecimiento de M2.01–M2.04 ya había gastado casi toda la holgura de ~21 KiB que suponía ADR-0043) y **216.7 KiB** después (+0.9 KiB: textos de i18n, envoltorios del panel y el aviso de reintento del calendario). `react-day-picker` y su `date-fns` viajan solo en el chunk diferido del calendario (22.5 KiB gzip), lo fija `apps/panel/src/app/build.test.ts`. Quedan **~3.3 KiB**: lo que M2.06–M2.08 sumen al arranque debe ir diferido. Booking: 95.1 KiB.
 - **Medición de M2.06 (panel):** 216.7 KiB antes y **217.3 KiB** después (+0.6 KiB). La librería del calendario, la vista en filas y la lista del celular siguen en chunks diferidos; lo que crece son los textos nuevos del catálogo i18n (que viaja entero en el arranque) y `PageFrame`/`PageBody`, que viven en `layout.tsx` y el build eliminaba mientras nadie los usaba. Quedan **~2.7 KiB**. Booking: 95.2 KiB (el mismo catálogo).
 - **Medición de M2.07 (panel):** 217.3 KiB antes (main con M2.06) y **218.0 KiB** después (+0.7 KiB). La causa son los
   textos de i18n de los catálogos (modales, pasos, pestañas, solo lectura): el catálogo `es-NI` viaja en el bundle
   crítico. Los modales y el panel de detalle viven en los chunks de sus rutas. Quedan **~2 KiB**; la carga de i18n por
   namespace es la palanca siguiente. Booking: 95.7 KiB.
+- **Carga de i18n por namespace (después de M2.07):** panel 218.0 KiB antes y **211.5 KiB** después (−6.5 KiB); booking
+  95.7 KiB antes y **89.2 KiB** después (−6.5 KiB). Los textos nuevos de un módulo ya no engordan el arranque: crecen en
+  el chunk de su namespace. Quedan **~8.5 KiB** de holgura en el panel.
 - **E2E** (`frontend/e2e`, Playwright 1.65.0): el servicio `e2e` de `compose.yaml` (perfil `e2e`, imagen `infra/docker/e2e.Dockerfile` con la misma versión de Playwright, comprobado por `check-versions.sh`) comparte la red del proxy (`network_mode: service:proxy`) y entra por `http://localhost:8080`, igual que un navegador. Corre contra los seeds de demo. `make e2e` o `bin/ci e2e`; en GitHub, el job `e2e` solo en `main` (sube el reporte y las capturas como artefacto). Los tests no escriben datos y cada uno inicia su propia sesión. Funciona con cualquier `PROXY_PORT` (Caddy escucha y publica en el mismo puerto; verificado con 38080) y la imagen no lleva etiqueta fija, así que varios entornos pueden convivir. Dependen de los **límites de Rack::Attack de desarrollo** (1000 logins por IP/15 min, `backend/config/middleware/rate_limiting.rb`): una corrida inicia ≈ 10 sesiones. Sin reintentos por defecto (`E2E_RETRIES`; el job de `main` usa 1). Seeds: `ana@multi-org.ceiba.test` está en dos organizaciones (cambio de organización), `luis@` en dos empresas, `rosa@` y `recepcion@barberia-guegu` en una sola.
 
 ## `AgendaView`: calendario detrás de un adaptador
