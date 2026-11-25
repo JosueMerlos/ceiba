@@ -2,13 +2,10 @@ import { useTranslation } from "@ceiba/i18n";
 import { Badge } from "@ceiba/ui";
 import type { ReactNode } from "react";
 import { useServicesQuery, type Branch } from "../api/catalog";
-import {
-  useProfessionalScheduleQuery,
-  useProfessionalTimeOffsQuery,
-  type Professional,
-} from "../api/professionals";
-import { CatalogDetailPanel } from "../components/catalog-detail-panel";
-import { NO_WRITES, OwnerBranchSections, useOwnerAccess } from "../components/owner-sections";
+import { professionalOwnerApi } from "../api/owners";
+import type { Professional } from "../api/professionals";
+import { CatalogDetailPanel } from "./catalog-detail-panel";
+import { OwnerBranchReadSections } from "./owner-sections";
 
 interface ProfessionalDetailProps {
   professional: Professional;
@@ -63,29 +60,12 @@ export function ProfessionalDetail({
       ]}
     >
       {workingBranch && professional.branch_ids.includes(workingBranch.id) ? (
-        <BranchSections professional={professional} branch={workingBranch} />
+        <OwnerBranchReadSections
+          api={professionalOwnerApi}
+          ownerId={professional.id}
+          branch={workingBranch}
+        />
       ) : null}
     </CatalogDetailPanel>
-  );
-}
-
-function BranchSections({ professional, branch }: { professional: Professional; branch: Branch }) {
-  const access = useOwnerAccess();
-  const schedule = useProfessionalScheduleQuery(branch.id, professional.id, {
-    enabled: access.scheduleRead,
-  });
-  const timeOffs = useProfessionalTimeOffsQuery(branch.id, professional.id, {
-    enabled: access.timeOffRead,
-  });
-  return (
-    <OwnerBranchSections
-      branch={branch}
-      access={{ ...access, scheduleManage: false, timeOffManage: false }}
-      data={{
-        schedule,
-        timeOffs,
-        ...NO_WRITES,
-      }}
-    />
   );
 }

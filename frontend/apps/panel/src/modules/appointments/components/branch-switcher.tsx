@@ -1,7 +1,7 @@
-import { useTranslation } from "@ceiba/i18n";
 import { ConfirmDialog, ToggleGroup, ToggleGroupItem } from "@ceiba/ui";
 import { useState } from "react";
 import { useContextBranch } from "../../../platform/context/use-context-branch";
+import { useFormDialogLabels } from "../../../platform/ui/use-form-dialog-labels";
 import type { Branch } from "../api/catalog";
 
 /**
@@ -33,7 +33,7 @@ export function BranchSwitcher({
   dirty: boolean;
   onChange(branchId: string): void;
 }) {
-  const { t } = useTranslation("common");
+  const labels = useFormDialogLabels();
   const [pending, setPending] = useState<string | null>(null);
 
   return (
@@ -54,10 +54,7 @@ export function BranchSwitcher({
         onOpenChange={(open) => {
           if (!open) setPending(null);
         }}
-        title={t("formDialog.discardTitle")}
-        description={t("formDialog.discardDescription")}
-        confirmLabel={t("formDialog.discard")}
-        cancelLabel={t("formDialog.keepEditing")}
+        {...labels.discard}
         onConfirm={() => {
           if (pending) onChange(pending);
           setPending(null);

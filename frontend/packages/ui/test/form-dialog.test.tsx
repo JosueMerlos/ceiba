@@ -275,7 +275,10 @@ describe("FormDialog: paso sin cambios y pestaña sin formulario", () => {
         onOpenChange={() => {}}
         title="Nuevo recurso"
         closeLabel="Cerrar"
-        steps={[{ id: "datos", label: "Datos" }, { id: "horario", label: "Horario" }]}
+        steps={[
+          { id: "datos", label: "Datos" },
+          { id: "horario", label: "Horario" },
+        ]}
         step="datos"
         onBack={() => {}}
         formId="form-paso"

@@ -1,7 +1,6 @@
 import { useTranslation } from "@ceiba/i18n";
 import { Button, PageHeader, toast } from "@ceiba/ui";
-import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useContextBranch } from "../../../platform/context/use-context-branch";
 import { useCan } from "../../../platform/permissions/can";
 import { useCompanyBranchesQuery } from "../api/catalog";
@@ -16,13 +15,12 @@ import {
   NewProfessionalDialog,
   useProfessionalSections,
 } from "../components/professional-dialog";
+import { ProfessionalDetail } from "../components/professional-detail";
 import { ProfessionalsTable } from "../components/professionals-table";
 import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { useEntityPanel } from "../lib/use-entity-panel";
-import { ReadOnlyBadge } from "../components/read-only-badge";
-import { ProfessionalDetail } from "./professional-detail";
-
-type Editing = { kind: "new" } | { kind: "edit"; id: string } | null;
+import { CatalogHeaderActions } from "../components/catalog-header-actions";
+import { useEditingDialog } from "../lib/use-editing-dialog";
 
 export function ProfessionalsPage() {
   const { t } = useTranslation(["appointments", "common"]);
@@ -38,17 +36,11 @@ export function ProfessionalsPage() {
   const archive = useArchiveProfessional();
   const panel = useEntityPanel(list);
   const { selected } = panel;
-  const [editing, setEditing] = useState<Editing>(null);
-  const edited = editing?.kind === "edit" ? list.find((item) => item.id === editing.id) : undefined;
+  const dialog = useEditingDialog(list);
   const branchNames = useMemo(
     () => new Map(branches.map((branch) => [branch.id, branch.name])),
     [branches],
   );
-
-  const openNew = () => setEditing({ kind: "new" });
-  const closeDialog = (open: boolean) => {
-    if (!open) setEditing(null);
-  };
 
   const archiveProfessional = (professional: Professional) =>
     archive.mutate(professional.id, {
@@ -61,14 +53,12 @@ export function ProfessionalsPage() {
         title={t("catalog.professionals.title")}
         description={t("catalog.professionals.description")}
         actions={
-          canManage ? (
-            <Button type="button" onClick={openNew}>
-              <Plus aria-hidden="true" />
-              {t("catalog.professionals.new")}
-            </Button>
-          ) : canEdit ? null : (
-            <ReadOnlyBadge />
-          )
+          <CatalogHeaderActions
+            canManage={canManage}
+            canEdit={canEdit}
+            newLabel={t("catalog.professionals.new")}
+            onNew={dialog.openNew}
+          />
         }
       />
 
@@ -85,7 +75,7 @@ export function ProfessionalsPage() {
             }
             action={
               canManage
-                ? { label: t("catalog.professionals.empty.action"), onClick: openNew }
+                ? { label: t("catalog.professionals.empty.action"), onClick: dialog.openNew }
                 : undefined
             }
           />
@@ -111,11 +101,7 @@ export function ProfessionalsPage() {
           onClose={panel.close}
           footer={
             canEdit ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEditing({ kind: "edit", id: selected.id })}
-              >
+              <Button type="button" variant="outline" onClick={() => dialog.openEdit(selected)}>
                 {t("catalog.professionals.edit")}
               </Button>
             ) : undefined
@@ -123,14 +109,14 @@ export function ProfessionalsPage() {
         />
       ) : null}
 
-      {editing?.kind === "new" ? (
-        <NewProfessionalDialog branches={branches} onOpenChange={closeDialog} />
+      {dialog.creating ? (
+        <NewProfessionalDialog branches={branches} onOpenChange={dialog.onOpenChange} />
       ) : null}
-      {edited ? (
+      {dialog.edited ? (
         <EditProfessionalDialog
-          professional={edited}
+          professional={dialog.edited}
           branches={branches}
-          onOpenChange={closeDialog}
+          onOpenChange={dialog.onOpenChange}
         />
       ) : null}
     </>

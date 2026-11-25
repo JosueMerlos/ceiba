@@ -1,6 +1,5 @@
 import { useTranslation } from "@ceiba/i18n";
 import {
-  Button,
   Form,
   FormControl,
   FormDescription,
@@ -30,8 +29,8 @@ interface TimeOffFormProps {
   timeZone: string;
   /** Rejects with the API error; the form shows it. Receives UTC instants, as the contract wants them. */
   onSubmit(values: TimeOffInput): Promise<unknown>;
-  /** Inside a modal whose footer submits it: the form takes this id and draws no button of its own. */
-  formId?: string;
+  /** The modal's footer submits the form through this id: the form draws no button of its own. */
+  formId: string;
   /** Whether the form holds typed data that adding would send (a modal asks before discarding it). */
   onDirtyChange?(dirty: boolean): void;
 }
@@ -144,14 +143,6 @@ export function TimeOffForm({ timeZone, onSubmit, formId, onDirtyChange }: TimeO
         />
 
         <FormAlert>{form.formState.errors.root?.serverError?.message}</FormAlert>
-
-        {formId ? null : (
-          <div>
-            <Button type="submit" variant="outline" loading={form.formState.isSubmitting}>
-              {t("catalog.timeOffForm.create")}
-            </Button>
-          </div>
-        )}
       </form>
     </Form>
   );

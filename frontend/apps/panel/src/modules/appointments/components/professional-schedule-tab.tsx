@@ -1,32 +1,29 @@
 import { useTranslation } from "@ceiba/i18n";
 import { toast } from "@ceiba/ui";
-import { useCallback, useId, useState } from "react";
+import { useState } from "react";
 import { useCan } from "../../../platform/permissions/can";
 import type { Branch } from "../api/catalog";
-import {
-  useProfessionalAssignment,
-  useProfessionalScheduleQuery,
-  usePutProfessionalSchedule,
-  type Professional,
-} from "../api/professionals";
+import { professionalOwnerApi } from "../api/owners";
+import { useProfessionalAssignment, type Professional } from "../api/professionals";
 import { useOrphanTimeOffs, type AssignConfirmation } from "../lib/use-orphan-time-offs";
 import { AssignBranchDialog } from "./assign-branch-dialog";
-import { BranchSwitcher, useActiveBranch } from "./branch-switcher";
-import { IdleForm } from "./idle-form";
-import { PanelSection, ScheduleSection, useOwnerAccess } from "./owner-sections";
+import { BranchSwitcher } from "./branch-switcher";
+import { PanelSection, useOwnerAccess } from "./owner-sections";
+import { OwnerScheduleTab } from "./owner-tabs";
+import type { ProfessionalBranchTab } from "./professional-branch-tab";
 import { ProfessionalBranches } from "./professional-branches";
 
 interface ProfessionalScheduleTabProps {
   professional: Professional;
   /** Branches the user can see: a branch manager receives only theirs. */
   branches: readonly Branch[];
+  branchTab: ProfessionalBranchTab;
+  /** The modal's unsaved state: switching branch with changes asks first. */
+  dirty: boolean;
   /** The modal footer's form: it saves the weekly hours of the branch on screen. */
   formId: string;
   onDirtyChange(dirty: boolean): void;
-  /** A creation step: with nothing changed, the footer just moves on (no request). */
-  skipClean?: boolean;
-  /** After the hours are saved, or when there was nothing to save in a creation step. */
-  onDone?(): void;
+  onSaved?(): void;
 }
 
 /**
@@ -36,10 +33,11 @@ interface ProfessionalScheduleTabProps {
 export function ProfessionalScheduleTab({
   professional,
   branches,
+  branchTab,
+  dirty,
   formId,
   onDirtyChange,
-  skipClean = false,
-  onDone,
+  onSaved,
 }: ProfessionalScheduleTabProps) {
   const { t } = useTranslation("appointments");
   const canAssign = useCan()("appointments.professional.assign");
@@ -47,11 +45,7 @@ export function ProfessionalScheduleTab({
   const assignment = useProfessionalAssignment();
   const orphan = useOrphanTimeOffs(professional);
   const [confirming, setConfirming] = useState<AssignConfirmation | null>(null);
-  const [dirty, setDirty] = useState(false);
-  const editorOnlyId = useId();
-
-  const assigned = branches.filter((branch) => professional.branch_ids.includes(branch.id));
-  const { active, choose } = useActiveBranch(assigned);
+  const { active, assigned } = branchTab;
 
   const assign = (branch: Branch) =>
     assignment.mutate(
@@ -66,18 +60,6 @@ export function ProfessionalScheduleTab({
     if (confirmation) setConfirming(confirmation);
     else assign(branch);
   }
-
-  const trackDirty = useCallback(
-    (next: boolean) => {
-      setDirty(next);
-      onDirtyChange(next);
-    },
-    [onDirtyChange],
-  );
-
-  // The footer submits the editor only when there are hours to save; otherwise an empty form takes its id.
-  const editable = active !== null && access.scheduleManage;
-  const idle = !editable || (skipClean && !dirty);
 
   return (
     <div className="grid gap-6">
@@ -108,18 +90,19 @@ export function ProfessionalScheduleTab({
             value={active.id}
             dirty={dirty}
             onChange={(branchId) => {
-              choose(branchId);
-              trackDirty(false);
+              branchTab.choose(branchId);
+              onDirtyChange(false);
             }}
           />
-          <BranchSchedule
+          <OwnerScheduleTab
             key={active.id}
-            professionalId={professional.id}
+            api={professionalOwnerApi}
+            ownerId={professional.id}
             branch={active}
-            canManage={access.scheduleManage}
-            formId={idle ? editorOnlyId : formId}
-            onDirtyChange={trackDirty}
-            onSaved={onDone}
+            writes={branchTab.writes}
+            formId={branchTab.editable.schedule ? formId : undefined}
+            onDirtyChange={onDirtyChange}
+            onSaved={onSaved}
           />
         </PanelSection>
       ) : null}
@@ -127,8 +110,6 @@ export function ProfessionalScheduleTab({
       {assigned.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("catalog.professionalBranches.none")}</p>
       ) : null}
-
-      {idle ? <IdleForm id={formId} onSubmit={onDone} /> : null}
 
       <AssignBranchDialog
         confirmation={confirming}
@@ -139,34 +120,5 @@ export function ProfessionalScheduleTab({
         }}
       />
     </div>
-  );
-}
-
-function BranchSchedule({
-  professionalId,
-  branch,
-  canManage,
-  formId,
-  onDirtyChange,
-  onSaved,
-}: {
-  professionalId: string;
-  branch: Branch;
-  canManage: boolean;
-  formId: string;
-  onDirtyChange(dirty: boolean): void;
-  onSaved?(): void;
-}) {
-  const schedule = useProfessionalScheduleQuery(branch.id, professionalId);
-  const save = usePutProfessionalSchedule(branch.id, professionalId);
-  return (
-    <ScheduleSection
-      slots={schedule}
-      save={save}
-      canManage={canManage}
-      formId={canManage ? formId : undefined}
-      onDirtyChange={onDirtyChange}
-      onSaved={onSaved}
-    />
   );
 }

@@ -1,6 +1,7 @@
 import { useTranslation } from "@ceiba/i18n";
 import { Button, FormDialog, toast } from "@ceiba/ui";
 import { useId } from "react";
+import { useFormDialogLabels } from "../../../platform/ui/use-form-dialog-labels";
 import { useCreateService, useUpdateService, type Service } from "../api/catalog";
 import { ServiceForm, type ServiceFormValues } from "./service-form";
 
@@ -21,7 +22,8 @@ export function ServiceDialog({
   currency,
   categories,
 }: ServiceDialogProps) {
-  const { t } = useTranslation(["appointments", "common"]);
+  const { t } = useTranslation("appointments");
+  const labels = useFormDialogLabels();
   const formId = useId();
   const create = useCreateService();
   const update = useUpdateService();
@@ -43,7 +45,7 @@ export function ServiceDialog({
       onOpenChange={onOpenChange}
       title={service ? t("catalog.services.edit") : t("catalog.services.panelNewTitle")}
       description={service?.name}
-      closeLabel={t("common:close")}
+      {...labels.plain}
       footer={
         <Button type="submit" form={formId} loading={create.isPending || update.isPending}>
           {service ? t("catalog.serviceForm.save") : t("catalog.serviceForm.create")}

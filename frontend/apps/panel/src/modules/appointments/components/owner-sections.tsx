@@ -5,7 +5,8 @@ import { useId, useState, type ReactNode } from "react";
 import { apiErrorMessages } from "../../../platform/forms/api-error-messages";
 import { useCan } from "../../../platform/permissions/can";
 import type { Branch } from "../api/catalog";
-import type { TimeOff, TimeOffInput, WeeklyScheduleInput, WeeklyScheduleSlot } from "../api/shared";
+import type { OwnerApi, SaveSchedule } from "../api/owners";
+import type { TimeOff, TimeOffInput, WeeklyScheduleSlot } from "../api/shared";
 import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { TimeOffForm } from "./time-off-form";
 import { TimeOffsList } from "./time-offs-list";
@@ -35,31 +36,24 @@ export function PanelSection({
   );
 }
 
-interface SaveSchedule {
-  isPending: boolean;
-  mutate(
-    body: WeeklyScheduleInput,
-    options: { onSuccess(): void; onError(error: unknown): void },
-  ): void;
+interface ScheduleSectionProps {
+  slots: UseQueryResult<{ data: WeeklyScheduleSlot[] }>;
+  /** Absent: the hours are only shown. */
+  save?: SaveSchedule;
+  /** Inside a modal: the editor is that form and the modal's footer saves it. */
+  formId?: string;
+  onDirtyChange?(dirty: boolean): void;
+  onSaved?(): void;
 }
 
 /** Weekly hours of one owner (professional or resource) in one branch: loads, edits and shows the server's 422. */
 export function ScheduleSection({
   slots,
   save,
-  canManage,
   formId,
   onDirtyChange,
   onSaved,
-}: {
-  slots: UseQueryResult<{ data: WeeklyScheduleSlot[] }>;
-  save: SaveSchedule;
-  canManage: boolean;
-  /** Inside a modal: the editor is that form and the modal's footer saves it. */
-  formId?: string;
-  onDirtyChange?(dirty: boolean): void;
-  onSaved?(): void;
-}) {
+}: ScheduleSectionProps) {
   const { t } = useTranslation(["appointments", "common", "errors"]);
   const [serverMessages, setServerMessages] = useState<string[]>([]);
 
@@ -70,13 +64,13 @@ export function ScheduleSection({
           // Re-seed the editor when the saved week changes (its drafts are local state).
           key={slotList.map((slot) => slot.id).join(",")}
           slots={slotList}
-          readOnly={!canManage}
-          saving={save.isPending}
+          readOnly={save === undefined}
+          saving={save?.isPending}
           serverMessages={serverMessages}
           formId={formId}
           onDirtyChange={onDirtyChange}
           onSave={(payload) =>
-            save.mutate(payload, {
+            save?.mutate(payload, {
               onSuccess: () => {
                 setServerMessages([]);
                 toast.success(t("catalog.schedule.saved"));
@@ -91,46 +85,47 @@ export function ScheduleSection({
   );
 }
 
-/** Absences of one owner in one branch: list, add and remove, always in the branch's zone. */
-export function TimeOffsSection({
-  timeOffs,
-  timeZone,
-  canManage,
-  onCreate,
-  onDelete,
-  formId,
-  onDirtyChange,
-}: {
+type TimeOffsSectionProps = {
   timeOffs: UseQueryResult<{ data: TimeOff[] }>;
   timeZone: string;
-  canManage: boolean;
-  onCreate(values: TimeOffInput): Promise<unknown>;
-  onDelete(timeOff: TimeOff, options: { onSuccess(): void }): void;
-  /** Inside a modal: the form takes this id and the modal's footer adds the absence. */
-  formId?: string;
-  onDirtyChange?(dirty: boolean): void;
-}) {
+} & (
+  | { canManage: false }
+  | {
+      canManage: true;
+      onCreate(values: TimeOffInput): Promise<unknown>;
+      onDelete(timeOff: TimeOff, options: { onSuccess(): void }): void;
+      /** The modal's form: the footer adds the absence. */
+      formId: string;
+      onDirtyChange?(dirty: boolean): void;
+    }
+);
+
+/** Absences of one owner in one branch: list, add and remove, always in the branch's zone. */
+export function TimeOffsSection(props: TimeOffsSectionProps) {
   const { t } = useTranslation("appointments");
+  const write = props.canManage ? props : null;
 
   return (
-    <QueryBoundary query={timeOffs}>
+    <QueryBoundary query={props.timeOffs}>
       {({ data: list }) => (
         <div className="grid gap-4">
           <TimeOffsList
             timeOffs={list}
-            timeZone={timeZone}
-            canManage={canManage}
+            timeZone={props.timeZone}
+            canManage={write !== null}
             onDelete={(timeOff) =>
-              onDelete(timeOff, { onSuccess: () => toast.success(t("catalog.timeOffs.removed")) })
+              write?.onDelete(timeOff, {
+                onSuccess: () => toast.success(t("catalog.timeOffs.removed")),
+              })
             }
           />
-          {canManage ? (
+          {write ? (
             <TimeOffForm
-              timeZone={timeZone}
-              formId={formId}
-              onDirtyChange={onDirtyChange}
+              timeZone={props.timeZone}
+              formId={write.formId}
+              onDirtyChange={write.onDirtyChange}
               onSubmit={async (values) => {
-                await onCreate(values);
+                await write.onCreate(values);
                 toast.success(t("catalog.timeOffs.added"));
               }}
             />
@@ -152,65 +147,30 @@ export function useOwnerAccess() {
   };
 }
 
-export type OwnerAccess = ReturnType<typeof useOwnerAccess>;
-
-/** The writes of a read view: with no manage key in the access, OwnerBranchSections never calls them. */
-export const NO_WRITES = {
-  saveSchedule: { isPending: false, mutate: () => undefined },
-  createTimeOff: () => Promise.resolve(),
-  deleteTimeOff: () => undefined,
-} satisfies Pick<OwnerBranchData, "saveSchedule" | "createTimeOff" | "deleteTimeOff">;
-
-interface OwnerBranchData {
-  schedule: UseQueryResult<{ data: WeeklyScheduleSlot[] }>;
-  saveSchedule: SaveSchedule;
-  timeOffs: UseQueryResult<{ data: TimeOff[] }>;
-  createTimeOff(values: TimeOffInput): Promise<unknown>;
-  deleteTimeOff(timeOff: TimeOff, options: { onSuccess(): void }): void;
-}
-
-/** Hours and absences of an owner (professional or resource) in one branch; each section shows only if its read permission is held. */
-export function OwnerBranchSections({
+/** Hours and absences of an owner in one branch, read only; each section shows only if its read permission is held. */
+export function OwnerBranchReadSections({
+  api,
+  ownerId,
   branch,
-  access,
-  data,
 }: {
+  api: OwnerApi;
+  ownerId: string;
   branch: Branch;
-  access: OwnerAccess;
-  data: OwnerBranchData;
 }) {
   const { t } = useTranslation("appointments");
+  const { scheduleRead, timeOffRead } = useOwnerAccess();
+  const schedule = api.useSchedule(branch.id, ownerId, { enabled: scheduleRead });
+  const timeOffs = api.useTimeOffs(branch.id, ownerId, { enabled: timeOffRead });
   return (
     <>
-      {access.scheduleRead ? (
-        <PanelSection
-          title={t("catalog.schedule.title")}
-          // Where edits are saved only matters to whoever can edit.
-          description={
-            access.scheduleManage || access.timeOffManage
-              ? t("catalog.timeOffs.branchHint", {
-                  branch: branch.name,
-                  timeZone: branch.time_zone,
-                })
-              : undefined
-          }
-        >
-          <ScheduleSection
-            slots={data.schedule}
-            save={data.saveSchedule}
-            canManage={access.scheduleManage}
-          />
+      {scheduleRead ? (
+        <PanelSection title={t("catalog.schedule.title")}>
+          <ScheduleSection slots={schedule} />
         </PanelSection>
       ) : null}
-      {access.timeOffRead ? (
+      {timeOffRead ? (
         <PanelSection title={t("catalog.timeOffs.title")}>
-          <TimeOffsSection
-            timeOffs={data.timeOffs}
-            timeZone={branch.time_zone}
-            canManage={access.timeOffManage}
-            onCreate={data.createTimeOff}
-            onDelete={data.deleteTimeOff}
-          />
+          <TimeOffsSection timeOffs={timeOffs} timeZone={branch.time_zone} canManage={false} />
         </PanelSection>
       ) : null}
     </>

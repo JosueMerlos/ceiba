@@ -2,18 +2,13 @@ import { useTranslation } from "@ceiba/i18n";
 import { FormDialog, toast } from "@ceiba/ui";
 import { useId, useState } from "react";
 import { useCan } from "../../../platform/permissions/can";
+import { useFormDialogLabels } from "../../../platform/ui/use-form-dialog-labels";
 import type { Branch } from "../api/catalog";
-import {
-  useCreateResource,
-  useCreateResourceTimeOff,
-  useDeleteResourceTimeOff,
-  usePutResourceSchedule,
-  useResourceScheduleQuery,
-  useResourceTimeOffsQuery,
-  useUpdateResource,
-  type Resource,
-} from "../api/resources";
-import { ScheduleSection, TimeOffsSection, useOwnerAccess } from "./owner-sections";
+import { resourceOwnerApi, useOwnerWrites } from "../api/owners";
+import { useCreateResource, useUpdateResource, type Resource } from "../api/resources";
+import { createOrUpdate, useCreationSteps } from "../lib/use-creation-steps";
+import { useOwnerAccess } from "./owner-sections";
+import { OwnerScheduleTab, OwnerTimeOffsTab } from "./owner-tabs";
 import { ResourceForm, type ResourceFormValues } from "./resource-form";
 
 type Section = "data" | "schedule" | "timeOffs";
@@ -31,86 +26,69 @@ export function useResourceSections(): Section[] {
 
 interface ResourceDialogProps {
   branch: Branch;
-  open: boolean;
   onOpenChange(open: boolean): void;
 }
 
 /**
- * Creating a resource: step 1 (data) creates it, step 2 (weekly hours) is optional. Going back and continuing again
- * updates the resource already created, never a second one.
+ * Creating a resource: the data creates it and the weekly hours follow as an optional step (absences are added later,
+ * when editing). Going back and continuing again updates the resource already created, never a second one.
  */
-export function NewResourceDialog({ branch, open, onOpenChange }: ResourceDialogProps) {
+export function NewResourceDialog({ branch, onOpenChange }: ResourceDialogProps) {
   const { t } = useTranslation(["appointments", "common"]);
-  const access = useOwnerAccess();
-  const dataFormId = useId();
-  const scheduleFormId = useId();
-  const [step, setStep] = useState<"data" | "schedule">("data");
-  const [created, setCreated] = useState<Resource | null>(null);
-  const [dataDirty, setDataDirty] = useState(false);
+  const labels = useFormDialogLabels();
+  const steps = useResourceSections().filter((id) => id !== "timeOffs");
+  const formId = useId();
+  const flow = useCreationSteps<Section, Resource>(steps, () => onOpenChange(false));
+  const { step, created } = flow;
 
   const create = useCreateResource(branch.id);
   const update = useUpdateResource(branch.id);
-  const schedule = useResourceScheduleQuery(branch.id, created?.id ?? "", {
-    enabled: created !== null && access.scheduleRead,
-  });
-  const saveSchedule = usePutResourceSchedule(branch.id, created?.id ?? "");
+  const writes = useOwnerWrites(resourceOwnerApi, branch.id, created?.id ?? "");
 
-  const withSchedule = access.scheduleManage;
-  const steps = [
-    { id: "data", label: t("catalog.resources.sections.data") },
-    ...(withSchedule
-      ? [{ id: "schedule", label: t("catalog.resources.sections.schedule"), optional: true }]
-      : []),
-  ];
-
-  const close = () => onOpenChange(false);
-
-  async function saveData(values: ResourceFormValues) {
-    if (!created) {
-      const result = await create.mutateAsync(values);
-      setCreated(result.data);
-    } else if (dataDirty) {
-      const result = await update.mutateAsync({ id: created.id, body: values });
-      setCreated(result.data);
-    }
-    if (withSchedule) setStep("schedule");
-    else close();
-  }
+  const saveData = (values: ResourceFormValues) =>
+    createOrUpdate(flow, {
+      create: () => create.mutateAsync(values),
+      update: (id) => update.mutateAsync({ id, body: values }),
+    });
 
   return (
     <FormDialog
-      open={open}
+      open
       onOpenChange={onOpenChange}
+      {...labels.steps}
       title={created ? created.name : t("catalog.resources.panelNewTitle")}
-      closeLabel={t("common:close")}
-      steps={steps}
+      steps={steps.map((id) => ({
+        id,
+        label: t(`catalog.resources.sections.${id}`),
+        optional: id !== "data",
+      }))}
       step={step}
-      stepsLabel={t("common:formDialog.steps")}
-      onBack={() => setStep("data")}
-      onSkip={close}
-      formId={step === "data" ? dataFormId : scheduleFormId}
-      backLabel={t("common:formDialog.back")}
-      skipLabel={t("common:formDialog.skip")}
-      continueLabel={t("common:formDialog.continue")}
-      finishLabel={t("common:formDialog.finish")}
-      pending={create.isPending || update.isPending || saveSchedule.isPending}
+      onBack={flow.back}
+      onSkip={flow.next}
+      formId={formId}
+      dirty={flow.mustSubmit}
+      onContinue={flow.next}
+      pending={step === "data" ? create.isPending || update.isPending : writes.pending.schedule}
     >
       {step === "data" ? (
         <ResourceForm
-          id={dataFormId}
+          id={formId}
           resource={created ?? undefined}
           onSubmit={saveData}
-          onDirtyChange={setDataDirty}
+          onDirtyChange={flow.setDirty}
         />
-      ) : (
-        <ScheduleSection
-          slots={schedule}
-          save={saveSchedule}
-          canManage
-          formId={scheduleFormId}
-          onSaved={close}
+      ) : null}
+      {created && step === "schedule" ? (
+        <OwnerScheduleTab
+          api={resourceOwnerApi}
+          ownerId={created.id}
+          branch={branch}
+          writes={writes}
+          formId={formId}
+          onDirtyChange={flow.setDirty}
+          onSaved={flow.next}
         />
-      )}
+      ) : null}
     </FormDialog>
   );
 }
@@ -119,64 +97,46 @@ export function NewResourceDialog({ branch, open, onOpenChange }: ResourceDialog
 export function EditResourceDialog({
   branch,
   resource,
-  open,
   onOpenChange,
 }: ResourceDialogProps & { resource: Resource }) {
   const { t } = useTranslation(["appointments", "common"]);
-  const access = useOwnerAccess();
+  const labels = useFormDialogLabels();
   const sections = useResourceSections();
   const formId = useId();
   const [tab, setTab] = useState<Section>(sections[0] ?? "data");
   const [dirty, setDirty] = useState(false);
 
   const update = useUpdateResource(branch.id);
-  const schedule = useResourceScheduleQuery(branch.id, resource.id, {
-    enabled: tab === "schedule",
-  });
-  const saveSchedule = usePutResourceSchedule(branch.id, resource.id);
-  const timeOffs = useResourceTimeOffsQuery(branch.id, resource.id, {
-    enabled: tab === "timeOffs",
-  });
-  const createTimeOff = useCreateResourceTimeOff(branch.id, resource.id);
-  const removeTimeOff = useDeleteResourceTimeOff(branch.id, resource.id);
+  const writes = useOwnerWrites(resourceOwnerApi, branch.id, resource.id);
 
   async function saveData(values: ResourceFormValues) {
     await update.mutateAsync({ id: resource.id, body: values });
     toast.success(t("catalog.resources.updated"));
   }
 
-  const saveLabel = {
-    data: t("catalog.resourceForm.save"),
-    schedule: t("catalog.schedule.save"),
-    timeOffs: t("catalog.timeOffForm.create"),
+  const footer = {
+    data: { label: t("catalog.resourceForm.save"), pending: update.isPending },
+    schedule: { label: t("catalog.schedule.save"), pending: writes.pending.schedule },
+    timeOffs: { label: t("catalog.timeOffForm.create"), pending: writes.pending.timeOffs },
   }[tab];
-  const pending = {
-    data: update.isPending,
-    schedule: saveSchedule.isPending,
-    timeOffs: createTimeOff.isPending,
-  }[tab];
+  const ownerTab = { api: resourceOwnerApi, ownerId: resource.id, branch, writes, formId };
 
   return (
     <FormDialog
-      open={open}
+      open
       onOpenChange={onOpenChange}
+      {...labels.tabs}
       title={resource.name}
-      closeLabel={t("common:close")}
       tabs={sections.map((id) => ({ id, label: t(`catalog.resources.sections.${id}`) }))}
       tab={tab}
       onTabChange={(next) => {
         setTab(next as Section);
         setDirty(false);
       }}
-      tabsLabel={t("common:formDialog.sections")}
       dirty={dirty}
       formId={formId}
-      saveLabel={saveLabel}
-      pending={pending}
-      confirmTitle={t("common:formDialog.discardTitle")}
-      confirmDescription={t("common:formDialog.discardDescription")}
-      discardLabel={t("common:formDialog.discard")}
-      keepLabel={t("common:formDialog.keepEditing")}
+      saveLabel={footer.label}
+      pending={footer.pending}
     >
       {tab === "data" ? (
         <ResourceForm
@@ -186,26 +146,8 @@ export function EditResourceDialog({
           onDirtyChange={setDirty}
         />
       ) : null}
-      {tab === "schedule" ? (
-        <ScheduleSection
-          slots={schedule}
-          save={saveSchedule}
-          canManage
-          formId={formId}
-          onDirtyChange={setDirty}
-        />
-      ) : null}
-      {tab === "timeOffs" ? (
-        <TimeOffsSection
-          timeOffs={timeOffs}
-          timeZone={branch.time_zone}
-          canManage={access.timeOffManage}
-          formId={formId}
-          onDirtyChange={setDirty}
-          onCreate={(values) => createTimeOff.mutateAsync(values)}
-          onDelete={(timeOff, options) => removeTimeOff.mutate(timeOff.id, options)}
-        />
-      ) : null}
+      {tab === "schedule" ? <OwnerScheduleTab {...ownerTab} onDirtyChange={setDirty} /> : null}
+      {tab === "timeOffs" ? <OwnerTimeOffsTab {...ownerTab} onDirtyChange={setDirty} /> : null}
     </FormDialog>
   );
 }

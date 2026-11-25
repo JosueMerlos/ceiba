@@ -14,7 +14,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useCan } from "../../../platform/permissions/can";
 import type { ProfessionalDetail, ProfessionalInput } from "../api/professionals";
 import { reportSubmitError } from "../../../platform/forms/report-submit-error";
 import { FormAlert } from "./form-alert";
@@ -32,17 +31,19 @@ interface ProfessionalFormProps {
   /** Rejects with the API error; the form shows it (422 on its fields, anything else as a form-level message). */
   onSubmit(values: ProfessionalFormValues): Promise<unknown>;
   onDirtyChange?(dirty: boolean): void;
+  /** Shows and sends the phone and email. The contact is personal data: the caller decides who may see it. */
+  withContact: boolean;
 }
 
-/** The profile of a professional. The contact is personal data: only whoever manages professionals sees or sends it. */
+/** The profile of a professional: name, whether they take appointments and, when allowed, their contact. */
 export function ProfessionalForm({
   id,
   professional,
   onSubmit,
   onDirtyChange,
+  withContact,
 }: ProfessionalFormProps) {
   const { t } = useTranslation(["appointments", "errors"]);
-  const withContact = useCan()("appointments.professional.manage");
   const schema = useMemo(
     () =>
       z.object({

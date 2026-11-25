@@ -2,14 +2,27 @@ import { ApiError } from "@ceiba/api-client";
 import { formatClock, formatPlainDate } from "@ceiba/i18n";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fillWallClock } from "../../../test/date-time-fields";
 import { renderWithI18n } from "../../../test/render-with-i18n";
 import { TimeOffForm } from "./time-off-form";
 
+/** The form always lives in a modal whose footer submits it: the harness draws that footer button. */
+const inModal = (form: ReactElement) => (
+  <>
+    {form}
+    <button type="submit" form="time-off">
+      Agregar ausencia
+    </button>
+  </>
+);
+
 async function renderForm(timeZone = "America/Managua") {
   const onSubmit = vi.fn().mockResolvedValue(undefined);
-  const view = await renderWithI18n(<TimeOffForm timeZone={timeZone} onSubmit={onSubmit} />);
+  const view = await renderWithI18n(
+    inModal(<TimeOffForm timeZone={timeZone} formId="time-off" onSubmit={onSubmit} />),
+  );
   return { onSubmit, ...view };
 }
 
@@ -94,7 +107,7 @@ describe("TimeOffForm", () => {
         ]),
       );
     const { user } = await renderWithI18n(
-      <TimeOffForm timeZone="America/Managua" onSubmit={onSubmit} />,
+      inModal(<TimeOffForm timeZone="America/Managua" formId="time-off" onSubmit={onSubmit} />),
     );
 
     await fill(user, "Desde", "2026-11-20T09:00");

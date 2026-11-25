@@ -416,7 +416,6 @@ export const appointments = {
       kind: "Tipo",
       active: "Disponible",
       activeHint: "Si lo pausa, no se asigna a nuevas citas.",
-      create: "Crear recurso",
       save: "Guardar cambios",
       errors: { nameRequired: "Escriba el nombre del recurso." },
     },

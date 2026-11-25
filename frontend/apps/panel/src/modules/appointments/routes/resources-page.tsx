@@ -1,52 +1,41 @@
 import { useTranslation } from "@ceiba/i18n";
 import { Badge, Button, PageHeader, toast } from "@ceiba/ui";
-import { Plus } from "lucide-react";
-import { useState } from "react";
-import { ChooseBranchNotice } from "../../../platform/context/choose-branch-notice";
-import { useContextBranch } from "../../../platform/context/use-context-branch";
+import { ContextBranchGate } from "../../../platform/context/context-branch-gate";
 import { useCan } from "../../../platform/permissions/can";
 import type { Branch } from "../api/catalog";
-import {
-  useArchiveResource,
-  useResourceScheduleQuery,
-  useResourcesQuery,
-  useResourceTimeOffsQuery,
-  type Resource,
-} from "../api/resources";
+import { resourceOwnerApi } from "../api/owners";
+import { useArchiveResource, useResourcesQuery, type Resource } from "../api/resources";
 import { CatalogDetailPanel } from "../components/catalog-detail-panel";
 import { EmptyState } from "../../../platform/ui/empty-state";
-import { NO_WRITES, OwnerBranchSections, useOwnerAccess } from "../components/owner-sections";
+import { OwnerBranchReadSections } from "../components/owner-sections";
 import { QueryBoundary } from "../../../platform/ui/query-boundary";
-import { ReadOnlyBadge } from "../components/read-only-badge";
+import { CatalogHeaderActions } from "../components/catalog-header-actions";
 import {
   EditResourceDialog,
   NewResourceDialog,
   useResourceSections,
 } from "../components/resource-dialog";
 import { ResourcesTable } from "../components/resources-table";
+import { useEditingDialog } from "../lib/use-editing-dialog";
 import { useEntityPanel } from "../lib/use-entity-panel";
 
 /** Resources belong to a branch: under "All branches" (several of them) the page asks to pick one up top. */
 export function ResourcesPage() {
   const { t } = useTranslation(["appointments", "common"]);
-  const { branch, needsChoice } = useContextBranch();
   return (
-    <>
-      {needsChoice ? (
-        <>
-          <PageHeader
-            title={t("catalog.resources.title")}
-            description={t("catalog.resources.description")}
-          />
-          <ChooseBranchNotice what={t("catalog.branchScope.resources")} />
-        </>
-      ) : null}
-      {branch ? <BranchResources branch={branch} /> : null}
-    </>
+    <ContextBranchGate
+      what={t("catalog.branchScope.resources")}
+      header={
+        <PageHeader
+          title={t("catalog.resources.title")}
+          description={t("catalog.resources.description")}
+        />
+      }
+    >
+      {(branch) => <BranchResources branch={branch} />}
+    </ContextBranchGate>
   );
 }
-
-type Editing = { kind: "new" } | { kind: "edit"; id: string } | null;
 
 function BranchResources({ branch }: { branch: Branch }) {
   const { t } = useTranslation("appointments");
@@ -58,12 +47,7 @@ function BranchResources({ branch }: { branch: Branch }) {
   const list = resources.data?.data ?? [];
   const panel = useEntityPanel(list);
   const { selected } = panel;
-  const [editing, setEditing] = useState<Editing>(null);
-  const edited = editing?.kind === "edit" ? list.find((item) => item.id === editing.id) : undefined;
-  const openNew = () => setEditing({ kind: "new" });
-  const closeDialog = (open: boolean) => {
-    if (!open) setEditing(null);
-  };
+  const dialog = useEditingDialog(list);
 
   return (
     <>
@@ -71,14 +55,12 @@ function BranchResources({ branch }: { branch: Branch }) {
         title={t("catalog.resources.title")}
         description={t("catalog.resources.description")}
         actions={
-          canManage ? (
-            <Button type="button" onClick={openNew}>
-              <Plus aria-hidden="true" />
-              {t("catalog.resources.new")}
-            </Button>
-          ) : canEdit ? null : (
-            <ReadOnlyBadge />
-          )
+          <CatalogHeaderActions
+            canManage={canManage}
+            canEdit={canEdit}
+            newLabel={t("catalog.resources.new")}
+            onNew={dialog.openNew}
+          />
         }
       />
 
@@ -95,7 +77,7 @@ function BranchResources({ branch }: { branch: Branch }) {
             }
             action={
               canManage
-                ? { label: t("catalog.resources.empty.action"), onClick: openNew }
+                ? { label: t("catalog.resources.empty.action"), onClick: dialog.openNew }
                 : undefined
             }
           />
@@ -137,49 +119,31 @@ function BranchResources({ branch }: { branch: Branch }) {
           ]}
           footer={
             canEdit ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEditing({ kind: "edit", id: selected.id })}
-              >
+              <Button type="button" variant="outline" onClick={() => dialog.openEdit(selected)}>
                 {t("catalog.resources.edit")}
               </Button>
             ) : undefined
           }
         >
-          <ResourceSections key={selected.id} resource={selected} branch={branch} />
+          <OwnerBranchReadSections
+            key={selected.id}
+            api={resourceOwnerApi}
+            ownerId={selected.id}
+            branch={branch}
+          />
         </CatalogDetailPanel>
       ) : null}
 
-      {editing?.kind === "new" ? (
-        <NewResourceDialog branch={branch} open onOpenChange={closeDialog} />
+      {dialog.creating ? (
+        <NewResourceDialog branch={branch} onOpenChange={dialog.onOpenChange} />
       ) : null}
-      {edited ? (
-        <EditResourceDialog branch={branch} resource={edited} open onOpenChange={closeDialog} />
+      {dialog.edited ? (
+        <EditResourceDialog
+          branch={branch}
+          resource={dialog.edited}
+          onOpenChange={dialog.onOpenChange}
+        />
       ) : null}
     </>
-  );
-}
-
-/** Hours and absences of the resource, read only: changing them happens in the modal. */
-function ResourceSections({ resource, branch }: { resource: Resource; branch: Branch }) {
-  const access = useOwnerAccess();
-  const schedule = useResourceScheduleQuery(branch.id, resource.id, {
-    enabled: access.scheduleRead,
-  });
-  const timeOffs = useResourceTimeOffsQuery(branch.id, resource.id, {
-    enabled: access.timeOffRead,
-  });
-
-  return (
-    <OwnerBranchSections
-      branch={branch}
-      access={{ ...access, scheduleManage: false, timeOffManage: false }}
-      data={{
-        schedule,
-        timeOffs,
-        ...NO_WRITES,
-      }}
-    />
   );
 }

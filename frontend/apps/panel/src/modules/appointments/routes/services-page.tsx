@@ -1,6 +1,5 @@
 import { formatCurrency, formatDuration, useTranslation } from "@ceiba/i18n";
 import { Badge, Button, PageHeader, ToggleGroup, ToggleGroupItem, toast } from "@ceiba/ui";
-import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useContextBranch } from "../../../platform/context/use-context-branch";
 import { useCan } from "../../../platform/permissions/can";
@@ -15,17 +14,16 @@ import { useCatalogScope } from "../api/shared";
 import { CatalogDetailPanel } from "../components/catalog-detail-panel";
 import { EmptyState } from "../../../platform/ui/empty-state";
 import { QueryBoundary } from "../../../platform/ui/query-boundary";
-import { ReadOnlyBadge } from "../components/read-only-badge";
+import { CatalogHeaderActions } from "../components/catalog-header-actions";
 import { ServiceDialog } from "../components/service-dialog";
 import { ServicesTable } from "../components/services-table";
+import { useEditingDialog } from "../lib/use-editing-dialog";
 import { useEntityPanel } from "../lib/use-entity-panel";
 import { ServiceOverrideSection } from "./service-override-section";
 
 const FILTERS: readonly ServiceFilter[] = ["active", "paused", "archived"];
 // Archived services can only be restored, which is managing: whoever just reads has no use for that view.
 const MANAGE_ONLY_FILTERS: readonly ServiceFilter[] = ["archived"];
-
-type Editing = { kind: "new" } | { kind: "edit"; service: Service } | null;
 
 const statusOf = (service: Service) =>
   service.archived_at ? "archived" : service.active ? "active" : "paused";
@@ -40,13 +38,13 @@ export function ServicesPage() {
   const { branch } = useContextBranch();
 
   const [filter, setFilter] = useState<ServiceFilter>("active");
-  const [editing, setEditing] = useState<Editing>(null);
   const services = useServicesQuery(filter);
   const archive = useArchiveService();
   const restore = useRestoreService();
 
   const list = services.data?.data;
   const panel = useEntityPanel(list ?? []);
+  const dialog = useEditingDialog(list ?? []);
   const { selected } = panel;
   const categories = useMemo(
     () =>
@@ -68,7 +66,6 @@ export function ServicesPage() {
     archive.mutate(service.id, { onSuccess: () => toast.success(t("catalog.services.archived")) });
   const restoreService = (service: Service) =>
     restore.mutate(service.id, { onSuccess: () => toast.success(t("catalog.services.restored")) });
-  const openNew = () => setEditing({ kind: "new" });
 
   return (
     <>
@@ -76,14 +73,12 @@ export function ServicesPage() {
         title={t("catalog.services.title")}
         description={t("catalog.services.description")}
         actions={
-          canManage ? (
-            <Button type="button" onClick={openNew}>
-              <Plus aria-hidden="true" />
-              {t("catalog.services.new")}
-            </Button>
-          ) : (
-            <ReadOnlyBadge />
-          )
+          <CatalogHeaderActions
+            canManage={canManage}
+            canEdit={canManage}
+            newLabel={t("catalog.services.new")}
+            onNew={dialog.openNew}
+          />
         }
       />
 
@@ -103,7 +98,7 @@ export function ServicesPage() {
       <QueryBoundary
         query={services}
         isEmpty={(result) => result.data.length === 0}
-        empty={<ServicesEmpty filter={filter} canManage={canManage} onAdd={openNew} />}
+        empty={<ServicesEmpty filter={filter} canManage={canManage} onAdd={dialog.openNew} />}
       >
         {(result) => (
           <ServicesTable
@@ -134,11 +129,7 @@ export function ServicesPage() {
                 {t("catalog.services.restore")}
               </Button>
             ) : (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setEditing({ kind: "edit", service: selected })}
-              >
+              <Button type="button" variant="outline" onClick={() => dialog.openEdit(selected)}>
                 {t("catalog.services.edit")}
               </Button>
             )
@@ -154,11 +145,9 @@ export function ServicesPage() {
 
       {canManage ? (
         <ServiceDialog
-          open={editing !== null}
-          onOpenChange={(open) => {
-            if (!open) setEditing(null);
-          }}
-          service={editing?.kind === "edit" ? editing.service : undefined}
+          open={dialog.creating || dialog.edited !== undefined}
+          onOpenChange={dialog.onOpenChange}
+          service={dialog.edited}
           currency={currency}
           categories={categories}
         />
