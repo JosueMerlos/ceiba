@@ -1,4 +1,4 @@
-import { createI18n, I18nextProvider, useTranslation } from "@ceiba/i18n";
+import { createI18n, I18nextProvider, translator, useTranslation } from "@ceiba/i18n";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { lazyPage } from "./lazy-page";
@@ -6,7 +6,7 @@ import { lazyPage } from "./lazy-page";
 // Uses a module key through the startup namespace: only the route's registration can load "appointments" in time.
 function AgendaTitle() {
   const { t } = useTranslation("common");
-  return <h1>{t("appointments:agenda.viewLabel")}</h1>;
+  return <h1>{translator(t)("appointments:agenda.viewLabel")}</h1>;
 }
 
 describe("lazyPage", () => {

@@ -259,7 +259,7 @@ describe("Servicios", () => {
       expect(screen.queryByRole("columnheader", { name: "Acciones" })).toBeNull();
       expect(screen.queryByRole("button", { name: /Archivar/ })).toBeNull();
 
-      await user.click(screen.getByRole("button", { name: "Ver Corte clásico" }));
+      await user.click(await screen.findByRole("button", { name: "Ver Corte clásico" }));
       const panel = await screen.findByRole("complementary", { name: "Corte clásico" });
 
       expect(panel.closest("[data-variant=floating]")).not.toBeNull();

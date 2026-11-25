@@ -388,7 +388,7 @@ describe("Recursos", () => {
     expect(screen.queryByRole("columnheader", { name: "Acciones" })).toBeNull();
     expect(screen.queryByRole("button", { name: /Archivar/ })).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Ver Sillón 1" }));
+    await user.click(await screen.findByRole("button", { name: "Ver Sillón 1" }));
     const panel = await screen.findByRole("complementary", { name: "Sillón 1" });
     expect(panel.closest("[data-variant=floating]")).not.toBeNull();
     expect(within(panel).getByText("Sillón")).toBeTruthy();
