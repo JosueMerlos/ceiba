@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { servicesBackend } from "../../../test/catalog-backend";
+import { http, HttpResponse } from "msw";
+import { CATALOG, servicesBackend } from "../../../test/catalog-backend";
 import {
   branch,
   ids,
@@ -12,7 +13,7 @@ import {
 } from "../../../test/fixtures";
 import { renderApp } from "../../../test/render-app";
 import { fillWallClock } from "../../../test/date-time-fields";
-import { signedInBackend } from "../../../test/server";
+import { server, signedInBackend } from "../../../test/server";
 import {
   STAFF_MANAGER_PERMISSIONS,
   STAFF_READER_PERMISSIONS,
@@ -406,6 +407,26 @@ describe("Profesionales: edición en pestañas", () => {
     expect(screen.queryByText("+50588881234")).toBeNull();
   });
 
+  it("una pestaña sin nada que guardar no muestra un botón de guardar en el pie", async () => {
+    // Assigns branches but cannot edit hours: the branch tab only has the checkboxes, which apply at once.
+    asBranchManager(BRANCH_MANAGER.filter((item) => item !== "appointments.schedule.manage"));
+    servicesBackend();
+    staffBackend({ professionals: [efrain, sandra] });
+    const { user } = await openProfessionals();
+
+    let dialog = await openEdit(user, "Don Efraín");
+    await within(dialog).findByRole("checkbox", { name: "Sucursal Centro" });
+    expect(within(dialog).queryByRole("button", { name: /guardar/i })).toBeNull();
+    await user.click(within(dialog).getByRole("button", { name: "Cerrar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    // With no branch there is nowhere to add an absence.
+    dialog = await openEdit(user, "Sandra Gómez");
+    await openTab(user, dialog, "Ausencias");
+    await within(dialog).findByText(/Asígnelo a una sucursal/);
+    expect(within(dialog).queryByRole("button", { name: /guardar|agregar ausencia/i })).toBeNull();
+  });
+
   it("recepción no tiene botón de editar en el detalle (sin pestañas que escribir)", async () => {
     signedInBackend({
       me: meFixture({
@@ -590,6 +611,34 @@ describe("Profesionales: sucursal y horario", () => {
         ],
       },
     });
+  });
+
+  it("mientras se guarda el horario, el botón del pie queda ocupado", async () => {
+    asCompanyManager();
+    servicesBackend();
+    staffBackend({ professionals: [efrain] });
+    let release = () => {};
+    server.use(
+      http.put(
+        `${CATALOG}/appointments/branches/:branchId/professionals/:ownerId/schedule`,
+        () =>
+          new Promise<Response>((resolve) => {
+            release = () => resolve(HttpResponse.json({ data: [] }));
+          }),
+      ),
+    );
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    await openTab(user, dialog, "Sucursal y horario");
+    const monday = await within(dialog).findByRole("group", { name: "Lunes" });
+    await user.click(within(monday).getByRole("button", { name: "Agregar franja" }));
+    const save = within(footerOf(dialog)).getByRole("button", { name: "Guardar cambios" });
+    await user.click(save);
+
+    await waitFor(() => expect(save.getAttribute("aria-busy")).toBe("true"));
+    release();
+    await waitFor(() => expect(save.getAttribute("aria-busy")).toBeNull());
   });
 
   it("las casillas de sucursal asignan y quitan al instante, sin diálogo", async () => {
