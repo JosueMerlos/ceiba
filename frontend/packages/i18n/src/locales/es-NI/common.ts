@@ -33,5 +33,6 @@ export const common = {
     discardDescription: "Lo que cambió en esta pestaña sin guardar se perderá.",
     discard: "Descartar",
     keepEditing: "Seguir editando",
+    tabNote: "Se guarda solo la pestaña {{tab}}.",
   },
 } as const;

@@ -25,6 +25,8 @@ interface FormDialogBaseProps {
   description?: ReactNode;
   closeLabel: string;
   className?: string;
+  /** Short line at the start of the footer: what the button will save, or where the flow stands. */
+  note?: ReactNode;
   /** The body: usually one <form id={formId}>. It is the only part that scrolls. */
   children: ReactNode;
 }
@@ -102,6 +104,7 @@ function FormDialogShell({
   description,
   closeLabel,
   className,
+  note,
   header,
   footer,
   children,
@@ -133,6 +136,7 @@ function FormDialogShell({
               data-slot="form-dialog-footer"
               className="flex flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-end"
             >
+              {note ? <p className="text-xs text-muted-foreground sm:mr-auto">{note}</p> : null}
               {footer}
             </div>
           ) : null}
@@ -239,7 +243,12 @@ function StepsDialog(props: FormDialogStepsProps) {
       footer={
         <>
           {canSkip ? (
-            <Button type="button" variant="ghost" className="sm:mr-auto" onClick={props.onSkip}>
+            <Button
+              type="button"
+              variant="ghost"
+              className={props.note ? undefined : "sm:mr-auto"}
+              onClick={props.onSkip}
+            >
               {props.skipLabel}
             </Button>
           ) : null}

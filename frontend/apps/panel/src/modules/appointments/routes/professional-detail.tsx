@@ -1,5 +1,6 @@
 import { useTranslation } from "@ceiba/i18n";
 import { Badge } from "@ceiba/ui";
+import type { ReactNode } from "react";
 import { useServicesQuery, type Branch } from "../api/catalog";
 import {
   useProfessionalScheduleQuery,
@@ -16,14 +17,17 @@ interface ProfessionalDetailProps {
   /** The context's branch: its hours and absences are shown when the professional works there. */
   workingBranch: Branch | null;
   onClose(): void;
+  /** "Edit" for whoever can write some section of the professional; absent for whoever only reads. */
+  footer?: ReactNode;
 }
 
-/** Floating read view of a professional for whoever can change nothing of them (reception). */
+/** Floating read view of a professional; changes are made in the professional's modal, never here. */
 export function ProfessionalDetail({
   professional,
   branchNames,
   workingBranch,
   onClose,
+  footer,
 }: ProfessionalDetailProps) {
   const { t } = useTranslation("appointments");
   const services = useServicesQuery("active");
@@ -38,6 +42,7 @@ export function ProfessionalDetail({
       id="professional-panel"
       title={professional.display_name}
       onClose={onClose}
+      footer={footer}
       details={[
         {
           label: t("catalog.professionals.columns.status"),

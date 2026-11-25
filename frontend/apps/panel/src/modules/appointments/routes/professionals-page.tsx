@@ -1,60 +1,59 @@
 import { useTranslation } from "@ceiba/i18n";
 import { Button, PageHeader, toast } from "@ceiba/ui";
 import { Plus } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useContextBranch } from "../../../platform/context/use-context-branch";
 import { useCan } from "../../../platform/permissions/can";
 import { useCompanyBranchesQuery } from "../api/catalog";
 import {
   useArchiveProfessional,
-  useCreateProfessional,
   useProfessionalsQuery,
   type Professional,
 } from "../api/professionals";
-import { CatalogAside } from "../components/catalog-aside";
 import { EmptyState } from "../../../platform/ui/empty-state";
-import { ProfessionalForm, type ProfessionalFormValues } from "../components/professional-form";
+import {
+  EditProfessionalDialog,
+  NewProfessionalDialog,
+  useProfessionalSections,
+} from "../components/professional-dialog";
 import { ProfessionalsTable } from "../components/professionals-table";
 import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { useEntityPanel } from "../lib/use-entity-panel";
 import { ReadOnlyBadge } from "../components/read-only-badge";
 import { ProfessionalDetail } from "./professional-detail";
-import { ProfessionalPanel } from "./professional-panel";
+
+type Editing = { kind: "new" } | { kind: "edit"; id: string } | null;
 
 export function ProfessionalsPage() {
   const { t } = useTranslation(["appointments", "common"]);
-  const can = useCan();
-  const canManage = can("appointments.professional.manage");
-  // Whoever can change nothing of a professional gets the read view, not the editing panel.
-  const canEdit =
-    canManage ||
-    can("appointments.professional.assign") ||
-    can("appointments.schedule.manage") ||
-    can("appointments.time_off.manage");
+  const canManage = useCan()("appointments.professional.manage");
+  // Whoever can write no section of a professional only reads: no "Edit" in the detail.
+  const canEdit = useProfessionalSections().length > 0;
   const { branch: workingBranch } = useContextBranch();
   const branchesQuery = useCompanyBranchesQuery();
   const branches = useMemo(() => branchesQuery.data?.data ?? [], [branchesQuery.data]);
 
   const professionals = useProfessionalsQuery();
-  const create = useCreateProfessional();
+  const list = professionals.data?.data ?? [];
   const archive = useArchiveProfessional();
-  const panel = useEntityPanel(professionals.data?.data ?? []);
+  const panel = useEntityPanel(list);
   const { selected } = panel;
+  const [editing, setEditing] = useState<Editing>(null);
+  const edited = editing?.kind === "edit" ? list.find((item) => item.id === editing.id) : undefined;
   const branchNames = useMemo(
     () => new Map(branches.map((branch) => [branch.id, branch.name])),
     [branches],
   );
 
+  const openNew = () => setEditing({ kind: "new" });
+  const closeDialog = (open: boolean) => {
+    if (!open) setEditing(null);
+  };
+
   const archiveProfessional = (professional: Professional) =>
     archive.mutate(professional.id, {
       onSuccess: () => toast.success(t("catalog.professionals.archived")),
     });
-
-  async function createProfessional(values: ProfessionalFormValues) {
-    const created = await create.mutateAsync(values);
-    // The new professional has no branch yet: open their panel so the next step (services, branch) is right there.
-    panel.select(created.data.id);
-  }
 
   return (
     <>
@@ -63,7 +62,7 @@ export function ProfessionalsPage() {
         description={t("catalog.professionals.description")}
         actions={
           canManage ? (
-            <Button type="button" onClick={panel.openNew}>
+            <Button type="button" onClick={openNew}>
               <Plus aria-hidden="true" />
               {t("catalog.professionals.new")}
             </Button>
@@ -86,7 +85,7 @@ export function ProfessionalsPage() {
             }
             action={
               canManage
-                ? { label: t("catalog.professionals.empty.action"), onClick: panel.openNew }
+                ? { label: t("catalog.professionals.empty.action"), onClick: openNew }
                 : undefined
             }
           />
@@ -98,38 +97,41 @@ export function ProfessionalsPage() {
             branchNames={branchNames}
             selectedId={selected?.id ?? null}
             canManage={canManage}
-            canEdit={canEdit}
             onSelect={panel.select}
             onArchive={archiveProfessional}
           />
         )}
       </QueryBoundary>
 
-      {selected && !canEdit ? (
+      {selected ? (
         <ProfessionalDetail
           professional={selected}
           branchNames={branchNames}
           workingBranch={workingBranch}
           onClose={panel.close}
+          footer={
+            canEdit ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditing({ kind: "edit", id: selected.id })}
+              >
+                {t("catalog.professionals.edit")}
+              </Button>
+            ) : undefined
+          }
         />
       ) : null}
 
-      {panel.open && (canEdit || panel.isNew) ? (
-        <CatalogAside
-          id="professional-panel"
-          title={selected ? selected.display_name : t("catalog.professionals.panelNewTitle")}
-          onClose={panel.close}
-        >
-          {selected ? (
-            <ProfessionalPanel
-              professional={selected}
-              branches={branches}
-              workingBranch={workingBranch}
-            />
-          ) : (
-            <ProfessionalForm key="new" onSubmit={createProfessional} />
-          )}
-        </CatalogAside>
+      {editing?.kind === "new" ? (
+        <NewProfessionalDialog branches={branches} onOpenChange={closeDialog} />
+      ) : null}
+      {edited ? (
+        <EditProfessionalDialog
+          professional={edited}
+          branches={branches}
+          onOpenChange={closeDialog}
+        />
       ) : null}
     </>
   );

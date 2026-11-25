@@ -64,6 +64,16 @@ export function everyServiceQuery(
   };
 }
 
+/** Every bookable service (all pages, active only): what can be given to a professional. */
+export function useEveryActiveServiceQuery() {
+  const client = useApiClient();
+  const scope = useCatalogScope();
+  return useQuery({
+    ...everyServiceQuery(client, scope, false),
+    select: (services: Service[]) => services.filter((service) => service.active),
+  });
+}
+
 export function useServicesQuery(filter: ServiceFilter) {
   const client = useApiClient();
   const { organizationId, companyId, path } = useCatalogScope();

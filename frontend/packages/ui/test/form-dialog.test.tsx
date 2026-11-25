@@ -252,7 +252,9 @@ describe("FormDialog en modo pasos", () => {
     render(<StepsHarness note="Paso 1 de 3. Al continuar, queda creado." />);
 
     const footer = steps().querySelector('[data-slot="form-dialog-footer"]')!;
-    expect(within(footer as HTMLElement).getByText("Paso 1 de 3. Al continuar, queda creado.")).toBeTruthy();
+    expect(
+      within(footer as HTMLElement).getByText("Paso 1 de 3. Al continuar, queda creado."),
+    ).toBeTruthy();
     expect(within(footer as HTMLElement).getByRole("button", { name: "Continuar" })).toBeTruthy();
   });
 });

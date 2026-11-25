@@ -18,8 +18,6 @@ interface ProfessionalsTableProps {
   selectedId: string | null;
   /** Archiving needs `appointments.professional.manage`; the caller decides. */
   canManage: boolean;
-  /** Whether a row opens something to change (otherwise it is a read view). */
-  canEdit: boolean;
   onSelect(id: string): void;
   onArchive(professional: Professional): void;
 }
@@ -29,7 +27,6 @@ export function ProfessionalsTable({
   branchNames,
   selectedId,
   canManage,
-  canEdit,
   onSelect,
   onArchive,
 }: ProfessionalsTableProps) {
@@ -61,12 +58,9 @@ export function ProfessionalsTable({
               <TableCell className="font-medium">
                 <button
                   type="button"
-                  aria-label={t(
-                    canEdit
-                      ? "catalog.professionals.selectLabel"
-                      : "catalog.professionals.viewLabel",
-                    { name: professional.display_name },
-                  )}
+                  aria-label={t("catalog.professionals.viewLabel", {
+                    name: professional.display_name,
+                  })}
                   onClick={() => onSelect(professional.id)}
                   className="rounded-sm text-left hover:underline focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:outline-none"
                 >

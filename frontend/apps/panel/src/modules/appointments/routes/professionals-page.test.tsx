@@ -234,8 +234,9 @@ describe("Profesionales: alta por pasos", () => {
 
     const phone = within(dialog).getByLabelText("Teléfono (opcional)");
     await waitFor(() => expect(phone.getAttribute("aria-invalid")).toBe("true"));
-    expect(within(phone.closest("[data-slot=form-item]")!).getByText("no es un teléfono válido"))
-      .toBeTruthy();
+    expect(
+      within(phone.closest("[data-slot=form-item]")!).getByText("no es un teléfono válido"),
+    ).toBeTruthy();
     expect(screen.getByRole("dialog", { name: "Nuevo profesional" })).toBe(dialog);
     expect(currentStep(dialog)).toContain("Perfil");
   });
@@ -301,7 +302,11 @@ describe("Profesionales: alta por pasos", () => {
     expect(backend.createdTimeOffs[0]).toEqual({
       owner: "p-new-1",
       branchId: ids.branchA,
-      body: { starts_at: "2026-12-01T15:00:00.000Z", ends_at: "2026-12-01T18:00:00.000Z" },
+      body: {
+        starts_at: "2026-12-01T15:00:00.000Z",
+        ends_at: "2026-12-01T18:00:00.000Z",
+        reason: null,
+      },
     });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
@@ -403,7 +408,11 @@ describe("Profesionales: edición en pestañas", () => {
 
   it("recepción no tiene botón de editar en el detalle (sin pestañas que escribir)", async () => {
     signedInBackend({
-      me: meFixture({ role: "receptionist", permissions: STAFF_READER_PERMISSIONS, branch: centro }),
+      me: meFixture({
+        role: "receptionist",
+        permissions: STAFF_READER_PERMISSIONS,
+        branch: centro,
+      }),
       branches: [centro],
     });
     servicesBackend();
@@ -451,8 +460,9 @@ describe("Profesionales: servicios agrupados por categoría (AC5)", () => {
     for (const group of groups.slice(1)) expect(within(group).getByText("0 de 12")).toBeTruthy();
     expect(within(dialog).queryByRole("checkbox", { name: "Barbería pausado" })).toBeNull();
     expect(within(dialog).getAllByRole("checkbox")).toHaveLength(60);
-    expect(within(dialog).queryByRole("button", { name: /siguiente|anterior|cargar más/i }))
-      .toBeNull();
+    expect(
+      within(dialog).queryByRole("button", { name: /siguiente|anterior|cargar más/i }),
+    ).toBeNull();
 
     const cabello = within(dialog).getByRole("group", { name: "Cabello" });
     await user.click(within(cabello).getByRole("button", { name: "Seleccionar todos" }));
@@ -522,7 +532,10 @@ describe("Profesionales: servicios agrupados por categoría (AC5)", () => {
     await user.click(within(dialog).getByRole("button", { name: "Expandir todo" }));
     expect(within(dialog).getAllByRole("checkbox")).toHaveLength(24);
 
-    await user.type(within(dialog).getByRole("searchbox", { name: "Buscar servicio" }), "cabello 0");
+    await user.type(
+      within(dialog).getByRole("searchbox", { name: "Buscar servicio" }),
+      "cabello 0",
+    );
     expect(within(dialog).getAllByRole("checkbox")).toHaveLength(9);
     expect(within(dialog).queryByRole("group", { name: "Barbería" })).toBeNull();
   });
@@ -533,7 +546,11 @@ describe("Profesionales: sucursal y horario", () => {
 
   it("una sub-pestaña por sucursal asignada; abre en la del contexto y cambiar con cambios pide confirmar", async () => {
     signedInBackend({
-      me: meFixture({ role: "company_manager", permissions: STAFF_MANAGER_PERMISSIONS, branch: norte }),
+      me: meFixture({
+        role: "company_manager",
+        permissions: STAFF_MANAGER_PERMISSIONS,
+        branch: norte,
+      }),
       branches: [centro, norte],
     });
     servicesBackend();
@@ -610,7 +627,9 @@ describe("Profesionales: sucursal y horario", () => {
     await user.click(within(monday).getByRole("button", { name: "Agregar franja" }));
     await user.click(within(footerOf(dialog)).getByRole("button", { name: "Guardar cambios" }));
 
-    expect(await within(dialog).findByText(/Se cruza con el horario en otra sucursal/)).toBeTruthy();
+    expect(
+      await within(dialog).findByText(/Se cruza con el horario en otra sucursal/),
+    ).toBeTruthy();
   });
 
   it("sin professional.assign las casillas quedan deshabilitadas (gate)", async () => {
@@ -649,7 +668,9 @@ describe("Profesionales: ausencias", () => {
     await openTab(user, dialog, "Ausencias");
     expect(await within(dialog).findByText("Vacaciones")).toBeTruthy();
     expect(
-      dialog.querySelectorAll('input[type="date"], input[type="time"], input[type="datetime-local"]'),
+      dialog.querySelectorAll(
+        'input[type="date"], input[type="time"], input[type="datetime-local"]',
+      ),
     ).toHaveLength(0);
 
     await fillWallClock(user, dialog, "Desde", "2026-12-01T09:00");

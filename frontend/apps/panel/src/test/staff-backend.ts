@@ -198,7 +198,11 @@ export function staffBackend({
       const id = String(params.id);
       state.patchedProfessionals.push({
         id,
-        body: { ...body, ...(phone !== undefined ? { phone } : {}), ...(email !== undefined ? { email } : {}) },
+        body: {
+          ...body,
+          ...(phone !== undefined ? { phone } : {}),
+          ...(email !== undefined ? { email } : {}),
+        },
       });
       if (invalidPhone && phone) return phoneProblem();
       state.professionals = state.professionals.map((item) =>
