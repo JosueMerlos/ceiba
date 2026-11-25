@@ -301,7 +301,7 @@ describe("Agenda: profesional", () => {
 });
 
 describe("Agenda: sin sucursal en el contexto", () => {
-  it("al elegir sucursal cambia el contexto y carga su agenda", async () => {
+  it("pide elegir la sucursal en el selector global y, al elegirla allí, carga su agenda", async () => {
     const seen: (string | null)[] = [];
     signedInBackend({
       me: (query) => {
@@ -318,8 +318,10 @@ describe("Agenda: sin sucursal en el contexto", () => {
     const backend = agendaBackend({ branchId: ids.branchA2 });
     const { user } = await renderApp({ route });
 
-    await user.click(await screen.findByRole("combobox", { name: "Sucursal de trabajo" }));
-    await user.click(await screen.findByRole("option", { name: "Sucursal Norte" }));
+    expect(await screen.findByRole("heading", { name: "Elija una sucursal" })).toBeTruthy();
+    expect(screen.queryByRole("combobox")).toBeNull();
+    await user.click(screen.getByRole("button", { name: /Cambiar el contexto de trabajo/ }));
+    await user.click(await screen.findByRole("menuitemradio", { name: "Sucursal Norte" }));
 
     await waitFor(() => expect(seen).toContain(ids.branchA2));
     await waitFor(() => expect(backend.appointmentQueries.length).toBeGreaterThan(0));

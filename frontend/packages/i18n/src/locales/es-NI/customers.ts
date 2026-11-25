@@ -24,10 +24,12 @@ export const customers = {
     errors: { nameRequired: "Escriba el nombre.", phoneRequired: "Escriba el teléfono." },
   },
   panelNewTitle: "Nuevo cliente",
+  branchScope: "los clientes de una sucursal",
   created: "Cliente creado",
   updated: "Cliente actualizado",
   profile: {
     back: "Clientes",
+    branchScope: "la ficha del cliente en una sucursal",
     since: "{{phone}}. Cliente desde {{month}}.",
     archivedBadge: "Archivado",
     edit: "Editar datos",

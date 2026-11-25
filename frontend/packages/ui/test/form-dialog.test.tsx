@@ -56,7 +56,15 @@ const STEPS = [
   { id: "ausencias", label: "Ausencias", optional: true },
 ];
 
-function StepsHarness({ onSkip }: { onSkip?: () => void }) {
+function StepsHarness({
+  onSkip,
+  note,
+  pending,
+}: {
+  onSkip?: () => void;
+  note?: string;
+  pending?: boolean;
+}) {
   const [step, setStep] = useState("perfil");
   const index = STEPS.findIndex((item) => item.id === step);
   return (
@@ -78,6 +86,8 @@ function StepsHarness({ onSkip }: { onSkip?: () => void }) {
       continueLabel="Continuar"
       finishLabel="Terminar"
       stepsLabel="Pasos"
+      note={note}
+      pending={pending}
     >
       <form
         id="form-paso"
@@ -234,6 +244,21 @@ describe("FormDialog en modo pasos", () => {
     expect(within(steps()).getByLabelText("Campo de servicios")).toBeTruthy();
   });
 
+  it("mientras el paso se guarda, Omitir y Atrás quedan deshabilitados", async () => {
+    const { rerender } = render(<StepsHarness />);
+    const user = userEvent.setup();
+    await user.click(within(steps()).getByRole("button", { name: "Continuar" }));
+
+    rerender(<StepsHarness pending />);
+
+    expect(
+      within(steps()).getByRole("button", { name: "Omitir por ahora" }).hasAttribute("disabled"),
+    ).toBe(true);
+    expect(within(steps()).getByRole("button", { name: "Atrás" }).hasAttribute("disabled")).toBe(
+      true,
+    );
+  });
+
   it("en el último paso el botón principal dice Terminar", async () => {
     render(<StepsHarness />);
     const user = userEvent.setup();
@@ -245,6 +270,119 @@ describe("FormDialog en modo pasos", () => {
       "submit",
     );
     expect(within(steps()).queryByRole("button", { name: "Continuar" })).toBeNull();
+  });
+
+  it("la nota del paso va en el pie, junto a los botones y fuera del cuerpo", () => {
+    render(<StepsHarness note="Paso 1 de 3. Al continuar, queda creado." />);
+
+    const footer = steps().querySelector('[data-slot="form-dialog-footer"]')!;
+    expect(
+      within(footer as HTMLElement).getByText("Paso 1 de 3. Al continuar, queda creado."),
+    ).toBeTruthy();
+    expect(within(footer as HTMLElement).getByRole("button", { name: "Continuar" })).toBeTruthy();
+  });
+});
+
+describe("FormDialog: paso sin cambios y pestaña sin formulario", () => {
+  function CleanStepHarness({
+    dirty,
+    onContinue,
+    onSubmit,
+  }: {
+    dirty?: boolean;
+    onContinue?: () => void;
+    onSubmit: () => void;
+  }) {
+    return (
+      <FormDialog
+        open
+        onOpenChange={() => {}}
+        title="Nuevo recurso"
+        closeLabel="Cerrar"
+        steps={[
+          { id: "datos", label: "Datos" },
+          { id: "horario", label: "Horario" },
+        ]}
+        step="datos"
+        onBack={() => {}}
+        formId="form-paso"
+        dirty={dirty}
+        onContinue={onContinue}
+        backLabel="Atrás"
+        skipLabel="Omitir por ahora"
+        continueLabel="Continuar"
+        finishLabel="Terminar"
+        stepsLabel="Pasos"
+      >
+        <form
+          id="form-paso"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit();
+          }}
+        >
+          <input aria-label="Nombre" />
+        </form>
+      </FormDialog>
+    );
+  }
+
+  it("sin cambios y con onContinue, Continuar avanza sin enviar el formulario", async () => {
+    const onContinue = vi.fn();
+    const onSubmit = vi.fn();
+    render(<CleanStepHarness dirty={false} onContinue={onContinue} onSubmit={onSubmit} />);
+    const user = userEvent.setup();
+
+    const button = screen.getByRole("button", { name: "Continuar" });
+    expect(button.getAttribute("type")).toBe("button");
+    expect(button.getAttribute("form")).toBeNull();
+    await user.click(button);
+
+    expect(onContinue).toHaveBeenCalledOnce();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("con cambios, Continuar envía el formulario del paso y no llama a onContinue", async () => {
+    const onContinue = vi.fn();
+    const onSubmit = vi.fn();
+    render(<CleanStepHarness dirty onContinue={onContinue} onSubmit={onSubmit} />);
+    const user = userEvent.setup();
+
+    const button = screen.getByRole("button", { name: "Continuar" });
+    expect(button.getAttribute("type")).toBe("submit");
+    expect(button.getAttribute("form")).toBe("form-paso");
+    await user.click(button);
+
+    expect(onSubmit).toHaveBeenCalled();
+    expect(onContinue).not.toHaveBeenCalled();
+  });
+
+  it("una pestaña sin formId no muestra un guardar que no hace nada, ni la nota del pie", () => {
+    render(
+      <FormDialog
+        open
+        onOpenChange={() => {}}
+        title="Editar profesional"
+        closeLabel="Cerrar"
+        tabs={TABS}
+        tab="perfil"
+        onTabChange={() => {}}
+        tabsLabel="Secciones"
+        dirty={false}
+        saveLabel="Guardar cambios"
+        note="Se guarda solo la pestaña Perfil."
+        confirmTitle="¿Descartar los cambios?"
+        confirmDescription="Se perderán."
+        discardLabel="Descartar"
+        keepLabel="Seguir editando"
+      >
+        <p>Sin nada que guardar</p>
+      </FormDialog>,
+    );
+
+    expect(within(dialog()).queryByRole("button", { name: "Guardar cambios" })).toBeNull();
+    expect(dialog().querySelector('[data-slot="form-dialog-footer"]')).toBeNull();
+    expect(within(dialog()).getByText("Sin nada que guardar")).toBeTruthy();
   });
 });
 

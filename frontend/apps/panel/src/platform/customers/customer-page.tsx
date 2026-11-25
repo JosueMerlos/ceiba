@@ -29,11 +29,9 @@ import {
   type Customer,
   type CustomerAppointment,
 } from "./api";
-import { BranchPicker } from "../ui/branch-picker";
-import { CustomerAside } from "./customer-aside";
-import { CustomerForm } from "./customer-form";
+import { ContextBranchGate } from "../context/context-branch-gate";
+import { CustomerDialog } from "./customer-dialog";
 import { formatMonth, formatPhone, localDate } from "./lib";
-import { useWorkingBranch } from "../context/use-working-branch";
 
 type Status = CustomerAppointment["status"];
 
@@ -51,21 +49,14 @@ const UPCOMING: readonly Status[] = ["scheduled", "confirmed"];
 
 /** /customers/:customerId: who the customer is, their history at the working branch, contact data and notes. */
 export function CustomerPage() {
+  const { t } = useTranslation("customers");
   const can = useCan();
-  const working = useWorkingBranch();
   if (!can("platform.customer.read")) return <ForbiddenPage />;
 
   return (
-    <>
-      {working.needsChoice ? (
-        <BranchPicker
-          branches={working.branches}
-          value={working.branch?.id ?? null}
-          onChange={working.choose}
-        />
-      ) : null}
-      {working.branch ? <CustomerProfile branch={working.branch} /> : null}
-    </>
+    <ContextBranchGate what={t("profile.branchScope")}>
+      {(branch) => <CustomerProfile branch={branch} />}
+    </ContextBranchGate>
   );
 }
 
@@ -199,11 +190,14 @@ function Profile({ customer, branch }: { customer: Customer; branch: WorkingBran
         </div>
       </div>
 
-      {editing ? (
-        <CustomerAside title={customer.full_name} onClose={() => setEditing(false)}>
-          <CustomerForm key={customer.updated_at} customer={customer} onSubmit={save} />
-        </CustomerAside>
-      ) : null}
+      <CustomerDialog
+        open={editing}
+        onOpenChange={setEditing}
+        title={t("profile.edit")}
+        customer={customer}
+        pending={update.isPending}
+        onSubmit={save}
+      />
     </div>
   );
 }

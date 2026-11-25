@@ -26,38 +26,29 @@ import {
   type Customer,
   type CustomerInput,
 } from "./api";
-import { BranchPicker } from "../ui/branch-picker";
-import { CustomerAside } from "./customer-aside";
-import { CustomerForm } from "./customer-form";
+import { ContextBranchGate } from "../context/context-branch-gate";
+import { useContextBranch } from "../context/use-context-branch";
+import { CustomerDialog } from "./customer-dialog";
 import { formatPhone } from "./lib";
-import { useWorkingBranch } from "../context/use-working-branch";
 
 const SEARCH_DELAY_MS = 250;
 
-/** /customers: the company's customers, searched by name or phone, with creation in the side panel. */
+/** /customers: the company's customers, searched by name or phone, with creation in a modal. */
 export function CustomersPage() {
+  const { t } = useTranslation("customers");
   const can = useCan();
-  const working = useWorkingBranch();
+  const working = useContextBranch();
   const [creating, setCreating] = useState(false);
   if (!can("platform.customer.read")) return <ForbiddenPage />;
 
   return (
     <>
       <CustomersHeader onNew={working.branch ? () => setCreating(true) : undefined} />
-      {working.needsChoice ? (
-        <BranchPicker
-          branches={working.branches}
-          value={working.branch?.id ?? null}
-          onChange={working.choose}
-        />
-      ) : null}
-      {working.branch ? (
-        <CustomersList
-          branchId={working.branch.id}
-          creating={creating}
-          onCreatingChange={setCreating}
-        />
-      ) : null}
+      <ContextBranchGate what={t("branchScope")}>
+        {(branch) => (
+          <CustomersList branchId={branch.id} creating={creating} onCreatingChange={setCreating} />
+        )}
+      </ContextBranchGate>
     </>
   );
 }
@@ -178,11 +169,13 @@ function CustomersList({ branchId, creating, onCreatingChange }: CustomersListPr
         )}
       </QueryBoundary>
 
-      {creating ? (
-        <CustomerAside title={t("panelNewTitle")} onClose={() => onCreatingChange(false)}>
-          <CustomerForm onSubmit={(values) => createCustomer(values as CustomerInput)} />
-        </CustomerAside>
-      ) : null}
+      <CustomerDialog
+        open={creating}
+        onOpenChange={onCreatingChange}
+        title={t("panelNewTitle")}
+        pending={create.isPending}
+        onSubmit={(values) => createCustomer(values as CustomerInput)}
+      />
     </>
   );
 }

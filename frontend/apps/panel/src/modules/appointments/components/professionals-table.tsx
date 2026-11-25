@@ -58,7 +58,7 @@ export function ProfessionalsTable({
               <TableCell className="font-medium">
                 <button
                   type="button"
-                  aria-label={t("catalog.professionals.selectLabel", {
+                  aria-label={t("catalog.professionals.viewLabel", {
                     name: professional.display_name,
                   })}
                   onClick={() => onSelect(professional.id)}

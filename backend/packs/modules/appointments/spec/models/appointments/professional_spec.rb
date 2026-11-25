@@ -196,4 +196,66 @@ RSpec.describe Appointments::Professional do
       end
     end
   end
+
+  describe "contacto" do
+    def raw_value(professional, column)
+      ApplicationRecord.connection.select_value("SELECT #{column} FROM professionals WHERE id = #{ApplicationRecord.connection.quote(professional.id)}")
+    end
+
+    it "normaliza el teléfono local a E.164 con el país de la organización" do
+      with_tenant(organization) do
+        professional = create(:professional, company:, phone_e164: "8888 1234")
+
+        expect(professional.reload.phone_e164).to eq("+50588881234")
+      end
+    end
+
+    it "un teléfono que no es un número real es un error en phone (el campo de la API), no en phone_e164", :aggregate_failures do
+      with_tenant(organization) do
+        professional = build(:professional, company:, phone_e164: "123")
+
+        expect(professional).not_to be_valid
+        expect(errors_of(professional, :phone)).to eq([ :invalid ])
+        expect(errors_of(professional, :phone_e164)).to be_empty
+      end
+    end
+
+    it "recorta el correo y lo guarda en minúsculas" do
+      with_tenant(organization) do
+        professional = create(:professional, company:, email: "  Ana@Ej.com ")
+
+        expect(professional.reload.email).to eq("ana@ej.com")
+      end
+    end
+
+    it "un correo sin formato de correo es inválido (email: invalid)" do
+      with_tenant(organization) do
+        professional = build(:professional, company:, email: "no-es-correo")
+
+        expect(professional).not_to be_valid
+        expect(errors_of(professional, :email)).to eq([ :invalid ])
+      end
+    end
+
+    it "teléfono y correo en blanco se guardan como NULL, sin error", :aggregate_failures do
+      with_tenant(organization) do
+        professional = create(:professional, company:, phone_e164: "", email: "  ")
+
+        expect(professional.reload).to have_attributes(phone_e164: nil, email: nil)
+        expect(raw_value(professional, :phone_e164)).to be_nil
+        expect(raw_value(professional, :email)).to be_nil
+      end
+    end
+
+    it "en la base de datos teléfono y correo están cifrados, nunca en claro", :aggregate_failures do
+      with_tenant(organization) do
+        professional = create(:professional, company:, phone_e164: "8888 1234", email: "ana@ej.com")
+
+        expect(raw_value(professional, :phone_e164)).to be_present
+        expect(raw_value(professional, :phone_e164)).not_to include("88881234")
+        expect(raw_value(professional, :email)).to be_present
+        expect(raw_value(professional, :email)).not_to include("ana@ej.com")
+      end
+    end
+  end
 end

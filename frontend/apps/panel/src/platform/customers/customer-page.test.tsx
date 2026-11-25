@@ -1,7 +1,7 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { meFixture } from "../../test/fixtures";
+import { branch, ids, meFixture } from "../../test/fixtures";
 import { renderApp } from "../../test/render-app";
 import { server, signedInBackend } from "../../test/server";
 import {
@@ -90,13 +90,39 @@ describe("ficha de cliente", () => {
     const { user } = await renderApp({ route: ROUTE });
 
     await user.click(await screen.findByRole("button", { name: "Editar datos" }));
-    const name = screen.getByLabelText("Nombre completo");
+    const dialog = await screen.findByRole("dialog", { name: "Editar datos" });
+    expect(within(dialog).getByLabelText("Notas del negocio")).toHaveProperty(
+      "value",
+      "Prefiere citas temprano",
+    );
+    const name = within(dialog).getByLabelText("Nombre completo");
     await user.clear(name);
     await user.type(name, "Fernanda Ruiz López");
-    await user.click(screen.getByRole("button", { name: "Guardar cliente" }));
+    expect(within(dialog).getAllByRole("button", { name: /guardar/i })).toHaveLength(1);
+    await user.click(within(dialog).getByRole("button", { name: "Guardar cliente" }));
 
     await screen.findByText("Cliente actualizado");
     expect(body).toEqual({ full_name: "Fernanda Ruiz López" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("con «Todas las sucursales» y varias pide elegir una en el selector global", async () => {
+    signedInBackend({
+      me: meFixture({
+        role: "company_manager",
+        extraPermissions: CUSTOMER_PERMISSIONS,
+        branch: null,
+      }),
+      branches: [
+        branch(ids.branchA, ids.companyA, "Sucursal Centro"),
+        branch(ids.branchA2, ids.companyA, "Sucursal Norte"),
+      ],
+    });
+    await renderApp({ route: ROUTE });
+
+    expect(await screen.findByRole("heading", { name: "Elija una sucursal" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { level: 1, name: "Fernanda Ruiz" })).toBeNull();
+    expect(screen.queryByRole("combobox")).toBeNull();
   });
 
   it("un cliente archivado lo dice y conserva su historial", async () => {

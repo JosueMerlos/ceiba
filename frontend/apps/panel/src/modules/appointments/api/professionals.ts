@@ -13,6 +13,7 @@ import {
 
 type Schemas = components["schemas"];
 export type Professional = Schemas["Professional"];
+export type ProfessionalDetail = Schemas["ProfessionalDetail"];
 export type ProfessionalInput = Schemas["ProfessionalInput"];
 export type ProfessionalPatch = Schemas["ProfessionalPatch"];
 
@@ -112,6 +113,22 @@ export function useProfessionalsQuery() {
     queryKey: professionalKeys.all(organizationId, companyId),
     queryFn: () =>
       unwrap(client.GET(`${BASE}/professionals`, { params: { path, query: LIST_PAGE } })),
+  });
+}
+
+/** The company's record of one professional, with the contact (null unless the caller manages professionals). */
+export function useProfessionalQuery(id: string, { enabled = true } = {}) {
+  const client = useApiClient();
+  const { organizationId, companyId, path } = useCatalogScope();
+  return useQuery({
+    queryKey: [...professionalKeys.all(organizationId, companyId), "detail", id] as const,
+    queryFn: () =>
+      unwrap(
+        client.GET(`${BASE}/professionals/{professional_id}`, {
+          params: { path: { ...path, professional_id: id } },
+        }),
+      ),
+    enabled,
   });
 }
 

@@ -25,6 +25,8 @@ interface FormDialogBaseProps {
   description?: ReactNode;
   closeLabel: string;
   className?: string;
+  /** Short line at the start of the footer: what the button will save, or where the flow stands. */
+  note?: ReactNode;
   /** The body: usually one <form id={formId}>. It is the only part that scrolls. */
   children: ReactNode;
 }
@@ -42,8 +44,8 @@ interface FormDialogTabsProps extends FormDialogBaseProps {
   tabsLabel: string;
   /** The current tab has unsaved changes: switching tabs or closing asks first. */
   dirty: boolean;
-  /** The current tab's form; the single save button submits it. */
-  formId: string;
+  /** The current tab's form; the single save button submits it. Absent: the tab has nothing to save, so no footer. */
+  formId?: string;
   saveLabel: string;
   pending?: boolean;
   confirmTitle: string;
@@ -61,6 +63,10 @@ interface FormDialogStepsProps extends FormDialogBaseProps {
   onSkip?(): void;
   /** The current step's form: Continue submits it and the app's submit decides whether to advance. */
   formId: string;
+  /** Whether the current step holds something to send. With `false` and `onContinue`, Continue skips the submit. */
+  dirty?: boolean;
+  /** Advances without a request: a clean step has nothing to validate or save. */
+  onContinue?(): void;
   backLabel: string;
   skipLabel: string;
   continueLabel: string;
@@ -102,6 +108,7 @@ function FormDialogShell({
   description,
   closeLabel,
   className,
+  note,
   header,
   footer,
   children,
@@ -133,6 +140,7 @@ function FormDialogShell({
               data-slot="form-dialog-footer"
               className="flex flex-col-reverse gap-2 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-end"
             >
+              {note ? <p className="text-xs text-muted-foreground sm:mr-auto">{note}</p> : null}
               {footer}
             </div>
           ) : null}
@@ -178,10 +186,13 @@ function TabsDialog(props: FormDialogTabsProps) {
       <FormDialogShell
         {...props}
         onOpenChange={requestClose}
+        note={props.formId ? props.note : undefined}
         footer={
-          <Button type="submit" form={props.formId} loading={props.pending}>
-            {props.saveLabel}
-          </Button>
+          props.formId ? (
+            <Button type="submit" form={props.formId} loading={props.pending}>
+              {props.saveLabel}
+            </Button>
+          ) : null
         }
       >
         <TabsPrimitive.Root
@@ -232,6 +243,7 @@ function StepsDialog(props: FormDialogStepsProps) {
   const current = props.steps.findIndex((item) => item.id === props.step);
   const last = current === props.steps.length - 1;
   const canSkip = props.steps[current]?.optional && props.onSkip;
+  const advanceOnly = props.dirty === false && props.onContinue !== undefined;
   return (
     <FormDialogShell
       {...props}
@@ -239,7 +251,13 @@ function StepsDialog(props: FormDialogStepsProps) {
       footer={
         <>
           {canSkip ? (
-            <Button type="button" variant="ghost" className="sm:mr-auto" onClick={props.onSkip}>
+            <Button
+              type="button"
+              variant="ghost"
+              className={props.note ? undefined : "sm:mr-auto"}
+              onClick={props.onSkip}
+              disabled={props.pending}
+            >
               {props.skipLabel}
             </Button>
           ) : null}
@@ -248,9 +266,15 @@ function StepsDialog(props: FormDialogStepsProps) {
               {props.backLabel}
             </Button>
           ) : null}
-          <Button type="submit" form={props.formId} loading={props.pending}>
-            {last ? props.finishLabel : props.continueLabel}
-          </Button>
+          {advanceOnly ? (
+            <Button type="button" onClick={props.onContinue} loading={props.pending}>
+              {last ? props.finishLabel : props.continueLabel}
+            </Button>
+          ) : (
+            <Button type="submit" form={props.formId} loading={props.pending}>
+              {last ? props.finishLabel : props.continueLabel}
+            </Button>
+          )}
         </>
       }
     >

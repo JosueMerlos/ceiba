@@ -3,6 +3,7 @@ export const imports = {
   description:
     "Traiga su lista desde una hoja de cálculo. Primero verá qué filas están listas y cuáles tienen errores; nada se guarda hasta que confirme.",
   back: "Clientes",
+  branchScope: "la importación a una sucursal",
   kindLabel: "Qué va a importar",
   kinds: { customers: "Clientes", services: "Servicios", professionals: "Profesionales" },
   template: {

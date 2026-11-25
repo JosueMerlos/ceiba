@@ -73,6 +73,14 @@ export function formatPlainDate(day: string): string {
   return formatDate(`${day}T12:00:00Z`, "UTC");
 }
 
+/** "45 min", "1 h", "1 h 30 min": how long a service or a gap lasts. */
+export function formatDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest} min`;
+  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
+}
+
 /** "lun 14 dic 2026, 9:00 a. m." */
 export function formatDateTime(value: Instant, timeZone: string): string {
   return `${formatDate(value, timeZone)}, ${formatTime(value, timeZone)}`;

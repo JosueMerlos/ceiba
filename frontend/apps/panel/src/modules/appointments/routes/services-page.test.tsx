@@ -26,7 +26,7 @@ async function openServices() {
 }
 
 describe("Servicios", () => {
-  it("sin servicios muestra 'Agregue su primer servicio' y la acción abre el panel de alta", async () => {
+  it("sin servicios muestra 'Agregue su primer servicio' y la acción abre el modal de alta", async () => {
     asManager();
     servicesBackend();
     const { user } = await openServices();
@@ -34,7 +34,7 @@ describe("Servicios", () => {
     expect(await screen.findByRole("heading", { name: "Agregue su primer servicio" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Agregar servicio" }));
 
-    expect(await screen.findByRole("complementary", { name: "Nuevo servicio" })).toBeTruthy();
+    expect(await screen.findByRole("dialog", { name: "Nuevo servicio" })).toBeTruthy();
   });
 
   it("sin service.manage el estado vacío no ofrece la acción ni 'Nuevo servicio' (gate)", async () => {
@@ -86,11 +86,11 @@ describe("Servicios", () => {
     const { user } = await openServices();
 
     await user.click(await screen.findByRole("button", { name: "Archivados" }));
-    await user.click(await screen.findByRole("button", { name: "Editar Peinado antiguo" }));
+    await user.click(await screen.findByRole("button", { name: "Ver Peinado antiguo" }));
     const panel = await screen.findByRole("complementary", { name: "Peinado antiguo" });
 
-    expect(within(panel).getByLabelText("Nombre")).toHaveProperty("disabled", true);
-    expect(within(panel).queryByRole("button", { name: "Guardar cambios" })).toBeNull();
+    expect(within(panel).queryByRole("textbox")).toBeNull();
+    expect(within(panel).queryByRole("button", { name: "Editar servicio" })).toBeNull();
     expect(within(panel).queryByRole("region", { name: "En Sucursal Centro" })).toBeNull();
 
     await user.click(within(panel).getByRole("button", { name: "Restaurar" }));
@@ -116,7 +116,7 @@ describe("Servicios", () => {
     const { user } = await openServices();
 
     await user.click(await screen.findByRole("button", { name: "Archivados" }));
-    await user.click(await screen.findByRole("button", { name: "Editar Peinado antiguo" }));
+    await user.click(await screen.findByRole("button", { name: "Ver Peinado antiguo" }));
     const panel = await screen.findByRole("complementary", { name: "Peinado antiguo" });
     await user.click(within(panel).getByRole("button", { name: "Restaurar" }));
 
@@ -155,69 +155,126 @@ describe("Servicios", () => {
     await waitFor(() => expect(screen.queryByText("Corte clásico")).toBeNull());
   });
 
-  it("seleccionar una fila abre el panel con la edición y guarda por PATCH", async () => {
+  it("una fila abre su detalle; 'Editar servicio' abre el modal precargado y guarda por PATCH", async () => {
     asManager();
     const backend = servicesBackend({ services: [corte] });
     const { user } = await openServices();
 
-    await user.click(await screen.findByRole("button", { name: "Editar Corte clásico" }));
+    await user.click(await screen.findByRole("button", { name: "Ver Corte clásico" }));
     const panel = await screen.findByRole("complementary", { name: "Corte clásico" });
-    expect(within(panel).getByLabelText("Precio (NIO)")).toHaveProperty("value", "200.00");
+    expect(panel.closest("[data-variant=floating]")).not.toBeNull();
+    await user.click(within(panel).getByRole("button", { name: "Editar servicio" }));
 
-    const name = within(panel).getByLabelText("Nombre");
+    const dialog = await screen.findByRole("dialog", { name: "Editar servicio" });
+    expect(within(dialog).getByLabelText("Precio (NIO)")).toHaveProperty("value", "200.00");
+    const name = within(dialog).getByLabelText("Nombre");
     await user.clear(name);
     await user.type(name, "Corte premium");
-    await user.click(within(panel).getByRole("button", { name: "Guardar cambios" }));
+    expect(within(dialog).getAllByRole("button", { name: /guardar/i })).toHaveLength(1);
+    await user.click(within(dialog).getByRole("button", { name: "Guardar cambios" }));
 
     await waitFor(() => expect(backend.patched).toHaveLength(1));
     expect(backend.patched[0]).toEqual({
       id: "s1",
       body: {
         name: "Corte premium",
+        category: null,
         duration_minutes: 30,
+        buffer_before_minutes: 0,
         buffer_after_minutes: 0,
         price_minor: 20000,
         active: true,
       },
     });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
-  it("crea un servicio nuevo con precio en unidades menores y lo muestra en la lista", async () => {
+  it("crea un servicio en el modal con su categoría y la duración elegida con los botones", async () => {
     asManager();
     const backend = servicesBackend({ services: [corte] });
     const { user } = await openServices();
 
     await user.click(await screen.findByRole("button", { name: "Nuevo servicio" }));
-    const panel = await screen.findByRole("complementary", { name: "Nuevo servicio" });
-    await user.type(within(panel).getByLabelText("Nombre"), "Barba");
-    await user.type(within(panel).getByLabelText("Duración (minutos)"), "20");
-    await user.type(within(panel).getByLabelText("Precio (NIO)"), "120.5");
-    await user.click(within(panel).getByRole("button", { name: "Crear servicio" }));
+    const dialog = await screen.findByRole("dialog", { name: "Nuevo servicio" });
+    await user.type(within(dialog).getByLabelText("Nombre"), "Barba");
+    await user.type(
+      within(dialog).getByRole("combobox", { name: "Categoría (opcional)" }),
+      "Barbería",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Restar 5 minutos a la duración" }),
+    );
+    await user.type(within(dialog).getByLabelText("Precio (NIO)"), "120.5");
+    await user.click(within(dialog).getByRole("button", { name: "Crear servicio" }));
 
     await waitFor(() => expect(backend.created).toHaveLength(1));
     expect(backend.created[0]).toEqual({
       name: "Barba",
-      duration_minutes: 20,
-      buffer_after_minutes: 0,
+      category: "Barbería",
+      duration_minutes: 25,
       buffer_before_minutes: 0,
+      buffer_after_minutes: 0,
       price_minor: 12050,
       active: true,
       position: 0,
     });
-    expect(await screen.findByRole("button", { name: "Editar Barba" })).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(await screen.findByRole("button", { name: "Ver Barba" })).toBeTruthy();
   });
 
-  it("sin service.manage el panel queda de solo lectura y no hay Archivar (gate)", async () => {
-    signedInBackend({ me: meFixture({ role: "receptionist", permissions: READER_PERMISSIONS }) });
-    servicesBackend({ services: [corte] });
+  it("el modal sugiere las categorías de los servicios cargados, sin repetirlas", async () => {
+    asManager();
+    servicesBackend({
+      services: [
+        corte,
+        service("s4", "Corte niño", { category: "Cortes" }),
+        service("s5", "Afeitado", { category: "Barba" }),
+      ],
+    });
     const { user } = await openServices();
 
-    await user.click(await screen.findByRole("button", { name: "Editar Corte clásico" }));
-    const panel = await screen.findByRole("complementary", { name: "Corte clásico" });
+    await user.click(await screen.findByRole("button", { name: "Nuevo servicio" }));
+    const dialog = await screen.findByRole("dialog", { name: "Nuevo servicio" });
+    await user.click(within(dialog).getByRole("combobox", { name: "Categoría (opcional)" }));
 
-    expect(within(panel).getByLabelText("Nombre")).toHaveProperty("disabled", true);
-    expect(within(panel).queryByRole("button", { name: "Guardar cambios" })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Archivar/ })).toBeNull();
+    const list = within(dialog).getByRole("listbox", { name: "Categorías usadas" });
+    expect(
+      within(list)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["Barba", "Cortes"]);
+  });
+
+  describe("recepción en lectura (AC8)", () => {
+    const asReception = () =>
+      signedInBackend({ me: meFixture({ role: "receptionist", permissions: READER_PERMISSIONS }) });
+
+    it("sin crear, sin acciones por fila, con aviso de solo lectura; la fila abre el detalle flotante y no un modal", async () => {
+      asReception();
+      servicesBackend({ services: [{ ...corte, category: "Cortes" }] });
+      const { user } = await openServices();
+
+      expect(await screen.findByText("Solo lectura")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Nuevo servicio" })).toBeNull();
+      expect(screen.queryByRole("columnheader", { name: "Acciones" })).toBeNull();
+      expect(screen.queryByRole("button", { name: /Archivar/ })).toBeNull();
+
+      await user.click(screen.getByRole("button", { name: "Ver Corte clásico" }));
+      const panel = await screen.findByRole("complementary", { name: "Corte clásico" });
+
+      expect(panel.closest("[data-variant=floating]")).not.toBeNull();
+      expect(within(panel).getByText("Cortes")).toBeTruthy();
+      expect(within(panel).getAllByText("30 min").length).toBeGreaterThan(0);
+      expect(within(panel).queryByRole("textbox")).toBeNull();
+      expect(
+        within(panel).queryByText(
+          "Duración y precio propios de esta sucursal. Si los deja vacíos, se usa lo del servicio.",
+        ),
+      ).toBeNull();
+      expect(within(panel).queryByRole("button", { name: /Editar|Guardar/ })).toBeNull();
+      expect(document.querySelectorAll("[data-slot=form-description]")).toHaveLength(0);
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
   });
 
   describe("override por sucursal (AC2)", () => {
@@ -234,14 +291,14 @@ describe("Servicios", () => {
       });
       const { user } = await openServices();
 
-      await user.click(await screen.findByRole("button", { name: "Editar Corte clásico" }));
+      await user.click(await screen.findByRole("button", { name: "Ver Corte clásico" }));
       const panel = await screen.findByRole("complementary", { name: "Corte clásico" });
       const override = await within(panel).findByRole("region", { name: "En Sucursal Centro" });
 
       expect(within(override).queryByRole("textbox", { name: /Precio/ })).toBeNull();
       expect(within(override).getByText(/250\.00/)).toBeTruthy();
       // The service itself is read-only for this role.
-      expect(within(panel).getByLabelText("Nombre")).toHaveProperty("disabled", true);
+      expect(within(panel).queryByRole("button", { name: "Editar servicio" })).toBeNull();
 
       await user.type(within(override).getByLabelText("Duración en esta sucursal (minutos)"), "45");
       await user.click(
@@ -271,7 +328,7 @@ describe("Servicios", () => {
       });
       const { user } = await openServices();
 
-      await user.click(await screen.findByRole("button", { name: "Editar Corte clásico" }));
+      await user.click(await screen.findByRole("button", { name: "Ver Corte clásico" }));
       const panel = await screen.findByRole("complementary", { name: "Corte clásico" });
       const override = await within(panel).findByRole("region", { name: "En Sucursal Centro" });
 
@@ -285,7 +342,7 @@ describe("Servicios", () => {
       servicesBackend({ services: [corte], overrideForbidden: true });
       const { user } = await openServices();
 
-      await user.click(await screen.findByRole("button", { name: "Editar Corte clásico" }));
+      await user.click(await screen.findByRole("button", { name: "Ver Corte clásico" }));
       const override = await screen.findByRole("region", { name: "En Sucursal Centro" });
       await user.type(within(override).getByLabelText("Duración en esta sucursal (minutos)"), "45");
       await user.click(
@@ -305,7 +362,7 @@ describe("Servicios", () => {
       });
       const { user } = await openServices();
 
-      await user.click(await screen.findByRole("button", { name: "Editar Corte clásico" }));
+      await user.click(await screen.findByRole("button", { name: "Ver Corte clásico" }));
       const override = await screen.findByRole("region", { name: "En Sucursal Centro" });
 
       expect(within(override).getByLabelText("Precio en esta sucursal (NIO)")).toBeTruthy();
@@ -314,7 +371,7 @@ describe("Servicios", () => {
       await waitFor(() => expect(backend.overrideDeletes).toEqual(["s1"]));
     });
 
-    it("sin sucursal en el contexto la pantalla pide elegir una y solo entonces muestra el override", async () => {
+    it("con «Todas las sucursales» muestra los valores base de la empresa, sin sección de override ni selector propio", async () => {
       signedInBackend({
         me: meFixture({ role: "company_manager", permissions: MANAGER_PERMISSIONS, branch: null }),
         branches: [
@@ -322,17 +379,19 @@ describe("Servicios", () => {
           branch(ids.branchA2, ids.companyA, "Sucursal Norte"),
         ],
       });
-      servicesBackend({ services: [corte] });
+      servicesBackend({
+        services: [corte],
+        overrides: [serviceOverride("o1", "s1", ids.branchA, { duration_minutes: 50 })],
+      });
       const { user } = await openServices();
 
-      await user.click(await screen.findByRole("button", { name: "Editar Corte clásico" }));
+      const row = (await screen.findByText("Corte clásico")).closest("tr")!;
+      expect(within(row).getByText("30 min")).toBeTruthy();
+      expect(screen.queryByRole("combobox")).toBeNull();
+
+      await user.click(screen.getByRole("button", { name: "Ver Corte clásico" }));
       await screen.findByRole("complementary", { name: "Corte clásico" });
       expect(screen.queryByRole("region", { name: /^En / })).toBeNull();
-
-      await user.click(screen.getByRole("combobox", { name: "Sucursal de trabajo" }));
-      await user.click(await screen.findByRole("option", { name: "Sucursal Norte" }));
-
-      expect(await screen.findByRole("region", { name: "En Sucursal Norte" })).toBeTruthy();
     });
   });
 });

@@ -1455,6 +1455,70 @@ components:
       - created_at
       - updated_at
       type: object
+    ProfessionalDetail:
+      additionalProperties: false
+      description: 'Ficha de un profesional: los campos de `Professional` más su contacto. `phone` y `email` vienen siempre, en null si no tiene o si quien lee no gestiona los profesionales de la empresa (`appointments.professional.manage`).'
+      properties:
+        active:
+          type: boolean
+        archived_at:
+          description: UTC; null si no está archivado
+          format: date-time
+          nullable: true
+          type: string
+        branch_ids:
+          description: Sucursales de la empresa donde está asignado
+          items:
+            format: uuid
+            type: string
+          type: array
+        created_at:
+          description: UTC
+          format: date-time
+          type: string
+        display_name:
+          maxLength: 120
+          type: string
+        email:
+          format: email
+          nullable: true
+          type: string
+        id:
+          format: uuid
+          type: string
+        phone:
+          description: Teléfono en E.164
+          example: "+50588881234"
+          nullable: true
+          type: string
+        service_ids:
+          description: Servicios que presta
+          items:
+            format: uuid
+            type: string
+          type: array
+        updated_at:
+          description: UTC
+          format: date-time
+          type: string
+        user_id:
+          description: Persona vinculada; null si el profesional no tiene usuario
+          format: uuid
+          nullable: true
+          type: string
+      required:
+      - id
+      - display_name
+      - user_id
+      - active
+      - archived_at
+      - branch_ids
+      - service_ids
+      - phone
+      - email
+      - created_at
+      - updated_at
+      type: object
     ProfessionalInput:
       additionalProperties: false
       description: Alta de un profesional. `user_id` debe tener una membresía en la organización y no estar ya vinculado a otro profesional de la empresa.
@@ -1465,6 +1529,15 @@ components:
         display_name:
           maxLength: 120
           minLength: 1
+          type: string
+        email:
+          description: Se recorta y se guarda en minúsculas. En blanco o null lo quita
+          maxLength: 254
+          nullable: true
+          type: string
+        phone:
+          description: En cualquier formato; se guarda en E.164 con el país de la organización. En blanco o null lo quita
+          nullable: true
           type: string
         user_id:
           format: uuid
@@ -1482,6 +1555,15 @@ components:
         display_name:
           maxLength: 120
           minLength: 1
+          type: string
+        email:
+          description: Se recorta y se guarda en minúsculas. En blanco o null lo quita
+          maxLength: 254
+          nullable: true
+          type: string
+        phone:
+          description: En cualquier formato; se guarda en E.164 con el país de la organización. En blanco o null lo quita
+          nullable: true
           type: string
         user_id:
           format: uuid
@@ -1602,6 +1684,11 @@ components:
           maximum: 1440
           minimum: 0
           type: integer
+        category:
+          description: Grupo del catálogo, texto libre; null si no tiene
+          maxLength: 60
+          nullable: true
+          type: string
         created_at:
           description: UTC
           format: date-time
@@ -1646,6 +1733,7 @@ components:
       - currency
       - active
       - position
+      - category
       - archived_at
       - created_at
       - updated_at
@@ -1667,6 +1755,11 @@ components:
           maximum: 1440
           minimum: 0
           type: integer
+        category:
+          description: Se recorta; en blanco o null queda sin categoría
+          maxLength: 60
+          nullable: true
+          type: string
         currency:
           enum:
           - NIO
@@ -1770,6 +1863,11 @@ components:
           maximum: 1440
           minimum: 0
           type: integer
+        category:
+          description: Se recorta; en blanco o null queda sin categoría
+          maxLength: 60
+          nullable: true
+          type: string
         currency:
           enum:
           - NIO
@@ -3392,7 +3490,7 @@ paths:
         type: string
   "/api/v1/organizations/{organization_id}/companies/{company_id}/appointments/branches/{branch_id}/professionals/{professional_id}":
     get:
-      description: 'Es la ruta del perfil propio del `professional`: exige `appointments.professional.read` en la sucursal, o bien `appointments.professional.read_own` en la sucursal cuando el registro está vinculado a su usuario y asignado a esa sucursal.'
+      description: 'Es la ruta del perfil propio del `professional`: exige `appointments.professional.read` en la sucursal, o bien `appointments.professional.read_own` en la sucursal cuando el registro está vinculado a su usuario y asignado a esa sucursal. No trae el contacto del profesional (`Professional`, sin `phone` ni `email`).'
       responses:
         '200':
           content:
@@ -4852,7 +4950,7 @@ paths:
         format: uuid
         type: string
     post:
-      description: Exige `appointments.professional.manage`. `user_id` vincula al profesional con una persona y debe tener una membresía en la organización (si no, 422); una persona tiene a lo sumo un registro por empresa. Acepta `Idempotency-Key`.
+      description: Exige `appointments.professional.manage`. `user_id` vincula al profesional con una persona y debe tener una membresía en la organización (si no, 422); una persona tiene a lo sumo un registro por empresa. `phone` (cualquier formato, se guarda en E.164) y `email` son opcionales; un teléfono que no es un número real es 422 en `phone`. Acepta `Idempotency-Key`.
       parameters:
       - "$ref": "#/components/parameters/IdempotencyKey"
       - description: "`csrf_token` de la sesión (login o GET /auth/session)"
@@ -4875,7 +4973,7 @@ paths:
                 additionalProperties: false
                 properties:
                   data:
-                    "$ref": "#/components/schemas/Professional"
+                    "$ref": "#/components/schemas/ProfessionalDetail"
                 required:
                 - data
                 type: object
@@ -4946,7 +5044,7 @@ paths:
       tags:
       - Profesionales
     get:
-      description: Exige `appointments.professional.read` en la empresa. Un profesional de otra empresa responde 404. Un archivado se puede ver, con `archived_at`.
+      description: Exige `appointments.professional.read` en la empresa. Un profesional de otra empresa responde 404. Un archivado se puede ver, con `archived_at`. `phone` y `email` solo traen valor para quien tiene `appointments.professional.manage`; para el resto son null.
       responses:
         '200':
           content:
@@ -4955,7 +5053,7 @@ paths:
                 additionalProperties: false
                 properties:
                   data:
-                    "$ref": "#/components/schemas/Professional"
+                    "$ref": "#/components/schemas/ProfessionalDetail"
                 required:
                 - data
                 type: object
@@ -4998,7 +5096,7 @@ paths:
         format: uuid
         type: string
     patch:
-      description: 'Exige `appointments.professional.manage`. Solo cambian los campos enviados; `user_id` solo se puede fijar una vez: si ya está vinculado no cambia ni se quita (422 `immutable`; para cambiar de persona se archiva y se crea otro profesional). Un archivado no se edita (422).'
+      description: 'Exige `appointments.professional.manage`. Solo cambian los campos enviados; `user_id` solo se puede fijar una vez: si ya está vinculado no cambia ni se quita (422 `immutable`; para cambiar de persona se archiva y se crea otro profesional). Un archivado no se edita (422). `phone` y `email` en blanco o null quitan el dato; la auditoría registra que cambiaron, nunca su valor.'
       parameters:
       - description: "`csrf_token` de la sesión (login o GET /auth/session)"
         in: header
@@ -5020,7 +5118,7 @@ paths:
                 additionalProperties: false
                 properties:
                   data:
-                    "$ref": "#/components/schemas/Professional"
+                    "$ref": "#/components/schemas/ProfessionalDetail"
                 required:
                 - data
                 type: object
@@ -5353,7 +5451,7 @@ paths:
         format: uuid
         type: string
     post:
-      description: 'Exige `appointments.service.manage`. `price_minor` es un entero en unidades menores. Sin `currency` toma la de la empresa; una moneda distinta responde 422 (`currency: mismatch`). Acepta `Idempotency-Key`.'
+      description: 'Exige `appointments.service.manage`. `price_minor` es un entero en unidades menores. Sin `currency` toma la de la empresa; una moneda distinta responde 422 (`currency: mismatch`). `category` es texto libre de hasta 60 caracteres, recortado; en blanco queda sin categoría (null). Acepta `Idempotency-Key`.'
       parameters:
       - "$ref": "#/components/parameters/IdempotencyKey"
       - description: "`csrf_token` de la sesión (login o GET /auth/session)"
@@ -5380,7 +5478,7 @@ paths:
                 required:
                 - data
                 type: object
-          description: con la moneda de la empresa enviada de forma explícita
+          description: con categoría, recortada
         '401':
           content:
             application/problem+json:
@@ -5505,7 +5603,7 @@ paths:
         format: uuid
         type: string
     patch:
-      description: Exige `appointments.service.manage`. Solo cambia los campos enviados; la empresa y el archivado no se editan por aquí.
+      description: 'Exige `appointments.service.manage`. Solo cambia los campos enviados; la empresa y el archivado no se editan por aquí. `category: null` (o en blanco) quita la categoría.'
       parameters:
       - description: "`csrf_token` de la sesión (login o GET /auth/session)"
         in: header

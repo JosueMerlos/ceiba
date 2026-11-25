@@ -7,6 +7,7 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
+  formatDuration,
   formatNumber,
   formatPlainDate,
   formatTime,
@@ -76,5 +77,15 @@ describe("formatos es-NI", () => {
         `lun${NBSP}14${NBSP}dic${NBSP}2026, 9:00${NBSP}a.${NBSP}m.`,
       );
     });
+  });
+});
+
+describe("formatDuration", () => {
+  it("minutos sueltos, horas exactas y horas con minutos", () => {
+    expect(formatDuration(0)).toBe("0 min");
+    expect(formatDuration(45)).toBe("45 min");
+    expect(formatDuration(60)).toBe("1 h");
+    expect(formatDuration(90)).toBe("1 h 30 min");
+    expect(formatDuration(480)).toBe("8 h");
   });
 });

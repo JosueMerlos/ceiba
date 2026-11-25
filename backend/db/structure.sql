@@ -580,6 +580,8 @@ CREATE TABLE public.professionals (
     archived_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    phone_e164 character varying,
+    email character varying,
     CONSTRAINT chk_professionals_name_present CHECK ((length(btrim((display_name)::text)) > 0))
 );
 
@@ -675,8 +677,10 @@ CREATE TABLE public.services (
     archived_at timestamp(6) without time zone,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    category character varying(60),
     CONSTRAINT chk_services_buffer_after CHECK ((buffer_after_minutes >= 0)),
     CONSTRAINT chk_services_buffer_before CHECK ((buffer_before_minutes >= 0)),
+    CONSTRAINT chk_services_category_present CHECK (((category IS NULL) OR (length(btrim((category)::text)) > 0))),
     CONSTRAINT chk_services_currency CHECK ((((currency)::text = 'NIO'::text) OR ((currency)::text = 'USD'::text))),
     CONSTRAINT chk_services_duration_positive CHECK ((duration_minutes > 0)),
     CONSTRAINT chk_services_name_present CHECK ((length(btrim((name)::text)) > 0)),
@@ -2612,6 +2616,9 @@ CREATE POLICY tenant_isolation ON public.weekly_schedules USING ((organization_i
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20261124202438'),
+('20261124202437'),
+('20261124202436'),
 ('20261123145051'),
 ('20261123145050'),
 ('20261117210801'),

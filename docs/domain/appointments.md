@@ -13,13 +13,15 @@
 ```
 services                      (empresa)
   id, organization_id, company_id, name, duration_minutes, buffer_before_minutes, buffer_after_minutes,
-  price_minor, currency, active, position, archived_at, created_at, updated_at
+  price_minor, currency, active, position, category NULL (varchar(60), recortada; CHECK sin blancos), archived_at,
+  created_at, updated_at
 branch_service_overrides      (sucursal: solo duración y/o precio)
   id, organization_id, company_id, branch_id, service_id, duration_minutes NULL, price_minor NULL,
   created_at, updated_at                              -- UNIQUE(branch_id, service_id); al menos un valor no nulo
 
 professionals                 (empresa)
-  id, organization_id, company_id, user_id NULL, display_name, active, archived_at, created_at, updated_at
+  id, organization_id, company_id, user_id NULL, display_name, phone_e164 NULL, email NULL, active, archived_at,
+  created_at, updated_at                              -- phone_e164 y email: PII cifrada (encrypts, determinista)
                                                       -- UNIQUE parcial (company_id, user_id) WHERE user_id IS NOT NULL
 professional_branch_assignments
   id, organization_id, company_id, professional_id, branch_id, created_at, updated_at
@@ -117,6 +119,22 @@ Todas son tablas tenant (`create_tenant_table`) con FKs compuestas hacia sus pad
   - `GET` y `PATCH …/appointments/:appointment_id`: detalle con `notes`, y edición de notas con `lock_version` obligatorio → `409 resource.stale`; las de una cita `rescheduled` no se editan (`409 appointments.invalid_transition`);
   - `POST …/appointments/:appointment_id/{confirm,check_in,complete,no_show,cancel,reschedule}`: `reschedule` exige `Idempotency-Key` y responde `201` con la cita nueva; las demás la aceptan.
 - **Eventos** `appointments.appointment_{confirmed,checked_in,completed,no_show,cancelled,rescheduled}.v1`: solo ids, estados y horas; `cancelled` lleva los códigos y `rescheduled` lleva `new_appointment_id`.
+
+### Cómo quedó implementado (M2.07)
+
+- **Contacto del profesional:** `professionals.phone_e164` y `professionals.email`, opcionales y cifrados con Active Record
+  Encryption (deterministas, como el cliente; el correo en minúsculas).
+  - El teléfono se normaliza a E.164 con `Customers::Phone` y el país de la organización («8888 1234» en Nicaragua queda
+    `+50588881234`); un número inválido es `422` sobre `phone`. Vacío se guarda `NULL`.
+  - Es PII ([ADR-0043](../adr/0043-rediseno-v2-del-panel.md), enmienda a [ADR-0033](../adr/0033-autorizacion-y-pii-de-clientes-y-servicios.md)):
+    solo lo lee quien tiene `appointments.professional.manage` (`ProfessionalPolicy#contact?`); para los demás es `null`.
+    El listado y `show_in_branch` no lo incluyen. Ni el profesional ve su propio contacto.
+  - La auditoría guarda los nombres de los campos cambiados, nunca los valores; `filter_parameters` cubre `:phone` y `:email`.
+- **Categoría del servicio:** `services.category`, texto libre opcional de hasta 60 caracteres que agrupa el catálogo.
+  Se recorta («  Uñas  » → «Uñas»), vacía es `NULL` y un CHECK impide blancos. Las sugerencias del panel salen de los
+  servicios ya cargados; no hay tabla ni endpoint de categorías.
+- **Deuda:** la importación CSV ([ADR-0042](../adr/0042-importacion-csv.md)) no lleva teléfono, correo ni categoría: sus
+  plantillas no cambiaron.
 
 ## Restricciones críticas
 

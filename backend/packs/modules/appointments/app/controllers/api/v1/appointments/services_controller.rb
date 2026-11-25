@@ -90,7 +90,8 @@ module Api
 
         def service_params
           typed_params(name: String, currency: String, duration_minutes: Integer, buffer_before_minutes: Integer,
-                       buffer_after_minutes: Integer, price_minor: Integer, position: Integer, active: :boolean)
+                       buffer_after_minutes: Integer, price_minor: Integer, position: Integer, active: :boolean,
+                       category: String)
         end
       end
     end

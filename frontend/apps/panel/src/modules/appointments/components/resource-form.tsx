@@ -1,6 +1,5 @@
 import { useTranslation } from "@ceiba/i18n";
 import {
-  Button,
   Form,
   FormControl,
   FormDescription,
@@ -17,7 +16,7 @@ import {
   Switch,
 } from "@ceiba/ui";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { RESOURCE_KINDS, type Resource, type ResourceKind } from "../api/resources";
@@ -31,13 +30,15 @@ export interface ResourceFormValues {
 }
 
 interface ResourceFormProps {
+  /** The form has no button: the modal's footer submits it through `form={id}`. */
+  id: string;
   /** Absent = create. */
   resource?: Resource;
-  readOnly?: boolean;
   onSubmit(values: ResourceFormValues): Promise<unknown>;
+  onDirtyChange?(dirty: boolean): void;
 }
 
-export function ResourceForm({ resource, readOnly = false, onSubmit }: ResourceFormProps) {
+export function ResourceForm({ id, resource, onSubmit, onDirtyChange }: ResourceFormProps) {
   const { t } = useTranslation(["appointments", "errors"]);
   const schema = useMemo(
     () =>
@@ -57,9 +58,14 @@ export function ResourceForm({ resource, readOnly = false, onSubmit }: ResourceF
     },
   });
 
+  const dirty = form.formState.isDirty;
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
+
   const submit = form.handleSubmit(async (values) => {
     try {
       await onSubmit({ name: values.name.trim(), kind: values.kind, active: values.active });
+      // What was just saved is the new baseline: the modal stops counting it as unsaved.
+      form.reset(values);
     } catch (error) {
       reportSubmitError(error, form.setError, t, { name: "name", kind: "kind", active: "active" });
     }
@@ -67,7 +73,7 @@ export function ResourceForm({ resource, readOnly = false, onSubmit }: ResourceF
 
   return (
     <Form {...form}>
-      <form onSubmit={submit} noValidate className="grid gap-4">
+      <form id={id} onSubmit={submit} noValidate className="grid gap-4">
         <FormField
           control={form.control}
           name="name"
@@ -75,7 +81,7 @@ export function ResourceForm({ resource, readOnly = false, onSubmit }: ResourceF
             <FormItem>
               <FormLabel>{t("catalog.resourceForm.name")}</FormLabel>
               <FormControl>
-                <Input {...field} disabled={readOnly} autoComplete="off" />
+                <Input {...field} autoComplete="off" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -87,7 +93,7 @@ export function ResourceForm({ resource, readOnly = false, onSubmit }: ResourceF
           render={({ field }) => (
             <FormItem>
               <FormLabel>{t("catalog.resourceForm.kind")}</FormLabel>
-              <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+              <Select value={field.value} onValueChange={field.onChange}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue />
@@ -113,11 +119,7 @@ export function ResourceForm({ resource, readOnly = false, onSubmit }: ResourceF
               <div className="flex items-center justify-between gap-3">
                 <FormLabel>{t("catalog.resourceForm.active")}</FormLabel>
                 <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                    disabled={readOnly}
-                  />
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
                 </FormControl>
               </div>
               <FormDescription>{t("catalog.resourceForm.activeHint")}</FormDescription>
@@ -126,12 +128,6 @@ export function ResourceForm({ resource, readOnly = false, onSubmit }: ResourceF
         />
 
         <FormAlert>{form.formState.errors.root?.serverError?.message}</FormAlert>
-
-        {readOnly ? null : (
-          <Button type="submit" loading={form.formState.isSubmitting}>
-            {resource ? t("catalog.resourceForm.save") : t("catalog.resourceForm.create")}
-          </Button>
-        )}
       </form>
     </Form>
   );

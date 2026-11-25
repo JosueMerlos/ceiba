@@ -7,8 +7,7 @@ import { Link } from "react-router";
 import { describeError } from "../errors/global-errors";
 import { ForbiddenPage } from "../errors/status-pages";
 import { useMe } from "../me/me-provider";
-import { BranchPicker } from "../ui/branch-picker";
-import { useWorkingBranch } from "../context/use-working-branch";
+import { ContextBranchGate } from "../context/context-branch-gate";
 import {
   RUNNING,
   readAsBase64,
@@ -29,7 +28,6 @@ const templateOf = (kind: ImportKind) => IMPORT_KINDS.find((item) => item.key ==
 export function ImportPage() {
   const { t } = useTranslation("imports");
   const me = useMe();
-  const working = useWorkingBranch();
   const kinds = importKindsFor(me);
   if (kinds.length === 0) return <ForbiddenPage />;
 
@@ -43,21 +41,16 @@ export function ImportPage() {
         {t("back")}
       </Link>
       <PageHeader title={t("title")} description={t("description")} />
-      {working.needsChoice ? (
-        <BranchPicker
-          branches={working.branches}
-          value={working.branch?.id ?? null}
-          onChange={working.choose}
-        />
-      ) : null}
-      {working.branch ? (
-        <ImportFlow
-          key={working.branch.id}
-          branchId={working.branch.id}
-          timeZone={working.branch.time_zone}
-          kinds={kinds.map((kind) => kind.key)}
-        />
-      ) : null}
+      <ContextBranchGate what={t("branchScope")}>
+        {(branch) => (
+          <ImportFlow
+            key={branch.id}
+            branchId={branch.id}
+            timeZone={branch.time_zone}
+            kinds={kinds.map((kind) => kind.key)}
+          />
+        )}
+      </ContextBranchGate>
     </div>
   );
 }

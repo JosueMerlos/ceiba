@@ -5,10 +5,14 @@ export const common = {
   cancel: "Cancelar",
   confirm: "Confirmar",
   close: "Cerrar",
-  workingBranch: {
-    label: "Sucursal desde la que trabaja",
-    placeholder: "Elija una sucursal",
-    hint: "La pantalla trabaja desde la sucursal que elija.",
+  chooseBranch: {
+    title: "Elija una sucursal",
+    description:
+      "Esta pantalla muestra {{what}}. Elija cuál en el selector de contexto, arriba del menú.",
+  },
+  noBranches: {
+    title: "Todavía no hay sucursales",
+    description: "Esta pantalla muestra {{what}}, y su empresa aún no tiene ninguna.",
   },
   backToStart: "Volver al inicio",
   fields: {
@@ -33,5 +37,6 @@ export const common = {
     discardDescription: "Lo que cambió en esta pestaña sin guardar se perderá.",
     discard: "Descartar",
     keepEditing: "Seguir editando",
+    tabNote: "Se guarda solo la pestaña {{tab}}.",
   },
 } as const;

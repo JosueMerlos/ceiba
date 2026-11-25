@@ -34,6 +34,8 @@ interface ServicesBackendOptions {
   overrides?: Override[];
   /** Makes PUT override answer 403 (a role the API refuses even though the UI offered the field). */
   overrideForbidden?: boolean;
+  /** Serves the list in pages of this size with a real cursor (`has_more`/`next_cursor`, `?after=`). */
+  pageSize?: number;
 }
 
 /** In-memory services API: lists honor ?archived/?active; every mutation is recorded for assertions. */
@@ -41,6 +43,7 @@ export function servicesBackend({
   services = [],
   overrides = [],
   overrideForbidden = false,
+  pageSize,
 }: ServicesBackendOptions = {}) {
   const state = {
     services: [...services],
@@ -64,7 +67,14 @@ export function servicesBackend({
           (item.archived_at !== null) === archived &&
           (active === null || String(item.active) === active),
       );
-      return HttpResponse.json(page(data));
+      if (!pageSize) return HttpResponse.json(page(data));
+      const start = Number(query.get("after") ?? 0);
+      const end = start + pageSize;
+      const hasMore = end < data.length;
+      return HttpResponse.json({
+        data: data.slice(start, end),
+        page: { has_more: hasMore, next_cursor: hasMore ? String(end) : null },
+      });
     }),
     http.post(`${CATALOG}/appointments/services`, async ({ request }) => {
       const body = (await request.json()) as Record<string, unknown>;

@@ -113,7 +113,9 @@ export function BranchOverrideFields({
         <h3 className="font-display text-base font-semibold">
           {t("catalog.override.title", { branch: branchName })}
         </h3>
-        <p className="text-sm text-muted-foreground">{t("catalog.override.description")}</p>
+        {editable ? (
+          <p className="text-sm text-muted-foreground">{t("catalog.override.description")}</p>
+        ) : null}
       </div>
 
       <Form {...form}>
