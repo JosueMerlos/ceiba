@@ -1,7 +1,9 @@
 import { useTranslation } from "@ceiba/i18n";
 import { LoadingState } from "@ceiba/ui";
 import { lazy, Suspense } from "react";
+import AgendaList from "./adapters/agenda-list";
 import type { AgendaViewProps } from "./types";
+import { useNarrowScreen } from "./use-narrow-screen";
 
 // The calendar library lives only in this chunk: the catalog pages share the module's chunk and must not download it.
 const loadAdapter = () => import("./adapters/event-calendar");
@@ -12,9 +14,14 @@ export function preloadAgendaView() {
   void loadAdapter();
 }
 
-/** The page talks only to this component; which calendar library draws it is the adapter's business. */
+/**
+ * The page talks only to this component; which calendar library draws it is the adapter's business. A phone gets the
+ * list, which never downloads the calendar library.
+ */
 export function AgendaView(props: AgendaViewProps) {
   const { t } = useTranslation("common");
+  const narrow = useNarrowScreen();
+  if (narrow) return <AgendaList {...props} />;
   return (
     <Suspense fallback={<LoadingState label={t("loading")} />}>
       <EventCalendarAdapter {...props} />

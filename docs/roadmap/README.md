@@ -72,7 +72,7 @@ _Paralelo, no técnico:_ abrir la cuenta de Meta Business y solicitar la aprobac
 | [M2.03](../milestones/F2-agenda-interna/M2.03-clientes-e-importacion-csv.md) | Clientes en el panel e importación CSV | 12 | [M2.01](../milestones/F2-agenda-interna/M2.01-panel-de-catalogos.md) | ✅ |
 | [M2.04](../milestones/F2-agenda-interna/M2.04-branding-por-empresa.md) | Branding por empresa | 12 | M0.09, M0.12 | ✅ |
 | [M2.05](../milestones/F2-agenda-interna/M2.05-base-de-componentes.md) | Base de componentes del rediseño (modal, panel flotante, alto fijo, fecha y hora) | 13 | [M2.04](../milestones/F2-agenda-interna/M2.04-branding-por-empresa.md) | ✅ |
-| [M2.06](../milestones/F2-agenda-interna/M2.06-agenda-en-filas.md) | Agenda en filas (`ResourceTimeline`, vista Semana, lista en celular) | 14 | [M2.05](../milestones/F2-agenda-interna/M2.05-base-de-componentes.md) | ⬜ |
+| [M2.06](../milestones/F2-agenda-interna/M2.06-agenda-en-filas.md) | Agenda en filas (`ResourceTimeline`, vista Semana, lista en celular) | 14 | [M2.05](../milestones/F2-agenda-interna/M2.05-base-de-componentes.md) | ✅ |
 | [M2.07](../milestones/F2-agenda-interna/M2.07-catalogos-en-modal.md) | Catálogos en modal, selector de sucursal único y contacto del profesional | 14 | [M2.05](../milestones/F2-agenda-interna/M2.05-base-de-componentes.md) | ⬜ |
 | [M2.08](../milestones/F2-agenda-interna/M2.08-horarios-ficha-de-cliente-y-variacion-por-sucursal.md) | Horarios en bloques, ficha de cliente y variación por sucursal | 14 | M2.06, M2.07 | ⬜ |
 

@@ -22,6 +22,16 @@ export const appointmentCard = (page: Page, customer: string) =>
 
 export const sidePanel = (page: Page, name: string) => page.getByRole("complementary", { name });
 
+/**
+ * Opens an appointment's detail. The side panel floats over the agenda and may cover a late card, so whatever panel is
+ * open is closed first, with its own button.
+ */
+export async function openAppointment(page: Page, customer: string) {
+  const close = page.getByRole("button", { name: "Cerrar panel" });
+  if (await close.isVisible()) await close.click();
+  await appointmentCard(page, customer).click();
+}
+
 export async function openAgenda(page: Page, email: string, day: string) {
   await signIn(page, email);
   await expect(page.getByRole("navigation", { name: "Navegación principal" })).toBeVisible();
@@ -68,8 +78,7 @@ export async function bookNewCustomer(
 }
 
 export async function cancelAppointment(page: Page, customer: string) {
-  await page.keyboard.press("Escape");
-  await appointmentCard(page, customer).click();
+  await openAppointment(page, customer);
   const panel = sidePanel(page, customer);
   await panel.getByRole("button", { name: "Cancelar cita" }).click();
   await panel.getByRole("combobox", { name: "Motivo" }).click();
