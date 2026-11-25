@@ -254,12 +254,14 @@ describe("Servicios", () => {
       servicesBackend({ services: [{ ...corte, category: "Cortes" }] });
       const { user } = await openServices();
 
+      // The table renders after its query: wait for the row so the negative checks below see it.
+      const row = await screen.findByRole("button", { name: "Ver Corte clásico" });
       expect(await screen.findByText("Solo lectura")).toBeTruthy();
       expect(screen.queryByRole("button", { name: "Nuevo servicio" })).toBeNull();
       expect(screen.queryByRole("columnheader", { name: "Acciones" })).toBeNull();
       expect(screen.queryByRole("button", { name: /Archivar/ })).toBeNull();
 
-      await user.click(await screen.findByRole("button", { name: "Ver Corte clásico" }));
+      await user.click(row);
       const panel = await screen.findByRole("complementary", { name: "Corte clásico" });
 
       expect(panel.closest("[data-variant=floating]")).not.toBeNull();

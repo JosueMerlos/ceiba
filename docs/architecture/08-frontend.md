@@ -179,7 +179,7 @@ Base de [ADR-0043](../adr/0043-rediseno-v2-del-panel.md) para M2.06–M2.08. Rec
 - **Tests:** `renderWithI18n` usa `createI18n({ onMissingKey: "throw", preload: "all" })`, porque monta componentes sin
   su ruta; los tests que montan el panel completo (`createApp`) recorren la carga real por ruta.
 - **Booking** empaqueta su namespace en el arranque (`createBookingI18n`, con `bundled: { booking }` desde
-  `@ceiba/i18n/locales/booking`): son unos cientos de bytes y pedirlo aparte sumaría un viaje de red antes del primer
+  `@ceiba/i18n/locales/booking`, el único archivo del catálogo que el paquete exporta suelto): son unos cientos de bytes y pedirlo aparte sumaría un viaje de red antes del primer
   pintado en móvil.
 - Lo fijan `packages/i18n/test/i18n.test.ts`, `apps/panel/src/modules/lazy-page.test.tsx` y
   `apps/panel/src/app/build.test.ts` (ningún texto de un namespace de módulo viaja en el JS crítico).
