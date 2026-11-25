@@ -68,9 +68,7 @@ describe("freeSlots", () => {
   });
 
   it("hoy no ofrece lo que ya pasó: arranca en la próxima hora del paso", () => {
-    expect(
-      freeSlots({ ...base, busy: [busy("10:00", "11:00")], notBefore: 9 * 60 + 7 }),
-    ).toEqual([
+    expect(freeSlots({ ...base, busy: [busy("10:00", "11:00")], notBefore: 9 * 60 + 7 })).toEqual([
       { start: at("09:15"), minutes: 45 },
       { start: at("11:00"), minutes: 60 },
     ]);

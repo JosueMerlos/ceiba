@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { AgendaViewEvent } from "../components/agenda-view/types";
+import type { AgendaBlock } from "./agenda-model";
 import type { StatusTone } from "./agenda-status";
 
 const NONE: ReadonlySet<StatusTone> = new Set();
@@ -23,10 +24,21 @@ export function useStatusFilter(events: readonly AgendaViewEvent[], enabled: boo
       !enabled || hidden.size === 0 ? events : events.filter((event) => !hidden.has(event.tone)),
     [enabled, hidden, events],
   );
+  // Hiding an appointment does not free its time: a screen that offers gaps still treats it as taken.
+  const hiddenBusy = useMemo(
+    (): AgendaBlock[] =>
+      shown === events
+        ? []
+        : events
+            .filter((event) => hidden.has(event.tone))
+            .map(({ resourceId, start, end }) => ({ resourceId, start, end })),
+    [shown, events, hidden],
+  );
   return {
     counts,
     hidden,
     shown,
+    hiddenBusy,
     toggle(tone: StatusTone) {
       setHidden((current) => {
         const next = new Set(current);

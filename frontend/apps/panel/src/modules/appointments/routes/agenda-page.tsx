@@ -1,6 +1,6 @@
 import { useTranslation } from "@ceiba/i18n";
 import { LoadingState, PageBody, PageFrame, PageHeader } from "@ceiba/ui";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useContextSelection } from "../../../platform/context/context-provider";
 import { useMe } from "../../../platform/me/me-provider";
 import type { Branch } from "../api/catalog";
@@ -33,6 +33,9 @@ const shortDayFormat = new Intl.DateTimeFormat("es-NI", {
   month: "long",
   timeZone: "UTC",
 });
+
+const canCreateFromSlot = (canCreate: boolean, narrow: boolean, mode: string) =>
+  canCreate && !(narrow && mode === "resources");
 
 type SidePanel =
   | { kind: "arrivals" }
@@ -93,6 +96,13 @@ function BranchAgenda({ branch }: { branch: Branch }) {
     offersFreeGaps: narrow,
   });
   const filter = useStatusFilter(screen.events, !isWeek);
+  // The phone list offers free gaps: what the chips hide is still taken there.
+  const blocks = useMemo(
+    () => (narrow ? [...screen.blocks, ...filter.hiddenBusy] : screen.blocks),
+    [narrow, screen.blocks, filter.hiddenBusy],
+  );
+  // A gap tapped on a phone books with the person whose list it is; a resource's gap names no one to book with.
+  const booksFromSlot = canCreateFromSlot(permissions.canCreate, narrow, mode);
   const moveEvent = useMoveAppointment(branch.id, {
     changesProfessional: mode === "professionals",
   });
@@ -148,11 +158,11 @@ function BranchAgenda({ branch }: { branch: Branch }) {
                 timeZone={branch.time_zone}
                 resources={screen.viewResources}
                 events={filter.shown}
-                blocks={screen.blocks}
+                blocks={blocks}
                 range={screen.range}
                 stepMinutes={screen.stepMinutes}
                 now={screen.nowLine}
-                onSelectSlot={canCreate ? (slot) => setPanel({ kind: "new", slot }) : undefined}
+                onSelectSlot={booksFromSlot ? (slot) => setPanel({ kind: "new", slot }) : undefined}
                 onOpenEvent={(appointmentId) => setPanel({ kind: "detail", appointmentId })}
                 onMoveEvent={moveEvent}
               />

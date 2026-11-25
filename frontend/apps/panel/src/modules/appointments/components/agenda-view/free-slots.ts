@@ -28,7 +28,9 @@ function minutesFrom(date: PlainDate, wall: WallClock) {
 
 /**
  * The gaps of one person (or resource) on a day: open time with no appointment, closed hour or absence, at least
- * `minMinutes` long. Everything is the branch's wall clock.
+ * `minMinutes` long, and none before `notBefore` (the current minute, today) rounded up to that step. Everything is the
+ * branch's wall clock. Service buffers are not known here, so a gap right after an appointment may still be refused by
+ * the availability the booking form asks for.
  */
 export function freeSlots({
   resourceId,
@@ -36,12 +38,14 @@ export function freeSlots({
   range,
   busy,
   minMinutes,
+  notBefore = 0,
 }: {
   resourceId: string;
   date: PlainDate;
   range: MinuteRange;
   busy: readonly Busy[];
   minMinutes: number;
+  notBefore?: number;
 }): FreeSlot[] {
   const taken = busy
     .filter((item) => item.resourceId === resourceId)
@@ -49,7 +53,7 @@ export function freeSlots({
     .filter(([start, end]) => end > range.startMinute && start < range.endMinute)
     .sort((a, b) => a[0] - b[0]);
   const slots: FreeSlot[] = [];
-  let cursor = range.startMinute;
+  let cursor = Math.max(range.startMinute, Math.ceil(notBefore / minMinutes) * minMinutes);
   const keep = (until: number) => {
     if (until - cursor >= minMinutes) {
       slots.push({ start: `${date}T${clockOfMinutes(cursor)}`, minutes: until - cursor });

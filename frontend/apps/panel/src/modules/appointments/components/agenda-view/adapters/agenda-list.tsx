@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import {
   clockOfWall,
   minutesBetweenWalls,
+  minutesOfWall,
   wallClockToInstant,
   type WallClock,
 } from "../../../lib/agenda-time";
@@ -98,6 +99,7 @@ export default function AgendaList({
           range,
           busy: [...events, ...blocks],
           minMinutes: stepMinutes,
+          notBefore: now?.slice(0, 10) === date ? minutesOfWall(now) : 0,
         })
       : [];
   const rows = rowsOf({ events: shown, free, now, byDay: mode === "week" });
