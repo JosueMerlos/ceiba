@@ -3,7 +3,6 @@ import { toast } from "@ceiba/ui";
 import { useState } from "react";
 import { useCan } from "../../../platform/permissions/can";
 import type { Branch } from "../api/catalog";
-import { professionalOwnerApi } from "../api/owners";
 import { useProfessionalAssignment, type Professional } from "../api/professionals";
 import { useOrphanTimeOffs, type AssignConfirmation } from "../lib/use-orphan-time-offs";
 import { AssignBranchDialog } from "./assign-branch-dialog";
@@ -96,9 +95,7 @@ export function ProfessionalScheduleTab({
           />
           <OwnerScheduleTab
             key={active.id}
-            api={professionalOwnerApi}
-            ownerId={professional.id}
-            branch={active}
+            slots={branchTab.reads.schedule}
             writes={branchTab.writes}
             formId={branchTab.editable.schedule ? formId : undefined}
             onDirtyChange={onDirtyChange}

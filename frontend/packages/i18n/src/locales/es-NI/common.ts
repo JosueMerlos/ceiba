@@ -10,6 +10,10 @@ export const common = {
     description:
       "Esta pantalla muestra {{what}}. Elija cuál en el selector de contexto, arriba del menú.",
   },
+  noBranches: {
+    title: "Todavía no hay sucursales",
+    description: "Esta pantalla muestra {{what}}, y su empresa aún no tiene ninguna.",
+  },
   backToStart: "Volver al inicio",
   fields: {
     timeList: "Horas",

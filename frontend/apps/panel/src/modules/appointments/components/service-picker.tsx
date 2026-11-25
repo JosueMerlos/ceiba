@@ -78,6 +78,8 @@ export function ServicePicker({
     );
   }
 
+  // Paused services the professional provides stay in the set sent back, but the count is of what the list shows.
+  const listedSelected = services.filter((service) => chosen.has(service.id)).length;
   const needle = fold(query.trim());
   const visible = groups
     .map((group) => ({
@@ -150,7 +152,7 @@ export function ServicePicker({
           className="rounded-full"
           onClick={() => setOnlySelected((current) => !current)}
         >
-          {t("catalog.professionalServices.onlySelected", { count: selected.length })}
+          {t("catalog.professionalServices.onlySelected", { count: listedSelected })}
         </Button>
         <Button type="button" size="sm" variant="ghost" onClick={toggleAll}>
           {anyOpen

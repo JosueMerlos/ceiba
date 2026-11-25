@@ -1,11 +1,8 @@
 import type { Branch } from "../api/catalog";
-import type { OwnerApi, OwnerWrites } from "../api/owners";
+import type { OwnerReads, OwnerWrites } from "../api/owners";
 import { ScheduleSection, TimeOffsSection } from "./owner-sections";
 
 interface OwnerTabProps {
-  api: OwnerApi;
-  ownerId: string;
-  branch: Branch;
   /** Held by the modal, which shows their progress in the footer. */
   writes: OwnerWrites;
   onDirtyChange(dirty: boolean): void;
@@ -16,15 +13,12 @@ interface OwnerTabProps {
  * modal's form and the footer saves it; without it the hours are only shown.
  */
 export function OwnerScheduleTab({
-  api,
-  ownerId,
-  branch,
+  slots,
   writes,
   formId,
   onDirtyChange,
   onSaved,
-}: OwnerTabProps & { formId?: string; onSaved?(): void }) {
-  const slots = api.useSchedule(branch.id, ownerId);
+}: OwnerTabProps & { slots: OwnerReads["schedule"]; formId?: string; onSaved?(): void }) {
   if (!formId) return <ScheduleSection slots={slots} />;
   return (
     <ScheduleSection
@@ -39,15 +33,18 @@ export function OwnerScheduleTab({
 
 /** The absences of a professional or a resource in one branch: the footer adds the one typed in, removing is immediate. */
 export function OwnerTimeOffsTab({
-  api,
-  ownerId,
+  timeOffs,
   branch,
   writes,
   formId,
   onDirtyChange,
   onAdded,
-}: OwnerTabProps & { formId: string; onAdded?(): void }) {
-  const timeOffs = api.useTimeOffs(branch.id, ownerId);
+}: OwnerTabProps & {
+  timeOffs: OwnerReads["timeOffs"];
+  branch: Branch;
+  formId: string;
+  onAdded?(): void;
+}) {
   return (
     <TimeOffsSection
       timeOffs={timeOffs}

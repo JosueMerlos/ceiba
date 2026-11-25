@@ -68,6 +68,23 @@ export const resourceOwnerApi: OwnerApi = {
   useDeleteTimeOff: useDeleteResourceTimeOff,
 };
 
+/**
+ * The hours and absences of one owner in one branch, held by the modal: its footer offers a save only once the form
+ * these seed is on screen. Each stays off until its section is.
+ */
+export function useOwnerReads(
+  api: OwnerApi,
+  branchId: string,
+  ownerId: string,
+  enabled: { schedule: boolean; timeOffs: boolean },
+) {
+  const schedule = api.useSchedule(branchId, ownerId, { enabled: enabled.schedule });
+  const timeOffs = api.useTimeOffs(branchId, ownerId, { enabled: enabled.timeOffs });
+  return { schedule, timeOffs };
+}
+
+export type OwnerReads = ReturnType<typeof useOwnerReads>;
+
 /** The writes of one owner in one branch, held by the modal so its footer shows their progress. */
 export function useOwnerWrites(api: OwnerApi, branchId: string, ownerId: string) {
   const saveSchedule = api.usePutSchedule(branchId, ownerId);

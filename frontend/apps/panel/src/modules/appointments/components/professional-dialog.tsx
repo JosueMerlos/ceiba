@@ -39,6 +39,10 @@ export function useProfessionalSections(): Section[] {
   ];
 }
 
+/** Which of the branch tab's queries the section on screen needs. */
+const shownOwnerSection = (section: Section) =>
+  section === "branches" ? "schedule" : section === "timeOffs" ? "timeOffs" : null;
+
 interface ProfessionalDialogProps {
   /** Branches the user can see: a branch manager receives only theirs. */
   branches: readonly Branch[];
@@ -64,7 +68,7 @@ export function NewProfessionalDialog({ branches, onOpenChange }: ProfessionalDi
   const list = useProfessionalsQuery();
   // Assigning a branch refreshes the list: the steps after the profile read the professional from there.
   const live = list.data?.data.find((item) => item.id === created?.id) ?? created;
-  const branchTab = useProfessionalBranchTab(live, branches);
+  const branchTab = useProfessionalBranchTab(live, branches, shownOwnerSection(step));
 
   const saveProfile = (values: ProfessionalFormValues) =>
     createOrUpdate(flow, {
@@ -163,11 +167,12 @@ export function EditProfessionalDialog({
   const services = useEveryActiveServiceQuery({ enabled: tab === "services" });
   const update = useUpdateProfessional();
   const putServices = usePutProfessionalServices();
-  const branchTab = useProfessionalBranchTab(professional, branches);
+  const branchTab = useProfessionalBranchTab(professional, branches, shownOwnerSection(tab));
 
   async function saveProfile(values: ProfessionalFormValues) {
-    await update.mutateAsync({ id: professional.id, body: values });
+    const { data } = await update.mutateAsync({ id: professional.id, body: values });
     toast.success(t("catalog.professionals.updated"));
+    return data;
   }
 
   async function saveServices(serviceIds: string[]) {
@@ -179,7 +184,11 @@ export function EditProfessionalDialog({
   const footer = {
     // Without the loaded record there is no form for the footer to submit.
     profile: { editable: detail.isSuccess, pending: update.isPending },
-    services: { editable: services.isSuccess, pending: putServices.isPending },
+    // With no active service the picker has nothing to change, so a save would send the same set back.
+    services: {
+      editable: services.isSuccess && services.data.length > 0,
+      pending: putServices.isPending,
+    },
     branches: { editable: branchTab.editable.schedule, pending: branchTab.writes.pending.schedule },
     timeOffs: { editable: branchTab.editable.timeOffs, pending: branchTab.writes.pending.timeOffs },
   }[tab];

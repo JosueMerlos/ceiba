@@ -53,4 +53,5 @@ export async function createOrUpdate<Created extends { id: string }>(
   const result = flow.created ? await requests.update(flow.created.id) : await requests.create();
   flow.setCreated(result.data);
   flow.next();
+  return result.data;
 }

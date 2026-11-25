@@ -29,7 +29,7 @@ interface ProfessionalFormProps {
   /** Absent = create. */
   professional?: ProfessionalDetail;
   /** Rejects with the API error; the form shows it (422 on its fields, anything else as a form-level message). */
-  onSubmit(values: ProfessionalFormValues): Promise<unknown>;
+  onSubmit(values: ProfessionalFormValues): Promise<ProfessionalDetail>;
   onDirtyChange?(dirty: boolean): void;
   /** Shows and sends the phone and email. The contact is personal data: the caller decides who may see it. */
   withContact: boolean;
@@ -69,7 +69,7 @@ export function ProfessionalForm({
 
   const submit = form.handleSubmit(async (values) => {
     try {
-      await onSubmit({
+      const saved = await onSubmit({
         display_name: values.display_name.trim(),
         active: values.active,
         // Blank means "no contact": the API clears it with null.
@@ -77,8 +77,13 @@ export function ProfessionalForm({
           ? { phone: values.phone.trim() || null, email: values.email.trim() || null }
           : {}),
       });
-      // What was just saved is the new baseline: the modal stops counting it as unsaved.
-      form.reset(values);
+      // The server's version is the new baseline (it normalizes the phone and the email), not what was typed.
+      form.reset({
+        display_name: saved.display_name,
+        active: saved.active,
+        phone: withContact ? (saved.phone ?? "") : values.phone,
+        email: withContact ? (saved.email ?? "") : values.email,
+      });
     } catch (error) {
       reportSubmitError(error, form.setError, t, {
         display_name: "display_name",

@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { useCan } from "../../../platform/permissions/can";
 import { useFormDialogLabels } from "../../../platform/ui/use-form-dialog-labels";
 import type { Branch } from "../api/catalog";
-import { resourceOwnerApi, useOwnerWrites } from "../api/owners";
+import { resourceOwnerApi, useOwnerReads, useOwnerWrites } from "../api/owners";
 import { useCreateResource, useUpdateResource, type Resource } from "../api/resources";
 import { createOrUpdate, useCreationSteps } from "../lib/use-creation-steps";
 import { useOwnerAccess } from "./owner-sections";
@@ -43,6 +43,10 @@ export function NewResourceDialog({ branch, onOpenChange }: ResourceDialogProps)
 
   const create = useCreateResource(branch.id);
   const update = useUpdateResource(branch.id);
+  const reads = useOwnerReads(resourceOwnerApi, branch.id, created?.id ?? "", {
+    schedule: created !== null && step === "schedule",
+    timeOffs: false,
+  });
   const writes = useOwnerWrites(resourceOwnerApi, branch.id, created?.id ?? "");
 
   const saveData = (values: ResourceFormValues) =>
@@ -80,9 +84,7 @@ export function NewResourceDialog({ branch, onOpenChange }: ResourceDialogProps)
       ) : null}
       {created && step === "schedule" ? (
         <OwnerScheduleTab
-          api={resourceOwnerApi}
-          ownerId={created.id}
-          branch={branch}
+          slots={reads.schedule}
           writes={writes}
           formId={formId}
           onDirtyChange={flow.setDirty}
@@ -107,6 +109,10 @@ export function EditResourceDialog({
   const [dirty, setDirty] = useState(false);
 
   const update = useUpdateResource(branch.id);
+  const reads = useOwnerReads(resourceOwnerApi, branch.id, resource.id, {
+    schedule: tab === "schedule",
+    timeOffs: tab === "timeOffs",
+  });
   const writes = useOwnerWrites(resourceOwnerApi, branch.id, resource.id);
 
   async function saveData(values: ResourceFormValues) {
@@ -114,12 +120,20 @@ export function EditResourceDialog({
     toast.success(t("catalog.resources.updated"));
   }
 
+  // Hours and absences have a form only once their data loaded: until then the footer has nothing to submit.
   const footer = {
-    data: { label: t("catalog.resourceForm.save"), pending: update.isPending },
-    schedule: { label: t("catalog.schedule.save"), pending: writes.pending.schedule },
-    timeOffs: { label: t("catalog.timeOffForm.create"), pending: writes.pending.timeOffs },
+    data: { editable: true, label: t("catalog.resourceForm.save"), pending: update.isPending },
+    schedule: {
+      editable: reads.schedule.isSuccess,
+      label: t("catalog.schedule.save"),
+      pending: writes.pending.schedule,
+    },
+    timeOffs: {
+      editable: reads.timeOffs.isSuccess,
+      label: t("catalog.timeOffForm.create"),
+      pending: writes.pending.timeOffs,
+    },
   }[tab];
-  const ownerTab = { api: resourceOwnerApi, ownerId: resource.id, branch, writes, formId };
 
   return (
     <FormDialog
@@ -134,7 +148,7 @@ export function EditResourceDialog({
         setDirty(false);
       }}
       dirty={dirty}
-      formId={formId}
+      formId={footer.editable ? formId : undefined}
       saveLabel={footer.label}
       pending={footer.pending}
     >
@@ -146,8 +160,23 @@ export function EditResourceDialog({
           onDirtyChange={setDirty}
         />
       ) : null}
-      {tab === "schedule" ? <OwnerScheduleTab {...ownerTab} onDirtyChange={setDirty} /> : null}
-      {tab === "timeOffs" ? <OwnerTimeOffsTab {...ownerTab} onDirtyChange={setDirty} /> : null}
+      {tab === "schedule" ? (
+        <OwnerScheduleTab
+          slots={reads.schedule}
+          writes={writes}
+          formId={formId}
+          onDirtyChange={setDirty}
+        />
+      ) : null}
+      {tab === "timeOffs" ? (
+        <OwnerTimeOffsTab
+          timeOffs={reads.timeOffs}
+          branch={branch}
+          writes={writes}
+          formId={formId}
+          onDirtyChange={setDirty}
+        />
+      ) : null}
     </FormDialog>
   );
 }

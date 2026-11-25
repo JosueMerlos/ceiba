@@ -1,7 +1,6 @@
 import { useTranslation } from "@ceiba/i18n";
 import { useContextBranch } from "../../../platform/context/use-context-branch";
 import type { Branch } from "../api/catalog";
-import { professionalOwnerApi } from "../api/owners";
 import type { Professional } from "../api/professionals";
 import { DEFAULT_TIME_ZONE } from "../lib/time-zones";
 import { useOrphanTimeOffs } from "../lib/use-orphan-time-offs";
@@ -77,8 +76,7 @@ export function ProfessionalTimeOffsTab({
           </p>
           <OwnerTimeOffsTab
             key={active.id}
-            api={professionalOwnerApi}
-            ownerId={professional.id}
+            timeOffs={branchTab.reads.timeOffs}
             branch={active}
             writes={branchTab.writes}
             formId={formId}
