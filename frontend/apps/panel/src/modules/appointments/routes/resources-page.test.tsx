@@ -1,6 +1,17 @@
 import { screen, waitFor, within } from "@testing-library/react";
+import { delay, http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { branch, ids, meFixture, resource, scheduleSlot, timeOff } from "../../../test/fixtures";
+import { CATALOG } from "../../../test/catalog-backend";
+import {
+  API,
+  branch,
+  ids,
+  meFixture,
+  problem,
+  resource,
+  scheduleSlot,
+  timeOff,
+} from "../../../test/fixtures";
 import { renderApp } from "../../../test/render-app";
 import { fillWallClock } from "../../../test/date-time-fields";
 import { server, signedInBackend } from "../../../test/server";
@@ -173,6 +184,44 @@ describe("Recursos", () => {
       expect(within(dialog).getAllByRole("button", { name: "Agregar ausencia" })).toHaveLength(1);
     });
 
+    it("mientras carga el horario, Horario muestra la carga y no ofrece guardar", async () => {
+      asManager();
+      staffBackend({ resources: [sillon] });
+      server.use(
+        http.get(
+          `${CATALOG}/appointments/branches/:branchId/resources/:ownerId/schedule`,
+          async () => {
+            await delay("infinite");
+            return HttpResponse.json({});
+          },
+        ),
+      );
+      const { user } = await openResources();
+
+      const dialog = await openEdit(user);
+      const tabs = within(dialog).getByRole("tablist", { name: "Secciones" });
+      await user.click(within(tabs).getByRole("tab", { name: "Horario" }));
+      expect(await within(dialog).findByRole("status")).toBeTruthy();
+      expect(within(dialog).queryByRole("button", { name: /guardar/i })).toBeNull();
+    });
+
+    it("si las ausencias fallan, Ausencias muestra el error con reintentar y no ofrece agregar", async () => {
+      asManager();
+      staffBackend({ resources: [sillon] });
+      server.use(
+        http.get(`${CATALOG}/appointments/branches/:branchId/resources/:ownerId/time_offs`, () =>
+          HttpResponse.json(problem(500, "internal"), { status: 500 }),
+        ),
+      );
+      const { user } = await openResources();
+
+      const dialog = await openEdit(user);
+      const tabs = within(dialog).getByRole("tablist", { name: "Secciones" });
+      await user.click(within(tabs).getByRole("tab", { name: "Ausencias" }));
+      expect(await within(dialog).findByRole("button", { name: "Reintentar" })).toBeTruthy();
+      expect(within(dialog).queryByRole("button", { name: /agregar ausencia/i })).toBeNull();
+    });
+
     it("Datos guarda por PATCH y el recurso se archiva desde la tabla", async () => {
       asManager();
       const backend = staffBackend({ resources: [sillon] });
@@ -287,6 +336,43 @@ describe("Recursos", () => {
     expect(screen.queryByRole("table")).toBeNull();
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.queryByRole("button", { name: "Nuevo recurso" })).toBeNull();
+  });
+
+  it("si las sucursales no cargan, muestra el encabezado y el error con reintentar, no una página en blanco", async () => {
+    signedInBackend({
+      me: meFixture({
+        role: "company_manager",
+        permissions: STAFF_MANAGER_PERMISSIONS,
+        branch: null,
+      }),
+      branches: [centro, norte],
+    });
+    staffBackend({ resources: [sillon] });
+    server.use(
+      http.get(`${API}/api/v1/organizations/:org/companies/:company/branches`, () =>
+        HttpResponse.json(problem(500, "internal"), { status: 500 }),
+      ),
+    );
+    await openResources();
+
+    expect(await screen.findByRole("button", { name: "Reintentar" })).toBeTruthy();
+    expect(screen.queryByRole("table")).toBeNull();
+  });
+
+  it("una empresa sin sucursales ve el encabezado y un estado vacío que lo explica", async () => {
+    signedInBackend({
+      me: meFixture({
+        role: "company_manager",
+        permissions: STAFF_MANAGER_PERMISSIONS,
+        branch: null,
+      }),
+      branches: [],
+    });
+    staffBackend({ resources: [sillon] });
+    await openResources();
+
+    expect(await screen.findByRole("heading", { name: "Todavía no hay sucursales" })).toBeTruthy();
+    expect(screen.queryByRole("table")).toBeNull();
   });
 
   it("recepción (AC8): sin crear ni acciones; la fila abre el detalle flotante de lectura, sin modal ni formularios", async () => {

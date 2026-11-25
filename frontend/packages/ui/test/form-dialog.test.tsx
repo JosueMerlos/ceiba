@@ -56,7 +56,15 @@ const STEPS = [
   { id: "ausencias", label: "Ausencias", optional: true },
 ];
 
-function StepsHarness({ onSkip, note }: { onSkip?: () => void; note?: string }) {
+function StepsHarness({
+  onSkip,
+  note,
+  pending,
+}: {
+  onSkip?: () => void;
+  note?: string;
+  pending?: boolean;
+}) {
   const [step, setStep] = useState("perfil");
   const index = STEPS.findIndex((item) => item.id === step);
   return (
@@ -79,6 +87,7 @@ function StepsHarness({ onSkip, note }: { onSkip?: () => void; note?: string }) 
       finishLabel="Terminar"
       stepsLabel="Pasos"
       note={note}
+      pending={pending}
     >
       <form
         id="form-paso"
@@ -233,6 +242,21 @@ describe("FormDialog en modo pasos", () => {
 
     await user.click(within(steps()).getByRole("button", { name: "Atrás" }));
     expect(within(steps()).getByLabelText("Campo de servicios")).toBeTruthy();
+  });
+
+  it("mientras el paso se guarda, Omitir y Atrás quedan deshabilitados", async () => {
+    const { rerender } = render(<StepsHarness />);
+    const user = userEvent.setup();
+    await user.click(within(steps()).getByRole("button", { name: "Continuar" }));
+
+    rerender(<StepsHarness pending />);
+
+    expect(
+      within(steps()).getByRole("button", { name: "Omitir por ahora" }).hasAttribute("disabled"),
+    ).toBe(true);
+    expect(within(steps()).getByRole("button", { name: "Atrás" }).hasAttribute("disabled")).toBe(
+      true,
+    );
   });
 
   it("en el último paso el botón principal dice Terminar", async () => {

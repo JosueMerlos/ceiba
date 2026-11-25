@@ -433,6 +433,125 @@ describe("Profesionales: edición en pestañas", () => {
     expect(within(dialog).queryByRole("button", { name: /guardar/i })).toBeNull();
   });
 
+  it("Perfil, tras guardar, queda con lo que devolvió el servidor (teléfono E.164, correo en minúsculas)", async () => {
+    asCompanyManager();
+    servicesBackend();
+    staffBackend({ professionals: [efrain], contacts: { p1: { phone: null, email: null } } });
+    server.use(
+      http.patch(`${CATALOG}/appointments/professionals/:id`, () =>
+        HttpResponse.json({
+          data: { ...efrain, phone: "+50588881234", email: "efrain@ej.com" },
+        }),
+      ),
+    );
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    const phone = await within(dialog).findByLabelText("Teléfono (opcional)");
+    await user.type(phone, "8888 1234");
+    await user.type(within(dialog).getByLabelText("Correo (opcional)"), "Efrain@Ej.com");
+    await user.click(within(footerOf(dialog)).getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => expect(phone).toHaveProperty("value", "+50588881234"));
+    expect(within(dialog).getByLabelText("Correo (opcional)")).toHaveProperty(
+      "value",
+      "efrain@ej.com",
+    );
+  });
+
+  it("sin servicios activos, Servicios lo dice y no ofrece un guardar que no cambia nada", async () => {
+    asCompanyManager();
+    servicesBackend({ services: [] });
+    staffBackend({ professionals: [efrain] });
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    await within(dialog).findByLabelText("Nombre para mostrar");
+    await openTab(user, dialog, "Servicios");
+    expect(await within(dialog).findByText(/Todavía no hay servicios activos/)).toBeTruthy();
+    expect(within(dialog).queryByRole("button", { name: /guardar/i })).toBeNull();
+  });
+
+  it("«Solo seleccionados» cuenta solo los servicios de la lista, no los pausados que presta", async () => {
+    asCompanyManager();
+    servicesBackend({ services: [corte, barba] });
+    staffBackend({ professionals: [{ ...efrain, service_ids: ["s1", "s9-pausado"] }] });
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    await within(dialog).findByLabelText("Nombre para mostrar");
+    await openTab(user, dialog, "Servicios");
+    expect(
+      await within(dialog).findByRole("button", { name: "Solo seleccionados · 1" }),
+    ).toBeTruthy();
+  });
+
+  it("mientras carga el horario, Sucursal y horario muestra la carga y no ofrece guardar", async () => {
+    asBranchManager();
+    servicesBackend();
+    staffBackend({ professionals: [efrain] });
+    server.use(
+      http.get(
+        `${CATALOG}/appointments/branches/:branchId/professionals/:ownerId/schedule`,
+        async () => {
+          await delay("infinite");
+          return HttpResponse.json({});
+        },
+      ),
+    );
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    await within(dialog).findByRole("checkbox", { name: "Sucursal Centro" });
+    expect(await within(dialog).findByRole("status")).toBeTruthy();
+    expect(within(dialog).queryByRole("button", { name: /guardar/i })).toBeNull();
+  });
+
+  it("si el horario falla, Sucursal y horario muestra el error con reintentar y no ofrece guardar", async () => {
+    asBranchManager();
+    servicesBackend();
+    staffBackend({ professionals: [efrain] });
+    server.use(
+      http.get(`${CATALOG}/appointments/branches/:branchId/professionals/:ownerId/schedule`, () =>
+        HttpResponse.json(problem(500, "internal"), { status: 500 }),
+      ),
+    );
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    expect(await within(dialog).findByRole("button", { name: "Reintentar" })).toBeTruthy();
+    expect(within(dialog).queryByRole("button", { name: /guardar/i })).toBeNull();
+  });
+
+  it("con schedule.manage pero sin schedule.read no hay horario a la vista ni un guardar", async () => {
+    asBranchManager(BRANCH_MANAGER.filter((item) => item !== "appointments.schedule.read"));
+    servicesBackend();
+    staffBackend({ professionals: [efrain] });
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    await within(dialog).findByRole("checkbox", { name: "Sucursal Centro" });
+    expect(within(dialog).queryByRole("group", { name: "Lunes" })).toBeNull();
+    expect(within(dialog).queryByRole("button", { name: /guardar/i })).toBeNull();
+  });
+
+  it("si las ausencias fallan, Ausencias muestra el error con reintentar y no ofrece agregar", async () => {
+    asBranchManager();
+    servicesBackend();
+    staffBackend({ professionals: [efrain] });
+    server.use(
+      http.get(`${CATALOG}/appointments/branches/:branchId/professionals/:ownerId/time_offs`, () =>
+        HttpResponse.json(problem(500, "internal"), { status: 500 }),
+      ),
+    );
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    await openTab(user, dialog, "Ausencias");
+    expect(await within(dialog).findByRole("button", { name: "Reintentar" })).toBeTruthy();
+    expect(within(dialog).queryByRole("button", { name: /agregar ausencia/i })).toBeNull();
+  });
+
   it("el gerente de sucursal solo ve Sucursal y horario y Ausencias, sin contacto ni lectura de la ficha", async () => {
     asBranchManager();
     servicesBackend({ services: [corte] });
