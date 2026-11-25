@@ -26,7 +26,7 @@ import {
   type Customer,
   type CustomerInput,
 } from "./api";
-import { ChooseBranchNotice } from "../context/choose-branch-notice";
+import { ContextBranchGate } from "../context/context-branch-gate";
 import { useContextBranch } from "../context/use-context-branch";
 import { CustomerDialog } from "./customer-dialog";
 import { formatPhone } from "./lib";
@@ -44,14 +44,11 @@ export function CustomersPage() {
   return (
     <>
       <CustomersHeader onNew={working.branch ? () => setCreating(true) : undefined} />
-      {working.needsChoice ? <ChooseBranchNotice what={t("branchScope")} /> : null}
-      {working.branch ? (
-        <CustomersList
-          branchId={working.branch.id}
-          creating={creating}
-          onCreatingChange={setCreating}
-        />
-      ) : null}
+      <ContextBranchGate what={t("branchScope")}>
+        {(branch) => (
+          <CustomersList branchId={branch.id} creating={creating} onCreatingChange={setCreating} />
+        )}
+      </ContextBranchGate>
     </>
   );
 }

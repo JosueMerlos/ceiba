@@ -1,8 +1,7 @@
 import { useTranslation } from "@ceiba/i18n";
 import { LoadingState, PageBody, PageFrame, PageHeader } from "@ceiba/ui";
 import { useEffect, useId, useMemo, useState } from "react";
-import { ChooseBranchNotice } from "../../../platform/context/choose-branch-notice";
-import { useContextBranch } from "../../../platform/context/use-context-branch";
+import { ContextBranchGate } from "../../../platform/context/context-branch-gate";
 import { useMe } from "../../../platform/me/me-provider";
 import type { Branch } from "../api/catalog";
 import { AppointmentDetailPanel } from "../components/agenda/appointment-detail-panel";
@@ -45,17 +44,14 @@ type SidePanel =
 export function AgendaPage() {
   const { t } = useTranslation("appointments");
   // The branch comes only from the global selector: /me's permissions depend on the context's branch.
-  const working = useContextBranch();
-
-  if (working.needsChoice) {
-    return (
-      <>
-        <PageHeader title={t("agenda.title")} />
-        <ChooseBranchNotice what={t("catalog.branchScope.agenda")} />
-      </>
-    );
-  }
-  return working.branch ? <BranchAgenda key={working.branch.id} branch={working.branch} /> : null;
+  return (
+    <ContextBranchGate
+      what={t("catalog.branchScope.agenda")}
+      header={<PageHeader title={t("agenda.title")} />}
+    >
+      {(branch) => <BranchAgenda key={branch.id} branch={branch} />}
+    </ContextBranchGate>
+  );
 }
 
 function BranchAgenda({ branch }: { branch: Branch }) {

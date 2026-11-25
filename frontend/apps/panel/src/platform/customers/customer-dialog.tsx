@@ -1,6 +1,7 @@
 import { useTranslation } from "@ceiba/i18n";
 import { Button, FormDialog } from "@ceiba/ui";
 import { useId } from "react";
+import { useFormDialogLabels } from "../ui/use-form-dialog-labels";
 import type { Customer, CustomerPatch } from "./api";
 import { CustomerForm } from "./customer-form";
 
@@ -24,14 +25,15 @@ export function CustomerDialog({
   pending,
   onSubmit,
 }: CustomerDialogProps) {
-  const { t } = useTranslation(["customers", "common"]);
+  const { t } = useTranslation("customers");
+  const labels = useFormDialogLabels();
   const formId = useId();
   return (
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
       title={title}
-      closeLabel={t("common:close")}
+      {...labels.plain}
       className="sm:max-w-xl"
       footer={
         <Button type="submit" form={formId} loading={pending}>

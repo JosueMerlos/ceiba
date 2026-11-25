@@ -29,8 +29,7 @@ import {
   type Customer,
   type CustomerAppointment,
 } from "./api";
-import { ChooseBranchNotice } from "../context/choose-branch-notice";
-import { useContextBranch } from "../context/use-context-branch";
+import { ContextBranchGate } from "../context/context-branch-gate";
 import { CustomerDialog } from "./customer-dialog";
 import { formatMonth, formatPhone, localDate } from "./lib";
 
@@ -52,14 +51,12 @@ const UPCOMING: readonly Status[] = ["scheduled", "confirmed"];
 export function CustomerPage() {
   const { t } = useTranslation("customers");
   const can = useCan();
-  const working = useContextBranch();
   if (!can("platform.customer.read")) return <ForbiddenPage />;
 
   return (
-    <>
-      {working.needsChoice ? <ChooseBranchNotice what={t("profile.branchScope")} /> : null}
-      {working.branch ? <CustomerProfile branch={working.branch} /> : null}
-    </>
+    <ContextBranchGate what={t("profile.branchScope")}>
+      {(branch) => <CustomerProfile branch={branch} />}
+    </ContextBranchGate>
   );
 }
 

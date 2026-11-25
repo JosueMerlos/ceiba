@@ -9,8 +9,7 @@ const centro = branch(ids.branchA, ids.companyA, "Sucursal Centro");
 const norte = branch(ids.branchA2, ids.companyA, "Sucursal Norte");
 
 function Probe() {
-  const { branch: current, needsChoice, loading } = useContextBranch();
-  if (loading) return <p>cargando</p>;
+  const { branch: current, needsChoice } = useContextBranch();
   return <p>{`sucursal=${current?.name ?? "ninguna"};elegir=${String(needsChoice)}`}</p>;
 }
 
