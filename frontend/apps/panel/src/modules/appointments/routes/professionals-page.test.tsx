@@ -1,11 +1,12 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { CATALOG, servicesBackend } from "../../../test/catalog-backend";
 import {
   branch,
   ids,
   meFixture,
+  problem,
   professional,
   scheduleSlot,
   service,
@@ -378,6 +379,58 @@ describe("Profesionales: edición en pestañas", () => {
         email: "efrain@ej.com",
       },
     });
+  });
+
+  it("mientras carga la ficha, Perfil muestra la carga y no ofrece guardar", async () => {
+    asCompanyManager();
+    servicesBackend();
+    staffBackend({ professionals: [efrain] });
+    server.use(
+      http.get(`${CATALOG}/appointments/professionals/:id`, async () => {
+        await delay("infinite");
+        return HttpResponse.json({});
+      }),
+    );
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    expect(await within(dialog).findByRole("status")).toBeTruthy();
+    expect(within(dialog).queryByLabelText("Nombre para mostrar")).toBeNull();
+    expect(within(dialog).queryByRole("button", { name: /guardar/i })).toBeNull();
+  });
+
+  it("si la ficha falla, Perfil muestra el error con reintentar y no ofrece guardar", async () => {
+    asCompanyManager();
+    servicesBackend();
+    staffBackend({ professionals: [efrain] });
+    server.use(
+      http.get(`${CATALOG}/appointments/professionals/:id`, () =>
+        HttpResponse.json(problem(500, "internal"), { status: 500 }),
+      ),
+    );
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    expect(await within(dialog).findByRole("button", { name: "Reintentar" })).toBeTruthy();
+    expect(within(dialog).getByRole("alert")).toBeTruthy();
+    expect(within(dialog).queryByRole("button", { name: /guardar/i })).toBeNull();
+  });
+
+  it("si los servicios fallan, la pestaña Servicios muestra el error con reintentar y no ofrece guardar", async () => {
+    asCompanyManager();
+    staffBackend({ professionals: [efrain] });
+    server.use(
+      http.get(`${CATALOG}/appointments/services`, () =>
+        HttpResponse.json(problem(500, "internal"), { status: 500 }),
+      ),
+    );
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    await within(dialog).findByLabelText("Nombre para mostrar");
+    await openTab(user, dialog, "Servicios");
+    expect(await within(dialog).findByRole("button", { name: "Reintentar" })).toBeTruthy();
+    expect(within(dialog).queryByRole("button", { name: /guardar/i })).toBeNull();
   });
 
   it("el gerente de sucursal solo ve Sucursal y horario y Ausencias, sin contacto ni lectura de la ficha", async () => {
