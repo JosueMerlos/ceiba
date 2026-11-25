@@ -133,7 +133,8 @@ test("AC1-AC4 company_manager: crea el profesional en pasos, omite el resto y ed
   await expect(steps).toHaveCount(0);
   await expect(page.getByRole("button", { name: `Ver ${professionalName}` })).toBeVisible();
 
-  // Edit: tabs, the phone comes back in E.164, and every tab has exactly one save action.
+  // Edit: tabs, the phone comes back in E.164, and every tab with a form has exactly one save action. With no
+  // branch yet, the branch and absence tabs have nothing to save, so their footer offers no button.
   await page.getByRole("button", { name: `Ver ${professionalName}` }).click();
   await page
     .getByRole("complementary", { name: professionalName })
@@ -144,10 +145,11 @@ test("AC1-AC4 company_manager: crea el profesional en pasos, omite el resto y ed
   await expect(edit.getByLabel("Correo (opcional)")).toHaveValue(professionalEmail);
   const tabs = edit.getByRole("tab");
   await expect(tabs).toHaveText(["Perfil", "Servicios", "Sucursal y horario", "Ausencias"]);
-  for (const tab of ["Perfil", "Servicios", "Sucursal y horario", "Ausencias"]) {
+  const saveCount = { Perfil: 1, Servicios: 1, "Sucursal y horario": 0, Ausencias: 0 };
+  for (const [tab, count] of Object.entries(saveCount)) {
     await edit.getByRole("tab", { name: tab }).click();
     await expect(edit.getByRole("tab", { name: tab })).toHaveAttribute("aria-selected", "true");
-    await expect(saveButtons(edit), `one save action on ${tab}`).toHaveCount(1);
+    await expect(saveButtons(edit), `${count} save action on ${tab}`).toHaveCount(count);
   }
   await edit.getByRole("tab", { name: "Perfil" }).click();
   await shot(page, testInfo, "m2.07-03-empresa-editar-perfil-e164");
