@@ -94,6 +94,7 @@ interface AgendaBackendOptions {
   /** Opening hours; left out, the branch and everyone have none, so the whole day is closed. */
   branchSchedule?: WeeklySlot[];
   professionalSchedules?: Record<string, WeeklySlot[]>;
+  resourceSchedules?: Record<string, WeeklySlot[]>;
 }
 
 type WeeklySlot = { id: string; weekday: number; starts_at_local: string; ends_at_local: string };
@@ -118,6 +119,7 @@ export function agendaBackend({
   branchId = ids.branchA,
   branchSchedule = [],
   professionalSchedules = {},
+  resourceSchedules = {},
 }: AgendaBackendOptions = {}) {
   const state = {
     appointmentQueries: [] as URLSearchParams[],
@@ -230,7 +232,9 @@ export function agendaBackend({
       state.scheduleOwners.push(String(params.id));
       return HttpResponse.json({ data: professionalSchedules[String(params.id)] ?? [] });
     }),
-    http.get(`${BRANCH(branchId)}/resources/:id/schedule`, () => HttpResponse.json({ data: [] })),
+    http.get(`${BRANCH(branchId)}/resources/:id/schedule`, ({ params }) =>
+      HttpResponse.json({ data: resourceSchedules[String(params.id)] ?? [] }),
+    ),
     http.get(`${BRANCH(branchId)}/professionals/:id/time_offs`, () => HttpResponse.json(page([]))),
     http.get(`${BRANCH(branchId)}/resources/:id/time_offs`, () => HttpResponse.json(page([]))),
   );

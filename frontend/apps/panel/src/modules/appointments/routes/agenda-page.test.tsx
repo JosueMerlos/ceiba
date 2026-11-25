@@ -518,6 +518,47 @@ describe("Agenda: celular", () => {
     expect(screen.queryByRole("group", { name: "Densidad" })).toBeNull();
   });
 
+  const wednesdayHours = (id: string) => [
+    { id, weekday: 3, starts_at_local: "09:00", ends_at_local: "17:00" },
+  ];
+
+  it("una cita oculta con los chips sigue ocupando su hueco", async () => {
+    narrowScreen();
+    asReception();
+    agendaBackend({
+      // 9:00 to 9:45 in Managua, Luis's.
+      appointments: [agendaAppointment({ professional_id: "p2" })],
+      branchSchedule: wednesdayHours("b"),
+      professionalSchedules: { p2: wednesdayHours("l") },
+    });
+    const { user } = await renderApp({ route });
+    const people = await screen.findByRole("group", { name: "Profesional" });
+    await user.click(within(people).getByRole("button", { name: /Luis Pérez/ }));
+    await screen.findAllByRole("button", { name: /^Libre/ });
+
+    const filters = screen.getByRole("group", { name: "Filtrar por estado" });
+    await user.click(within(filters).getByRole("button", { name: /^Confirmada/ }));
+
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Ana Ruiz/ })).toBeNull());
+    const gaps = screen.getAllByRole("button", { name: /^Libre/ });
+    expect(gaps[0]?.getAttribute("aria-label")).toContain("9:45");
+  });
+
+  it("en la vista por recurso los huecos se ven pero no abren una cita sin recurso", async () => {
+    narrowScreen();
+    asReception();
+    agendaBackend({
+      appointments: [agendaAppointment({ resource_id: "r1" })],
+      branchSchedule: wednesdayHours("b"),
+      resourceSchedules: { r1: wednesdayHours("r") },
+    });
+    await renderApp({ route: `${route}&view=resources` });
+
+    expect(await screen.findByRole("button", { name: /Ana Ruiz/ })).toBeTruthy();
+    expect((await screen.findAllByText(/^Libre/)).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /^Libre/ })).toBeNull();
+  });
+
   it("tocar un hueco libre abre Nueva cita con ese profesional y esa hora", async () => {
     narrowScreen();
     asReception();
