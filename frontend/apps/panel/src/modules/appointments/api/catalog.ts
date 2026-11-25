@@ -65,12 +65,13 @@ export function everyServiceQuery(
 }
 
 /** Every bookable service (all pages, active only): what can be given to a professional. */
-export function useEveryActiveServiceQuery() {
+export function useEveryActiveServiceQuery({ enabled = true } = {}) {
   const client = useApiClient();
   const scope = useCatalogScope();
   return useQuery({
     ...everyServiceQuery(client, scope, false),
     select: (services: Service[]) => services.filter((service) => service.active),
+    enabled,
   });
 }
 

@@ -1,9 +1,11 @@
 import { useTranslation } from "@ceiba/i18n";
 import { FormDialog, toast } from "@ceiba/ui";
+import type { UseQueryResult } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { useCan } from "../../../platform/permissions/can";
+import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { useFormDialogLabels } from "../../../platform/ui/use-form-dialog-labels";
-import { useEveryActiveServiceQuery, type Branch } from "../api/catalog";
+import { useEveryActiveServiceQuery, type Branch, type Service } from "../api/catalog";
 import {
   useCreateProfessional,
   useProfessionalQuery,
@@ -58,6 +60,7 @@ export function NewProfessionalDialog({ branches, onOpenChange }: ProfessionalDi
   const create = useCreateProfessional();
   const update = useUpdateProfessional();
   const putServices = usePutProfessionalServices();
+  const services = useEveryActiveServiceQuery({ enabled: step === "services" });
   const list = useProfessionalsQuery();
   // Assigning a branch refreshes the list: the steps after the profile read the professional from there.
   const live = list.data?.data.find((item) => item.id === created?.id) ?? created;
@@ -125,6 +128,7 @@ export function NewProfessionalDialog({ branches, onOpenChange }: ProfessionalDi
       {live && step === "services" ? (
         <ServicesStep
           formId={formId}
+          services={services}
           professional={live}
           onSubmit={saveServices}
           onDirtyChange={flow.setDirty}
@@ -156,6 +160,7 @@ export function EditProfessionalDialog({
   const withContact = sections.includes("profile");
 
   const detail = useProfessionalQuery(professional.id, { enabled: withContact });
+  const services = useEveryActiveServiceQuery({ enabled: tab === "services" });
   const update = useUpdateProfessional();
   const putServices = usePutProfessionalServices();
   const branchTab = useProfessionalBranchTab(professional, branches);
@@ -172,8 +177,9 @@ export function EditProfessionalDialog({
 
   const label = (id: Section) => t(`catalog.professionals.sections.${id}`);
   const footer = {
-    profile: { editable: true, pending: update.isPending },
-    services: { editable: true, pending: putServices.isPending },
+    // Without the loaded record there is no form for the footer to submit.
+    profile: { editable: detail.isSuccess, pending: update.isPending },
+    services: { editable: services.isSuccess, pending: putServices.isPending },
     branches: { editable: branchTab.editable.schedule, pending: branchTab.writes.pending.schedule },
     timeOffs: { editable: branchTab.editable.timeOffs, pending: branchTab.writes.pending.timeOffs },
   }[tab];
@@ -197,18 +203,23 @@ export function EditProfessionalDialog({
       pending={footer.pending}
       note={t("common:formDialog.tabNote", { tab: label(tab) })}
     >
-      {tab === "profile" && detail.isSuccess ? (
-        <ProfessionalForm
-          id={formId}
-          professional={detail.data.data}
-          withContact={withContact}
-          onSubmit={saveProfile}
-          onDirtyChange={setDirty}
-        />
+      {tab === "profile" ? (
+        <QueryBoundary query={detail}>
+          {({ data }) => (
+            <ProfessionalForm
+              id={formId}
+              professional={data}
+              withContact={withContact}
+              onSubmit={saveProfile}
+              onDirtyChange={setDirty}
+            />
+          )}
+        </QueryBoundary>
       ) : null}
       {tab === "services" ? (
         <ServicesStep
           formId={formId}
+          services={services}
           professional={professional}
           onSubmit={saveServices}
           onDirtyChange={setDirty}
@@ -222,24 +233,28 @@ export function EditProfessionalDialog({
 
 function ServicesStep({
   formId,
+  services,
   professional,
   onSubmit,
   onDirtyChange,
 }: {
   formId: string;
+  services: UseQueryResult<Service[]>;
   professional: Professional;
   onSubmit(serviceIds: string[]): Promise<unknown>;
   onDirtyChange(dirty: boolean): void;
 }) {
-  const services = useEveryActiveServiceQuery();
-  if (!services.isSuccess) return null;
   return (
-    <ServicePicker
-      id={formId}
-      services={services.data}
-      selectedIds={professional.service_ids}
-      onSubmit={onSubmit}
-      onDirtyChange={onDirtyChange}
-    />
+    <QueryBoundary query={services}>
+      {(data) => (
+        <ServicePicker
+          id={formId}
+          services={data}
+          selectedIds={professional.service_ids}
+          onSubmit={onSubmit}
+          onDirtyChange={onDirtyChange}
+        />
+      )}
+    </QueryBoundary>
   );
 }
