@@ -59,6 +59,27 @@ test.describe("branding por empresa", () => {
     await shot(page, testInfo, "branding-amarillo");
   });
 
+  test("en 1280 × 800 la pantalla de marca no tiene scroll de documento y conserva el panel acoplado", async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signIn(page, "marta@salud-estilo.ceiba.test");
+    await page
+      .getByRole("navigation", { name: "Navegación principal" })
+      .getByRole("link", { name: "Marca" })
+      .click();
+    await expect(page.getByRole("heading", { name: "Marca de la empresa" })).toBeVisible();
+    await expect(page.locator("#branding-edit-panel")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Reservar cita" })).toBeVisible();
+
+    const scroll = await page.evaluate(() => ({
+      scrollHeight: document.scrollingElement!.scrollHeight,
+      innerHeight: window.innerHeight,
+    }));
+    expect(scroll.scrollHeight).toBeLessThanOrEqual(scroll.innerHeight);
+    await shot(page, testInfo, "branding-1280x800-sin-scroll");
+  });
+
   test("una empresa sin marca usa la paleta de la plataforma (criterio 4)", async ({
     page,
   }, testInfo) => {

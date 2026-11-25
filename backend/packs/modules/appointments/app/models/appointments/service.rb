@@ -9,10 +9,11 @@ module Appointments
     MAX_NAME_LENGTH = 200
     # Display order is a small integer; the cap only keeps garbage out of the column.
     MAX_POSITION = 10_000
+    MAX_CATEGORY_LENGTH = 60
     # Largest integer a JavaScript number holds exactly (Number.MAX_SAFE_INTEGER): the generated TS client never loses precision.
     MAX_PRICE_MINOR = (2**53) - 1
     # What a client may write; the audit trail records these plus `archived_at`.
-    EDITABLE = %w[name duration_minutes buffer_before_minutes buffer_after_minutes price_minor currency active position].freeze
+    EDITABLE = %w[name duration_minutes buffer_before_minutes buffer_after_minutes price_minor currency active position category].freeze
 
     acts_as_tenant :organization, class_name: "Tenancy::Organization"
 
@@ -26,6 +27,7 @@ module Appointments
     validates :price_minor, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_PRICE_MINOR }
     validates :currency, inclusion: { in: CURRENCIES }
     validates :active, inclusion: { in: [ true, false ] }
+    validates :category, length: { maximum: MAX_CATEGORY_LENGTH }, allow_nil: true
     validates :position, numericality: { only_integer: true, greater_than_or_equal_to: 0, less_than_or_equal_to: MAX_POSITION }
     validate :company_exists
     validate :currency_matches_company, if: -> { company && (new_record? || currency_changed?) }
@@ -58,6 +60,8 @@ module Appointments
 
     def normalize_fields
       self.name = name.strip if name
+      # Free text that groups the catalog: blank means "no category", stored as NULL (the column refuses blanks).
+      self.category = category.strip.presence if category
     end
 
     def default_currency

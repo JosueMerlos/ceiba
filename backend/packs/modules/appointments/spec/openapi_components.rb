@@ -13,11 +13,12 @@ OpenapiComponents.register(
       currency: { type: :string, enum: %w[NIO USD], description: "Siempre la moneda de la empresa" },
       active: { type: :boolean },
       position: { type: :integer, minimum: 0, description: "Orden en el catálogo (menor primero)" },
+      category: { type: :string, nullable: true, maxLength: 60, description: "Grupo del catálogo, texto libre; null si no tiene" },
       archived_at: { type: :string, format: "date-time", nullable: true, description: "UTC; null si no está archivado" },
       created_at: { type: :string, format: "date-time", description: "UTC" },
       updated_at: { type: :string, format: "date-time", description: "UTC" }
     },
-    required: %i[id name duration_minutes buffer_before_minutes buffer_after_minutes price_minor currency active position archived_at created_at updated_at],
+    required: %i[id name duration_minutes buffer_before_minutes buffer_after_minutes price_minor currency active position category archived_at created_at updated_at],
     additionalProperties: false
   },
   ServiceInput: {
@@ -31,7 +32,8 @@ OpenapiComponents.register(
       price_minor: { type: :integer, format: :int64, minimum: 0, maximum: 9_007_199_254_740_991, example: 20_000 },
       currency: { type: :string, enum: %w[NIO USD] },
       active: { type: :boolean, default: true },
-      position: { type: :integer, minimum: 0, default: 0 }
+      position: { type: :integer, minimum: 0, default: 0 },
+      category: { type: :string, nullable: true, maxLength: 60, description: "Se recorta; en blanco o null queda sin categoría" }
     },
     required: %i[name duration_minutes price_minor],
     additionalProperties: false
@@ -47,7 +49,8 @@ OpenapiComponents.register(
       price_minor: { type: :integer, format: :int64, minimum: 0, maximum: 9_007_199_254_740_991 },
       currency: { type: :string, enum: %w[NIO USD] },
       active: { type: :boolean },
-      position: { type: :integer, minimum: 0 }
+      position: { type: :integer, minimum: 0 },
+      category: { type: :string, nullable: true, maxLength: 60, description: "Se recorta; en blanco o null queda sin categoría" }
     },
     additionalProperties: false
   },
@@ -95,13 +98,35 @@ OpenapiComponents.register(
     required: %i[id display_name user_id active archived_at branch_ids service_ids created_at updated_at],
     additionalProperties: false
   },
+  ProfessionalDetail: {
+    type: :object,
+    description: "Ficha de un profesional: los campos de `Professional` más su contacto. `phone` y `email` vienen siempre, en null si no " \
+                 "tiene o si quien lee no gestiona los profesionales de la empresa (`appointments.professional.manage`).",
+    properties: {
+      id: { type: :string, format: :uuid },
+      display_name: { type: :string, maxLength: 120 },
+      user_id: { type: :string, format: :uuid, nullable: true, description: "Persona vinculada; null si el profesional no tiene usuario" },
+      active: { type: :boolean },
+      archived_at: { type: :string, format: "date-time", nullable: true, description: "UTC; null si no está archivado" },
+      branch_ids: { type: :array, items: { type: :string, format: :uuid }, description: "Sucursales de la empresa donde está asignado" },
+      service_ids: { type: :array, items: { type: :string, format: :uuid }, description: "Servicios que presta" },
+      phone: { type: :string, nullable: true, description: "Teléfono en E.164", example: "+50588881234" },
+      email: { type: :string, nullable: true, format: :email },
+      created_at: { type: :string, format: "date-time", description: "UTC" },
+      updated_at: { type: :string, format: "date-time", description: "UTC" }
+    },
+    required: %i[id display_name user_id active archived_at branch_ids service_ids phone email created_at updated_at],
+    additionalProperties: false
+  },
   ProfessionalInput: {
     type: :object,
     description: "Alta de un profesional. `user_id` debe tener una membresía en la organización y no estar ya vinculado a otro profesional de la empresa.",
     properties: {
       display_name: { type: :string, minLength: 1, maxLength: 120 },
       user_id: { type: :string, format: :uuid, nullable: true },
-      active: { type: :boolean, default: true }
+      active: { type: :boolean, default: true },
+      phone: { type: :string, nullable: true, description: "En cualquier formato; se guarda en E.164 con el país de la organización. En blanco o null lo quita" },
+      email: { type: :string, nullable: true, maxLength: 254, description: "Se recorta y se guarda en minúsculas. En blanco o null lo quita" }
     },
     required: %i[display_name],
     additionalProperties: false
@@ -112,7 +137,9 @@ OpenapiComponents.register(
     properties: {
       display_name: { type: :string, minLength: 1, maxLength: 120 },
       user_id: { type: :string, format: :uuid, nullable: true },
-      active: { type: :boolean }
+      active: { type: :boolean },
+      phone: { type: :string, nullable: true, description: "En cualquier formato; se guarda en E.164 con el país de la organización. En blanco o null lo quita" },
+      email: { type: :string, nullable: true, maxLength: 254, description: "Se recorta y se guarda en minúsculas. En blanco o null lo quita" }
     },
     additionalProperties: false
   },

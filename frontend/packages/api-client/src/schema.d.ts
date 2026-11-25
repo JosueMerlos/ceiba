@@ -1635,7 +1635,7 @@ export interface paths {
         };
         /**
          * Obtiene un profesional desde una sucursal
-         * @description Es la ruta del perfil propio del `professional`: exige `appointments.professional.read` en la sucursal, o bien `appointments.professional.read_own` en la sucursal cuando el registro está vinculado a su usuario y asignado a esa sucursal.
+         * @description Es la ruta del perfil propio del `professional`: exige `appointments.professional.read` en la sucursal, o bien `appointments.professional.read_own` en la sucursal cuando el registro está vinculado a su usuario y asignado a esa sucursal. No trae el contacto del profesional (`Professional`, sin `phone` ni `email`).
          */
         get: {
             parameters: {
@@ -3368,7 +3368,7 @@ export interface paths {
         put?: never;
         /**
          * Crea un profesional
-         * @description Exige `appointments.professional.manage`. `user_id` vincula al profesional con una persona y debe tener una membresía en la organización (si no, 422); una persona tiene a lo sumo un registro por empresa. Acepta `Idempotency-Key`.
+         * @description Exige `appointments.professional.manage`. `user_id` vincula al profesional con una persona y debe tener una membresía en la organización (si no, 422); una persona tiene a lo sumo un registro por empresa. `phone` (cualquier formato, se guarda en E.164) y `email` son opcionales; un teléfono que no es un número real es 422 en `phone`. Acepta `Idempotency-Key`.
          */
         post: {
             parameters: {
@@ -3398,7 +3398,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            data: components["schemas"]["Professional"];
+                            data: components["schemas"]["ProfessionalDetail"];
                         };
                     };
                 };
@@ -3469,7 +3469,7 @@ export interface paths {
         };
         /**
          * Obtiene un profesional
-         * @description Exige `appointments.professional.read` en la empresa. Un profesional de otra empresa responde 404. Un archivado se puede ver, con `archived_at`.
+         * @description Exige `appointments.professional.read` en la empresa. Un profesional de otra empresa responde 404. Un archivado se puede ver, con `archived_at`. `phone` y `email` solo traen valor para quien tiene `appointments.professional.manage`; para el resto son null.
          */
         get: {
             parameters: {
@@ -3492,7 +3492,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            data: components["schemas"]["Professional"];
+                            data: components["schemas"]["ProfessionalDetail"];
                         };
                     };
                 };
@@ -3570,7 +3570,7 @@ export interface paths {
         head?: never;
         /**
          * Edita un profesional
-         * @description Exige `appointments.professional.manage`. Solo cambian los campos enviados; `user_id` solo se puede fijar una vez: si ya está vinculado no cambia ni se quita (422 `immutable`; para cambiar de persona se archiva y se crea otro profesional). Un archivado no se edita (422).
+         * @description Exige `appointments.professional.manage`. Solo cambian los campos enviados; `user_id` solo se puede fijar una vez: si ya está vinculado no cambia ni se quita (422 `immutable`; para cambiar de persona se archiva y se crea otro profesional). Un archivado no se edita (422). `phone` y `email` en blanco o null quitan el dato; la auditoría registra que cambiaron, nunca su valor.
          */
         patch: {
             parameters: {
@@ -3600,7 +3600,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            data: components["schemas"]["Professional"];
+                            data: components["schemas"]["ProfessionalDetail"];
                         };
                     };
                 };
@@ -3975,7 +3975,7 @@ export interface paths {
         put?: never;
         /**
          * Crea un servicio
-         * @description Exige `appointments.service.manage`. `price_minor` es un entero en unidades menores. Sin `currency` toma la de la empresa; una moneda distinta responde 422 (`currency: mismatch`). Acepta `Idempotency-Key`.
+         * @description Exige `appointments.service.manage`. `price_minor` es un entero en unidades menores. Sin `currency` toma la de la empresa; una moneda distinta responde 422 (`currency: mismatch`). `category` es texto libre de hasta 60 caracteres, recortado; en blanco queda sin categoría (null). Acepta `Idempotency-Key`.
          */
         post: {
             parameters: {
@@ -3998,7 +3998,7 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description con la moneda de la empresa enviada de forma explícita */
+                /** @description con categoría, recortada */
                 201: {
                     headers: {
                         [name: string]: unknown;
@@ -4186,7 +4186,7 @@ export interface paths {
         head?: never;
         /**
          * Edita un servicio
-         * @description Exige `appointments.service.manage`. Solo cambia los campos enviados; la empresa y el archivado no se editan por aquí.
+         * @description Exige `appointments.service.manage`. Solo cambia los campos enviados; la empresa y el archivado no se editan por aquí. `category: null` (o en blanco) quita la categoría.
          */
         patch: {
             parameters: {
@@ -6525,11 +6525,53 @@ export interface components {
              */
             user_id: string | null;
         };
+        /** @description Ficha de un profesional: los campos de `Professional` más su contacto. `phone` y `email` vienen siempre, en null si no tiene o si quien lee no gestiona los profesionales de la empresa (`appointments.professional.manage`). */
+        ProfessionalDetail: {
+            active: boolean;
+            /**
+             * Format: date-time
+             * @description UTC; null si no está archivado
+             */
+            archived_at: string | null;
+            /** @description Sucursales de la empresa donde está asignado */
+            branch_ids: string[];
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            created_at: string;
+            display_name: string;
+            /** Format: email */
+            email: string | null;
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description Teléfono en E.164
+             * @example +50588881234
+             */
+            phone: string | null;
+            /** @description Servicios que presta */
+            service_ids: string[];
+            /**
+             * Format: date-time
+             * @description UTC
+             */
+            updated_at: string;
+            /**
+             * Format: uuid
+             * @description Persona vinculada; null si el profesional no tiene usuario
+             */
+            user_id: string | null;
+        };
         /** @description Alta de un profesional. `user_id` debe tener una membresía en la organización y no estar ya vinculado a otro profesional de la empresa. */
         ProfessionalInput: {
             /** @default true */
             active: boolean;
             display_name: string;
+            /** @description Se recorta y se guarda en minúsculas. En blanco o null lo quita */
+            email?: string | null;
+            /** @description En cualquier formato; se guarda en E.164 con el país de la organización. En blanco o null lo quita */
+            phone?: string | null;
             /** Format: uuid */
             user_id?: string | null;
         };
@@ -6537,6 +6579,10 @@ export interface components {
         ProfessionalPatch: {
             active?: boolean;
             display_name?: string;
+            /** @description Se recorta y se guarda en minúsculas. En blanco o null lo quita */
+            email?: string | null;
+            /** @description En cualquier formato; se guarda en E.164 con el país de la organización. En blanco o null lo quita */
+            phone?: string | null;
             /** Format: uuid */
             user_id?: string | null;
         };
@@ -6595,6 +6641,8 @@ export interface components {
             archived_at: string | null;
             buffer_after_minutes: number;
             buffer_before_minutes: number;
+            /** @description Grupo del catálogo, texto libre; null si no tiene */
+            category: string | null;
             /**
              * Format: date-time
              * @description UTC
@@ -6631,6 +6679,8 @@ export interface components {
             buffer_after_minutes: number;
             /** @default 0 */
             buffer_before_minutes: number;
+            /** @description Se recorta; en blanco o null queda sin categoría */
+            category?: string | null;
             /** @enum {string} */
             currency?: "NIO" | "USD";
             duration_minutes: number;
@@ -6681,6 +6731,8 @@ export interface components {
             active?: boolean;
             buffer_after_minutes?: number;
             buffer_before_minutes?: number;
+            /** @description Se recorta; en blanco o null queda sin categoría */
+            category?: string | null;
             /** @enum {string} */
             currency?: "NIO" | "USD";
             duration_minutes?: number;

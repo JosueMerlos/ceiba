@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@ceiba/ui";
 import { Plus, Trash2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { BranchTimeRangeField } from "../../../platform/forms/branch-fields";
 import {
   toDrafts,
@@ -34,6 +34,13 @@ interface WeeklyScheduleEditorProps {
   validateClient?: boolean;
   /** Already user-facing messages from a failed save (the 422 on `slots`). */
   serverMessages?: readonly string[];
+  /**
+   * Inside a modal whose footer owns the only save button: the editor becomes `<form id={formId}>` and draws no button
+   * of its own. Without it the editor keeps its own save button.
+   */
+  formId?: string;
+  /** Whether the week on screen differs from the saved one (a modal asks before discarding it). */
+  onDirtyChange?(dirty: boolean): void;
 }
 
 const DEFAULT_START = "09:00";
@@ -52,12 +59,17 @@ export function WeeklyScheduleEditor({
   saving = false,
   validateClient = true,
   serverMessages = [],
+  formId,
+  onDirtyChange,
 }: WeeklyScheduleEditorProps) {
   const { t } = useTranslation(["appointments", "common"]);
   const [drafts, setDrafts] = useState<SlotDraft[]>(() => toDrafts(slots));
   const [attempted, setAttempted] = useState(false);
   const [confirmingClosed, setConfirmingClosed] = useState(false);
   const nextKey = useRef(0);
+  const [saved] = useState(() => JSON.stringify(toPayload(toDrafts(slots))));
+  const dirty = JSON.stringify(toPayload(drafts)) !== saved;
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   const problems = validateClient ? validateSlots(drafts) : new Map<string, SlotProblem>();
 
@@ -88,8 +100,17 @@ export function WeeklyScheduleEditor({
     onSave(toPayload(drafts));
   }
 
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    save();
+  }
+
+  const Root = formId ? "form" : "div";
   return (
-    <div className="grid gap-4">
+    <Root
+      {...(formId ? { id: formId, onSubmit: submit, noValidate: true } : {})}
+      className="grid gap-4"
+    >
       <div className="grid gap-2">
         {WEEK_ORDER.map((weekday) => {
           const daySlots = drafts.filter((slot) => slot.weekday === weekday);
@@ -178,7 +199,7 @@ export function WeeklyScheduleEditor({
         </div>
       ) : null}
 
-      {readOnly ? null : (
+      {readOnly || formId ? null : (
         <div>
           <Button type="button" loading={saving} onClick={save}>
             {t("catalog.schedule.save")}
@@ -208,6 +229,6 @@ export function WeeklyScheduleEditor({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Root>
   );
 }

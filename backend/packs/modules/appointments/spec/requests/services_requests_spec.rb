@@ -72,4 +72,61 @@ RSpec.describe "Servicios: peticiones" do
       expect(created).to have_attributes(organization_id: world.organization.id, company_id: world.company_a.id, archived_at: nil)
     end
   end
+
+  describe "categoría" do
+    def stored_category(id) = with_tenant(world.organization) { Appointments::Service.find(id).category }
+
+    def update_service(id, params) = patch "#{base}/#{id}", params:, headers: signed_in.csrf_headers, as: :json
+
+    it "se recorta al crear y al editar", :aggregate_failures do
+      create_service(body.merge(category: "  Uñas  "))
+      id = response.parsed_body["data"]["id"]
+
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body["data"]).to include("category" => "Uñas")
+      expect(stored_category(id)).to eq("Uñas")
+
+      update_service(id, { category: "  Cabello " })
+
+      expect(response.parsed_body["data"]).to include("category" => "Cabello")
+      expect(stored_category(id)).to eq("Cabello")
+    end
+
+    [ "", "   " ].each do |blank|
+      it "una categoría en blanco (#{blank.inspect}) se guarda como null", :aggregate_failures do
+        create_service(body.merge(category: blank))
+
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body["data"]).to include("category" => nil)
+        expect(stored_category(response.parsed_body["data"]["id"])).to be_nil
+      end
+    end
+
+    it "un null explícito quita la categoría", :aggregate_failures do
+      create_service(body.merge(category: "Uñas"))
+      id = response.parsed_body["data"]["id"]
+
+      update_service(id, { category: nil })
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["data"]).to include("category" => nil)
+      expect(stored_category(id)).to be_nil
+    end
+
+    it "más de 60 caracteres es 422 con el campo category y no crea nada", :aggregate_failures do
+      create_service(body.merge(category: "a" * 61))
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.media_type).to eq("application/problem+json")
+      expect(response.parsed_body["errors"]).to include(a_hash_including("field" => "category", "code" => "too_long"))
+      expect(count).to eq(0)
+    end
+
+    it "la base de datos rechaza una categoría en blanco aunque se salte el modelo" do
+      service = create_in(world.organization, :service, company: world.company_a)
+
+      expect { with_tenant(world.organization) { service.update_columns(category: " ") } }
+        .to raise_error(ActiveRecord::StatementInvalid, /chk_services_category_present/)
+    end
+  end
 end

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { horizontalOverflow, shot, signIn } from "../tests/helpers";
 
-// UI QA smoke for the catalog panel. It complements tests/catalog.spec.ts (AC1/AC2/AC6) with AC3, AC4, AC5, the shell
+// UI QA smoke for the catalog panel (services are created in a modal since the catalog moved to modals). It complements tests/catalog.spec.ts (AC1/AC2/AC6) with AC3, AC4, AC5, the shell
 // (sidebar, ContextPanel) and a 360 px pass. It CREATES data in Clínica Sonrisa: services are archived at the end and
 // the branch (not deletable) is named e2e-smoke-<ts>.
 const COMPANY_MANAGER = "empresa@clinica-sonrisa.ceiba.test";
@@ -41,12 +41,11 @@ function watch(page: Page) {
 async function createService(page: Page, name: string) {
   await nav(page).getByRole("link", { name: "Servicios" }).click();
   await page.getByRole("button", { name: "Nuevo servicio" }).click();
-  const panel = page.getByRole("complementary", { name: "Nuevo servicio" });
-  await panel.getByLabel("Nombre").fill(name);
-  await panel.getByLabel("Duración (minutos)").fill("30");
-  await panel.getByLabel("Precio (USD)").fill("99");
-  await panel.getByRole("button", { name: "Crear servicio" }).click();
-  await expect(page.getByRole("button", { name: `Editar ${name}` })).toBeVisible();
+  const dialog = page.getByRole("dialog", { name: "Nuevo servicio" });
+  await dialog.getByLabel("Nombre").fill(name);
+  await dialog.getByLabel("Precio (USD)").fill("99");
+  await dialog.getByRole("button", { name: "Crear servicio" }).click();
+  await expect(page.getByRole("button", { name: `Ver ${name}` })).toBeVisible();
 }
 
 async function noHorizontalOverflow(page: Page) {
@@ -133,7 +132,7 @@ test("AC4: un servicio archivado sale de Activos y se restaura desde Archivados"
   await createService(page, serviceName);
   try {
     await page.getByRole("button", { name: `Archivar ${serviceName}` }).click();
-    await expect(page.getByRole("button", { name: `Editar ${serviceName}` })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: `Ver ${serviceName}` })).toHaveCount(0);
 
     const filters = page.getByRole("group", { name: "Estado de los servicios" });
     await filters.getByRole("button", { name: "Archivados" }).click();
@@ -143,7 +142,7 @@ test("AC4: un servicio archivado sale de Activos y se restaura desde Archivados"
     await expect(page.getByText(serviceName)).toHaveCount(0);
 
     await filters.getByRole("button", { name: "Activos" }).click();
-    await expect(page.getByRole("button", { name: `Editar ${serviceName}` })).toBeVisible();
+    await expect(page.getByRole("button", { name: `Ver ${serviceName}` })).toBeVisible();
     await shot(page, testInfo, "23-ac4-restaurado-en-activos");
   } finally {
     // Leave it archived (from the Activos list, wherever the flow stopped).
@@ -153,7 +152,7 @@ test("AC4: un servicio archivado sale de Activos y se restaura desde Archivados"
       .click();
     const archive = page.getByRole("button", { name: `Archivar ${serviceName}` });
     if (await archive.isVisible().catch(() => false)) await archive.click();
-    await expect(page.getByRole("button", { name: `Editar ${serviceName}` })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: `Ver ${serviceName}` })).toHaveCount(0);
   }
   expect(problems).toEqual([]);
 });
@@ -187,9 +186,11 @@ test("shell: menú lateral contraíble y ContextPanel con aria-expanded/aria-con
     "true",
   );
 
-  // ContextPanel.
-  await page.getByRole("button", { name: "Nuevo servicio" }).click();
-  const panel = page.getByRole("complementary", { name: "Nuevo servicio" });
+  // ContextPanel: a row opens its read-only detail.
+  const row = page.getByRole("button", { name: /^Ver / }).first();
+  const rowName = ((await row.getAttribute("aria-label")) ?? "").replace(/^Ver /, "");
+  await row.click();
+  const panel = page.getByRole("complementary", { name: rowName });
   await expect(panel).toBeVisible();
   const close = panel.getByRole("button", { name: "Cerrar el panel" });
   await expect(close).toHaveAttribute("aria-expanded", "true");
@@ -213,13 +214,14 @@ test("360 px: servicios y panel sin desborde horizontal", async ({ page }, testI
   await shot(page, testInfo, "30-360-servicios");
 
   await page.getByRole("button", { name: "Nuevo servicio" }).click();
-  const panel = page.getByRole("complementary", { name: "Nuevo servicio" });
-  await expect(panel).toBeVisible();
-  const box = await panel.boundingBox();
+  const dialog = page.getByRole("dialog", { name: "Nuevo servicio" });
+  await expect(dialog).toBeVisible();
+  const box = await dialog.boundingBox();
   expect(box && box.x >= 0 && box.x + box.width <= 360).toBe(true);
   await noHorizontalOverflow(page);
-  await shot(page, testInfo, "31-360-panel-nuevo-servicio");
-  await panel.getByRole("button", { name: "Cerrar el panel" }).click();
+  await shot(page, testInfo, "31-360-modal-nuevo-servicio");
+  await dialog.getByRole("button", { name: "Cerrar", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
 
   expect(problems).toEqual([]);
 });

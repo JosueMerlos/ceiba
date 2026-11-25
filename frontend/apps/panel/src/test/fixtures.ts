@@ -180,6 +180,7 @@ export const service = (
   name,
   active: true,
   archived_at: null,
+  category: null,
   buffer_after_minutes: 0,
   buffer_before_minutes: 0,
   currency: "NIO",

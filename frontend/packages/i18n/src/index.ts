@@ -10,6 +10,7 @@ export {
   formatCurrency,
   formatDate,
   formatDateTime,
+  formatDuration,
   formatNumber,
   formatPlainDate,
   formatTime,

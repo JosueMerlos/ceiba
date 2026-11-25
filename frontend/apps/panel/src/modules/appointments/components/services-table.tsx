@@ -66,6 +66,11 @@ export function ServicesTable({
                 >
                   {service.name}
                 </button>
+                {service.category ? (
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    {service.category}
+                  </span>
+                ) : null}
               </TableCell>
               <TableCell className="tabular-nums">
                 {t("catalog.services.minutes", { count: service.duration_minutes })}

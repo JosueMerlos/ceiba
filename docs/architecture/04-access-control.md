@@ -109,6 +109,7 @@ end
 | Override de duración por sucursal (`appointments.service.override_duration`) | — | — | ✅ | ✅ | — | — |
 | Override de **precio** por sucursal (`appointments.service.override_price`) | — | — | ✅ | **—** | — | — |
 | Profesionales (`appointments.professional.read` / `.manage` / `.assign` / `.read_own`, [ADR-0034](../adr/0034-horarios-ausencias-y-permisos-de-profesionales-y-recursos.md)) | — | — | CRUD | ver, asignar a su sucursal (solo profesionales sin sucursal o ya en la suya) | ver | ver su perfil |
+| Teléfono y correo del profesional (`ProfessionalPolicy#contact?` = `appointments.professional.manage`, [ADR-0043](../adr/0043-rediseno-v2-del-panel.md)) | — | — | ver y editar | — (`null`) | — (`null`) | — (`null`, tampoco los propios) |
 | Recursos (`appointments.resource.read` / `.manage`) | — | — | CRUD | CRUD de su sucursal | ver | ver |
 | Horarios (`appointments.schedule.read` / `.manage` / `.read_own`) | — | — | ✅ | ✅ | ver | ver el propio |
 | Ausencias (`appointments.time_off.read` / `.manage` / `.manage_own`) | — | — | ✅ | ✅ (de los asignados a su sucursal) | ver | las propias |
@@ -127,6 +128,11 @@ Correcciones respecto a `plans/`: `org_admin` **sí** edita branding (la decisi�
 - Deny by default: lo que no está en la matriz, se niega.
 - `org_owner` y `org_admin` ven reportes consolidados **solo como conteos**; el acceso a datos personales para soporte será just-in-time y auditado (F5–F6).
 - Invitaciones sin doble aprobación: invita quien tenga un rol de gestión en el alcance de destino.
+- **Contacto del profesional (M2.07):** `phone` y `email` son PII. Solo los lee quien tiene `appointments.professional.manage`
+  en la empresa (hoy, `company_manager`); para cualquier otro rol el `show` de empresa y las respuestas de `create`/`update`
+  los devuelven `null`. El listado (`index`), `show_in_branch`, las asignaciones y `PUT …/services` usan el serializer sin
+  contacto: las claves ni siquiera existen. La auditoría registra el nombre del campo cambiado, nunca el valor, y
+  `filter_parameters` oculta `:phone` y `:email` en los logs.
 
 > La matriz se codifica como **datos** (seed de `role_permissions`) y como **tabla de casos** en la suite de autorización ([12](12-testing-strategy.md)). Si ambas divergen, los tests fallan.
 

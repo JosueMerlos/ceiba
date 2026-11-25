@@ -2,7 +2,7 @@ import type { components } from "@ceiba/api-client";
 import { screen, within } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
-import { API, ids, meFixture, problem } from "../../test/fixtures";
+import { API, branch, ids, meFixture, problem } from "../../test/fixtures";
 import { renderApp } from "../../test/render-app";
 import { server, signedInBackend } from "../../test/server";
 
@@ -302,6 +302,25 @@ describe("importación desde CSV", () => {
     expect(
       screen.getByRole("link", { name: "Descargar la plantilla de clientes" }).getAttribute("href"),
     ).toBe("/import-templates/clientes.csv");
+  });
+
+  it("con «Todas las sucursales» y varias pide elegir una en el selector global antes de subir nada", async () => {
+    signedInBackend({
+      me: meFixture({
+        role: "company_manager",
+        extraPermissions: IMPORT_PERMISSIONS,
+        branch: null,
+      }),
+      branches: [
+        branch(ids.branchA, ids.companyA, "Sucursal Centro"),
+        branch(ids.branchA2, ids.companyA, "Sucursal Norte"),
+      ],
+    });
+    await renderApp({ route: ROUTE });
+
+    expect(await screen.findByRole("heading", { name: "Elija una sucursal" })).toBeTruthy();
+    expect(screen.queryByRole("radiogroup", { name: "Qué va a importar" })).toBeNull();
+    expect(screen.queryByRole("combobox")).toBeNull();
   });
 
   it("sin permiso para importar la pantalla no se muestra", async () => {

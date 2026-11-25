@@ -3,12 +3,18 @@ module Appointments
   # association to the private Tenancy and Identity models). `user_id` optionally links the record to a user, who must have a
   # membership in the organization; the same user may have a record in several companies, but only one non-archived in each. Never
   # destroyed: it is archived (`archived_at`) so history can keep referencing it.
+  #
+  # The contact (phone_e164, email) is personal data: deterministic ciphertext, masked in the audit trail.
   class Professional < ApplicationRecord
     MAX_NAME_LENGTH = 120
+    MAX_EMAIL_LENGTH = 254
     # What a client may write; the audit trail records these plus `archived_at`.
-    EDITABLE = %w[display_name user_id active].freeze
+    EDITABLE = %w[display_name user_id active phone_e164 email].freeze
 
     acts_as_tenant :organization, class_name: "Tenancy::Organization"
+
+    encrypts :phone_e164, deterministic: true
+    encrypts :email, deterministic: true, downcase: true
 
     has_many :branch_assignments, class_name: "Appointments::ProfessionalBranchAssignment", dependent: :restrict_with_exception
     has_many :professional_services, class_name: "Appointments::ProfessionalService", dependent: :restrict_with_exception
@@ -24,6 +30,8 @@ module Appointments
     validate :user_id_is_uuid, unless: :user_id_locked?
     validate :company_exists
     validate :user_is_member, if: -> { user_id.present? && (new_record? || user_id_changed?) && !user_id_locked? }
+    validate :phone_is_a_real_number, if: :phone_needs_checking?
+    validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, length: { maximum: MAX_EMAIL_LENGTH }, allow_nil: true
 
     # What management lists: everything not archived, paused professionals included.
     scope :unarchived, -> { where(archived_at: nil) }
@@ -53,7 +61,25 @@ module Appointments
 
     def normalize_fields
       self.display_name = display_name.strip if display_name
+      self.email = email.strip.presence if email
+      self.phone_e164 = phone_e164.presence if phone_e164
+      return unless phone_needs_checking?
+
+      normalized = Customers::Phone.normalize(phone_e164, region: Current.context.organization.country_code)
+      self.phone_e164 = normalized if normalized
     end
+
+    # Blank phones are nil by now, so a record without one (the CSV import) never needs the organization's country. A stored
+    # number is not revalidated on unrelated saves.
+    def phone_needs_checking? = !phone_e164.nil? && (new_record? || phone_e164_changed?)
+
+    # Reported on `phone`, the name the API reads and writes, so a 422 points at the field the client sent.
+    def phone_is_a_real_number
+      errors.add(:phone, :invalid) unless Customers::Phone.normalize(phone_e164, region: Current.context.organization.country_code)
+    end
+
+    # The error message reads the attribute it is reported on.
+    def phone = phone_e164
 
     # Once linked, the person is fixed (to change it, archive and create another record): a different user, null or anything
     # malformed are all the same refusal, so the link can neither be swapped nor dropped.

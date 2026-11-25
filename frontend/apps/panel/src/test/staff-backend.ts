@@ -5,6 +5,8 @@ import { validationProblem } from "./fixtures";
 import { server } from "./server";
 
 type Professional = components["schemas"]["Professional"];
+type ProfessionalDetail = components["schemas"]["ProfessionalDetail"];
+type Contact = Pick<ProfessionalDetail, "phone" | "email">;
 type Resource = components["schemas"]["Resource"];
 type TimeOff = components["schemas"]["TimeOff"];
 type Slot = components["schemas"]["WeeklyScheduleSlot"];
@@ -58,6 +60,10 @@ interface StaffBackendOptions {
   companyTimeOffsForbidden?: boolean;
   /** PUT of a professional schedule answers a 422 on `slots` (overlap with another branch). */
   scheduleOverlap?: boolean;
+  /** Contact of each professional by id, as the company show returns it to a manager. */
+  contacts?: Record<string, Contact>;
+  /** POST and PATCH of a professional answer a 422 on `phone` (a number that does not normalize). */
+  invalidPhone?: boolean;
 }
 
 /** In-memory team API (professionals, resources, hours and absences); every write is recorded for assertions. */
@@ -69,11 +75,15 @@ export function staffBackend({
   companyTimeOffs = {},
   companyTimeOffsForbidden = false,
   scheduleOverlap = false,
+  contacts = {},
+  invalidPhone = false,
 }: StaffBackendOptions = {}) {
   const state = {
     professionals: [...professionals],
     resources: [...resources],
     timeOffs: { ...timeOffs },
+    contacts: { ...contacts },
+    professionalReads: [] as string[],
     companyTimeOffs: { ...companyTimeOffs },
     createdProfessionals: [] as unknown[],
     patchedProfessionals: [] as { id: string; body: unknown }[],
@@ -81,7 +91,7 @@ export function staffBackend({
     servicePuts: [] as { id: string; body: unknown }[],
     assignments: [] as { branchId: string; professionalId: string }[],
     unassignments: [] as { branchId: string; professionalId: string }[],
-    schedulePuts: [] as { owner: string; body: unknown }[],
+    schedulePuts: [] as { owner: string; branchId: string; body: unknown }[],
     createdTimeOffs: [] as { owner: string; branchId: string; body: Record<string, string> }[],
     deletedTimeOffs: [] as { owner: string; id: string }[],
     deletedCompanyTimeOffs: [] as { owner: string; id: string }[],
@@ -102,12 +112,23 @@ export function staffBackend({
           );
         }
         const body = (await request.json()) as { slots: Omit<Slot, "id">[] };
-        state.schedulePuts.push({ owner: String(params.ownerId), body });
+        state.schedulePuts.push({
+          owner: String(params.ownerId),
+          branchId: String(params.branchId),
+          body,
+        });
         return HttpResponse.json({
           data: body.slots.map((slot, index) => ({ id: `saved-${index}`, ...slot })),
         });
       },
     );
+
+  const detail = (item: Professional | undefined): ProfessionalDetail | undefined =>
+    item && { ...item, phone: null, email: null, ...state.contacts[item.id] };
+  const phoneProblem = () =>
+    HttpResponse.json(validationProblem("phone", "invalid", "no es un teléfono válido"), {
+      status: 422,
+    });
 
   const timeOffRoutes = (kind: "professionals" | "resources") => [
     http.get(`${STAFF}/branches/:branchId/${kind}/:ownerId/time_offs`, ({ params }) =>
@@ -145,8 +166,12 @@ export function staffBackend({
       HttpResponse.json(page(state.professionals.filter((item) => item.archived_at === null))),
     ),
     http.post(`${STAFF}/professionals`, async ({ request }) => {
-      const body = (await request.json()) as { display_name: string; active: boolean };
+      const body = (await request.json()) as {
+        display_name: string;
+        active: boolean;
+      } & Partial<Contact>;
       state.createdProfessionals.push(body);
+      if (invalidPhone) return phoneProblem();
       const created: Professional = {
         id: `p-new-${state.createdProfessionals.length}`,
         display_name: body.display_name,
@@ -159,15 +184,38 @@ export function staffBackend({
         updated_at: "2026-11-09T12:00:00.000Z",
       };
       state.professionals.push(created);
-      return HttpResponse.json({ data: created }, { status: 201 });
+      state.contacts[created.id] = { phone: body.phone ?? null, email: body.email ?? null };
+      return HttpResponse.json({ data: detail(created) }, { status: 201 });
+    }),
+    http.get(`${STAFF}/professionals/:id`, ({ params }) => {
+      state.professionalReads.push(String(params.id));
+      return HttpResponse.json({
+        data: detail(state.professionals.find((item) => item.id === params.id)),
+      });
     }),
     http.patch(`${STAFF}/professionals/:id`, async ({ request, params }) => {
-      const body = (await request.json()) as Partial<Professional>;
-      state.patchedProfessionals.push({ id: String(params.id), body });
+      const { phone, email, ...body } = (await request.json()) as Partial<ProfessionalDetail>;
+      const id = String(params.id);
+      state.patchedProfessionals.push({
+        id,
+        body: {
+          ...body,
+          ...(phone !== undefined ? { phone } : {}),
+          ...(email !== undefined ? { email } : {}),
+        },
+      });
+      if (invalidPhone && phone) return phoneProblem();
       state.professionals = state.professionals.map((item) =>
-        item.id === params.id ? { ...item, ...body } : item,
+        item.id === id ? { ...item, ...body } : item,
       );
-      return HttpResponse.json({ data: state.professionals.find((item) => item.id === params.id) });
+      const contact = state.contacts[id] ?? { phone: null, email: null };
+      state.contacts[id] = {
+        phone: phone === undefined ? contact.phone : phone,
+        email: email === undefined ? contact.email : email,
+      };
+      return HttpResponse.json({
+        data: detail(state.professionals.find((item) => item.id === id)),
+      });
     }),
     http.delete(`${STAFF}/professionals/:id`, ({ params }) => {
       state.archivedProfessionals.push(String(params.id));

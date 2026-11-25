@@ -72,7 +72,7 @@ function BranchScheduleScreen({
             description={t("catalog.branchSchedule.empty.description")}
           />
         ) : null}
-        <ScheduleSection slots={schedule} save={put} canManage={canManage} />
+        <ScheduleSection slots={schedule} save={canManage ? put : undefined} />
       </div>
     </>
   );

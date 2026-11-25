@@ -1,7 +1,7 @@
 import { useTranslation } from "@ceiba/i18n";
 import { LoadingState, PageBody, PageFrame, PageHeader } from "@ceiba/ui";
 import { useEffect, useId, useMemo, useState } from "react";
-import { useContextSelection } from "../../../platform/context/context-provider";
+import { ContextBranchGate } from "../../../platform/context/context-branch-gate";
 import { useMe } from "../../../platform/me/me-provider";
 import type { Branch } from "../api/catalog";
 import { AppointmentDetailPanel } from "../components/agenda/appointment-detail-panel";
@@ -13,7 +13,6 @@ import { AgendaView, preloadAgendaView } from "../components/agenda-view/agenda-
 import { AgendaDensityContext } from "../components/agenda-view/density";
 import { useNarrowScreen } from "../components/agenda-view/use-narrow-screen";
 import type { AgendaSlot } from "../components/agenda-view/types";
-import { BranchPicker } from "../components/branch-picker";
 import { NewAppointmentFab } from "../components/new-appointment-fab";
 import { QueryBoundary } from "../../../platform/ui/query-boundary";
 import { UpcomingArrivals } from "../components/upcoming-arrivals";
@@ -25,7 +24,6 @@ import { useAgendaScreen } from "../lib/use-agenda-screen";
 import { useAgendaUrlState } from "../lib/use-agenda-url-state";
 import { useMoveAppointment } from "../lib/use-move-appointment";
 import { useStatusFilter } from "../lib/use-status-filter";
-import { useWorkingBranch } from "../lib/use-working-branch";
 
 // The date is a calendar day, so it is formatted in UTC: no zone may move it to the neighboring day.
 const shortDayFormat = new Intl.DateTimeFormat("es-NI", {
@@ -45,28 +43,15 @@ type SidePanel =
 
 export function AgendaPage() {
   const { t } = useTranslation("appointments");
-  const working = useWorkingBranch();
-  const { context } = useMe();
-  const { switchContext } = useContextSelection();
-
-  // Permissions in /me depend on the branch in the context, so choosing one here changes the context itself.
-  function chooseBranch(branchId: string) {
-    switchContext({
-      organization_id: context.organization?.id,
-      company_id: context.company?.id,
-      branch_id: branchId,
-    });
-  }
-
-  if (working.needsChoice) {
-    return (
-      <>
-        <PageHeader title={t("agenda.title")} />
-        <BranchPicker branches={working.branches} value={null} onChange={chooseBranch} />
-      </>
-    );
-  }
-  return working.branch ? <BranchAgenda key={working.branch.id} branch={working.branch} /> : null;
+  // The branch comes only from the global selector: /me's permissions depend on the context's branch.
+  return (
+    <ContextBranchGate
+      what={t("catalog.branchScope.agenda")}
+      header={<PageHeader title={t("agenda.title")} />}
+    >
+      {(branch) => <BranchAgenda key={branch.id} branch={branch} />}
+    </ContextBranchGate>
+  );
 }
 
 function BranchAgenda({ branch }: { branch: Branch }) {

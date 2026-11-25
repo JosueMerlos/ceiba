@@ -208,6 +208,17 @@ En el pack `platform/access` (`Api::V1::Access::*`, rutas en `packs/platform/acc
 - `GET /api/public/v1/c/:slug/branding`: anónimo, con `ETag` y `Cache-Control: public, no-cache`. Los campos sin personalizar son `null`; `assets` trae por imagen las URLs de sus variantes (`logo`: `x1`, `x2`; `banner`: `wide`, `standard`; `favicon`: `icon32`, `icon180`) o `null`.
 - Las URLs de `assets` apuntan a `/api/storage/representations/proxy/…` (no es JSON, por eso no está en el contrato OpenAPI). Ver [ADR-0039](../adr/0039-archivos-de-branding-y-rutas-de-activestorage.md).
 
+## Contacto del profesional y categoría del servicio (M2.07)
+
+- **`ProfessionalDetail`** = `Professional` + `phone` y `email`, ambos `string | null`. Lo devuelven solo el `show` de
+  empresa (`GET …/companies/:company_id/professionals/:professional_id`) y las respuestas de `POST` y `PATCH`. Son `null`
+  para quien no tiene `appointments.professional.manage` ([04](04-access-control.md#matriz-de-permisos-versión-corregida)).
+- **`Professional`** (listado, `show_in_branch`, asignaciones y `PUT …/services`) no cambia: no tiene las claves de contacto.
+- `POST`/`PATCH` aceptan `phone` (cualquier formato local; se guarda en E.164) y `email`; vacíos se guardan `null`. Errores
+  `422` en `phone` (`invalid`) y `email` (`invalid`, `too_long`).
+- **`Service.category`**: `string | null`, hasta 60 caracteres, recortada; vacía es `null`. Se escribe en `POST`/`PATCH`
+  de servicios. No hay endpoint de categorías: el panel las sugiere a partir de los servicios cargados.
+
 ## Cómo agregar un endpoint
 
 1. Controlador `Api::V1::<Pack>::XController < Api::BaseController` en el pack (exige sesión **y autorización** por defecto: cada acción debe llamar a `authorize` y cada `index` a `policy_scope`, o falla en test; si el recurso cuelga de `organizations/:organization_id/...` el contexto se resuelve y valida solo; una acción que no autoriza declara `skip_authorization!(reason:)`; solo si DEBE ser público, `skip_authentication!` comentado y en la allowlist del spec; ver más abajo), con su archivo de rutas en el pack (`packs/<capa>/<pack>/config/routes/<pack>.rb`, montado con `draw(:<pack>)` bajo `/api/v1` en `config/routes.rb`).

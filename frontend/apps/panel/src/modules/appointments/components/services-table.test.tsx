@@ -4,7 +4,11 @@ import { service } from "../../../test/fixtures";
 import { renderWithI18n } from "../../../test/render-with-i18n";
 import { ServicesTable } from "./services-table";
 
-const corte = service("s1", "Corte clásico", { duration_minutes: 30, price_minor: 25000 });
+const corte = service("s1", "Corte clásico", {
+  duration_minutes: 30,
+  price_minor: 25000,
+  category: "Cortes",
+});
 const tinte = service("s2", "Tinte", { currency: "USD", price_minor: 4550, active: false });
 const viejo = service("s3", "Peinado antiguo", {
   archived_at: "2026-11-01T10:00:00.000Z",
@@ -36,6 +40,13 @@ describe("ServicesTable", () => {
     expect(within(row("Tinte")).getByText(/US\$\s?45\.50/)).toBeTruthy();
   });
 
+  it("muestra la categoría bajo el nombre; sin categoría no deja texto de relleno", async () => {
+    await renderTable();
+
+    expect(within(row("Corte clásico")).getByText("Cortes")).toBeTruthy();
+    expect(within(row("Tinte")).queryByText("Sin categoría")).toBeNull();
+  });
+
   it("distingue activo, pausado y archivado (un archivado no se lee como pausado)", async () => {
     await renderTable();
 
@@ -48,7 +59,7 @@ describe("ServicesTable", () => {
   it("elegir un servicio avisa cuál y marca la fila seleccionada", async () => {
     const { user, onSelect } = await renderTable({ selectedId: "s2" });
 
-    await user.click(screen.getByRole("button", { name: "Editar Corte clásico" }));
+    await user.click(screen.getByRole("button", { name: "Ver Corte clásico" }));
 
     expect(onSelect).toHaveBeenCalledWith("s1");
     expect(row("Tinte").getAttribute("aria-current")).toBe("true");
@@ -72,6 +83,6 @@ describe("ServicesTable", () => {
 
     expect(screen.queryByRole("button", { name: /Archivar|Restaurar/ })).toBeNull();
     expect(screen.queryByRole("columnheader", { name: "Acciones" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Editar Corte clásico" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Ver Corte clásico" })).toBeTruthy();
   });
 });
