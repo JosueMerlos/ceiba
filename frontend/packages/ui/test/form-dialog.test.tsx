@@ -56,7 +56,7 @@ const STEPS = [
   { id: "ausencias", label: "Ausencias", optional: true },
 ];
 
-function StepsHarness({ onSkip }: { onSkip?: () => void }) {
+function StepsHarness({ onSkip, note }: { onSkip?: () => void; note?: string }) {
   const [step, setStep] = useState("perfil");
   const index = STEPS.findIndex((item) => item.id === step);
   return (
@@ -78,6 +78,7 @@ function StepsHarness({ onSkip }: { onSkip?: () => void }) {
       continueLabel="Continuar"
       finishLabel="Terminar"
       stepsLabel="Pasos"
+      note={note}
     >
       <form
         id="form-paso"
@@ -245,6 +246,14 @@ describe("FormDialog en modo pasos", () => {
       "submit",
     );
     expect(within(steps()).queryByRole("button", { name: "Continuar" })).toBeNull();
+  });
+
+  it("la nota del paso va en el pie, junto a los botones y fuera del cuerpo", () => {
+    render(<StepsHarness note="Paso 1 de 3. Al continuar, queda creado." />);
+
+    const footer = steps().querySelector('[data-slot="form-dialog-footer"]')!;
+    expect(within(footer as HTMLElement).getByText("Paso 1 de 3. Al continuar, queda creado.")).toBeTruthy();
+    expect(within(footer as HTMLElement).getByRole("button", { name: "Continuar" })).toBeTruthy();
   });
 });
 

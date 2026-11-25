@@ -31,19 +31,26 @@ const efrain = professional("p1", "Don Efraín", {
 });
 const sandra = professional("p2", "Sandra Gómez", { branch_ids: [], service_ids: [] });
 
+// A branch manager writes hours, absences and assignments, never the profile, services or contact.
+const BRANCH_MANAGER = STAFF_MANAGER_PERMISSIONS.filter(
+  (item) => item !== "appointments.professional.manage",
+);
+
 /** The company manager works at company level (no branch in the context). */
-const asCompanyManager = (permissions = STAFF_MANAGER_PERMISSIONS) =>
+const asCompanyManager = (permissions = STAFF_MANAGER_PERMISSIONS, branches = [centro]) =>
   signedInBackend({
     me: meFixture({ role: "company_manager", permissions, branch: null }),
-    branches: [centro],
+    branches,
   });
 
 /** A branch manager has the branch in the context: company-scope routes are not theirs. */
-const asBranchManager = (permissions = STAFF_MANAGER_PERMISSIONS) =>
+const asBranchManager = (permissions = BRANCH_MANAGER) =>
   signedInBackend({
     me: meFixture({ role: "receptionist", permissions, branch: centro }),
     branches: [centro],
   });
+
+type User = Awaited<ReturnType<typeof openProfessionals>>["user"];
 
 async function openProfessionals() {
   const view = await renderApp({ route: "/professionals" });
@@ -51,16 +58,29 @@ async function openProfessionals() {
   return view;
 }
 
-async function openPanel(
-  user: Awaited<ReturnType<typeof openProfessionals>>["user"],
-  name: string,
-) {
-  await user.click(await screen.findByRole("button", { name: `Editar ${name}` }));
-  return screen.findByRole("complementary", { name });
+/** Row -> floating detail -> "Editar profesional": the edit modal. */
+async function openEdit(user: User, name: string) {
+  await user.click(await screen.findByRole("button", { name: `Ver ${name}` }));
+  const panel = await screen.findByRole("complementary", { name });
+  await user.click(within(panel).getByRole("button", { name: "Editar profesional" }));
+  return screen.findByRole("dialog", { name });
 }
 
+async function openTab(user: User, dialog: HTMLElement, name: string) {
+  const tabs = within(dialog).getByRole("tablist", { name: "Secciones" });
+  await user.click(within(tabs).getByRole("tab", { name }));
+}
+
+const footerOf = (dialog: HTMLElement) =>
+  dialog.querySelector<HTMLElement>('[data-slot="form-dialog-footer"]')!;
+
+const currentStep = (dialog: HTMLElement) =>
+  within(within(dialog).getByRole("list", { name: "Pasos" }))
+    .getAllByRole("listitem")
+    .find((item) => item.getAttribute("aria-current") === "step")?.textContent;
+
 describe("Profesionales: lista y gates", () => {
-  it("sin profesionales muestra 'Agregue su primer profesional' con la acción si hay professional.manage", async () => {
+  it("sin profesionales muestra 'Agregue su primer profesional' y la acción abre el modal de alta", async () => {
     asCompanyManager();
     servicesBackend();
     staffBackend();
@@ -70,7 +90,7 @@ describe("Profesionales: lista y gates", () => {
       await screen.findByRole("heading", { name: "Agregue su primer profesional" }),
     ).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Agregar profesional" }));
-    expect(await screen.findByRole("complementary", { name: "Nuevo profesional" })).toBeTruthy();
+    expect(await screen.findByRole("dialog", { name: "Nuevo profesional" })).toBeTruthy();
   });
 
   it("sin professional.manage el estado vacío no ofrece acción ni 'Nuevo profesional' (gate)", async () => {
@@ -103,7 +123,7 @@ describe("Profesionales: lista y gates", () => {
     expect(within(paused).getByText("Sin sucursal")).toBeTruthy();
   });
 
-  it("archiva desde la tabla con DELETE y desaparece de la lista; sin manage no hay Archivar (gate)", async () => {
+  it("archiva desde la tabla con DELETE y desaparece de la lista", async () => {
     asCompanyManager();
     servicesBackend();
     const backend = staffBackend({ professionals: [efrain] });
@@ -114,7 +134,7 @@ describe("Profesionales: lista y gates", () => {
     await waitFor(() => expect(screen.queryByText("Don Efraín")).toBeNull());
   });
 
-  it("recepción (AC8): sin crear ni acciones; la fila abre el detalle flotante de lectura, sin formularios ni modal", async () => {
+  it("recepción (AC8): sin crear ni acciones; la fila abre el detalle flotante de lectura, sin editar ni modal", async () => {
     signedInBackend({
       me: meFixture({
         role: "receptionist",
@@ -145,156 +165,433 @@ describe("Profesionales: lista y gates", () => {
     expect(await within(schedule).findByText("8:00 a. m. – 12:00 p. m.")).toBeTruthy();
     expect(within(panel).queryByRole("textbox")).toBeNull();
     expect(within(panel).queryByRole("checkbox")).toBeNull();
-    expect(within(panel).queryByRole("button", { name: /Guardar|Agregar/ })).toBeNull();
+    expect(within(panel).queryByRole("button", { name: /Guardar|Agregar|Editar/ })).toBeNull();
     expect(document.querySelectorAll("[data-slot=form-description]")).toHaveLength(0);
     expect(within(panel).queryByText(/Todo se guarda en la hora/)).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
 
-describe("Profesionales: panel contextual", () => {
-  it("edita el nombre y el estado por PATCH", async () => {
+describe("Profesionales: alta por pasos", () => {
+  async function fillProfile(user: User) {
+    await user.click(await screen.findByRole("button", { name: "Nuevo profesional" }));
+    const dialog = await screen.findByRole("dialog", { name: "Nuevo profesional" });
+    await user.type(within(dialog).getByLabelText("Nombre para mostrar"), "Marlon Ruiz");
+    await user.type(within(dialog).getByLabelText("Teléfono (opcional)"), "8888 1234");
+    await user.type(within(dialog).getByLabelText("Correo (opcional)"), "marlon@ej.com");
+    return dialog;
+  }
+
+  it("Perfil crea con teléfono y correo; los demás pasos se omiten hasta Terminar sin más peticiones (AC1)", async () => {
     asCompanyManager();
     servicesBackend({ services: [corte] });
-    const backend = staffBackend({ professionals: [efrain] });
+    const backend = staffBackend();
     const { user } = await openProfessionals();
 
-    const panel = await openPanel(user, "Don Efraín");
-    const name = within(panel).getByLabelText("Nombre para mostrar");
-    await user.clear(name);
-    await user.type(name, "Don Efraín B.");
-    await user.click(within(panel).getByRole("button", { name: "Guardar cambios" }));
+    const dialog = await fillProfile(user);
+    expect(
+      within(footerOf(dialog)).getByText("Paso 1 de 4. Al continuar, el profesional queda creado."),
+    ).toBeTruthy();
+    await user.click(within(dialog).getByRole("button", { name: "Crear y continuar" }));
+
+    await waitFor(() => expect(backend.createdProfessionals).toHaveLength(1));
+    expect(backend.createdProfessionals[0]).toEqual({
+      display_name: "Marlon Ruiz",
+      active: true,
+      phone: "8888 1234",
+      email: "marlon@ej.com",
+    });
+    const created = await screen.findByRole("dialog", { name: "Marlon Ruiz" });
+    expect(currentStep(created)).toContain("Servicios");
+    expect(
+      within(footerOf(created)).getByText("Paso 2 de 4. Puede completarlo después."),
+    ).toBeTruthy();
+
+    await user.click(within(created).getByRole("button", { name: "Omitir por ahora" }));
+    expect(currentStep(created)).toContain("Sucursal y horario");
+    await user.click(within(created).getByRole("button", { name: "Omitir por ahora" }));
+    expect(currentStep(created)).toContain("Ausencias");
+    await user.click(within(created).getByRole("button", { name: "Terminar" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(backend.createdProfessionals).toHaveLength(1);
+    expect(backend.patchedProfessionals).toHaveLength(0);
+    expect(backend.servicePuts).toHaveLength(0);
+    expect(backend.assignments).toHaveLength(0);
+    expect(backend.schedulePuts).toHaveLength(0);
+    expect(backend.createdTimeOffs).toHaveLength(0);
+    expect(await screen.findByRole("button", { name: "Ver Marlon Ruiz" })).toBeTruthy();
+  });
+
+  it("un 422 en el teléfono deja el paso 1 abierto con el error junto al campo (adversarial)", async () => {
+    asCompanyManager();
+    servicesBackend();
+    staffBackend({ invalidPhone: true });
+    const { user } = await openProfessionals();
+
+    const dialog = await fillProfile(user);
+    await user.click(within(dialog).getByRole("button", { name: "Crear y continuar" }));
+
+    const phone = within(dialog).getByLabelText("Teléfono (opcional)");
+    await waitFor(() => expect(phone.getAttribute("aria-invalid")).toBe("true"));
+    expect(within(phone.closest("[data-slot=form-item]")!).getByText("no es un teléfono válido"))
+      .toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Nuevo profesional" })).toBe(dialog);
+    expect(currentStep(dialog)).toContain("Perfil");
+  });
+
+  it("Atrás y Continuar no crean un segundo profesional; un cambio se guarda con PATCH (adversarial)", async () => {
+    asCompanyManager();
+    servicesBackend();
+    const backend = staffBackend();
+    const { user } = await openProfessionals();
+
+    const dialog = await fillProfile(user);
+    await user.click(within(dialog).getByRole("button", { name: "Crear y continuar" }));
+    const created = await screen.findByRole("dialog", { name: "Marlon Ruiz" });
+
+    await user.click(within(created).getByRole("button", { name: "Atrás" }));
+    await user.click(await within(created).findByRole("button", { name: "Guardar y continuar" }));
+    await waitFor(() => expect(currentStep(created)).toContain("Servicios"));
+    expect(backend.createdProfessionals).toHaveLength(1);
+    expect(backend.patchedProfessionals).toHaveLength(0);
+
+    await user.click(within(created).getByRole("button", { name: "Atrás" }));
+    const name = await within(created).findByLabelText("Nombre para mostrar");
+    await user.type(name, " B.");
+    await user.click(within(created).getByRole("button", { name: "Guardar y continuar" }));
 
     await waitFor(() => expect(backend.patchedProfessionals).toHaveLength(1));
+    expect(backend.createdProfessionals).toHaveLength(1);
     expect(backend.patchedProfessionals[0]).toEqual({
-      id: "p1",
-      body: { display_name: "Don Efraín B.", active: true },
+      id: "p-new-1",
+      body: {
+        display_name: "Marlon Ruiz B.",
+        active: true,
+        phone: "8888 1234",
+        email: "marlon@ej.com",
+      },
     });
   });
 
-  it("crea un profesional y queda en la lista", async () => {
+  it("en el paso 4, Terminar agrega la ausencia del formulario y cierra", async () => {
     asCompanyManager();
     servicesBackend();
-    const backend = staffBackend({ professionals: [efrain] });
+    const backend = staffBackend();
     const { user } = await openProfessionals();
 
-    await user.click(await screen.findByRole("button", { name: "Nuevo profesional" }));
-    const panel = await screen.findByRole("complementary", { name: "Nuevo profesional" });
-    await user.type(within(panel).getByLabelText("Nombre para mostrar"), "Marlon Ruiz");
-    await user.click(within(panel).getByRole("button", { name: "Crear profesional" }));
+    const dialog = await fillProfile(user);
+    await user.click(within(dialog).getByRole("button", { name: "Crear y continuar" }));
+    const created = await screen.findByRole("dialog", { name: "Marlon Ruiz" });
+    await user.click(within(created).getByRole("button", { name: "Omitir por ahora" }));
 
-    await waitFor(() =>
-      expect(backend.createdProfessionals).toEqual([{ display_name: "Marlon Ruiz", active: true }]),
-    );
-    expect(await screen.findByRole("button", { name: "Editar Marlon Ruiz" })).toBeTruthy();
-  });
+    await user.click(await within(created).findByRole("checkbox", { name: "Sucursal Centro" }));
+    await waitFor(() => expect(backend.assignments).toHaveLength(1));
+    await within(created).findByRole("group", { name: "Lunes" });
+    await user.click(within(created).getByRole("button", { name: "Guardar y continuar" }));
+    await waitFor(() => expect(currentStep(created)).toContain("Ausencias"));
+    expect(backend.schedulePuts).toHaveLength(0);
 
-  it("servicios que presta: marca y guarda con PUT services", async () => {
-    asCompanyManager();
-    servicesBackend({ services: [corte, barba] });
-    const backend = staffBackend({ professionals: [efrain] });
-    const { user } = await openProfessionals();
+    await within(created).findByRole("group", { name: "Desde" });
+    await fillWallClock(user, created, "Desde", "2026-12-01T09:00");
+    await fillWallClock(user, created, "Hasta", "2026-12-01T12:00");
+    await user.click(within(created).getByRole("button", { name: "Terminar" }));
 
-    const panel = await openPanel(user, "Don Efraín");
-    const section = await within(panel).findByRole("region", { name: "Servicios que presta" });
-    await user.click(await within(section).findByRole("checkbox", { name: "Barba" }));
-    await user.click(within(section).getByRole("button", { name: "Guardar servicios" }));
-
-    await waitFor(() => expect(backend.servicePuts).toHaveLength(1));
-    expect(backend.servicePuts[0]).toEqual({ id: "p1", body: { service_ids: ["s1", "s2"] } });
-  });
-
-  it("sucursales: asignar un profesional que ya tiene sucursales va directo, sin diálogo", async () => {
-    signedInBackend({
-      me: meFixture({
-        role: "company_manager",
-        permissions: STAFF_MANAGER_PERMISSIONS,
-        branch: null,
-      }),
-      branches: [centro, norte],
+    await waitFor(() => expect(backend.createdTimeOffs).toHaveLength(1));
+    expect(backend.createdTimeOffs[0]).toEqual({
+      owner: "p-new-1",
+      branchId: ids.branchA,
+      body: { starts_at: "2026-12-01T15:00:00.000Z", ends_at: "2026-12-01T18:00:00.000Z" },
     });
-    servicesBackend();
-    const backend = staffBackend({ professionals: [efrain] });
-    const { user } = await openProfessionals();
-
-    const panel = await openPanel(user, "Don Efraín");
-    const section = await within(panel).findByRole("region", { name: "Sucursales" });
-    await user.click(within(section).getByRole("checkbox", { name: "Sucursal Norte" }));
-
-    await waitFor(() =>
-      expect(backend.assignments).toEqual([{ branchId: ids.branchA2, professionalId: "p1" }]),
-    );
-    expect(screen.queryByRole("dialog")).toBeNull();
-  });
-
-  it("sucursales: desmarcar una asignada hace DELETE assignment", async () => {
-    asCompanyManager();
-    servicesBackend();
-    const backend = staffBackend({ professionals: [efrain] });
-    const { user } = await openProfessionals();
-
-    const panel = await openPanel(user, "Don Efraín");
-    const section = await within(panel).findByRole("region", { name: "Sucursales" });
-    await user.click(within(section).getByRole("checkbox", { name: "Sucursal Centro" }));
-
-    await waitFor(() =>
-      expect(backend.unassignments).toEqual([{ branchId: ids.branchA, professionalId: "p1" }]),
-    );
-  });
-
-  it("sin professional.assign las sucursales quedan de solo lectura (gate)", async () => {
-    asCompanyManager(
-      STAFF_MANAGER_PERMISSIONS.filter((item) => item !== "appointments.professional.assign"),
-    );
-    servicesBackend();
-    staffBackend({ professionals: [efrain] });
-    const { user } = await openProfessionals();
-
-    const panel = await openPanel(user, "Don Efraín");
-    const section = await within(panel).findByRole("region", { name: "Sucursales" });
-    expect(within(section).getByRole("checkbox", { name: "Sucursal Centro" })).toHaveProperty(
-      "disabled",
-      true,
-    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 });
 
-describe("Profesionales: horario por sucursal", () => {
-  it("edita el horario de la sucursal de trabajo y guarda con PUT", async () => {
+describe("Profesionales: edición en pestañas", () => {
+  it("el gerente de empresa ve las cuatro pestañas y en cada una hay un solo botón en el pie (AC4)", async () => {
+    asCompanyManager();
+    servicesBackend({ services: [corte] });
+    staffBackend({ professionals: [efrain] });
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    const tabs = within(dialog).getByRole("tablist", { name: "Secciones" });
+    expect(
+      within(tabs)
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent),
+    ).toEqual(["Perfil", "Servicios", "Sucursal y horario", "Ausencias"]);
+
+    const actions = /guardar|agregar ausencia/i;
+    const expectOneAction = (name: string) => {
+      expect(within(footerOf(dialog)).getAllByRole("button", { name: actions })).toHaveLength(1);
+      expect(within(dialog).getAllByRole("button", { name: actions })).toHaveLength(1);
+      expect(within(footerOf(dialog)).getByText(`Se guarda solo la pestaña ${name}.`)).toBeTruthy();
+    };
+
+    await within(dialog).findByLabelText("Nombre para mostrar");
+    expectOneAction("Perfil");
+
+    await openTab(user, dialog, "Servicios");
+    await within(dialog).findByRole("checkbox", { name: "Corte clásico" });
+    expectOneAction("Servicios");
+
+    await openTab(user, dialog, "Sucursal y horario");
+    await within(dialog).findByRole("group", { name: "Lunes" });
+    expectOneAction("Sucursal y horario");
+
+    await openTab(user, dialog, "Ausencias");
+    await within(dialog).findByRole("group", { name: "Desde" });
+    expect(within(footerOf(dialog)).getByRole("button", { name: "Agregar ausencia" })).toBeTruthy();
+    expectOneAction("Ausencias");
+  });
+
+  it("Perfil precarga el contacto de la ficha y guarda con PATCH", async () => {
     asCompanyManager();
     servicesBackend();
     const backend = staffBackend({
       professionals: [efrain],
+      contacts: { p1: { phone: "+50588881234", email: null } },
+    });
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    const phone = within(dialog).getByLabelText("Teléfono (opcional)");
+    await waitFor(() => expect(phone).toHaveProperty("value", "+50588881234"));
+    await user.type(within(dialog).getByLabelText("Correo (opcional)"), "efrain@ej.com");
+    await user.click(within(dialog).getByRole("switch", { name: "Atiende citas" }));
+    await user.click(within(footerOf(dialog)).getByRole("button", { name: "Guardar cambios" }));
+
+    await waitFor(() => expect(backend.patchedProfessionals).toHaveLength(1));
+    expect(backend.patchedProfessionals[0]).toEqual({
+      id: "p1",
+      body: {
+        display_name: "Don Efraín",
+        active: false,
+        phone: "+50588881234",
+        email: "efrain@ej.com",
+      },
+    });
+  });
+
+  it("el gerente de sucursal solo ve Sucursal y horario y Ausencias, sin contacto ni lectura de la ficha", async () => {
+    asBranchManager();
+    servicesBackend({ services: [corte] });
+    const backend = staffBackend({
+      professionals: [efrain],
+      contacts: { p1: { phone: "+50588881234", email: "efrain@ej.com" } },
+    });
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    const tabs = within(dialog).getByRole("tablist", { name: "Secciones" });
+    expect(
+      within(tabs)
+        .getAllByRole("tab")
+        .map((tab) => tab.textContent),
+    ).toEqual(["Sucursal y horario", "Ausencias"]);
+    await within(dialog).findByRole("group", { name: "Lunes" });
+    expect(within(dialog).queryByLabelText("Teléfono (opcional)")).toBeNull();
+    expect(within(dialog).queryByLabelText("Correo (opcional)")).toBeNull();
+
+    await openTab(user, dialog, "Ausencias");
+    await within(dialog).findByRole("group", { name: "Desde" });
+    expect(within(dialog).queryByLabelText("Teléfono (opcional)")).toBeNull();
+    expect(backend.professionalReads).toHaveLength(0);
+    expect(screen.queryByText("+50588881234")).toBeNull();
+  });
+
+  it("recepción no tiene botón de editar en el detalle (sin pestañas que escribir)", async () => {
+    signedInBackend({
+      me: meFixture({ role: "receptionist", permissions: STAFF_READER_PERMISSIONS, branch: centro }),
+      branches: [centro],
+    });
+    servicesBackend();
+    staffBackend({ professionals: [efrain] });
+    const { user } = await openProfessionals();
+
+    await user.click(await screen.findByRole("button", { name: "Ver Don Efraín" }));
+    const panel = await screen.findByRole("complementary", { name: "Don Efraín" });
+    expect(within(panel).queryByRole("button", { name: "Editar profesional" })).toBeNull();
+  });
+});
+
+describe("Profesionales: servicios agrupados por categoría (AC5)", () => {
+  const CATEGORIES = ["Barbería", "Cabello", "Color", "Spa", "Uñas"];
+  const sixty = CATEGORIES.flatMap((category, group) =>
+    Array.from({ length: 12 }, (_, index) =>
+      service(`c${group + 1}-${index + 1}`, `${category} ${String(index + 1).padStart(2, "0")}`, {
+        category,
+      }),
+    ),
+  );
+  // Paused: not offered, and it must not count in its group.
+  const paused = service("paused-1", "Barbería pausado", { category: "Barbería", active: false });
+
+  async function openServices(user: User) {
+    const dialog = await openEdit(user, "Don Efraín");
+    await openTab(user, dialog, "Servicios");
+    await within(dialog).findByRole("group", { name: "Uñas" });
+    return dialog;
+  }
+
+  it("60 servicios en dos páginas de cursor: 5 grupos con «x de N», seleccionar todos, solo seleccionados y PUT", async () => {
+    asCompanyManager();
+    const services = servicesBackend({ services: [...sixty, paused], pageSize: 50 });
+    const backend = staffBackend({
+      professionals: [{ ...efrain, service_ids: ["c1-1"] }],
+    });
+    const { user } = await openProfessionals();
+
+    const dialog = await openServices(user);
+    expect(services.listQueries.some((query) => query.includes("after=50"))).toBe(true);
+    const groups = within(dialog).getAllByRole("group");
+    expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual(CATEGORIES);
+    expect(within(groups[0]!).getByText("1 de 12")).toBeTruthy();
+    for (const group of groups.slice(1)) expect(within(group).getByText("0 de 12")).toBeTruthy();
+    expect(within(dialog).queryByRole("checkbox", { name: "Barbería pausado" })).toBeNull();
+    expect(within(dialog).getAllByRole("checkbox")).toHaveLength(60);
+    expect(within(dialog).queryByRole("button", { name: /siguiente|anterior|cargar más/i }))
+      .toBeNull();
+
+    const cabello = within(dialog).getByRole("group", { name: "Cabello" });
+    await user.click(within(cabello).getByRole("button", { name: "Seleccionar todos" }));
+    expect(within(cabello).getByText("12 de 12")).toBeTruthy();
+    expect(within(cabello).getByRole("button", { name: "Quitar todos" })).toBeTruthy();
+
+    const onlySelected = within(dialog).getByRole("button", { name: "Solo seleccionados · 13" });
+    await user.click(onlySelected);
+    expect(onlySelected.getAttribute("aria-pressed")).toBe("true");
+    expect(within(dialog).getAllByRole("checkbox")).toHaveLength(13);
+    expect(
+      within(dialog)
+        .getAllByRole("group")
+        .map((group) => group.getAttribute("aria-label")),
+    ).toEqual(["Barbería", "Cabello"]);
+
+    await user.click(within(footerOf(dialog)).getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(backend.servicePuts).toHaveLength(1));
+    const sent = (backend.servicePuts[0]!.body as { service_ids: string[] }).service_ids;
+    expect([...sent].sort()).toEqual(
+      ["c1-1", ...Array.from({ length: 12 }, (_, index) => `c2-${index + 1}`)].sort(),
+    );
+  });
+
+  it("un servicio sin categoría va a «Sin categoría», al final; uno que presta y está pausado no se pierde (adversarial)", async () => {
+    asCompanyManager();
+    servicesBackend({
+      services: [
+        service("u1", "Manicure", { category: "Uñas" }),
+        service("n1", "Corte libre"),
+        service("b1", "Afeitado", { category: "Barbería" }),
+        paused,
+      ],
+    });
+    const backend = staffBackend({
+      professionals: [{ ...efrain, service_ids: ["paused-1"] }],
+    });
+    const { user } = await openProfessionals();
+
+    const dialog = await openServices(user);
+    expect(
+      within(dialog)
+        .getAllByRole("group")
+        .map((group) => group.getAttribute("aria-label")),
+    ).toEqual(["Barbería", "Uñas", "Sin categoría"]);
+    const none = within(dialog).getByRole("group", { name: "Sin categoría" });
+    expect(within(none).getByRole("checkbox", { name: "Corte libre" })).toBeTruthy();
+
+    await user.click(within(none).getByRole("checkbox", { name: "Corte libre" }));
+    await user.click(within(footerOf(dialog)).getByRole("button", { name: "Guardar cambios" }));
+    await waitFor(() => expect(backend.servicePuts).toHaveLength(1));
+    expect(backend.servicePuts[0]!.body).toEqual({ service_ids: ["paused-1", "n1"] });
+  });
+
+  it("«Contraer todo» pliega los grupos y la búsqueda filtra por nombre", async () => {
+    asCompanyManager();
+    servicesBackend({ services: sixty.slice(0, 24) });
+    staffBackend({ professionals: [efrain] });
+    const { user } = await openProfessionals();
+
+    const dialog = await openEdit(user, "Don Efraín");
+    await openTab(user, dialog, "Servicios");
+    await within(dialog).findByRole("group", { name: "Cabello" });
+
+    await user.click(within(dialog).getByRole("button", { name: "Contraer todo" }));
+    expect(within(dialog).queryAllByRole("checkbox")).toHaveLength(0);
+    await user.click(within(dialog).getByRole("button", { name: "Expandir todo" }));
+    expect(within(dialog).getAllByRole("checkbox")).toHaveLength(24);
+
+    await user.type(within(dialog).getByRole("searchbox", { name: "Buscar servicio" }), "cabello 0");
+    expect(within(dialog).getAllByRole("checkbox")).toHaveLength(9);
+    expect(within(dialog).queryByRole("group", { name: "Barbería" })).toBeNull();
+  });
+});
+
+describe("Profesionales: sucursal y horario", () => {
+  const bothBranches = { ...efrain, branch_ids: [ids.branchA, ids.branchA2] };
+
+  it("una sub-pestaña por sucursal asignada; abre en la del contexto y cambiar con cambios pide confirmar", async () => {
+    signedInBackend({
+      me: meFixture({ role: "company_manager", permissions: STAFF_MANAGER_PERMISSIONS, branch: norte }),
+      branches: [centro, norte],
+    });
+    servicesBackend();
+    const backend = staffBackend({
+      professionals: [bothBranches],
       schedules: { p1: [scheduleSlot("sl1", 1, "08:00", "12:00")] },
     });
     const { user } = await openProfessionals();
 
-    const panel = await openPanel(user, "Don Efraín");
-    const section = await within(panel).findByRole("region", { name: "Horario semanal" });
-    const monday = await within(section).findByRole("group", { name: "Lunes" });
-    await user.click(within(monday).getByRole("button", { name: "Agregar franja" }));
-    await user.click(within(section).getByRole("button", { name: "Guardar horario" }));
+    const dialog = await openEdit(user, "Don Efraín");
+    await openTab(user, dialog, "Sucursal y horario");
+    const picker = await within(dialog).findByRole("group", { name: "Horario semanal" });
+    const chips = within(picker).getAllByRole("button");
+    expect(chips.map((chip) => [chip.textContent, chip.getAttribute("aria-pressed")])).toEqual([
+      ["Sucursal Centro", "false"],
+      ["Sucursal Norte", "true"],
+    ]);
 
+    const monday = await within(dialog).findByRole("group", { name: "Lunes" });
+    await user.click(within(monday).getByRole("button", { name: "Agregar franja" }));
+    await user.click(within(picker).getByRole("button", { name: "Sucursal Centro" }));
+    const confirm = await screen.findByRole("alertdialog", { name: "¿Descartar los cambios?" });
+    await user.click(within(confirm).getByRole("button", { name: "Seguir editando" }));
+    expect(
+      within(picker).getByRole("button", { name: "Sucursal Norte" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    await user.click(within(footerOf(dialog)).getByRole("button", { name: "Guardar cambios" }));
     await waitFor(() => expect(backend.schedulePuts).toHaveLength(1));
-    expect(backend.schedulePuts[0]!.owner).toBe("p1");
-    expect(backend.schedulePuts[0]!.body).toEqual({
-      slots: [
-        { weekday: 1, starts_at_local: "08:00", ends_at_local: "12:00" },
-        { weekday: 1, starts_at_local: "12:00", ends_at_local: "16:00" },
-      ],
+    expect(backend.schedulePuts[0]).toEqual({
+      owner: "p1",
+      branchId: ids.branchA2,
+      body: {
+        slots: [
+          { weekday: 1, starts_at_local: "08:00", ends_at_local: "12:00" },
+          { weekday: 1, starts_at_local: "12:00", ends_at_local: "16:00" },
+        ],
+      },
     });
   });
 
-  it("si el profesional no está asignado a la sucursal de trabajo pide asignarlo y no carga horario ni ausencias", async () => {
-    asCompanyManager();
+  it("las casillas de sucursal asignan y quitan al instante, sin diálogo", async () => {
+    asCompanyManager(STAFF_MANAGER_PERMISSIONS, [centro, norte]);
     servicesBackend();
-    staffBackend({ professionals: [sandra] });
+    const backend = staffBackend({ professionals: [efrain] });
     const { user } = await openProfessionals();
 
-    const panel = await openPanel(user, "Sandra Gómez");
-    expect(await within(panel).findByText(/Asígnelo a Sucursal Centro/)).toBeTruthy();
-    expect(within(panel).queryByRole("region", { name: "Horario semanal" })).toBeNull();
-    expect(within(panel).queryByRole("region", { name: "Ausencias" })).toBeNull();
+    const dialog = await openEdit(user, "Don Efraín");
+    await openTab(user, dialog, "Sucursal y horario");
+    await user.click(await within(dialog).findByRole("checkbox", { name: "Sucursal Norte" }));
+    await waitFor(() =>
+      expect(backend.assignments).toEqual([{ branchId: ids.branchA2, professionalId: "p1" }]),
+    );
+    await user.click(within(dialog).getByRole("checkbox", { name: "Sucursal Centro" }));
+    await waitFor(() =>
+      expect(backend.unassignments).toEqual([{ branchId: ids.branchA, professionalId: "p1" }]),
+    );
+    expect(screen.queryByRole("dialog", { name: /Asignar a/ })).toBeNull();
   });
 
   it("un 422 por cruce con otra sucursal se muestra en el editor", async () => {
@@ -307,35 +604,33 @@ describe("Profesionales: horario por sucursal", () => {
     });
     const { user } = await openProfessionals();
 
-    const panel = await openPanel(user, "Don Efraín");
-    const section = await within(panel).findByRole("region", { name: "Horario semanal" });
-    await within(section).findByRole("group", { name: "Lunes" });
-    await user.click(within(section).getByRole("button", { name: "Guardar horario" }));
+    const dialog = await openEdit(user, "Don Efraín");
+    await openTab(user, dialog, "Sucursal y horario");
+    const monday = await within(dialog).findByRole("group", { name: "Lunes" });
+    await user.click(within(monday).getByRole("button", { name: "Agregar franja" }));
+    await user.click(within(footerOf(dialog)).getByRole("button", { name: "Guardar cambios" }));
 
-    expect(
-      await within(section).findByText(/Se cruza con el horario en otra sucursal/),
-    ).toBeTruthy();
+    expect(await within(dialog).findByText(/Se cruza con el horario en otra sucursal/)).toBeTruthy();
   });
 
-  it("sin schedule.manage el horario es de solo lectura (gate)", async () => {
+  it("sin professional.assign las casillas quedan deshabilitadas (gate)", async () => {
     asCompanyManager(
-      STAFF_MANAGER_PERMISSIONS.filter((item) => item !== "appointments.schedule.manage"),
+      STAFF_MANAGER_PERMISSIONS.filter((item) => item !== "appointments.professional.assign"),
     );
     servicesBackend();
-    staffBackend({
-      professionals: [efrain],
-      schedules: { p1: [scheduleSlot("sl1", 1, "08:00", "12:00")] },
-    });
+    staffBackend({ professionals: [efrain] });
     const { user } = await openProfessionals();
 
-    const panel = await openPanel(user, "Don Efraín");
-    const section = await within(panel).findByRole("region", { name: "Horario semanal" });
-    expect(await within(section).findByText("8:00 a. m. – 12:00 p. m.")).toBeTruthy();
-    expect(within(section).queryByRole("button", { name: "Guardar horario" })).toBeNull();
+    const dialog = await openEdit(user, "Don Efraín");
+    await openTab(user, dialog, "Sucursal y horario");
+    expect(await within(dialog).findByRole("checkbox", { name: "Sucursal Centro" })).toHaveProperty(
+      "disabled",
+      true,
+    );
   });
 });
 
-describe("Profesionales: ausencias de la sucursal", () => {
+describe("Profesionales: ausencias", () => {
   const vacation = timeOff(
     "t1",
     { professionalId: "p1" },
@@ -344,20 +639,23 @@ describe("Profesionales: ausencias de la sucursal", () => {
     "Vacaciones",
   );
 
-  it("lista las ausencias, crea una con la hora local convertida a UTC y borra otra", async () => {
+  it("el pie «Agregar ausencia» la crea en la hora de la sucursal; borrar es inmediato; sin inputs nativos (AC10)", async () => {
     asCompanyManager();
     servicesBackend();
     const backend = staffBackend({ professionals: [efrain], timeOffs: { p1: [vacation] } });
     const { user } = await openProfessionals();
 
-    const panel = await openPanel(user, "Don Efraín");
-    const section = await within(panel).findByRole("region", { name: "Ausencias" });
-    expect(await within(section).findByText("Vacaciones")).toBeTruthy();
+    const dialog = await openEdit(user, "Don Efraín");
+    await openTab(user, dialog, "Ausencias");
+    expect(await within(dialog).findByText("Vacaciones")).toBeTruthy();
+    expect(
+      dialog.querySelectorAll('input[type="date"], input[type="time"], input[type="datetime-local"]'),
+    ).toHaveLength(0);
 
-    await fillWallClock(user, section, "Desde", "2026-12-01T09:00");
-    await fillWallClock(user, section, "Hasta", "2026-12-01T12:00");
-    await user.type(within(section).getByLabelText("Motivo (opcional)"), "Capacitación");
-    await user.click(within(section).getByRole("button", { name: "Agregar ausencia" }));
+    await fillWallClock(user, dialog, "Desde", "2026-12-01T09:00");
+    await fillWallClock(user, dialog, "Hasta", "2026-12-01T12:00");
+    await user.type(within(dialog).getByLabelText("Motivo (opcional)"), "Capacitación");
+    await user.click(within(footerOf(dialog)).getByRole("button", { name: "Agregar ausencia" }));
 
     await waitFor(() => expect(backend.createdTimeOffs).toHaveLength(1));
     expect(backend.createdTimeOffs[0]).toEqual({
@@ -369,25 +667,10 @@ describe("Profesionales: ausencias de la sucursal", () => {
         reason: "Capacitación",
       },
     });
-    expect(await within(section).findByText("Capacitación")).toBeTruthy();
+    expect(await within(dialog).findByText("Capacitación")).toBeTruthy();
 
-    await user.click(within(section).getAllByRole("button", { name: /^Quitar ausencia/ })[0]!);
+    await user.click(within(dialog).getAllByRole("button", { name: /^Quitar ausencia/ })[0]!);
     await waitFor(() => expect(backend.deletedTimeOffs).toEqual([{ owner: "p1", id: "t1" }]));
-  });
-
-  it("sin time_off.manage se listan pero no hay formulario ni quitar (gate)", async () => {
-    asCompanyManager(STAFF_READER_PERMISSIONS);
-    servicesBackend();
-    staffBackend({ professionals: [efrain], timeOffs: { p1: [vacation] } });
-    const { user } = await openProfessionals();
-
-    // Changing nothing of the professional, the row opens the read view.
-    await user.click(await screen.findByRole("button", { name: "Ver Don Efraín" }));
-    const panel = await screen.findByRole("complementary", { name: "Don Efraín" });
-    const section = await within(panel).findByRole("region", { name: "Ausencias" });
-    expect(await within(section).findByText("Vacaciones")).toBeTruthy();
-    expect(within(section).queryByLabelText("Desde")).toBeNull();
-    expect(within(section).queryByRole("button", { name: /Quitar ausencia/ })).toBeNull();
   });
 });
 
@@ -409,175 +692,63 @@ describe("Profesionales: sin sucursales (ausencias pendientes y aviso al asignar
     ),
   ];
 
-  it("lista 'Ausencias pendientes' por la ruta de empresa y las borra", async () => {
+  it("la pestaña Ausencias lista las pendientes por la ruta de empresa y las borra", async () => {
     asCompanyManager();
     servicesBackend();
     const backend = staffBackend({ professionals: [sandra], companyTimeOffs: { p2: pending } });
     const { user } = await openProfessionals();
 
-    const panel = await openPanel(user, "Sandra Gómez");
-    const section = await within(panel).findByRole("region", { name: "Ausencias pendientes" });
+    const dialog = await openEdit(user, "Sandra Gómez");
+    await openTab(user, dialog, "Ausencias");
+    const section = await within(dialog).findByRole("region", { name: "Ausencias pendientes" });
     expect(await within(section).findByText("Cita médica")).toBeTruthy();
+    expect(within(section).getByText(/America\/Managua/)).toBeTruthy();
 
     await user.click(within(section).getAllByRole("button", { name: /^Quitar ausencia/ })[0]!);
     await waitFor(() =>
       expect(backend.deletedCompanyTimeOffs).toEqual([{ owner: "p2", id: "c1" }]),
     );
-    await waitFor(() => expect(within(section).queryByText("Cita médica")).toBeNull());
   });
 
-  it("sin sucursal elegida, las ausencias pendientes se muestran en la zona de la primera sucursal de la empresa y la nombran", async () => {
-    signedInBackend({
-      me: meFixture({
-        role: "company_manager",
-        permissions: STAFF_MANAGER_PERMISSIONS,
-        branch: null,
-      }),
-      branches: [{ ...centro, time_zone: "America/New_York" }],
-    });
-    servicesBackend();
-    staffBackend({ professionals: [sandra], companyTimeOffs: { p2: pending } });
-    const { user } = await openProfessionals();
-
-    const panel = await openPanel(user, "Sandra Gómez");
-    const section = await within(panel).findByRole("region", { name: "Ausencias pendientes" });
-
-    expect((await within(section).findAllByText(/10:00/)).length).toBeGreaterThan(0);
-    expect(within(section).getByText(/America\/New_York/)).toBeTruthy();
-  });
-
-  it("si la ruta de empresa responde 403 la sección no aparece", async () => {
-    asCompanyManager();
-    servicesBackend();
-    const backend = staffBackend({ professionals: [sandra], companyTimeOffsForbidden: true });
-    const { user } = await openProfessionals();
-
-    const panel = await openPanel(user, "Sandra Gómez");
-    await waitFor(() => expect(backend.companyTimeOffReads).toBeGreaterThan(0));
-    await within(panel).findByRole("region", { name: "Sucursales" });
-    expect(within(panel).queryByRole("region", { name: "Ausencias pendientes" })).toBeNull();
-  });
-
-  it("con una sucursal en el contexto (gerente de sucursal) ni se consulta la ruta de empresa ni aparece la sección", async () => {
-    asBranchManager();
-    servicesBackend();
-    const backend = staffBackend({ professionals: [sandra], companyTimeOffs: { p2: pending } });
-    const { user } = await openProfessionals();
-
-    const panel = await openPanel(user, "Sandra Gómez");
-    await within(panel).findByRole("region", { name: "Sucursales" });
-    expect(within(panel).queryByRole("region", { name: "Ausencias pendientes" })).toBeNull();
-    expect(backend.companyTimeOffReads).toBe(0);
-  });
-
-  it("un recepcionista con permisos de gestión de personal y sin sucursal en el contexto no consulta la ruta de empresa: no tiene time_off.read de empresa", async () => {
-    signedInBackend({
-      me: meFixture({
-        role: "receptionist",
-        permissions: STAFF_MANAGER_PERMISSIONS,
-        companyPermissions: [],
-        branch: null,
-      }),
-      branches: [centro],
-    });
-    servicesBackend();
-    const backend = staffBackend({ professionals: [sandra], companyTimeOffs: { p2: pending } });
-    const { user } = await openProfessionals();
-
-    const panel = await openPanel(user, "Sandra Gómez");
-    await within(panel).findByRole("region", { name: "Sucursales" });
-    expect(within(panel).queryByRole("region", { name: "Ausencias pendientes" })).toBeNull();
-    expect(backend.companyTimeOffReads).toBe(0);
-  });
-
-  it("asignar con ausencias legibles pide confirmar diciendo cuántas hay y que el gerente verá los motivos", async () => {
+  it("asignar con ausencias legibles pide confirmar diciendo cuántas hay; cancelar no asigna", async () => {
     asCompanyManager();
     servicesBackend();
     const backend = staffBackend({ professionals: [sandra], companyTimeOffs: { p2: pending } });
     const { user } = await openProfessionals();
 
-    const panel = await openPanel(user, "Sandra Gómez");
-    await within(panel).findByRole("region", { name: "Ausencias pendientes" });
-    await user.click(within(panel).getByRole("checkbox", { name: "Sucursal Centro" }));
+    const dialog = await openEdit(user, "Sandra Gómez");
+    await openTab(user, dialog, "Sucursal y horario");
+    const box = await within(dialog).findByRole("checkbox", { name: "Sucursal Centro" });
+    await waitFor(() => expect(box).toHaveProperty("disabled", false));
 
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText(/2 ausencias registradas/)).toBeTruthy();
-    expect(within(dialog).getByText(/verá sus motivos/)).toBeTruthy();
+    await user.click(box);
+    let confirm = await screen.findByRole("dialog", { name: "Asignar a Sucursal Centro" });
+    expect(within(confirm).getByText(/2 ausencias registradas/)).toBeTruthy();
+    await user.click(within(confirm).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Asignar a Sucursal Centro" })).toBeNull(),
+    );
     expect(backend.assignments).toHaveLength(0);
 
-    await user.click(within(dialog).getByRole("button", { name: "Asignar" }));
+    await user.click(box);
+    confirm = await screen.findByRole("dialog", { name: "Asignar a Sucursal Centro" });
+    await user.click(within(confirm).getByRole("button", { name: "Asignar" }));
     await waitFor(() =>
       expect(backend.assignments).toEqual([{ branchId: ids.branchA, professionalId: "p2" }]),
     );
   });
 
-  it("cancelar el diálogo no asigna", async () => {
-    asCompanyManager();
-    servicesBackend();
-    const backend = staffBackend({ professionals: [sandra], companyTimeOffs: { p2: pending } });
-    const { user } = await openProfessionals();
-
-    const panel = await openPanel(user, "Sandra Gómez");
-    await within(panel).findByRole("region", { name: "Ausencias pendientes" });
-    await user.click(within(panel).getByRole("checkbox", { name: "Sucursal Centro" }));
-    const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
-
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(backend.assignments).toHaveLength(0);
-  });
-
-  it("con la lista de empresa legible y vacía asigna directo, sin diálogo", async () => {
-    asCompanyManager();
-    servicesBackend();
-    const backend = staffBackend({ professionals: [sandra], companyTimeOffs: { p2: [] } });
-    const { user } = await openProfessionals();
-
-    const panel = await openPanel(user, "Sandra Gómez");
-    await waitFor(() => expect(backend.companyTimeOffReads).toBeGreaterThan(0));
-    const box = await within(panel).findByRole("checkbox", { name: "Sucursal Centro" });
-    // Assigning waits until the absences are known: only then can it tell "none" from "not loaded yet".
-    await waitFor(() => expect(box).toHaveProperty("disabled", false));
-    await user.click(box);
-
-    await waitFor(() => expect(backend.assignments).toHaveLength(1));
-    expect(screen.queryByRole("dialog")).toBeNull();
-  });
-
-  it("sin poder leerlas (403) el aviso es genérico y solo para profesionales sin sucursales", async () => {
-    asCompanyManager();
-    servicesBackend();
-    const backend = staffBackend({
-      professionals: [sandra, efrain],
-      companyTimeOffsForbidden: true,
-    });
-    const { user } = await openProfessionals();
-
-    const panel = await openPanel(user, "Sandra Gómez");
-    await waitFor(() => expect(backend.companyTimeOffReads).toBeGreaterThan(0));
-    const box = await within(panel).findByRole("checkbox", { name: "Sucursal Centro" });
-    await waitFor(() => expect(box).toHaveProperty("disabled", false));
-    await user.click(box);
-    const dialog = await screen.findByRole("dialog");
-    expect(
-      within(dialog).getByText(/Si este profesional tiene ausencias registradas/),
-    ).toBeTruthy();
-    expect(within(dialog).queryByText(/\d+ ausencias/)).toBeNull();
-    await user.click(within(dialog).getByRole("button", { name: "Asignar" }));
-    await waitFor(() => expect(backend.assignments).toHaveLength(1));
-  });
-
-  it("el gerente de sucursal asigna con el aviso genérico (no puede leer las de empresa)", async () => {
+  it("el gerente de sucursal asigna con el aviso genérico y no consulta la ruta de empresa", async () => {
     asBranchManager();
     servicesBackend();
     const backend = staffBackend({ professionals: [sandra], companyTimeOffs: { p2: pending } });
     const { user } = await openProfessionals();
 
-    const panel = await openPanel(user, "Sandra Gómez");
-    await user.click(await within(panel).findByRole("checkbox", { name: "Sucursal Centro" }));
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await openEdit(user, "Sandra Gómez");
+    await user.click(await within(dialog).findByRole("checkbox", { name: "Sucursal Centro" }));
+    const confirm = await screen.findByRole("dialog", { name: "Asignar a Sucursal Centro" });
     expect(
-      within(dialog).getByText(/Si este profesional tiene ausencias registradas/),
+      within(confirm).getByText(/Si este profesional tiene ausencias registradas/),
     ).toBeTruthy();
     expect(backend.companyTimeOffReads).toBe(0);
   });
